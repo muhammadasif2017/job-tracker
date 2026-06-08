@@ -1,3 +1,9 @@
+---
+name: security-audit
+description: This skill should be used when the user asks to "run a security audit", "security audit", "audit security", "check for vulnerabilities", "security review", or wants a comprehensive security analysis of the job-tracker project.
+version: 1.0.0
+---
+
 # Security Audit Skill
 
 Perform a comprehensive security audit of this full-stack job tracker project (NestJS backend + Next.js frontend) and produce a structured report.
