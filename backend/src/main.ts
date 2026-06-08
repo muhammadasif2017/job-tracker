@@ -28,18 +28,20 @@ async function bootstrap() {
   app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
   app.useGlobalFilters(new PrismaExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Job Tracker API')
-    .setDescription('REST API for the Job Tracker portfolio project')
-    .setVersion('1.0')
-    .addBearerAuth()
-    .addTag('auth', 'Authentication — credentials & OAuth')
-    .addTag('users', 'User profile management')
-    .addTag('jobs', 'Job application tracking')
-    .build();
+  if (config.get('NODE_ENV') !== 'production') {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Job Tracker API')
+      .setDescription('REST API for the Job Tracker portfolio project')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .addTag('auth', 'Authentication — credentials & OAuth')
+      .addTag('users', 'User profile management')
+      .addTag('jobs', 'Job application tracking')
+      .build();
 
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api/docs', app, document);
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api/docs', app, document);
+  }
 
   const port = config.get<number>('PORT') ?? 3001;
   await app.listen(port);

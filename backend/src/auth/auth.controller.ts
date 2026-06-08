@@ -16,6 +16,7 @@ import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
+import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
@@ -52,6 +53,13 @@ export class AuthController {
     return this.authService.refresh(user.sub, user.email, dto.refreshToken);
   }
 
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('exchange-code')
+  exchangeCode(@Body() dto: ExchangeCodeDto) {
+    return this.authService.exchangeOAuthCode(dto.code);
+  }
+
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   logout(@CurrentUser() user: { id: string }) {
@@ -78,9 +86,8 @@ export class AuthController {
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
-    res.redirect(
-      `${fe}/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
-    );
+    const code = this.authService.storeOAuthCode(tokens);
+    res.redirect(`${fe}/callback?code=${code}`);
   }
 
   // ── GitHub OAuth ──────────────────────────────────────────────────────────
@@ -98,8 +105,7 @@ export class AuthController {
   async githubCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
-    res.redirect(
-      `${fe}/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
-    );
+    const code = this.authService.storeOAuthCode(tokens);
+    res.redirect(`${fe}/callback?code=${code}`);
   }
 }

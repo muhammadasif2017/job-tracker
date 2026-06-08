@@ -23,7 +23,8 @@ export const useAuthStore = create<AuthState>()(
 
       setAuth: (user, accessToken, refreshToken) => {
         tokenStorage.set(accessToken, refreshToken);
-        document.cookie = 'jt_authed=1; path=/; max-age=604800; SameSite=Lax';
+        const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+        document.cookie = `jt_authed=1; path=/; max-age=604800; SameSite=Lax${secure}`;
         set({ user, accessToken, isAuthenticated: true });
       },
 

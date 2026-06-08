@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
 } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +12,11 @@ import { RegisterDto } from './dto/register.dto.js';
 
 @Injectable()
 export class AuthService {
+  private readonly oauthCodes = new Map<
+    string,
+    { accessToken: string; refreshToken: string; expiresAt: number }
+  >();
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
@@ -57,6 +63,19 @@ export class AuthService {
       where: { id: userId },
       data: { refreshToken: null },
     });
+  }
+
+  storeOAuthCode(tokens: { accessToken: string; refreshToken: string }): string {
+    const code = randomUUID();
+    this.oauthCodes.set(code, { ...tokens, expiresAt: Date.now() + 60_000 });
+    return code;
+  }
+
+  exchangeOAuthCode(code: string): { accessToken: string; refreshToken: string } {
+    const entry = this.oauthCodes.get(code);
+    this.oauthCodes.delete(code);
+    if (!entry || entry.expiresAt < Date.now()) throw new ForbiddenException();
+    return { accessToken: entry.accessToken, refreshToken: entry.refreshToken };
   }
 
   async handleOAuthUser(
