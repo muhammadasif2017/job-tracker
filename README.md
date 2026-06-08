@@ -47,14 +47,14 @@ cd job-tracker
 # Backend
 cd backend
 npm install
-cp .env.example .env          # then fill in your values
+# Create backend/.env — see "Environment variables" section below
 npx prisma migrate dev
 npm run start:dev             # http://localhost:3001
 
 # Frontend (separate terminal)
 cd frontend
 npm install
-cp .env.local.example .env.local
+# Create frontend/.env.local — see "Environment variables" section below
 npm run dev                   # http://localhost:3000
 ```
 
@@ -64,8 +64,8 @@ npm run dev                   # http://localhost:3000
 ```
 DATABASE_URL="postgresql://postgres:postgres@localhost:5432/job_tracker?schema=public"
 PORT=3001
-JWT_SECRET="change-this"
-JWT_REFRESH_SECRET="change-this-too"
+JWT_SECRET="<random string, minimum 32 characters>"
+JWT_REFRESH_SECRET="<random string, minimum 32 characters, different from above>"
 JWT_EXPIRES_IN="15m"
 JWT_REFRESH_EXPIRES_IN="7d"
 FRONTEND_URL="http://localhost:3000"
@@ -76,6 +76,8 @@ GOOGLE_CLIENT_SECRET=
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 ```
+
+> Generate secrets with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
 
 **`frontend/.env.local`**
 ```
@@ -107,7 +109,7 @@ Tests cover: register, login, token refresh, logout, job CRUD, status-change tim
 
 ## API Documentation
 
-Swagger UI is available at `http://localhost:3001/api/docs` when the backend is running.
+Swagger UI is available at `http://localhost:3001/api/docs` in development (`NODE_ENV !== 'production'`).
 
 ### Key endpoints
 
@@ -117,7 +119,8 @@ Swagger UI is available at `http://localhost:3001/api/docs` when the backend is 
 | POST | `/auth/login` | Login with credentials |
 | POST | `/auth/refresh` | Refresh access token |
 | POST | `/auth/logout` | Invalidate refresh token |
-| GET | `/auth/me` | Current user profile |
+| POST | `/auth/exchange-code` | Exchange OAuth one-time code for tokens |
+| GET | `/auth/me` | Current user (from JWT) |
 | GET | `/auth/google` | Start Google OAuth |
 | GET | `/auth/github` | Start GitHub OAuth |
 | GET | `/jobs` | List jobs (search, filter, paginate) |
@@ -128,9 +131,10 @@ Swagger UI is available at `http://localhost:3001/api/docs` when the backend is 
 | GET | `/jobs/:id/events` | Application timeline |
 | PATCH | `/jobs/:id` | Update job |
 | DELETE | `/jobs/:id` | Delete job |
-| PUT | `/users/profile` | Update profile |
-| PUT | `/users/password` | Change password |
-| DELETE | `/users/account` | Delete account |
+| GET | `/users/me` | Full user profile |
+| PATCH | `/users/me` | Update profile |
+| PATCH | `/users/me/password` | Change password |
+| DELETE | `/users/me` | Delete account |
 
 ## Project Structure
 
