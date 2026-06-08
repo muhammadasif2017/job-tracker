@@ -5,24 +5,29 @@ import {
   IsOptional,
   IsString,
   IsUrl,
+  MaxLength,
 } from 'class-validator';
 import { JobStatus } from '@prisma/client';
 
 export class CreateJobDto {
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   company: string;
 
   @IsString()
   @IsNotEmpty()
+  @MaxLength(200)
   position: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(200)
   location?: string;
 
   @IsOptional()
   @IsUrl()
+  @MaxLength(500)
   url?: string;
 
   @IsOptional()
@@ -31,6 +36,7 @@ export class CreateJobDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(5000)
   notes?: string;
 
   @IsOptional()

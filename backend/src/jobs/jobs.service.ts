@@ -138,31 +138,33 @@ export class JobsService {
   }
 
   async getStats(userId: string) {
-    const jobs = await this.prisma.job.findMany({
-      where: { userId },
-      select: { status: true, appliedAt: true },
-    });
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [counts, total, thisMonth] = await Promise.all([
+      this.prisma.job.groupBy({
+        by: ['status'],
+        where: { userId },
+        _count: { _all: true },
+      }),
+      this.prisma.job.count({ where: { userId } }),
+      this.prisma.job.count({ where: { userId, appliedAt: { gte: startOfMonth } } }),
+    ]);
 
     const byStatus = Object.values(JobStatus).reduce(
       (acc, s) => ({ ...acc, [s]: 0 }),
       {} as Record<JobStatus, number>,
     );
-    for (const job of jobs) byStatus[job.status]++;
-
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const thisMonth = jobs.filter((j) => j.appliedAt >= startOfMonth).length;
+    for (const row of counts) byStatus[row.status] = row._count._all;
 
     const responded =
       byStatus[JobStatus.INTERVIEWING] +
       byStatus[JobStatus.OFFER] +
       byStatus[JobStatus.REJECTED];
     const responseRate =
-      jobs.length > 0
-        ? Math.round((responded / jobs.length) * 1000) / 10
-        : 0;
+      total > 0 ? Math.round((responded / total) * 1000) / 10 : 0;
 
-    return { total: jobs.length, byStatus, thisMonth, responseRate };
+    return { total, byStatus, thisMonth, responseRate };
   }
 
   async exportCsv(userId: string, query: JobQueryDto) {
@@ -190,6 +192,7 @@ export class JobsService {
     const jobs = await this.prisma.job.findMany({
       where,
       orderBy: { appliedAt: 'desc' },
+      take: 10_000,
     });
 
     const escape = (v: string | null | undefined) =>
