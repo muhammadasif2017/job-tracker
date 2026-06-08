@@ -1,4 +1,4 @@
-# Security Review Skill
+# Security Audit Skill
 
 Perform a comprehensive security audit of this full-stack job tracker project (NestJS backend + Next.js frontend) and produce a structured report.
 
@@ -70,6 +70,12 @@ Cover all of the following areas in order. For each finding, assign a severity:
 ### 8. Dependency Security
 - Run a quick check: are there known high/critical vulnerabilities in `backend/package.json` or `frontend/package.json` dependencies? (Check `npm audit` output if available, or flag obviously outdated packages.)
 
+### 9. Security Logging & Monitoring (OWASP A09)
+- Are authentication failures (wrong password, invalid/expired JWT, failed refresh) logged with enough context (timestamp, IP if available) to detect brute-force attempts?
+- Are authorization failures (valid token but accessing another user's resource) logged?
+- Is `nestjs-pino` configured to redact sensitive fields beyond just `authorization` headers (e.g., `password`, `refreshToken` in request bodies)?
+- Are there any silent `catch` blocks in auth flows that swallow errors without logging?
+
 ---
 
 ## Report format
@@ -77,7 +83,7 @@ Cover all of the following areas in order. For each finding, assign a severity:
 Output a single structured report using this template:
 
 ```
-## Security Review Report
+## Security Audit Report
 **Project:** Job Tracker  
 **Date:** <today>  
 **Scope:** Full-stack (NestJS backend + Next.js 16 frontend)
