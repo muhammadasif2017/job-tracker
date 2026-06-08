@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: var(--font-geist);
+}
+
+@layer base {
+  :root {
+    color-scheme: light dark;
+  }
+  * {
+    border-color: theme(colors.slate.200);
+  }
+  .dark * {
+    border-color: theme(colors.slate.800);
+  }
+}

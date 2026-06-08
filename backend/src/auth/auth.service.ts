@@ -1,0 +1,113 @@
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service.js';
+import { RegisterDto } from './dto/register.dto.js';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    private prisma: PrismaService,
+    private jwt: JwtService,
+    private config: ConfigService,
+  ) {}
+
+  async validateLocalUser(email: string, password: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user || !user.password) return null;
+    const matches = await bcrypt.compare(password, user.password);
+    return matches ? user : null;
+  }
+
+  async register(dto: RegisterDto) {
+    const exists = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (exists) throw new BadRequestException('Email already in use');
+
+    const hashed = await bcrypt.hash(dto.password, 10);
+    const user = await this.prisma.user.create({
+      data: { name: dto.name, email: dto.email, password: hashed },
+    });
+
+    return this.issueTokens(user.id, user.email);
+  }
+
+  async login(userId: string, email: string) {
+    return this.issueTokens(userId, email);
+  }
+
+  async refresh(userId: string, email: string, rawRefreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user?.refreshToken) throw new ForbiddenException();
+
+    const valid = await bcrypt.compare(rawRefreshToken, user.refreshToken);
+    if (!valid) throw new ForbiddenException();
+
+    return this.issueTokens(userId, email);
+  }
+
+  async logout(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: null },
+    });
+  }
+
+  async handleOAuthUser(
+    provider: string,
+    providerAccountId: string,
+    email: string,
+    name: string,
+    avatarUrl?: string,
+  ) {
+    // 1. Find by provider account
+    const account = await this.prisma.account.findUnique({
+      where: { provider_providerAccountId: { provider, providerAccountId } },
+      include: { user: true },
+    });
+    if (account) return this.issueTokens(account.user.id, account.user.email);
+
+    // 2. Find by email and link, or create new user
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: { email, name, avatarUrl },
+      });
+    }
+
+    await this.prisma.account.create({
+      data: { provider, providerAccountId, userId: user.id },
+    });
+
+    return this.issueTokens(user.id, user.email);
+  }
+
+  private async issueTokens(userId: string, email: string) {
+    const payload = { sub: userId, email };
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwt.signAsync(payload, {
+        secret: this.config.get('JWT_SECRET'),
+        expiresIn: this.config.get('JWT_EXPIRES_IN'),
+      }),
+      this.jwt.signAsync(payload, {
+        secret: this.config.get('JWT_REFRESH_SECRET'),
+        expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
+      }),
+    ]);
+
+    const hashed = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashed },
+    });
+
+    return { accessToken, refreshToken };
+  }
+}
