@@ -9,7 +9,13 @@ import { toast } from 'sonner';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
-import { JOB_STATUSES, STATUS_LABELS, type Job } from '../../types';
+import {
+  JOB_PRIORITIES,
+  JOB_STATUSES,
+  PRIORITY_LABELS,
+  STATUS_LABELS,
+  type Job,
+} from '../../types';
 import api from '../../lib/api';
 
 const schema = z.object({
@@ -25,6 +31,7 @@ const schema = z.object({
     'REJECTED',
     'GHOSTED',
   ]),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   appliedAt: z.string().optional(),
   nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),
@@ -50,6 +57,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'APPLIED',
+      priority: 'MEDIUM',
       appliedAt: new Date().toISOString().split('T')[0],
     },
   });
@@ -63,6 +71,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               position: job.position,
               location: job.location ?? '',
               status: job.status,
+              priority: job.priority,
               url: job.url ?? '',
               appliedAt: job.appliedAt?.split('T')[0],
               nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
@@ -70,6 +79,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
             }
           : {
               status: 'APPLIED',
+              priority: 'MEDIUM',
               appliedAt: new Date().toISOString().split('T')[0],
             },
       );
@@ -140,6 +150,21 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               {JOB_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Priority
+            </label>
+            <select
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              {...register('priority')}
+            >
+              {JOB_PRIORITIES.map((p) => (
+                <option key={p} value={p}>
+                  {PRIORITY_LABELS[p]}
                 </option>
               ))}
             </select>

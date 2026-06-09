@@ -7,7 +7,7 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
-import { JobStatus } from '@prisma/client';
+import { JobStatus, JobPriority } from '@prisma/client';
 
 export class CreateJobDto {
   @IsString()
@@ -33,6 +33,10 @@ export class CreateJobDto {
   @IsOptional()
   @IsEnum(JobStatus)
   status?: JobStatus;
+
+  @IsOptional()
+  @IsEnum(JobPriority)
+  priority?: JobPriority;
 
   @IsOptional()
   @IsString()

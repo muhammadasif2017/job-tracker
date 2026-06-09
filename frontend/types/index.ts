@@ -6,6 +6,8 @@ export type JobStatus =
   | 'REJECTED'
   | 'GHOSTED';
 
+export type JobPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+
 export type JobEventType = 'CREATED' | 'STATUS_CHANGE';
 
 export interface JobEvent {
@@ -25,6 +27,7 @@ export interface Job {
   location?: string;
   url?: string;
   status: JobStatus;
+  priority: JobPriority;
   notes?: string;
   appliedAt: string;
   nextInterviewAt?: string;
@@ -82,6 +85,21 @@ export const JOB_STATUSES: JobStatus[] = [
   'REJECTED',
   'GHOSTED',
 ];
+
+export const JOB_PRIORITIES: JobPriority[] = ['LOW', 'MEDIUM', 'HIGH'];
+
+export const PRIORITY_LABELS: Record<JobPriority, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+};
+
+export const PRIORITY_COLORS: Record<JobPriority, string> = {
+  LOW: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  MEDIUM:
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+};
 
 export const STATUS_LABELS: Record<JobStatus, string> = {
   WISHLIST: 'Wishlist',

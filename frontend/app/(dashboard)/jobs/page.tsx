@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
-import { StatusBadge } from '../../../components/ui/badge';
+import { StatusBadge, PriorityBadge } from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
@@ -227,6 +227,7 @@ export default function JobsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={job.status} />
+                      <PriorityBadge priority={job.priority} />
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {formatDate(job.appliedAt)}

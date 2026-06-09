@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { JobStatus, JobEventType } from '@prisma/client';
+import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
 
 @Injectable()
 export class JobsService {
@@ -18,6 +18,7 @@ export class JobsService {
         location: dto.location,
         url: dto.url || undefined,
         status: initialStatus,
+        priority: dto.priority ?? JobPriority.MEDIUM,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         nextInterviewAt: dto.nextInterviewAt
@@ -34,6 +35,7 @@ export class JobsService {
   async findAll(userId: string, query: JobQueryDto) {
     const {
       status,
+      priority,
       search,
       page = 1,
       limit = 10,
@@ -46,6 +48,7 @@ export class JobsService {
     const where = {
       userId,
       ...(status && { status }),
+      ...(priority && { priority }),
       ...(search && {
         OR: [
           { company: { contains: search, mode: 'insensitive' as const } },
@@ -101,6 +104,7 @@ export class JobsService {
         location: dto.location,
         url: dto.url,
         status: dto.status,
+        priority: dto.priority,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         nextInterviewAt:
@@ -169,11 +173,12 @@ export class JobsService {
   }
 
   async exportCsv(userId: string, query: JobQueryDto) {
-    const { status, search, dateFrom, dateTo } = query;
+    const { status, priority, search, dateFrom, dateTo } = query;
 
     const where = {
       userId,
       ...(status && { status }),
+      ...(priority && { priority }),
       ...(search && {
         OR: [
           { company: { contains: search, mode: 'insensitive' as const } },

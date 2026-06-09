@@ -10,12 +10,16 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { JobStatus } from '@prisma/client';
+import { JobPriority, JobStatus } from '@prisma/client';
 
 export class JobQueryDto {
   @IsOptional()
   @IsEnum(JobStatus)
   status?: JobStatus;
+
+  @IsOptional()
+  @IsEnum(JobPriority)
+  priority?: JobPriority;
 
   @IsOptional()
   @IsString()
