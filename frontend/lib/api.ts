@@ -42,6 +42,7 @@ api.interceptors.response.use(
     const refreshToken = tokenStorage.getRefresh();
     if (!refreshToken) {
       tokenStorage.clear();
+      document.cookie = 'jt_authed=; path=/; max-age=0';
       window.location.href = '/login';
       return Promise.reject(error);
     }
@@ -58,6 +59,7 @@ api.interceptors.response.use(
     } catch (err) {
       processQueue(err, null);
       tokenStorage.clear();
+      document.cookie = 'jt_authed=; path=/; max-age=0';
       window.location.href = '/login';
       return Promise.reject(err);
     } finally {
