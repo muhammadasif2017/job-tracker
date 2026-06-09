@@ -109,3 +109,35 @@ For off-box durability, sync `~/job-tracker-backups` to **Oracle Object Storage*
 git pull
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
+
+## Automated deploys (GitHub Actions)
+
+`.github/workflows/deploy.yml` SSHes into the VM on every push to `main` and runs the
+same pull + rebuild. The image build happens **on the VM** (which is Arm64), so CI only
+needs SSH access — no registry or cross-arch build.
+
+**One-time setup:**
+
+1. Make sure the repo is already cloned at the deploy path on the VM (default
+   `~/job-tracker`) with `.env` in place — the workflow updates an existing checkout, it
+   does not bootstrap a fresh one.
+
+2. Create a dedicated deploy key on the VM and authorize it:
+
+   ```bash
+   ssh-keygen -t ed25519 -f ~/deploy_key -N ""
+   cat ~/deploy_key.pub >> ~/.ssh/authorized_keys
+   cat ~/deploy_key            # copy this PRIVATE key into the secret below
+   ```
+
+3. In GitHub → Settings → Secrets and variables → Actions, add:
+
+   | Kind | Name | Value |
+   |---|---|---|
+   | Secret | `SSH_HOST` | VM public IPv4 |
+   | Secret | `SSH_USER` | `ubuntu` |
+   | Secret | `SSH_PRIVATE_KEY` | contents of `~/deploy_key` |
+   | Secret | `SSH_PORT` | `22` (optional; defaults to 22) |
+   | Variable | `DEPLOY_PATH` | repo path on the VM (optional; defaults to `~/job-tracker`) |
+
+Trigger manually anytime from the **Actions** tab (workflow_dispatch) or just push to `main`.
