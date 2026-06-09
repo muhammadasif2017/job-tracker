@@ -1,6 +1,7 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -35,21 +36,39 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
 
   const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: job
-      ? {
-          ...job,
-          appliedAt: job.appliedAt?.split('T')[0],
-          nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
-          url: job.url ?? '',
-        }
-      : { status: 'APPLIED', appliedAt: new Date().toISOString().split('T')[0] },
+    defaultValues: { status: 'APPLIED', appliedAt: new Date().toISOString().split('T')[0] },
   });
 
+  useEffect(() => {
+    if (open) {
+      reset(
+        job
+          ? {
+              company: job.company,
+              position: job.position,
+              location: job.location ?? '',
+              status: job.status,
+              url: job.url ?? '',
+              appliedAt: job.appliedAt?.split('T')[0],
+              nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
+              notes: job.notes ?? '',
+            }
+          : { status: 'APPLIED', appliedAt: new Date().toISOString().split('T')[0] },
+      );
+    }
+  }, [open, job, reset]);
+
   const mutation = useMutation({
-    mutationFn: (data: FormData) =>
-      isEdit
-        ? api.patch(`/jobs/${job.id}`, data).then((r) => r.data)
-        : api.post('/jobs', data).then((r) => r.data),
+    mutationFn: (data: FormData) => {
+      const payload = {
+        ...data,
+        url: data.url || undefined,
+        nextInterviewAt: data.nextInterviewAt || undefined,
+      };
+      return isEdit
+        ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
+        : api.post('/jobs', payload).then((r) => r.data);
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });

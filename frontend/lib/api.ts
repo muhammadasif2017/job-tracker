@@ -38,6 +38,11 @@ api.interceptors.response.use(
       });
     }
 
+    // Auth endpoint failures (login, register) should surface to the caller
+    if (original.url?.match(/\/auth\/(login|register)$/)) {
+      return Promise.reject(error);
+    }
+
     original._retry = true;
     isRefreshing = true;
 
