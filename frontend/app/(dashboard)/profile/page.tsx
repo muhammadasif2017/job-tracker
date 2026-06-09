@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -21,11 +21,17 @@ const passwordSchema = z.object({
 }).refine((d) => d.newPassword === d.confirm, { message: "Passwords don't match", path: ['confirm'] });
 
 export default function ProfilePage() {
-  const { user, setUser, logout } = useAuthStore();
+  const { user: storeUser, setUser, logout } = useAuthStore();
   const router = useRouter();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const profileForm = useForm({ resolver: zodResolver(profileSchema), defaultValues: { name: user?.name ?? '' } });
+  const { data: profile } = useQuery({
+    queryKey: ['profile'],
+    queryFn: () => api.get('/users/me').then((r) => r.data),
+  });
+  const user = profile ?? storeUser;
+
+  const profileForm = useForm({ resolver: zodResolver(profileSchema), defaultValues: { name: storeUser?.name ?? '' } });
   const passwordForm = useForm({ resolver: zodResolver(passwordSchema) });
 
   const updateProfile = useMutation({
@@ -46,7 +52,7 @@ export default function ProfilePage() {
     onError: () => toast.error('Failed to delete account'),
   });
 
-  const hasPassword = !user?.connectedProviders?.length || user.connectedProviders.length < 1;
+  const hasPassword = !profile || !profile.connectedProviders?.length;
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
