@@ -1,25 +1,10 @@
 # Production stack for a single VM (e.g. Oracle Cloud A1) — Caddy terminates TLS,
-# only ports 80/443 are exposed; app + DB stay on the internal Docker network.
+# only ports 80/443 are exposed. Postgres is hosted on Neon (managed, free tier),
+# so there is no database container here.
 #
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 #
 services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    volumes:
-      # Named volume survives `docker compose down`; only `down -v` would wipe it.
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   backend:
     build:
       context: ./backend
@@ -28,7 +13,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      # Neon connection string (with ?sslmode=require). Used by the app and by
+      # `prisma migrate deploy` on startup.
+      DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
@@ -38,9 +25,6 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-placeholder}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-placeholder}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-placeholder}
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   frontend:
     build:
@@ -72,6 +56,5 @@ services:
       - backend
 
 volumes:
-  postgres_data:
   caddy_data:
   caddy_config:

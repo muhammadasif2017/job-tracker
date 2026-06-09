@@ -1,18 +1,21 @@
 # Deploying to Oracle Cloud (Always-Free A1) with DuckDNS + Caddy
 
-A single Arm VM runs the whole stack via `docker-compose.prod.yml`: Postgres, the NestJS
-backend, the Next.js frontend, and Caddy (which terminates HTTPS for two DuckDNS subdomains).
+A single Arm VM runs the app via `docker-compose.prod.yml`: the NestJS backend, the Next.js
+frontend, and Caddy (which terminates HTTPS for two DuckDNS subdomains). **Postgres is hosted
+on [Neon](https://neon.tech)** (managed, free tier) — keeping the database off the VM means a
+reclaimed/recreated VM never loses data, and Neon handles backups for you.
 
 > **Staying $0 after the 30-day trial.** When the trial ends, the account converts to
 > **Always Free** and anything inside these limits keeps running for free; resources beyond
-> them are stopped/reclaimed. This whole stack runs on **one** VM with no managed services, so
-> it stays free as long as you keep within:
+> them are stopped/reclaimed. This stack uses **one** VM plus Neon's free tier, so it stays
+> free as long as you keep within:
 >
 > - **Compute:** ≤ **4 OCPU / 24 GB** total Ampere A1 (one VM here).
-> - **Storage:** ≤ **200 GB** total block/boot volume; **no volume backups** (they bill — the
->   `db-backup.sh` script does a local `pg_dump`, which is free).
+> - **Storage:** ≤ **200 GB** total block/boot volume on the VM.
 > - **Public IP:** use the **ephemeral** IP attached to the running VM. A _reserved_ IP left
 >   **unattached** is billed.
+> - **Neon:** the free project (0.5 GB storage) is plenty for this app and never touches your
+>   Oracle budget.
 > - **Don't** create a second VM/extra block volumes during the trial and forget them.
 >
 > Do **not** upgrade to Pay As You Go unless you accept that it removes these guardrails and
@@ -86,18 +89,28 @@ sudo usermod -aG docker $USER
 newgrp docker   # or log out / back in
 ```
 
-## 5. Configure and launch
+## 5. Create the Neon database
+
+1. Sign up at <https://neon.tech> and create a project (pick a region near your VM).
+2. Copy the **connection string** from _Connection Details_ — it ends with `?sslmode=require`.
+   For one long-running server, the **direct** (non-pooled) string is fine.
+3. You'll paste it as `DATABASE_URL` in the next step.
+
+Neon takes automatic backups and supports point-in-time restore, so there's no backup cron to
+run. The backend applies the schema itself via `prisma migrate deploy` on startup.
+
+## 6. Configure and launch
 
 ```bash
 git clone <your-repo-url> job-tracker && cd job-tracker
 cp .env.deploy.example .env
-nano .env        # fill in secrets + your DuckDNS domains (see notes below)
+nano .env        # fill in DATABASE_URL (Neon), secrets, and your DuckDNS domains (see notes below)
 
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
 
 The backend runs `prisma migrate deploy` automatically on startup, so the schema is
-applied on first boot. Watch logs with:
+applied to your Neon database on first boot. Watch logs with:
 
 ```bash
 docker compose -f docker-compose.prod.yml logs -f
@@ -105,13 +118,14 @@ docker compose -f docker-compose.prod.yml logs -f
 
 ### `.env` notes
 
+- `DATABASE_URL` — the Neon connection string, ending in `?sslmode=require`.
 - `FRONTEND_DOMAIN` / `BACKEND_DOMAIN` — hostnames only, **no** `https://` (Caddy uses these).
 - `FRONTEND_URL` / `NEXT_PUBLIC_API_URL` — full URLs **with** `https://`.
 - Generate secrets with `openssl rand -hex 32`.
 - `NEXT_PUBLIC_API_URL` is **baked into the frontend at build time**. If you change it later,
   rebuild: `docker compose -f docker-compose.prod.yml up -d --build frontend`.
 
-## 6. OAuth (optional)
+## 7. OAuth (optional)
 
 If using Google/GitHub login, set the provider callback URLs to:
 
@@ -120,28 +134,6 @@ If using Google/GitHub login, set the provider callback URLs to:
 
 and put the client IDs/secrets in `.env`. Left as `placeholder`, the server still boots
 with OAuth disabled.
-
-## 7. Backups (Oracle does NOT back up your data)
-
-Postgres lives on the named volume `postgres_data` — it survives `docker compose down`
-(but **not** `down -v`). For real safety, schedule the dump script:
-
-```bash
-chmod +x scripts/db-backup.sh
-crontab -e
-# Daily at 03:30, keep 7 days (writes to ~/job-tracker-backups):
-30 3 * * * /home/ubuntu/job-tracker/scripts/db-backup.sh >> /home/ubuntu/backup.log 2>&1
-```
-
-Restore a dump with:
-
-```bash
-gunzip -c ~/job-tracker-backups/job_tracker-YYYYMMDD-HHMMSS.sql.gz \
-  | docker compose -f docker-compose.prod.yml exec -T postgres psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"
-```
-
-For off-box durability, sync `~/job-tracker-backups` to **Oracle Object Storage**
-(also Always-Free) with the `oci` CLI.
 
 ## Updating after a code change
 
