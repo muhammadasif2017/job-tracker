@@ -17,8 +17,8 @@ export default function DashboardPage() {
   });
 
   const { data: recent } = useQuery<PaginatedJobs>({
-    queryKey: ['jobs', { limit: 5, sortBy: 'updatedAt' }],
-    queryFn: () => api.get('/jobs?limit=5&sortBy=updatedAt&sortOrder=desc').then((r) => r.data),
+    queryKey: ['jobs', { limit: 5, sortBy: 'createdAt' }],
+    queryFn: () => api.get('/jobs?limit=5&sortBy=createdAt&sortOrder=desc').then((r) => r.data),
   });
 
   return (
