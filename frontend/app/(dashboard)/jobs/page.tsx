@@ -24,9 +24,12 @@ import { formatDate } from '../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
+  JOB_PRIORITIES,
+  PRIORITY_LABELS,
   type Job,
   type PaginatedJobs,
   type JobStatus,
+  type JobPriority,
 } from '../../../types';
 import api from '../../../lib/api';
 
@@ -44,6 +47,7 @@ export default function JobsPage() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('');
+  const [priorityFilter, setPriorityFilter] = useState<JobPriority | ''>('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editJob, setEditJob] = useState<Job | undefined>();
@@ -57,10 +61,19 @@ export default function JobsPage() {
     sortOrder: 'desc',
     ...(debouncedSearch && { search: debouncedSearch }),
     ...(statusFilter && { status: statusFilter }),
+    ...(priorityFilter && { priority: priorityFilter }),
   });
 
   const { data, isLoading } = useQuery<PaginatedJobs>({
-    queryKey: ['jobs', { page, search: debouncedSearch, status: statusFilter }],
+    queryKey: [
+      'jobs',
+      {
+        page,
+        search: debouncedSearch,
+        status: statusFilter,
+        priority: priorityFilter,
+      },
+    ],
     queryFn: () => api.get(`/jobs?${params}`).then((r) => r.data),
   });
 
@@ -87,6 +100,7 @@ export default function JobsPage() {
       const exportParams = new URLSearchParams();
       if (debouncedSearch) exportParams.set('search', debouncedSearch);
       if (statusFilter) exportParams.set('status', statusFilter);
+      if (priorityFilter) exportParams.set('priority', priorityFilter);
       const res = await api.get(`/jobs/export?${exportParams}`, {
         responseType: 'blob',
       });
@@ -148,6 +162,21 @@ export default function JobsPage() {
             </option>
           ))}
         </select>
+        <select
+          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          value={priorityFilter}
+          onChange={(e) => {
+            setPriorityFilter(e.target.value as JobPriority | '');
+            setPage(1);
+          }}
+        >
+          <option value="">All priorities</option>
+          {JOB_PRIORITIES.map((p) => (
+            <option key={p} value={p}>
+              {PRIORITY_LABELS[p]}
+            </option>
+          ))}
+        </select>
         <div className="flex rounded-lg border border-slate-300 dark:border-slate-700">
           <button
             onClick={() => setView('list')}
@@ -175,6 +204,7 @@ export default function JobsPage() {
                   'Company',
                   'Position',
                   'Status',
+                  'Priority',
                   'Applied',
                   'Location',
                   '',
@@ -192,7 +222,7 @@ export default function JobsPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(6)].map((_, j) => (
+                    {[...Array(7)].map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-full" />
                       </td>
@@ -201,7 +231,7 @@ export default function JobsPage() {
                 ))
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-16 text-center text-slate-400">
+                  <td colSpan={7} className="py-16 text-center text-slate-400">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -227,6 +257,8 @@ export default function JobsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={job.status} />
+                    </td>
+                    <td className="px-4 py-3">
                       <PriorityBadge priority={job.priority} />
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
