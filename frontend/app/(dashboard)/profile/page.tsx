@@ -3,7 +3,7 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -23,6 +23,7 @@ const passwordSchema = z.object({
 export default function ProfilePage() {
   const { user: storeUser, setUser, logout } = useAuthStore();
   const router = useRouter();
+  const qc = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: profile } = useQuery({
@@ -36,12 +37,17 @@ export default function ProfilePage() {
 
   const updateProfile = useMutation({
     mutationFn: (data: { name: string }) => api.patch('/users/me', data).then((r) => r.data),
-    onSuccess: (updated) => { setUser(updated); toast.success('Profile updated'); },
+    onSuccess: (updated) => {
+      setUser(updated);
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Profile updated');
+    },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to update'),
   });
 
   const changePassword = useMutation({
-    mutationFn: (data: any) => api.patch('/users/me/password', data),
+    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string; confirm: string }) =>
+      api.patch('/users/me/password', { currentPassword, newPassword }),
     onSuccess: () => { toast.success('Password changed'); passwordForm.reset(); },
     onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to change password'),
   });

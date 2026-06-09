@@ -28,14 +28,14 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Throttle({ default: { ttl: 60000, limit: process.env.NODE_ENV === 'production' ? 10 : 100 } })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @Throttle({ default: { ttl: 60000, limit: process.env.NODE_ENV === 'production' ? 10 : 100 } })
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @Post('login')
