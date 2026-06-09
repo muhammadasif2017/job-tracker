@@ -5,12 +5,29 @@ backend, the Next.js frontend, and Caddy (which terminates HTTPS for two DuckDNS
 
 ## 1. Create the VM
 
-- Compute → Instances → **Create instance**.
-- Shape: **Ampere (Arm) — VM.Standard.A1.Flex**. 1–2 OCPU / 6–12 GB RAM is plenty.
-  (If you hit **"Out of host capacity"**, retry later or try another availability domain — A1 is in high demand.)
-- Image: **Canonical Ubuntu 22.04** (or 24.04).
-- Add your **SSH public key** during creation (you can't easily add it later).
-- Note the **public IPv4** address.
+Compute → **Instances** → **Create instance**, then set:
+
+- **Image:** _Change image_ → **Canonical Ubuntu 24.04 Minimal — aarch64**. The `aarch64`/Arm
+  build is required for the A1 shape (the default x86 image won't boot on it).
+- **Shape:** _Change shape_ → **Ampere** → **VM.Standard.A1.Flex**. Always-Free max is
+  **4 OCPU / 24 GB RAM** — allocate the full amount (it's free), or 1–2 OCPU if you plan to
+  split across multiple instances later.
+- **Capacity type:** choose **On-demand** (not _Preemptible_) so the VM isn't stopped under load.
+- **Security:** leave _Shielded instance_ and _Confidential computing_ **off** — they complicate
+  Arm shapes and aren't needed here.
+- **Networking:** _Create new VCN_ with a **public subnet**, and ensure **Assign a public IPv4
+  address** is **On**.
+- **SSH keys:** paste your own public key, **or** pick _Generate a key pair for me_ and
+  **download the private key now** — you can't retrieve it after creation.
+- **Boot volume (optional):** tick _Specify a custom boot volume size_ and set **200 GB** to use
+  the full free storage quota (default is ~47 GB).
+- Click **Create**, then note the **public IPv4** address.
+
+> **"Out of host capacity"?** A1 is in high demand. Try a different **Availability Domain**
+> (AD-1/2/3) in the _Placement_ section, retry over a few hours, or upgrade the tenancy to
+> **Pay As You Go** — you stay within the same Always-Free A1 limits but get provisioning
+> priority. (PAYG also exempts you from the idle-reclaim policy: Always-Free instances under
+> 20% CPU/network/RAM for 7 days can be reclaimed.)
 
 ## 2. Open the firewall — BOTH layers (the classic gotcha)
 
@@ -27,6 +44,8 @@ SSH in and run:
 ```bash
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 80 -j ACCEPT
 sudo iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
+# On the Minimal image, install the persistence tool if it's missing:
+command -v netfilter-persistent >/dev/null || sudo apt-get update && sudo apt-get install -y iptables-persistent
 sudo netfilter-persistent save
 ```
 
@@ -41,6 +60,8 @@ If you skip (b), the cloud firewall looks open but connections still hang.
 ## 4. Install Docker
 
 ```bash
+# The Minimal image may lack git/curl — install them first.
+sudo apt-get update && sudo apt-get install -y git curl
 curl -fsSL https://get.docker.com | sudo sh
 sudo usermod -aG docker $USER
 newgrp docker   # or log out / back in
