@@ -14,11 +14,16 @@ import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 
 const profileSchema = z.object({ name: z.string().min(1, 'Name is required') });
-const passwordSchema = z.object({
-  currentPassword: z.string().min(1, 'Required'),
-  newPassword: z.string().min(8, 'Min 8 characters'),
-  confirm: z.string(),
-}).refine((d) => d.newPassword === d.confirm, { message: "Passwords don't match", path: ['confirm'] });
+const passwordSchema = z
+  .object({
+    currentPassword: z.string().min(1, 'Required'),
+    newPassword: z.string().min(8, 'Min 8 characters'),
+    confirm: z.string(),
+  })
+  .refine((d) => d.newPassword === d.confirm, {
+    message: "Passwords don't match",
+    path: ['confirm'],
+  });
 
 export default function ProfilePage() {
   const { user: storeUser, setUser, logout } = useAuthStore();
@@ -32,29 +37,47 @@ export default function ProfilePage() {
   });
   const user = profile ?? storeUser;
 
-  const profileForm = useForm({ resolver: zodResolver(profileSchema), defaultValues: { name: storeUser?.name ?? '' } });
+  const profileForm = useForm({
+    resolver: zodResolver(profileSchema),
+    defaultValues: { name: storeUser?.name ?? '' },
+  });
   const passwordForm = useForm({ resolver: zodResolver(passwordSchema) });
 
   const updateProfile = useMutation({
-    mutationFn: (data: { name: string }) => api.patch('/users/me', data).then((r) => r.data),
+    mutationFn: (data: { name: string }) =>
+      api.patch('/users/me', data).then((r) => r.data),
     onSuccess: (updated) => {
       setUser(updated);
       qc.invalidateQueries({ queryKey: ['profile'] });
       toast.success('Profile updated');
     },
-    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to update'),
+    onError: (e: any) =>
+      toast.error(e.response?.data?.message ?? 'Failed to update'),
   });
 
   const changePassword = useMutation({
-    mutationFn: ({ currentPassword, newPassword }: { currentPassword: string; newPassword: string; confirm: string }) =>
-      api.patch('/users/me/password', { currentPassword, newPassword }),
-    onSuccess: () => { toast.success('Password changed'); passwordForm.reset(); },
-    onError: (e: any) => toast.error(e.response?.data?.message ?? 'Failed to change password'),
+    mutationFn: ({
+      currentPassword,
+      newPassword,
+    }: {
+      currentPassword: string;
+      newPassword: string;
+      confirm: string;
+    }) => api.patch('/users/me/password', { currentPassword, newPassword }),
+    onSuccess: () => {
+      toast.success('Password changed');
+      passwordForm.reset();
+    },
+    onError: (e: any) =>
+      toast.error(e.response?.data?.message ?? 'Failed to change password'),
   });
 
   const deleteAccount = useMutation({
     mutationFn: () => api.delete('/users/me'),
-    onSuccess: () => { logout(); router.replace('/login'); },
+    onSuccess: () => {
+      logout();
+      router.replace('/login');
+    },
     onError: () => toast.error('Failed to delete account'),
   });
 
@@ -78,9 +101,18 @@ export default function ProfilePage() {
             <p className="text-sm text-slate-500">{user?.email}</p>
           </div>
         </div>
-        <form onSubmit={profileForm.handleSubmit((d) => updateProfile.mutate(d))} className="space-y-4">
-          <Input label="Name" error={profileForm.formState.errors.name?.message} {...profileForm.register('name')} />
-          <Button type="submit" size="sm" loading={updateProfile.isPending}>Save changes</Button>
+        <form
+          onSubmit={profileForm.handleSubmit((d) => updateProfile.mutate(d))}
+          className="space-y-4"
+        >
+          <Input
+            label="Name"
+            error={profileForm.formState.errors.name?.message}
+            {...profileForm.register('name')}
+          />
+          <Button type="submit" size="sm" loading={updateProfile.isPending}>
+            Save changes
+          </Button>
         </form>
       </div>
 
@@ -92,10 +124,14 @@ export default function ProfilePage() {
             return (
               <div key={provider} className="flex items-center justify-between">
                 <div className="flex items-center gap-2 capitalize text-sm">
-                  <span className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                  <span
+                    className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  />
                   {provider}
                 </div>
-                <span className="text-xs text-slate-400">{connected ? 'Connected' : 'Not connected'}</span>
+                <span className="text-xs text-slate-400">
+                  {connected ? 'Connected' : 'Not connected'}
+                </span>
               </div>
             );
           })}
@@ -105,25 +141,66 @@ export default function ProfilePage() {
       {hasPassword && (
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
           <h2 className="font-medium">Change Password</h2>
-          <form onSubmit={passwordForm.handleSubmit((d) => changePassword.mutate(d))} className="space-y-4">
-            <Input label="Current password" type="password" error={passwordForm.formState.errors.currentPassword?.message} {...passwordForm.register('currentPassword')} />
-            <Input label="New password" type="password" error={passwordForm.formState.errors.newPassword?.message} {...passwordForm.register('newPassword')} />
-            <Input label="Confirm new password" type="password" error={passwordForm.formState.errors.confirm?.message} {...passwordForm.register('confirm')} />
-            <Button type="submit" size="sm" loading={changePassword.isPending}>Update password</Button>
+          <form
+            onSubmit={passwordForm.handleSubmit((d) =>
+              changePassword.mutate(d),
+            )}
+            className="space-y-4"
+          >
+            <Input
+              label="Current password"
+              type="password"
+              error={passwordForm.formState.errors.currentPassword?.message}
+              {...passwordForm.register('currentPassword')}
+            />
+            <Input
+              label="New password"
+              type="password"
+              error={passwordForm.formState.errors.newPassword?.message}
+              {...passwordForm.register('newPassword')}
+            />
+            <Input
+              label="Confirm new password"
+              type="password"
+              error={passwordForm.formState.errors.confirm?.message}
+              {...passwordForm.register('confirm')}
+            />
+            <Button type="submit" size="sm" loading={changePassword.isPending}>
+              Update password
+            </Button>
           </form>
         </div>
       )}
 
       <div className="rounded-xl border border-red-200 bg-white p-5 dark:border-red-900 dark:bg-slate-900 space-y-3">
-        <h2 className="font-medium text-red-600 dark:text-red-400">Danger Zone</h2>
-        <p className="text-sm text-slate-500">This will permanently delete your account and all job data.</p>
-        <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>Delete account</Button>
+        <h2 className="font-medium text-red-600 dark:text-red-400">
+          Danger Zone
+        </h2>
+        <p className="text-sm text-slate-500">
+          This will permanently delete your account and all job data.
+        </p>
+        <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+          Delete account
+        </Button>
       </div>
 
-      <Modal open={deleteOpen} onClose={() => setDeleteOpen(false)} title="Delete account?" description="This action cannot be undone. All your jobs and data will be permanently deleted.">
+      <Modal
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        title="Delete account?"
+        description="This action cannot be undone. All your jobs and data will be permanently deleted."
+      >
         <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>Cancel</Button>
-          <Button variant="danger" loading={deleteAccount.isPending} onClick={() => deleteAccount.mutate()}>Yes, delete my account</Button>
+          <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={deleteAccount.isPending}
+            onClick={() => deleteAccount.mutate()}
+          >
+            Yes, delete my account
+          </Button>
         </div>
       </Modal>
     </div>

@@ -32,14 +32,19 @@ test.describe('Dashboard', () => {
     await expect(page.getByText('No data yet')).toBeVisible();
   });
 
-  test('increments total applications after a job is added', async ({ page }) => {
+  test('increments total applications after a job is added', async ({
+    page,
+  }) => {
     const job = await createTestJob(user.accessToken);
 
     await injectAuth(page, user);
     await page.goto('/');
 
     // The "Total Applications" card value
-    const totalCard = page.locator('div').filter({ hasText: /^Total Applications/ }).first();
+    const totalCard = page
+      .locator('div')
+      .filter({ hasText: /^Total Applications/ })
+      .first();
     await expect(totalCard.getByText('1')).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id);

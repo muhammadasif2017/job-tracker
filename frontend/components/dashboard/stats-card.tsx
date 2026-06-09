@@ -10,9 +10,21 @@ interface StatsCardProps {
   loading?: boolean;
 }
 
-export function StatsCard({ label, value, sub, icon, className, loading }: StatsCardProps) {
+export function StatsCard({
+  label,
+  value,
+  sub,
+  icon,
+  className,
+  loading,
+}: StatsCardProps) {
   return (
-    <div className={cn('rounded-xl border bg-white p-5 dark:bg-slate-900', className)}>
+    <div
+      className={cn(
+        'rounded-xl border bg-white p-5 dark:bg-slate-900',
+        className,
+      )}
+    >
       <div className="flex items-start justify-between">
         <p className="text-sm font-medium text-slate-500">{label}</p>
         <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">

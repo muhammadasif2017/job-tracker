@@ -17,7 +17,14 @@ const schema = z.object({
   position: z.string().min(1, 'Position is required'),
   location: z.string().optional(),
   url: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
-  status: z.enum(['WISHLIST', 'APPLIED', 'INTERVIEWING', 'OFFER', 'REJECTED', 'GHOSTED']),
+  status: z.enum([
+    'WISHLIST',
+    'APPLIED',
+    'INTERVIEWING',
+    'OFFER',
+    'REJECTED',
+    'GHOSTED',
+  ]),
   appliedAt: z.string().optional(),
   nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),
@@ -34,9 +41,17 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { status: 'APPLIED', appliedAt: new Date().toISOString().split('T')[0] },
+    defaultValues: {
+      status: 'APPLIED',
+      appliedAt: new Date().toISOString().split('T')[0],
+    },
   });
 
   useEffect(() => {
@@ -53,7 +68,10 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
               notes: job.notes ?? '',
             }
-          : { status: 'APPLIED', appliedAt: new Date().toISOString().split('T')[0] },
+          : {
+              status: 'APPLIED',
+              appliedAt: new Date().toISOString().split('T')[0],
+            },
       );
     }
   }, [open, job, reset]);
@@ -77,37 +95,75 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
       reset();
       onClose();
     },
-    onError: (err: any) => toast.error(err.response?.data?.message ?? 'Something went wrong'),
+    onError: (err: any) =>
+      toast.error(err.response?.data?.message ?? 'Something went wrong'),
   });
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? 'Edit Job' : 'Add Job'}>
-      <form onSubmit={handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? 'Edit Job' : 'Add Job'}
+    >
+      <form
+        onSubmit={handleSubmit((d) => mutation.mutate(d))}
+        className="space-y-4"
+      >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Company *" placeholder="Google" error={errors.company?.message} {...register('company')} />
-          <Input label="Position *" placeholder="Senior Engineer" error={errors.position?.message} {...register('position')} />
+          <Input
+            label="Company *"
+            placeholder="Google"
+            error={errors.company?.message}
+            {...register('company')}
+          />
+          <Input
+            label="Position *"
+            placeholder="Senior Engineer"
+            error={errors.position?.message}
+            {...register('position')}
+          />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Location" placeholder="Remote / NYC" {...register('location')} />
+          <Input
+            label="Location"
+            placeholder="Remote / NYC"
+            {...register('location')}
+          />
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Status</label>
+            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Status
+            </label>
             <select
               className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               {...register('status')}
             >
               {JOB_STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                <option key={s} value={s}>
+                  {STATUS_LABELS[s]}
+                </option>
               ))}
             </select>
           </div>
         </div>
-        <Input label="Job URL" type="url" placeholder="https://..." error={errors.url?.message} {...register('url')} />
+        <Input
+          label="Job URL"
+          type="url"
+          placeholder="https://..."
+          error={errors.url?.message}
+          {...register('url')}
+        />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Applied Date" type="date" {...register('appliedAt')} />
-          <Input label="Next Interview Date" type="date" {...register('nextInterviewAt')} />
+          <Input
+            label="Next Interview Date"
+            type="date"
+            {...register('nextInterviewAt')}
+          />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">Notes</label>
+          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Notes
+          </label>
           <textarea
             rows={3}
             placeholder="Recruiter contact, notes…"
@@ -116,8 +172,12 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
           />
         </div>
         <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={mutation.isPending}>{isEdit ? 'Save changes' : 'Add job'}</Button>
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={mutation.isPending}>
+            {isEdit ? 'Save changes' : 'Add job'}
+          </Button>
         </div>
       </form>
     </Modal>

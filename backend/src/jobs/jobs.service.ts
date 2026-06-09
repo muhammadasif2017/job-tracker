@@ -81,7 +81,9 @@ export class JobsService {
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
-    const job = await this.prisma.job.findFirst({ where: { id: jobId, userId } });
+    const job = await this.prisma.job.findFirst({
+      where: { id: jobId, userId },
+    });
     if (!job) throw new NotFoundException('Job not found');
     return job;
   }
@@ -145,7 +147,9 @@ export class JobsService {
         _count: { _all: true },
       }),
       this.prisma.job.count({ where: { userId } }),
-      this.prisma.job.count({ where: { userId, appliedAt: { gte: startOfMonth } } }),
+      this.prisma.job.count({
+        where: { userId, appliedAt: { gte: startOfMonth } },
+      }),
     ]);
 
     const byStatus = Object.values(JobStatus).reduce(

@@ -1,7 +1,11 @@
 import { Sidebar } from '../../components/layout/sidebar';
 import { ThemeToggle } from '../../components/layout/theme-toggle';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <div className="flex h-full">
       <Sidebar />

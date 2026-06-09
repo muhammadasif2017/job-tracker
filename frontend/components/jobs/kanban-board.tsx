@@ -1,16 +1,33 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from '@hello-pangea/dnd';
 import { Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { StatusBadge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { formatDate } from '../../lib/utils';
-import { JOB_STATUSES, STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus, type PaginatedJobs } from '../../types';
+import {
+  JOB_STATUSES,
+  STATUS_LABELS,
+  STATUS_DOT_COLORS,
+  type Job,
+  type JobStatus,
+  type PaginatedJobs,
+} from '../../types';
 import api from '../../lib/api';
 
-const KANBAN_COLS: JobStatus[] = ['WISHLIST', 'APPLIED', 'INTERVIEWING', 'OFFER'];
+const KANBAN_COLS: JobStatus[] = [
+  'WISHLIST',
+  'APPLIED',
+  'INTERVIEWING',
+  'OFFER',
+];
 
 interface KanbanBoardProps {
   onEdit: (job: Job) => void;
@@ -31,7 +48,12 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       await qc.cancelQueries({ queryKey: ['jobs'] });
       const prev = qc.getQueryData<PaginatedJobs>(['jobs', { limit: 100 }]);
       qc.setQueryData<PaginatedJobs>(['jobs', { limit: 100 }], (old) =>
-        old ? { ...old, data: old.data.map((j) => (j.id === id ? { ...j, status } : j)) } : old,
+        old
+          ? {
+              ...old,
+              data: old.data.map((j) => (j.id === id ? { ...j, status } : j)),
+            }
+          : old,
       );
       return { prev };
     },
@@ -58,7 +80,9 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0 space-y-3">
             <Skeleton className="h-6 w-32" />
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+            {[...Array(3)].map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
           </div>
         ))}
       </div>
@@ -66,7 +90,10 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
   }
 
   const jobsByStatus = KANBAN_COLS.reduce(
-    (acc, s) => ({ ...acc, [s]: data?.data.filter((j) => j.status === s) ?? [] }),
+    (acc, s) => ({
+      ...acc,
+      [s]: data?.data.filter((j) => j.status === s) ?? [],
+    }),
     {} as Record<JobStatus, Job[]>,
   );
 
@@ -76,7 +103,10 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0">
             <div className="mb-3 flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full" style={{ background: STATUS_DOT_COLORS[col] }} />
+              <span
+                className="h-2 w-2 rounded-full"
+                style={{ background: STATUS_DOT_COLORS[col] }}
+              />
               <span className="text-sm font-medium">{STATUS_LABELS[col]}</span>
               <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                 {jobsByStatus[col].length}
@@ -98,17 +128,31 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                           {...drag.dragHandleProps}
                           className={`rounded-lg border bg-white p-3 shadow-sm dark:bg-slate-900 ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
                         >
-                          <p className="text-sm font-medium leading-tight">{job.company}</p>
-                          <p className="mt-0.5 text-xs text-slate-500">{job.position}</p>
+                          <p className="text-sm font-medium leading-tight">
+                            {job.company}
+                          </p>
+                          <p className="mt-0.5 text-xs text-slate-500">
+                            {job.position}
+                          </p>
                           <div className="mt-2 flex items-center justify-between">
-                            <span className="text-xs text-slate-400">{formatDate(job.appliedAt)}</span>
+                            <span className="text-xs text-slate-400">
+                              {formatDate(job.appliedAt)}
+                            </span>
                             <div className="flex gap-1">
                               {job.url && (
-                                <a href={job.url} target="_blank" rel="noopener noreferrer" className="rounded p-1 text-slate-400 hover:text-indigo-600">
+                                <a
+                                  href={job.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="rounded p-1 text-slate-400 hover:text-indigo-600"
+                                >
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
                               )}
-                              <button onClick={() => onEdit(job)} className="rounded p-1 text-slate-400 hover:text-indigo-600">
+                              <button
+                                onClick={() => onEdit(job)}
+                                className="rounded p-1 text-slate-400 hover:text-indigo-600"
+                              >
                                 <Pencil className="h-3 w-3" />
                               </button>
                             </div>

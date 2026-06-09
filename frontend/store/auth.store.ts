@@ -38,7 +38,11 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'jt-auth',
-      partialize: (s) => ({ user: s.user, accessToken: s.accessToken, isAuthenticated: s.isAuthenticated }),
+      partialize: (s) => ({
+        user: s.user,
+        accessToken: s.accessToken,
+        isAuthenticated: s.isAuthenticated,
+      }),
     },
   ),
 );

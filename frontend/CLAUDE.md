@@ -87,11 +87,11 @@ Pure `localStorage` wrapper. Keys: `jt_access`, `jt_refresh`. Only the Axios int
 
 Persisted to `localStorage` under key `jt-auth`. Exposes:
 
-| Method | What it does |
-|---|---|
+| Method                                     | What it does                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------- |
 | `setAuth(user, accessToken, refreshToken)` | Writes to tokenStorage, sets `jt_authed` cookie (7d, SameSite=Lax), updates state |
-| `setUser(user)` | Updates user profile without touching tokens — used after profile edit |
-| `logout()` | Clears tokenStorage, expires cookie, resets state |
+| `setUser(user)`                            | Updates user profile without touching tokens — used after profile edit            |
+| `logout()`                                 | Clears tokenStorage, expires cookie, resets state                                 |
 
 **Always call `setAuth` after a successful login/OAuth/register** — it's the single place that syncs all three layers (tokenStorage, cookie, Zustand).
 
@@ -122,16 +122,16 @@ Handles concurrent 401s without duplicate refresh calls:
 
 Single source of truth for all shared types and UI constants:
 
-| Export | Type |
-|---|---|
-| `JobStatus` | Union: `'WISHLIST' \| 'APPLIED' \| 'INTERVIEWING' \| 'OFFER' \| 'REJECTED' \| 'GHOSTED'` |
-| `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces |
-| `JobStats` | `{ total, byStatus, thisMonth, responseRate }` |
-| `PaginatedJobs` | `{ data: Job[], meta: { total, page, limit, totalPages } }` |
-| `JOB_STATUSES` | Ordered array of all statuses |
-| `STATUS_LABELS` | Human-readable labels per status |
-| `STATUS_COLORS` | Tailwind classes per status (for `<StatusBadge>`) |
-| `STATUS_DOT_COLORS` | Hex colors per status (for Kanban column dots and charts) |
+| Export                                  | Type                                                                                     |
+| --------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `JobStatus`                             | Union: `'WISHLIST' \| 'APPLIED' \| 'INTERVIEWING' \| 'OFFER' \| 'REJECTED' \| 'GHOSTED'` |
+| `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces                                                                   |
+| `JobStats`                              | `{ total, byStatus, thisMonth, responseRate }`                                           |
+| `PaginatedJobs`                         | `{ data: Job[], meta: { total, page, limit, totalPages } }`                              |
+| `JOB_STATUSES`                          | Ordered array of all statuses                                                            |
+| `STATUS_LABELS`                         | Human-readable labels per status                                                         |
+| `STATUS_COLORS`                         | Tailwind classes per status (for `<StatusBadge>`)                                        |
+| `STATUS_DOT_COLORS`                     | Hex colors per status (for Kanban column dots and charts)                                |
 
 ---
 
@@ -185,19 +185,19 @@ Single source of truth for all shared types and UI constants:
 
 ## Utility Functions (`lib/utils.ts`)
 
-| Function | Usage |
-|---|---|
-| `cn(...classes)` | Merge Tailwind classes with conflict resolution (clsx + tailwind-merge) |
-| `formatDate(date)` | `'MMM d, yyyy'` — e.g. `Jun 9, 2026` |
-| `formatRelative(date)` | `'2 days ago'` style (date-fns `formatDistanceToNow`) |
+| Function               | Usage                                                                   |
+| ---------------------- | ----------------------------------------------------------------------- |
+| `cn(...classes)`       | Merge Tailwind classes with conflict resolution (clsx + tailwind-merge) |
+| `formatDate(date)`     | `'MMM d, yyyy'` — e.g. `Jun 9, 2026`                                    |
+| `formatRelative(date)` | `'2 days ago'` style (date-fns `formatDistanceToNow`)                   |
 
 ---
 
 ## Environment Variables
 
-| Variable | Required | Notes |
-|---|---|---|
-| `NEXT_PUBLIC_API_URL` | Yes | Backend base URL, e.g. `http://localhost:3001` |
+| Variable              | Required | Notes                                          |
+| --------------------- | -------- | ---------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | Yes      | Backend base URL, e.g. `http://localhost:3001` |
 
 ---
 

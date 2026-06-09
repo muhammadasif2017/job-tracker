@@ -17,7 +17,6 @@ describe('Job Tracker (e2e)', () => {
   let prisma: PrismaService;
   let accessToken: string;
   let refreshToken: string;
-  let userId: string;
   let jobId: string;
 
   beforeAll(async () => {
@@ -27,7 +26,11 @@ describe('Job Tracker (e2e)', () => {
 
     app = module.createNestApplication();
     app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }),
+      new ValidationPipe({
+        whitelist: true,
+        transform: true,
+        forbidNonWhitelisted: true,
+      }),
     );
     app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
     app.useGlobalFilters(new PrismaExceptionFilter());
@@ -54,12 +57,11 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body).toHaveProperty('refreshToken');
       accessToken = res.body.accessToken;
       refreshToken = res.body.refreshToken;
-      // Fetch the user to get the ID for cleanup
+      // Verify /auth/me returns the authenticated user
       const me = await request(app.getHttpServer())
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`);
       expect(me.body.email).toBe(EMAIL);
-      userId = me.body.id;
     });
 
     it('rejects duplicate email with 400', () =>
@@ -122,7 +124,11 @@ describe('Job Tracker (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/jobs')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ company: 'Stripe', position: 'Senior Engineer', status: 'APPLIED' })
+        .send({
+          company: 'Stripe',
+          position: 'Senior Engineer',
+          status: 'APPLIED',
+        })
         .expect(201);
 
       expect(res.body.company).toBe('Stripe');
@@ -161,7 +167,9 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(res.body.data.every((j: any) => j.status === 'APPLIED')).toBe(true);
+      expect(res.body.data.every((j: any) => j.status === 'APPLIED')).toBe(
+        true,
+      );
     });
   });
 

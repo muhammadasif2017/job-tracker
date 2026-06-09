@@ -1,0 +1,12 @@
+{
+  "name": "job-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Job application tracker — NestJS backend + Next.js frontend",
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7"
+  }
+}

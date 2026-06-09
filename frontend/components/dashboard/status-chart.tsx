@@ -1,7 +1,19 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { type JobStats, STATUS_LABELS, STATUS_DOT_COLORS, JOB_STATUSES } from '../../types';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import {
+  type JobStats,
+  STATUS_LABELS,
+  STATUS_DOT_COLORS,
+  JOB_STATUSES,
+} from '../../types';
 
 export function StatusChart({ stats }: { stats: JobStats }) {
   const data = JOB_STATUSES.map((s) => ({
@@ -21,7 +33,15 @@ export function StatusChart({ stats }: { stats: JobStats }) {
   return (
     <ResponsiveContainer width="100%" height={220}>
       <PieChart>
-        <Pie data={data} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={3} dataKey="value">
+        <Pie
+          data={data}
+          cx="50%"
+          cy="50%"
+          innerRadius={55}
+          outerRadius={85}
+          paddingAngle={3}
+          dataKey="value"
+        >
           {data.map((entry) => (
             <Cell key={entry.name} fill={entry.color} />
           ))}

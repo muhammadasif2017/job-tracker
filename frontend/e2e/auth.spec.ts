@@ -4,7 +4,9 @@ import { createTestUser, deleteTestUser, injectAuth } from './fixtures';
 // ── Registration ──────────────────────────────────────────────────────────────
 
 test.describe('Registration', () => {
-  test('valid form creates account and lands on dashboard', async ({ page }) => {
+  test('valid form creates account and lands on dashboard', async ({
+    page,
+  }) => {
     const email = `e2e-${Date.now()}@test.dev`;
 
     await page.goto('/register');
@@ -15,7 +17,9 @@ test.describe('Registration', () => {
     await page.getByRole('button', { name: 'Create account' }).click();
 
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Dashboard' }),
+    ).toBeVisible();
     await expect(page.getByText('Test User')).toBeVisible(); // sidebar
 
     const token = await page.evaluate(() => localStorage.getItem('jt_access'));
@@ -46,7 +50,9 @@ test.describe('Registration', () => {
     await page.getByLabel('Confirm password').fill('short');
     await page.getByRole('button', { name: 'Create account' }).click();
 
-    await expect(page.getByText('Password must be at least 8 characters')).toBeVisible();
+    await expect(
+      page.getByText('Password must be at least 8 characters'),
+    ).toBeVisible();
     await expect(page).toHaveURL('/register');
   });
 
@@ -83,7 +89,9 @@ test.describe('Login', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page).toHaveURL('/');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Dashboard' }),
+    ).toBeVisible();
   });
 
   test('wrong password shows error and stays on /login', async ({ page }) => {
@@ -148,7 +156,9 @@ test.describe('Protected routes', () => {
     await expect(page).toHaveURL('/login');
   });
 
-  test('authenticated user visiting /login is redirected to /', async ({ page }) => {
+  test('authenticated user visiting /login is redirected to /', async ({
+    page,
+  }) => {
     const user = await createTestUser();
     await injectAuth(page, user);
 
@@ -158,7 +168,9 @@ test.describe('Protected routes', () => {
     await deleteTestUser(user.accessToken);
   });
 
-  test('authenticated user visiting /register is redirected to /', async ({ page }) => {
+  test('authenticated user visiting /register is redirected to /', async ({
+    page,
+  }) => {
     const user = await createTestUser();
     await injectAuth(page, user);
 

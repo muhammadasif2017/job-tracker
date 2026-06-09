@@ -20,7 +20,9 @@ export function Sidebar() {
   const router = useRouter();
 
   const handleLogout = async () => {
-    try { await api.post('/auth/logout'); } catch {}
+    try {
+      await api.post('/auth/logout');
+    } catch {}
     logout();
     router.replace('/login');
   };

@@ -10,9 +10,17 @@ export const metadata: Metadata = {
   description: 'Track your job applications in one place',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <html lang="en" className={`${geist.variable} h-full`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${geist.variable} h-full`}
+      suppressHydrationWarning
+    >
       <body className="h-full bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
         <Providers>{children}</Providers>
       </body>

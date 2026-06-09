@@ -61,13 +61,14 @@ test.describe('Create job', () => {
 
     await expect(dialog).not.toBeVisible();
     await expect(page.getByRole('cell', { name: 'New Corp' })).toBeVisible();
-    await expect(page.getByRole('cell').filter({ hasText: 'Interviewing' })).toBeVisible();
+    await expect(
+      page.getByRole('cell').filter({ hasText: 'Interviewing' }),
+    ).toBeVisible();
 
     // Clean up via API
-    const res = await fetch(
-      `http://localhost:3001/jobs?search=New+Corp`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`http://localhost:3001/jobs?search=New+Corp`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
     if (data[0]) await deleteTestJob(user.accessToken, data[0].id);
   });
@@ -104,13 +105,17 @@ test.describe('Edit job', () => {
     await row.getByRole('button').first().click();
 
     const dialog = page.getByRole('dialog');
-    await expect(dialog.getByRole('heading', { name: 'Edit Job' })).toBeVisible();
+    await expect(
+      dialog.getByRole('heading', { name: 'Edit Job' }),
+    ).toBeVisible();
 
     await dialog.getByPlaceholder('Google').fill('Updated Corp');
     await dialog.getByRole('button', { name: 'Save changes' }).click();
 
     await expect(dialog).not.toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Updated Corp' })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Updated Corp' }),
+    ).toBeVisible();
   });
 });
 
@@ -118,7 +123,9 @@ test.describe('Edit job', () => {
 
 test.describe('Delete job', () => {
   test('removes job from the list immediately', async ({ page }) => {
-    const job = await createTestJob(user.accessToken, { company: 'Delete Corp' });
+    const job = await createTestJob(user.accessToken, {
+      company: 'Delete Corp',
+    });
 
     await goToJobs(page);
     await expect(page.getByRole('cell', { name: 'Delete Corp' })).toBeVisible();
@@ -126,7 +133,9 @@ test.describe('Delete job', () => {
     const row = page.locator('tr').filter({ hasText: 'Delete Corp' });
     await row.getByRole('button').last().click(); // trash icon
 
-    await expect(page.getByRole('cell', { name: 'Delete Corp' })).not.toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Delete Corp' }),
+    ).not.toBeVisible();
     await expect(page.getByText('Job deleted')).toBeVisible();
 
     // Already deleted via UI; ignore API cleanup error
@@ -141,8 +150,14 @@ test.describe('Search', () => {
   let jobB: TestJob;
 
   test.beforeAll(async () => {
-    jobA = await createTestJob(user.accessToken, { company: 'Alpha Inc', position: 'Frontend Dev' });
-    jobB = await createTestJob(user.accessToken, { company: 'Beta Ltd', position: 'Backend Dev' });
+    jobA = await createTestJob(user.accessToken, {
+      company: 'Alpha Inc',
+      position: 'Frontend Dev',
+    });
+    jobB = await createTestJob(user.accessToken, {
+      company: 'Beta Ltd',
+      position: 'Backend Dev',
+    });
   });
 
   test.afterAll(async () => {
@@ -156,7 +171,9 @@ test.describe('Search', () => {
     await page.getByPlaceholder('Search company or position…').fill('Alpha');
     // Wait for the 300ms debounce + network response
     await expect(page.getByRole('cell', { name: 'Alpha Inc' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Beta Ltd' })).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('cell', { name: 'Beta Ltd' })).not.toBeVisible({
+      timeout: 3000,
+    });
   });
 
   test('filters jobs by position', async ({ page }) => {
@@ -164,13 +181,17 @@ test.describe('Search', () => {
 
     await page.getByPlaceholder('Search company or position…').fill('Backend');
     await expect(page.getByRole('cell', { name: 'Beta Ltd' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Alpha Inc' })).not.toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole('cell', { name: 'Alpha Inc' })).not.toBeVisible(
+      { timeout: 3000 },
+    );
   });
 
   test('shows empty state when search has no results', async ({ page }) => {
     await goToJobs(page);
 
-    await page.getByPlaceholder('Search company or position…').fill('ZZZNoMatch');
+    await page
+      .getByPlaceholder('Search company or position…')
+      .fill('ZZZNoMatch');
     await expect(page.getByText('No jobs found')).toBeVisible();
   });
 });
@@ -182,7 +203,10 @@ test.describe('Status filter', () => {
   let interviewing: TestJob;
 
   test.beforeAll(async () => {
-    applied = await createTestJob(user.accessToken, { company: 'Applied Co', status: 'APPLIED' });
+    applied = await createTestJob(user.accessToken, {
+      company: 'Applied Co',
+      status: 'APPLIED',
+    });
     interviewing = await createTestJob(user.accessToken, {
       company: 'Interview Co',
       status: 'INTERVIEWING',
@@ -200,8 +224,12 @@ test.describe('Status filter', () => {
     // The status filter select is the first select on the page (outside a dialog)
     await page.locator('select').first().selectOption('INTERVIEWING');
 
-    await expect(page.getByRole('cell', { name: 'Interview Co' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Applied Co' })).not.toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Interview Co' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Applied Co' }),
+    ).not.toBeVisible();
   });
 
   test('shows all jobs when filter is cleared', async ({ page }) => {
@@ -211,7 +239,9 @@ test.describe('Status filter', () => {
     await page.locator('select').first().selectOption('');
 
     await expect(page.getByRole('cell', { name: 'Applied Co' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Interview Co' })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Interview Co' }),
+    ).toBeVisible();
   });
 });
 
@@ -221,40 +251,55 @@ test.describe('Job detail page', () => {
   let job: TestJob;
 
   test.beforeAll(async () => {
-    job = await createTestJob(user.accessToken, { company: 'Detail Corp', position: 'PM' });
+    job = await createTestJob(user.accessToken, {
+      company: 'Detail Corp',
+      position: 'PM',
+    });
   });
 
   test.afterAll(async () => {
     await deleteTestJob(user.accessToken, job.id).catch(() => {});
   });
 
-  test('navigates to detail page by clicking company name', async ({ page }) => {
+  test('navigates to detail page by clicking company name', async ({
+    page,
+  }) => {
     await goToJobs(page);
 
     await page.getByRole('link', { name: 'Detail Corp' }).click();
 
     await expect(page).toHaveURL(new RegExp(`/jobs/${job.id}`));
-    await expect(page.getByRole('heading', { name: 'Detail Corp' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Detail Corp' }),
+    ).toBeVisible();
     await expect(page.getByText('PM')).toBeVisible();
   });
 
-  test('changes status via dropdown and adds timeline entry', async ({ page }) => {
+  test('changes status via dropdown and adds timeline entry', async ({
+    page,
+  }) => {
     await injectAuth(page, user);
     await page.goto(`/jobs/${job.id}`);
 
-    await expect(page.getByRole('heading', { name: 'Detail Corp' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Detail Corp' }),
+    ).toBeVisible();
 
     // Status select on the detail page
     const statusSelect = page.locator('select').first();
     await statusSelect.selectOption('OFFER');
 
     // Timeline should reflect the change
-    await expect(page.getByText('Status changed')).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Status changed')).toBeVisible({
+      timeout: 5000,
+    });
     await expect(page.getByRole('list').getByText('Offer')).toBeVisible();
   });
 
   test('delete button removes job and returns to /jobs', async ({ page }) => {
-    const toDelete = await createTestJob(user.accessToken, { company: 'ToDelete Corp' });
+    const toDelete = await createTestJob(user.accessToken, {
+      company: 'ToDelete Corp',
+    });
 
     await injectAuth(page, user);
     await page.goto(`/jobs/${toDelete.id}`);

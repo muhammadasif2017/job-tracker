@@ -28,10 +28,7 @@ export class JobsController {
   }
 
   @Get()
-  findAll(
-    @CurrentUser() user: { id: string },
-    @Query() query: JobQueryDto,
-  ) {
+  findAll(@CurrentUser() user: { id: string }, @Query() query: JobQueryDto) {
     return this.jobsService.findAll(user.id, query);
   }
 

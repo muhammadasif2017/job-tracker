@@ -13,7 +13,14 @@ interface ModalProps {
   className?: string;
 }
 
-export function Modal({ open, onClose, title, description, children, className }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  description,
+  children,
+  className,
+}: ModalProps) {
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>

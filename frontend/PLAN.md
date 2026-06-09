@@ -54,6 +54,7 @@ types/
 ### 1. Authentication
 
 **`/login`**
+
 - Email + password form
 - Divider: "or continue with"
 - **"Continue with Google"** button → redirects to `API_URL/auth/google`
@@ -63,12 +64,14 @@ types/
 - Inline error messages
 
 **`/register`**
+
 - Name, email, password, confirm password
 - Same OAuth buttons as login (Google + GitHub)
 - Note below OAuth buttons: "Signing up with Google/GitHub skips email verification"
 - Client-side + server-side validation feedback
 
 **`/auth/callback` (new)**
+
 - Receives `?accessToken=x&refreshToken=y` from backend OAuth redirect
 - Reads tokens from URL search params
 - Stores them via `auth.store` (Zustand)
@@ -77,6 +80,7 @@ types/
 - On error param: shows error message + link back to login
 
 **Middleware (`middleware.ts`):**
+
 - Check JWT in cookie / Zustand store; redirect `/login` if unauthenticated
 - Redirect authenticated users away from `/login`, `/register`, `/auth/callback`
 
@@ -85,16 +89,19 @@ types/
 ### 2. Dashboard (`/`)
 
 **Stats cards (top row):**
+
 - Total Applications
 - Currently Interviewing
 - Offers Received
 - Response Rate (%)
 
 **Charts:**
+
 - Donut chart — applications by status (color-coded per status)
 - Bar chart — applications per month (last 6 months)
 
 **Recent activity:**
+
 - Last 5 job updates as a timeline list
 
 **Libraries:** Recharts
@@ -104,10 +111,12 @@ types/
 ### 3. Jobs Page (`/jobs`)
 
 **Two views (toggle):**
+
 - **List view** — sortable table: Company, Position, Status, Applied Date, Location, Actions
 - **Kanban view** — columns per status (WISHLIST → APPLIED → INTERVIEWING → OFFER), cards draggable between columns
 
 **Toolbar:**
+
 - Search input (debounced 300ms, searches company + position)
 - Status filter (multi-select dropdown)
 - Date range picker
@@ -125,6 +134,7 @@ types/
 Modal (from list) or side panel (from detail).
 
 **Fields:**
+
 - Company name (required)
 - Position / Job title (required)
 - Location (optional)
@@ -163,28 +173,30 @@ Modal (from list) or side panel (from detail).
 ## UI/UX Details
 
 ### Theme
+
 - **Dark mode default**, light mode toggle
 - Colors: Slate-based neutral palette, accent indigo/violet
 - Stored in `localStorage`, applied via `data-theme` on `<html>`
 
 ### Design System (Tailwind 4)
 
-| Component    | Description                                      |
-|--------------|--------------------------------------------------|
-| `Button`     | variants: primary, secondary, ghost, danger      |
-| `OAuthButton`| Google / GitHub branded button with icon         |
-| `Input`      | with label, error state, helper text             |
-| `Badge`      | color-coded per `JobStatus`                      |
-| `Modal`      | accessible dialog (Radix Dialog)                 |
-| `Dropdown`   | select / combobox (Radix Select)                 |
-| `Spinner`    | loading indicator                                |
-| `Toast`      | success / error notifications (Sonner)           |
-| `Skeleton`   | loading placeholder for cards and rows           |
-| `Tooltip`    | on icon buttons                                  |
+| Component     | Description                                 |
+| ------------- | ------------------------------------------- |
+| `Button`      | variants: primary, secondary, ghost, danger |
+| `OAuthButton` | Google / GitHub branded button with icon    |
+| `Input`       | with label, error state, helper text        |
+| `Badge`       | color-coded per `JobStatus`                 |
+| `Modal`       | accessible dialog (Radix Dialog)            |
+| `Dropdown`    | select / combobox (Radix Select)            |
+| `Spinner`     | loading indicator                           |
+| `Toast`       | success / error notifications (Sonner)      |
+| `Skeleton`    | loading placeholder for cards and rows      |
+| `Tooltip`     | on icon buttons                             |
 
 **Primitives:** `@radix-ui/react-dialog`, `@radix-ui/react-select`, `@radix-ui/react-dropdown-menu`
 
 ### Responsive
+
 - Mobile: single-column, bottom nav bar
 - Tablet: sidebar collapses to icon-only
 - Desktop: full sidebar always visible
@@ -194,12 +206,14 @@ Modal (from list) or side panel (from detail).
 ## Data Fetching
 
 **TanStack Query v5:**
+
 - `useQuery` for jobs list, stats, job detail
 - `useMutation` for create, update, delete
 - Optimistic updates on status change and delete
 - Cache invalidation on mutations
 
 **Axios instance (`lib/api.ts`):**
+
 - Base URL from `NEXT_PUBLIC_API_URL`
 - Request interceptor: attach `Authorization: Bearer <accessToken>`
 - Response interceptor: on 401, attempt silent refresh; on failure, logout + redirect `/login`
@@ -209,6 +223,7 @@ Modal (from list) or side panel (from detail).
 ## State Management
 
 **Zustand (`store/auth.store.ts`):**
+
 - `user`, `accessToken`, `isAuthenticated`
 - `login()`, `logout()`, `setTokens()` actions
 - Persisted to `localStorage`

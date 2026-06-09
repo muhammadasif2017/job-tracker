@@ -54,7 +54,12 @@ export async function deleteTestUser(accessToken: string): Promise<void> {
 
 export async function createTestJob(
   accessToken: string,
-  overrides: Partial<{ company: string; position: string; status: string; location: string }> = {},
+  overrides: Partial<{
+    company: string;
+    position: string;
+    status: string;
+    location: string;
+  }> = {},
 ): Promise<TestJob> {
   const res = await fetch(`${API}/jobs`, {
     method: 'POST',
@@ -72,7 +77,10 @@ export async function createTestJob(
   return res.json() as Promise<TestJob>;
 }
 
-export async function deleteTestJob(accessToken: string, jobId: string): Promise<void> {
+export async function deleteTestJob(
+  accessToken: string,
+  jobId: string,
+): Promise<void> {
   await fetch(`${API}/jobs/${jobId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -107,7 +115,11 @@ export async function injectAuth(page: Page, user: TestUser): Promise<void> {
       localStorage.setItem(
         'jt-auth',
         JSON.stringify({
-          state: { user: { id, email, name }, accessToken: access, isAuthenticated: true },
+          state: {
+            user: { id, email, name },
+            accessToken: access,
+            isAuthenticated: true,
+          },
           version: 0,
         }),
       );

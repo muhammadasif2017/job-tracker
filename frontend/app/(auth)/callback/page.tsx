@@ -27,7 +27,9 @@ function CallbackHandler() {
       .then(({ data }) => {
         const { accessToken, refreshToken } = data;
         return api
-          .get('/auth/me', { headers: { Authorization: `Bearer ${accessToken}` } })
+          .get('/auth/me', {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
           .then(({ data: user }) => {
             setAuth(user, accessToken, refreshToken);
             router.replace('/');

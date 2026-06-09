@@ -21,7 +21,11 @@ type FormData = z.infer<typeof schema>;
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormData>({
     resolver: zodResolver(schema),
   });
 
@@ -58,8 +62,20 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <Input label="Email" type="email" placeholder="you@example.com" error={errors.email?.message} {...register('email')} />
-          <Input label="Password" type="password" placeholder="••••••••" error={errors.password?.message} {...register('password')} />
+          <Input
+            label="Email"
+            type="email"
+            placeholder="you@example.com"
+            error={errors.email?.message}
+            {...register('email')}
+          />
+          <Input
+            label="Password"
+            type="password"
+            placeholder="••••••••"
+            error={errors.password?.message}
+            {...register('password')}
+          />
           <Button type="submit" className="w-full" loading={isSubmitting}>
             Sign in
           </Button>
@@ -67,7 +83,10 @@ export default function LoginPage() {
 
         <p className="text-center text-sm text-slate-500">
           No account?{' '}
-          <Link href="/register" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+          <Link
+            href="/register"
+            className="font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          >
             Create one
           </Link>
         </p>

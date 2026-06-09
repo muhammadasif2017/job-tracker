@@ -1,5 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { createTestUser, deleteTestUser, injectAuth, type TestUser } from './fixtures';
+import {
+  createTestUser,
+  deleteTestUser,
+  injectAuth,
+  type TestUser,
+} from './fixtures';
 
 let user: TestUser;
 
@@ -11,7 +16,10 @@ test.afterAll(async () => {
   if (user) await deleteTestUser(user.accessToken);
 });
 
-async function goToProfile(page: Parameters<typeof injectAuth>[0], u: TestUser) {
+async function goToProfile(
+  page: Parameters<typeof injectAuth>[0],
+  u: TestUser,
+) {
   await injectAuth(page, u);
   await page.goto('/profile');
   await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
@@ -25,20 +33,30 @@ test.describe('Profile page', () => {
     await expect(page.getByText(user.email).first()).toBeVisible();
   });
 
-  test('shows the Change Password section for an email-registered user', async ({ page }) => {
+  test('shows the Change Password section for an email-registered user', async ({
+    page,
+  }) => {
     await goToProfile(page, user);
 
     // The /users/me response has connectedProviders: [] so hasPassword is true
-    await expect(page.getByRole('heading', { name: 'Change Password' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Change Password' }),
+    ).toBeVisible();
   });
 
-  test('does not show Connected Accounts section for email-only user', async ({ page }) => {
+  test('does not show Connected Accounts section for email-only user', async ({
+    page,
+  }) => {
     await goToProfile(page, user);
 
-    await expect(page.getByRole('heading', { name: 'Connected Accounts' })).not.toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Connected Accounts' }),
+    ).not.toBeVisible();
   });
 
-  test('updates name and reflects change in sidebar and profile header', async ({ page }) => {
+  test('updates name and reflects change in sidebar and profile header', async ({
+    page,
+  }) => {
     await goToProfile(page, user);
 
     const nameInput = page.getByLabel('Name');
@@ -91,7 +109,9 @@ test.describe('Profile page', () => {
     await expect(page.getByText('Current password is incorrect')).toBeVisible();
   });
 
-  test('delete account redirects to /login and clears session', async ({ page }) => {
+  test('delete account redirects to /login and clears session', async ({
+    page,
+  }) => {
     const toDelete = await createTestUser('-del');
     await goToProfile(page, toDelete);
 
