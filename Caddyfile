@@ -1,0 +1,15 @@
+# Caddy auto-provisions Let's Encrypt TLS for both DuckDNS subdomains via the HTTP-01
+# challenge (ports 80/443 must be reachable from the internet). Domains come from env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$FRONTEND_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy frontend:3000
+}
+
+{$BACKEND_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy backend:3001
+}
