@@ -3,6 +3,21 @@
 A single Arm VM runs the whole stack via `docker-compose.prod.yml`: Postgres, the NestJS
 backend, the Next.js frontend, and Caddy (which terminates HTTPS for two DuckDNS subdomains).
 
+> **Staying $0 after the 30-day trial.** When the trial ends, the account converts to
+> **Always Free** and anything inside these limits keeps running for free; resources beyond
+> them are stopped/reclaimed. This whole stack runs on **one** VM with no managed services, so
+> it stays free as long as you keep within:
+>
+> - **Compute:** ≤ **4 OCPU / 24 GB** total Ampere A1 (one VM here).
+> - **Storage:** ≤ **200 GB** total block/boot volume; **no volume backups** (they bill — the
+>   `db-backup.sh` script does a local `pg_dump`, which is free).
+> - **Public IP:** use the **ephemeral** IP attached to the running VM. A _reserved_ IP left
+>   **unattached** is billed.
+> - **Don't** create a second VM/extra block volumes during the trial and forget them.
+>
+> Do **not** upgrade to Pay As You Go unless you accept that it removes these guardrails and
+> can bill for anything beyond Always Free.
+
 ## 1. Create the VM
 
 Compute → **Instances** → **Create instance**, then set:
@@ -24,10 +39,14 @@ Compute → **Instances** → **Create instance**, then set:
 - Click **Create**, then note the **public IPv4** address.
 
 > **"Out of host capacity"?** A1 is in high demand. Try a different **Availability Domain**
-> (AD-1/2/3) in the _Placement_ section, retry over a few hours, or upgrade the tenancy to
-> **Pay As You Go** — you stay within the same Always-Free A1 limits but get provisioning
-> priority. (PAYG also exempts you from the idle-reclaim policy: Always-Free instances under
-> 20% CPU/network/RAM for 7 days can be reclaimed.)
+> (AD-1/2/3) in the _Placement_ section, or retry over a few hours / different times of day —
+> capacity frees up. (Upgrading to Pay As You Go also gets provisioning priority, but see the
+> cost warning above — it removes the Always-Free guardrails, so only do it if you accept that.)
+>
+> **Idle-reclaim caveat:** on Always Free, an instance under ~20% CPU/network/RAM for 7 days can
+> be reclaimed. A low-traffic portfolio can trip this; if it happens, just restart the VM (the
+> stack auto-starts via `restart: unless-stopped`), or keep one VM well within limits so a
+> reclaim is painless.
 
 ## 2. Open the firewall — BOTH layers (the classic gotcha)
 
