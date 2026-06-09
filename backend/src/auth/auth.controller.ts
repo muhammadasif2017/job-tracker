@@ -28,14 +28,24 @@ export class AuthController {
   ) {}
 
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: process.env.NODE_ENV === 'production' ? 10 : 100 } })
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+    },
+  })
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Public()
-  @Throttle({ default: { ttl: 60000, limit: process.env.NODE_ENV === 'production' ? 10 : 100 } })
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+    },
+  })
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -83,7 +93,7 @@ export class AuthController {
   @Public()
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
-  async googleCallback(@Req() req: Request, @Res() res: Response) {
+  googleCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
     const code = this.authService.storeOAuthCode(tokens);
@@ -102,7 +112,7 @@ export class AuthController {
   @Public()
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
-  async githubCallback(@Req() req: Request, @Res() res: Response) {
+  githubCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
     const code = this.authService.storeOAuthCode(tokens);

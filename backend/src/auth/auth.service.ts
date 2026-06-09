@@ -65,13 +65,19 @@ export class AuthService {
     });
   }
 
-  storeOAuthCode(tokens: { accessToken: string; refreshToken: string }): string {
+  storeOAuthCode(tokens: {
+    accessToken: string;
+    refreshToken: string;
+  }): string {
     const code = randomUUID();
     this.oauthCodes.set(code, { ...tokens, expiresAt: Date.now() + 60_000 });
     return code;
   }
 
-  exchangeOAuthCode(code: string): { accessToken: string; refreshToken: string } {
+  exchangeOAuthCode(code: string): {
+    accessToken: string;
+    refreshToken: string;
+  } {
     const entry = this.oauthCodes.get(code);
     this.oauthCodes.delete(code);
     if (!entry || entry.expiresAt < Date.now()) throw new ForbiddenException();

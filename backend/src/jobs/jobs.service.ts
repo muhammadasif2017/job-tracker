@@ -1,8 +1,4 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -83,9 +79,10 @@ export class JobsService {
   }
 
   async findOne(userId: string, jobId: string) {
-    const job = await this.prisma.job.findUnique({ where: { id: jobId } });
+    // Scope by userId so a job owned by another user is indistinguishable
+    // from one that doesn't exist (404 for both — no existence leak).
+    const job = await this.prisma.job.findFirst({ where: { id: jobId, userId } });
     if (!job) throw new NotFoundException('Job not found');
-    if (job.userId !== userId) throw new ForbiddenException();
     return job;
   }
 

@@ -58,6 +58,10 @@ model Job {
   userId          String
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   events          JobEvent[]
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, appliedAt])
 }
 
 model JobEvent {
@@ -70,5 +74,6 @@ model JobEvent {
   note       String?
   createdAt  DateTime     @default(now())
 
+  @@index([jobId])
   @@map("job_events")
 }

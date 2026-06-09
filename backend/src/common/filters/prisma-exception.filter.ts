@@ -3,6 +3,7 @@ import {
   Catch,
   ExceptionFilter,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import { Response } from 'express';
 
@@ -12,6 +13,8 @@ const PRISMA_NOT_FOUND = 'P2025';
 
 @Catch()
 export class PrismaExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(PrismaExceptionFilter.name);
+
   catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -38,6 +41,9 @@ export class PrismaExceptionFilter implements ExceptionFilter {
         error: 'Not Found',
       });
     }
+
+    // Unknown/unexpected error — log the stack so the opaque 500 is debuggable.
+    this.logger.error(exception?.message ?? 'Unknown error', exception?.stack);
 
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
