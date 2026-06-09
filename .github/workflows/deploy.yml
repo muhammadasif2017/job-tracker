@@ -1,10 +1,13 @@
 name: Deploy
 
-# Deploys on every push to main (or manually). The image build happens on the VM
-# itself — that VM is Arm64, so building there avoids cross-architecture image issues.
+# The image build happens on the VM itself — that VM is Arm64, so building there
+# avoids cross-architecture image issues.
+#
+# DISABLED until the VM is ready: only manual dispatch is enabled. Once the VM is
+# provisioned and the SSH secrets are set, re-enable auto-deploy by uncommenting:
+#   push:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Never let two deploys run at once; let an in-flight one finish.
