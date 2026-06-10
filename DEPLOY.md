@@ -181,13 +181,17 @@ docker compose -f docker-compose.prod.yml logs -f
 
 ## 8. OAuth (optional)
 
-If using Google/GitHub login, set the provider callback URLs to:
+If using Google/GitHub login, register these callback URLs in the provider's OAuth app
+(they point at the **backend**, not Vercel):
 
 - `https://yourname-api.duckdns.org/auth/google/callback`
 - `https://yourname-api.duckdns.org/auth/github/callback`
 
-and put the client IDs/secrets in `.env`. Left as `placeholder`, the server still boots
-with OAuth disabled.
+Then in `.env`: put the client IDs/secrets, and make sure **`BACKEND_URL`** is set to the
+backend origin (`https://yourname-api.duckdns.org`). The backend builds the callback URL it
+sends to the provider from `BACKEND_URL`, so it must match what you registered above —
+otherwise the provider redirects back to `localhost` and login fails. Left as `placeholder`,
+the client IDs keep OAuth disabled and the server still boots.
 
 ## Updating after a code change
 

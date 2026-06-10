@@ -78,6 +78,7 @@ login(...) {}
 ### Token Strategy
 
 Two JWTs issued together by the private `issueTokens(userId, email)` method:
+
 - **Access token** — 15 min, signed with `JWT_SECRET`. Sent as `Authorization: Bearer`.
 - **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`. Sent in request body. Stored as a **bcrypt hash** in `User.refreshToken`.
 
@@ -106,6 +107,7 @@ GET /auth/google
 ```
 
 `handleOAuthUser` resolution order:
+
 1. Find existing `Account` by `[provider, providerAccountId]` → return tokens
 2. Find `User` by email → link new `Account` → return tokens
 3. Create new `User` + `Account` → return tokens
@@ -170,19 +172,20 @@ import type { Request, Response } from 'express';
 
 ## Environment Variables
 
-| Variable | Required | Default | Notes |
-|---|---|---|---|
-| `DATABASE_URL` | Yes | — | PostgreSQL connection string |
-| `PORT` | No | `3001` | |
-| `JWT_SECRET` | Yes | — | Min 32 chars |
-| `JWT_REFRESH_SECRET` | Yes | — | Min 32 chars |
-| `JWT_EXPIRES_IN` | No | `15m` | |
-| `JWT_REFRESH_EXPIRES_IN` | No | `7d` | |
-| `FRONTEND_URL` | No | `http://localhost:3000` | Used for CORS and OAuth redirect |
-| `GOOGLE_CLIENT_ID` | No | `'placeholder'` | App starts without it |
-| `GOOGLE_CLIENT_SECRET` | No | `'placeholder'` | App starts without it |
-| `GITHUB_CLIENT_ID` | No | `'placeholder'` | App starts without it |
-| `GITHUB_CLIENT_SECRET` | No | `'placeholder'` | App starts without it |
+| Variable                 | Required | Default                 | Notes                                                                  |
+| ------------------------ | -------- | ----------------------- | ---------------------------------------------------------------------- |
+| `DATABASE_URL`           | Yes      | —                       | PostgreSQL connection string                                           |
+| `PORT`                   | No       | `3001`                  |                                                                        |
+| `JWT_SECRET`             | Yes      | —                       | Min 32 chars                                                           |
+| `JWT_REFRESH_SECRET`     | Yes      | —                       | Min 32 chars                                                           |
+| `JWT_EXPIRES_IN`         | No       | `15m`                   |                                                                        |
+| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                    |                                                                        |
+| `FRONTEND_URL`           | No       | `http://localhost:3000` | Used for CORS and OAuth redirect                                       |
+| `BACKEND_URL`            | No       | `http://localhost:3001` | Backend origin used to build OAuth callback URLs sent to Google/GitHub |
+| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`         | App starts without it                                                  |
+| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`         | App starts without it                                                  |
+| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`         | App starts without it                                                  |
+| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`         | App starts without it                                                  |
 
 ---
 
