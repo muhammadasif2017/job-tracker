@@ -23,29 +23,51 @@ reclaimed/recreated VM never loses data, and Neon handles backups for you.
 
 ## 1. Create the VM
 
-Compute → **Instances** → **Create instance**, then set:
+Oracle's console layout and field labels change regularly, so for the exact click-path follow
+Oracle's own current walkthrough — [**Creating an Instance**](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/launchinginstance.htm) —
+and apply the project-specific choices below. These choices (not the button labels) are what
+actually matter for this stack:
 
-- **Image:** _Change image_ → **Canonical Ubuntu 24.04 Minimal — aarch64**. The `aarch64`/Arm
-  build is required for the A1 shape (the default x86 image won't boot on it).
-- **Shape:** _Change shape_ → **Ampere** → **VM.Standard.A1.Flex**. Always-Free max is
-  **4 OCPU / 24 GB RAM** — allocate the full amount (it's free), or 1–2 OCPU if you plan to
-  split across multiple instances later.
-- **Capacity type:** choose **On-demand** (not _Preemptible_) so the VM isn't stopped under load.
-- **Security:** leave _Shielded instance_ and _Confidential computing_ **off** — they complicate
-  Arm shapes and aren't needed here.
-- **Networking:** _Create new VCN_ with a **public subnet**, and ensure **Assign a public IPv4
-  address** is **On**.
-- **SSH keys:** paste your own public key, **or** pick _Generate a key pair for me_ and
-  **download the private key now** — you can't retrieve it after creation.
-- **Boot volume (optional):** tick _Specify a custom boot volume size_ and set **200 GB** to use
-  the full free storage quota (default is ~47 GB).
-- Click **Create**, then note the **public IPv4** address.
+- **Shape:** **Ampere → VM.Standard.A1.Flex** (the Always-Free Arm shape). You can use up to the
+  full Always-Free max of **4 OCPU / 24 GB RAM** for free. A1.Flex is resizable later, so it's
+  fine to start smaller (e.g. **1 OCPU / 6 GB**) — that also dodges capacity errors (see below).
+- **Image:** a **Canonical Ubuntu aarch64/Arm build** (e.g. Ubuntu 24.04). The Arm image is
+  required — the default x86 image won't boot on A1.
+- **Networking:** a VCN with a **public subnet**, and make sure a **public IPv4 address** is
+  assigned to the instance.
+- **SSH keys:** upload your **public** key — or let Oracle generate a pair and **download the
+  private key immediately** (it can't be retrieved later).
+- **Capacity type:** **on-demand** (not preemptible) so the VM isn't stopped under load.
+- **Boot volume (optional):** raise to **200 GB** to use the full Always-Free block-storage
+  quota (the default is smaller).
 
-> **"Out of host capacity"?** A1 is in high demand. Try a different **Availability Domain**
-> (AD-1/2/3) in the _Placement_ section, or retry over a few hours / different times of day —
-> capacity frees up. (Upgrading to Pay As You Go also gets provisioning priority, but see the
-> cost warning above — it removes the Always-Free guardrails, so only do it if you accept that.)
->
+Then note the instance's **public IPv4** address.
+
+> **Always-Free limits** (verified against Oracle's [Always Free Resources](https://docs.oracle.com/en-us/iaas/Content/FreeTier/freetier_topic-Always_Free_Resources.htm)
+> doc): ≤ **4 OCPU / 24 GB** total Ampere A1 (splittable across up to 4 instances), ≤ **200 GB**
+> total block/boot volume, and the **ephemeral** public IP of a running VM (a _reserved_ IP left
+> **unattached** is billed). Neon hosts the database off-VM on its own free tier, so it never
+> touches your Oracle budget. Don't upgrade to Pay-As-You-Go unless you accept that it removes
+> these guardrails and can bill for anything beyond Always Free.
+
+### "Out of host capacity" / "Ampere A1 instance is not available"
+
+A1 is heavily oversubscribed, so free-tier creation frequently fails with this error. It is
+**not** a misconfiguration on your side — Oracle is simply out of free Arm capacity in your home
+region at that moment. What actually works (see Oracle's [Resolving Out of Host Capacity error](https://docs.oracle.com/en-us/iaas/Content/Compute/Tasks/troubleshooting-out-of-host-capacity.htm)):
+
+- **Ask for less.** A **1 OCPU / 6 GB** A1 instance succeeds far more often than the full
+  4 OCPU / 24 GB. A1.Flex is resizable, so grab a small one now and scale it up once it exists.
+- **Try every Availability Domain** (AD-1/2/3) and don't pin a fault domain — capacity is
+  per-AD, and letting Oracle auto-pick the fault domain helps.
+- **Retry in a loop, not by hand.** Capacity frees for seconds when others release it, so
+  whoever is retrying at that instant wins. The reliable approach is a script that calls the
+  `LaunchInstance` API on an interval until it succeeds; ready-made tools wrap the OCI CLI/API in
+  exactly this loop (e.g. [hitrov/oci-arm-host-capacity](https://github.com/hitrov/oci-arm-host-capacity)).
+- **Vary the time of day** — capacity churns, so spread retries across different hours.
+- Pay-As-You-Go grants provisioning priority (which is why it's often suggested), but only do it
+  if you accept losing the Always-Free guardrails above.
+
 > **Idle-reclaim caveat:** on Always Free, an instance under ~20% CPU/network/RAM for 7 days can
 > be reclaimed. A low-traffic portfolio can trip this; if it happens, just restart the VM (the
 > stack auto-starts via `restart: unless-stopped`), or keep one VM well within limits so a
@@ -53,7 +75,9 @@ Compute → **Instances** → **Create instance**, then set:
 
 ## 2. Open the firewall — BOTH layers (the classic gotcha)
 
-**a) Oracle cloud firewall** — VCN → Security List (or an NSG) → add ingress rules:
+**a) Oracle cloud firewall** — in the VCN, add stateful ingress rules to the subnet's
+[Security List](https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/securitylists.htm)
+(or an NSG). The rules you need:
 
 | Source CIDR | Protocol | Dest port |
 |---|---|---|
