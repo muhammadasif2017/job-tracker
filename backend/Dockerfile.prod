@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Production image: NestJS build on Debian slim (openssl present for Prisma engines).
 
 FROM node:22-slim AS builder

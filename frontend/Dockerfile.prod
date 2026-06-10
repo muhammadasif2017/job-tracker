@@ -1,4 +1,3 @@
-# syntax=docker/dockerfile:1
 # Production image: slim standalone Next.js server with the API URL baked in at build time.
 
 FROM node:22-slim AS deps
