@@ -1,14 +1,22 @@
-# Deploying to Oracle Cloud (Always-Free A1) with DuckDNS + Caddy
+# Deploying: Next.js on Vercel + NestJS on Oracle Cloud (Always-Free A1)
 
-A single Arm VM runs the app via `docker-compose.prod.yml`: the NestJS backend, the Next.js
-frontend, and Caddy (which terminates HTTPS for two DuckDNS subdomains). **Postgres is hosted
-on [Neon](https://neon.tech)** (managed, free tier) — keeping the database off the VM means a
-reclaimed/recreated VM never loses data, and Neon handles backups for you.
+The app is split across two hosts:
+
+- **Frontend (Next.js)** → **[Vercel](https://vercel.com)** (free) — built on Vercel's own
+  infra, not the VM. This keeps the heavy `next build` off the small Arm box.
+- **Backend (NestJS) + Caddy** → a single Always-Free **Arm VM**, via `docker-compose.prod.yml`.
+  Caddy terminates HTTPS for **one** DuckDNS subdomain (the API).
+- **Postgres** → **[Neon](https://neon.tech)** (managed, free tier) — keeping the database off
+  the VM means a reclaimed/recreated VM never loses data, and Neon handles backups for you.
+
+The two halves are wired by two env vars that point at each other: the frontend's
+`NEXT_PUBLIC_API_URL` (set on Vercel → the backend domain) and the backend's `FRONTEND_URL`
+(set in the VM `.env` → the Vercel URL; it's the CORS allowlist and OAuth redirect target).
 
 > **Staying $0 after the 30-day trial.** When the trial ends, the account converts to
 > **Always Free** and anything inside these limits keeps running for free; resources beyond
-> them are stopped/reclaimed. This stack uses **one** VM plus Neon's free tier, so it stays
-> free as long as you keep within:
+> them are stopped/reclaimed. This stack uses **one** VM plus Neon's and Vercel's free tiers,
+> so it stays free as long as you keep within:
 >
 > - **Compute:** ≤ **4 OCPU / 24 GB** total Ampere A1 (one VM here).
 > - **Storage:** ≤ **200 GB** total block/boot volume on the VM.
@@ -99,9 +107,9 @@ If you skip (b), the cloud firewall looks open but connections still hang.
 
 ## 3. Point DuckDNS at the VM
 
-1. Sign in at <https://www.duckdns.org> and create **two** subdomains, e.g.
-   `yourname` and `yourname-api`.
-2. Set the **current IP** of both to the VM's public IPv4.
+1. Sign in at <https://www.duckdns.org> and create **one** subdomain for the API, e.g.
+   `yourname-api`. (The frontend gets its hostname from Vercel — no DuckDNS entry needed.)
+2. Set its **current IP** to the VM's public IPv4.
 
 ## 4. Install Docker
 
@@ -128,7 +136,7 @@ run. The backend applies the schema itself via `prisma migrate deploy` on startu
 ```bash
 git clone <your-repo-url> job-tracker && cd job-tracker
 cp .env.deploy.example .env
-nano .env        # fill in DATABASE_URL (Neon), secrets, and your DuckDNS domains (see notes below)
+nano .env        # DATABASE_URL (Neon), secrets, BACKEND_DOMAIN, FRONTEND_URL (see notes below)
 
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
@@ -143,13 +151,35 @@ docker compose -f docker-compose.prod.yml logs -f
 ### `.env` notes
 
 - `DATABASE_URL` — the Neon connection string, ending in `?sslmode=require`.
-- `FRONTEND_DOMAIN` / `BACKEND_DOMAIN` — hostnames only, **no** `https://` (Caddy uses these).
-- `FRONTEND_URL` / `NEXT_PUBLIC_API_URL` — full URLs **with** `https://`.
+- `BACKEND_DOMAIN` — hostname only, **no** `https://` (Caddy uses it to provision TLS).
+- `FRONTEND_URL` — the full Vercel URL **with** `https://` and **no** trailing slash. This is
+  the backend's CORS allowlist and OAuth redirect target. You'll know it after the Vercel deploy
+  (next section), so it's fine to come back and set it then, then restart the backend.
 - Generate secrets with `openssl rand -hex 32`.
-- `NEXT_PUBLIC_API_URL` is **baked into the frontend at build time**. If you change it later,
-  rebuild: `docker compose -f docker-compose.prod.yml up -d --build frontend`.
+- `NEXT_PUBLIC_API_URL` is **not** set here — it lives in the Vercel project settings (next section).
 
-## 7. OAuth (optional)
+## 7. Deploy the frontend on Vercel
+
+1. At <https://vercel.com> → **Add New… → Project**, import this GitHub repo.
+2. Set **Root Directory** to **`frontend`** — this is what makes the monorepo work; Vercel builds
+   only that subdirectory. The framework auto-detects as Next.js.
+3. Add one environment variable: **`NEXT_PUBLIC_API_URL`** = `https://yourname-api.duckdns.org`
+   (your backend domain from §3). It's inlined into the client bundle at build time.
+4. **Deploy**, then copy the production URL (e.g. `https://your-project.vercel.app`).
+5. Back on the VM, set `FRONTEND_URL` in `.env` to that Vercel URL and restart the backend so CORS
+   picks it up:
+
+   ```bash
+   docker compose -f docker-compose.prod.yml --env-file .env up -d
+   ```
+
+6. Open the Vercel URL and test login/register. A CORS error in the browser console means
+   `FRONTEND_URL` doesn't exactly match the Vercel origin (scheme, host, no trailing slash).
+
+> Vercel redeploys the frontend automatically on every push to `main` via its Git integration.
+> If you later add a custom domain on Vercel, update `FRONTEND_URL` to match and restart the backend.
+
+## 8. OAuth (optional)
 
 If using Google/GitHub login, set the provider callback URLs to:
 
