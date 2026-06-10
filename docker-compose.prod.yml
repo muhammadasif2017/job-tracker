@@ -35,7 +35,6 @@ services:
       - '80:80'
       - '443:443'
     environment:
-      FRONTEND_DOMAIN: ${FRONTEND_DOMAIN}
       BACKEND_DOMAIN: ${BACKEND_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
     volumes:
