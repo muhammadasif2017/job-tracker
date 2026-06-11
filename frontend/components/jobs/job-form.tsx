@@ -15,6 +15,8 @@ import {
   PRIORITY_LABELS,
   STATUS_LABELS,
   type Job,
+  type JobPriority,
+  type JobStatus,
 } from '../../types';
 import api from '../../lib/api';
 
@@ -23,15 +25,8 @@ const schema = z.object({
   position: z.string().min(1, 'Position is required'),
   location: z.string().optional(),
   url: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
-  status: z.enum([
-    'WISHLIST',
-    'APPLIED',
-    'INTERVIEWING',
-    'OFFER',
-    'REJECTED',
-    'GHOSTED',
-  ]),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
+  status: z.enum(JOB_STATUSES as [JobStatus, ...JobStatus[]]),
+  priority: z.enum(JOB_PRIORITIES as [JobPriority, ...JobPriority[]]),
   appliedAt: z.string().optional(),
   nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),

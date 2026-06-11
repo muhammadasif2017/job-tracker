@@ -61,7 +61,10 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       if (ctx?.prev) qc.setQueryData(['jobs', { limit: 100 }], ctx.prev);
       toast.error('Failed to update status');
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['jobs'] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+    },
   });
 
   const onDragEnd = (result: DropResult) => {
