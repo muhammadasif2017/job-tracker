@@ -59,8 +59,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   refresh(@Body() dto: RefreshDto, @Req() req: Request) {
-    const user = req.user as { sub: string; email: string };
-    return this.authService.refresh(user.sub, user.email, dto.refreshToken);
+    const user = req.user as { sub: string; email: string; jti: string };
+    return this.authService.refresh(
+      user.sub,
+      user.email,
+      dto.refreshToken,
+      user.jti,
+    );
   }
 
   @Public()

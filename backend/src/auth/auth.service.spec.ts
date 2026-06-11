@@ -12,11 +12,16 @@ const mockPrisma = {
   user: {
     findUnique: jest.fn(),
     create: jest.fn(),
-    update: jest.fn(),
   },
   account: {
     findUnique: jest.fn(),
     create: jest.fn(),
+  },
+  refreshToken: {
+    create: jest.fn(),
+    findUnique: jest.fn(),
+    delete: jest.fn(),
+    deleteMany: jest.fn(),
   },
 };
 
@@ -30,6 +35,7 @@ describe('AuthService', () => {
     jest.clearAllMocks();
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
     mockJwt.signAsync.mockResolvedValue('token');
+    mockPrisma.refreshToken.create.mockResolvedValue({});
 
     const module = await Test.createTestingModule({
       providers: [
@@ -86,7 +92,6 @@ describe('AuthService', () => {
     it('hashes the password and returns token pair', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({ id: '1', email: 'a@b.com' });
-      mockPrisma.user.update.mockResolvedValue({});
 
       const result = await service.register({
         email: 'a@b.com',
@@ -95,39 +100,60 @@ describe('AuthService', () => {
       });
 
       expect(bcrypt.hash).toHaveBeenCalledWith('pass12345', 10);
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
     });
   });
 
   describe('refresh', () => {
-    it('throws ForbiddenException when no refresh token is stored', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ refreshToken: null });
-      await expect(service.refresh('1', 'a@b.com', 'raw')).rejects.toThrow(
-        ForbiddenException,
-      );
+    it('throws ForbiddenException when no token row exists', async () => {
+      mockPrisma.refreshToken.findUnique.mockResolvedValue(null);
+      await expect(
+        service.refresh('1', 'a@b.com', 'raw', 'jti-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('throws ForbiddenException on token mismatch', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ refreshToken: 'oldhash' });
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: 'oldhash',
+        expiresAt: new Date(Date.now() + 10_000),
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(service.refresh('1', 'a@b.com', 'wrong')).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.refresh('1', 'a@b.com', 'wrong', 'jti-1'),
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('issues new token pair and rotates the stored hash', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({ refreshToken: 'oldhash' });
+    it('throws ForbiddenException for an expired token row', async () => {
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: 'oldhash',
+        expiresAt: new Date(Date.now() - 1),
+      });
+      await expect(
+        service.refresh('1', 'a@b.com', 'raw', 'jti-1'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('deletes the old row, creates a new one, and returns a fresh token pair', async () => {
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: 'oldhash',
+        expiresAt: new Date(Date.now() + 10_000),
+      });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      mockPrisma.user.update.mockResolvedValue({});
+      mockPrisma.refreshToken.delete.mockResolvedValue({});
 
-      const result = await service.refresh('1', 'a@b.com', 'rawtoken');
+      const result = await service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1');
 
-      expect(mockPrisma.user.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: '1' },
-          data: { refreshToken: 'hashed' },
-        }),
-      );
+      expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({
+        where: { id: 'jti-1' },
+      });
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
     });
   });
@@ -139,7 +165,6 @@ describe('AuthService', () => {
       mockPrisma.account.findUnique.mockResolvedValue({
         user: { id: 'u1', email: 'u@g.com' },
       });
-      mockPrisma.user.update.mockResolvedValue({});
 
       await service.handleOAuthUser(...args);
 
@@ -154,7 +179,6 @@ describe('AuthService', () => {
         email: 'u@g.com',
       });
       mockPrisma.account.create.mockResolvedValue({});
-      mockPrisma.user.update.mockResolvedValue({});
 
       await service.handleOAuthUser(...args);
 
@@ -175,7 +199,6 @@ describe('AuthService', () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
       mockPrisma.user.create.mockResolvedValue({ id: 'u2', email: 'u@g.com' });
       mockPrisma.account.create.mockResolvedValue({});
-      mockPrisma.user.update.mockResolvedValue({});
 
       await service.handleOAuthUser(...args);
 

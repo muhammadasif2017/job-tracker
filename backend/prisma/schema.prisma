@@ -27,16 +27,27 @@ enum JobEventType {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  password     String?
-  name         String
-  avatarUrl    String?
-  refreshToken String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  jobs         Job[]
-  accounts     Account[]
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String?
+  name          String
+  avatarUrl     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  jobs          Job[]
+  accounts      Account[]
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
 }
 
 model Account {
