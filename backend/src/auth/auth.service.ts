@@ -48,21 +48,28 @@ export class AuthService {
     return this.issueTokens(userId, email);
   }
 
-  async refresh(userId: string, email: string, rawRefreshToken: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user?.refreshToken) throw new ForbiddenException();
+  async refresh(
+    userId: string,
+    email: string,
+    rawRefreshToken: string,
+    jti: string,
+  ) {
+    const stored = await this.prisma.refreshToken.findUnique({
+      where: { id: jti },
+    });
+    if (!stored || stored.userId !== userId || stored.expiresAt < new Date()) {
+      throw new ForbiddenException();
+    }
 
-    const valid = await bcrypt.compare(rawRefreshToken, user.refreshToken);
+    const valid = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
     if (!valid) throw new ForbiddenException();
 
+    await this.prisma.refreshToken.delete({ where: { id: jti } });
     return this.issueTokens(userId, email);
   }
 
   async logout(userId: string) {
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: null },
-    });
+    await this.prisma.refreshToken.deleteMany({ where: { userId } });
   }
 
   storeOAuthCode(tokens: {
@@ -114,6 +121,7 @@ export class AuthService {
   }
 
   private async issueTokens(userId: string, email: string) {
+    const jti = randomUUID();
     const payload = { sub: userId, email };
 
     const [accessToken, refreshToken] = await Promise.all([
@@ -121,16 +129,19 @@ export class AuthService {
         secret: this.config.get('JWT_SECRET'),
         expiresIn: this.config.get('JWT_EXPIRES_IN'),
       }),
-      this.jwt.signAsync(payload, {
-        secret: this.config.get('JWT_REFRESH_SECRET'),
-        expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
-      }),
+      this.jwt.signAsync(
+        { ...payload, jti },
+        {
+          secret: this.config.get('JWT_REFRESH_SECRET'),
+          expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
+        },
+      ),
     ]);
 
-    const hashed = await bcrypt.hash(refreshToken, 10);
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { refreshToken: hashed },
+    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await this.prisma.refreshToken.create({
+      data: { id: jti, userId, tokenHash, expiresAt },
     });
 
     return { accessToken, refreshToken };
