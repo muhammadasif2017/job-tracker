@@ -22,16 +22,20 @@ export class UsersService {
         name: true,
         avatarUrl: true,
         createdAt: true,
+        password: true,
         accounts: { select: { provider: true } },
       },
     });
     if (!user) throw new NotFoundException('User not found');
 
+    // Destructure out password/accounts so the hash never reaches the client;
+    // expose only a boolean the UI can use to decide whether to offer
+    // "change password".
+    const { password, accounts, ...rest } = user;
     return {
-      ...user,
-      connectedProviders: user.accounts.map((a) => a.provider),
-      accounts: undefined,
-      hasPassword: undefined,
+      ...rest,
+      connectedProviders: accounts.map((a) => a.provider),
+      hasPassword: !!password,
     };
   }
 

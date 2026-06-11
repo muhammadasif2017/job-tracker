@@ -81,7 +81,7 @@ export default function ProfilePage() {
     onError: () => toast.error('Failed to delete account'),
   });
 
-  const hasPassword = !profile || !profile.connectedProviders?.length;
+  const hasPassword = !!profile?.hasPassword;
 
   return (
     <div className="mx-auto max-w-lg space-y-6">

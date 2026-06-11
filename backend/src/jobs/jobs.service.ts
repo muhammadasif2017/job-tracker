@@ -32,20 +32,11 @@ export class JobsService {
     });
   }
 
-  async findAll(userId: string, query: JobQueryDto) {
-    const {
-      status,
-      priority,
-      search,
-      page = 1,
-      limit = 10,
-      sortBy = 'appliedAt',
-      sortOrder = 'desc',
-      dateFrom,
-      dateTo,
-    } = query;
-
-    const where = {
+  // Shared filter builder for the list and CSV export — both expose the same
+  // status/priority/search/date filters scoped to the owner.
+  private buildJobWhere(userId: string, query: JobQueryDto) {
+    const { status, priority, search, dateFrom, dateTo } = query;
+    return {
       userId,
       ...(status && { status }),
       ...(priority && { priority }),
@@ -64,6 +55,17 @@ export class JobsService {
           }
         : {}),
     };
+  }
+
+  async findAll(userId: string, query: JobQueryDto) {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'appliedAt',
+      sortOrder = 'desc',
+    } = query;
+
+    const where = this.buildJobWhere(userId, query);
 
     const [jobs, total] = await Promise.all([
       this.prisma.job.findMany({
@@ -173,27 +175,7 @@ export class JobsService {
   }
 
   async exportCsv(userId: string, query: JobQueryDto) {
-    const { status, priority, search, dateFrom, dateTo } = query;
-
-    const where = {
-      userId,
-      ...(status && { status }),
-      ...(priority && { priority }),
-      ...(search && {
-        OR: [
-          { company: { contains: search, mode: 'insensitive' as const } },
-          { position: { contains: search, mode: 'insensitive' as const } },
-        ],
-      }),
-      ...(dateFrom || dateTo
-        ? {
-            appliedAt: {
-              ...(dateFrom && { gte: new Date(dateFrom) }),
-              ...(dateTo && { lte: new Date(dateTo) }),
-            },
-          }
-        : {}),
-    };
+    const where = this.buildJobWhere(userId, query);
 
     const jobs = await this.prisma.job.findMany({
       where,

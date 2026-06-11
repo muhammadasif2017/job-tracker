@@ -7,7 +7,6 @@ import { tokenStorage } from '../lib/auth';
 
 interface AuthState {
   user: User | null;
-  accessToken: string | null;
   isAuthenticated: boolean;
   setAuth: (user: User, accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
@@ -18,14 +17,13 @@ export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       user: null,
-      accessToken: null,
       isAuthenticated: false,
 
       setAuth: (user, accessToken, refreshToken) => {
         tokenStorage.set(accessToken, refreshToken);
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `jt_authed=1; path=/; max-age=604800; SameSite=Lax${secure}`;
-        set({ user, accessToken, isAuthenticated: true });
+        set({ user, isAuthenticated: true });
       },
 
       setUser: (user) => set({ user }),
@@ -33,14 +31,13 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         tokenStorage.clear();
         document.cookie = 'jt_authed=; path=/; max-age=0';
-        set({ user: null, accessToken: null, isAuthenticated: false });
+        set({ user: null, isAuthenticated: false });
       },
     }),
     {
       name: 'jt-auth',
       partialize: (s) => ({
         user: s.user,
-        accessToken: s.accessToken,
         isAuthenticated: s.isAuthenticated,
       }),
     },
