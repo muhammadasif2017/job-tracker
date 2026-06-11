@@ -26,6 +26,8 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   ) {
     const { id, emails, displayName, username, photos } = profile;
     const email = emails?.[0]?.value;
+    if (!email)
+      return done(new Error('GitHub account has no verified email'), null);
     const avatarUrl = photos?.[0]?.value;
     const name = displayName || username;
 

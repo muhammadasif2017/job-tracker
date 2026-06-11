@@ -180,7 +180,7 @@ export class JobsService {
     const jobs = await this.prisma.job.findMany({
       where,
       orderBy: { appliedAt: 'desc' },
-      take: 10_000,
+      take: 1_000,
     });
 
     const escape = (v: string | null | undefined) =>

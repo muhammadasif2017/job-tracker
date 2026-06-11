@@ -26,6 +26,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   ) {
     const { id, emails, displayName, photos } = profile;
     const email = emails?.[0]?.value;
+    if (!email) return done(new Error('Google account has no email'), false);
     const avatarUrl = photos?.[0]?.value;
 
     const tokens = await this.authService.handleOAuthUser(

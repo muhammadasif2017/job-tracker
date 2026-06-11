@@ -55,6 +55,12 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+    },
+  })
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
@@ -69,6 +75,12 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+    },
+  })
   @HttpCode(HttpStatus.OK)
   @Post('exchange-code')
   exchangeCode(@Body() dto: ExchangeCodeDto) {
