@@ -1,12 +1,17 @@
-export type JobStatus =
-  | 'WISHLIST'
-  | 'APPLIED'
-  | 'INTERVIEWING'
-  | 'OFFER'
-  | 'REJECTED'
-  | 'GHOSTED';
+export const JOB_STATUSES = [
+  'WISHLIST',
+  'APPLIED',
+  'INTERVIEWING',
+  'OFFER',
+  'REJECTED',
+  'GHOSTED',
+] as const;
 
-export type JobPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type JobStatus = (typeof JOB_STATUSES)[number];
+
+export const JOB_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
+
+export type JobPriority = (typeof JOB_PRIORITIES)[number];
 
 export type JobEventType = 'CREATED' | 'STATUS_CHANGE';
 
@@ -68,6 +73,7 @@ export interface PaginatedJobs {
 
 export interface JobQuery {
   status?: JobStatus;
+  priority?: JobPriority;
   search?: string;
   page?: number;
   limit?: number;
@@ -76,17 +82,6 @@ export interface JobQuery {
   dateFrom?: string;
   dateTo?: string;
 }
-
-export const JOB_STATUSES: JobStatus[] = [
-  'WISHLIST',
-  'APPLIED',
-  'INTERVIEWING',
-  'OFFER',
-  'REJECTED',
-  'GHOSTED',
-];
-
-export const JOB_PRIORITIES: JobPriority[] = ['LOW', 'MEDIUM', 'HIGH'];
 
 export const PRIORITY_LABELS: Record<JobPriority, string> = {
   LOW: 'Low',
