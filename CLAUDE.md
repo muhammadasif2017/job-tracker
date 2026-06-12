@@ -26,7 +26,7 @@ npm run lint            # ESLint
 
 ### Backend (NestJS 11)
 
-**Module structure:** `AppModule` → `PrismaModule` (global), `AuthModule`, `UsersModule`, `JobsModule`. Each feature module owns its controller, service, and `dto/` folder.
+**Module structure:** `AppModule` → `PrismaModule` (global), `AuthModule`, `UsersModule`, `JobsModule`, `EnrichmentModule`, `HealthModule`. `EnrichmentModule` registers a BullMQ queue and processor for async company data enrichment. Each feature module owns its controller, service, and `dto/` folder.
 
 **Prisma 7 quirks — critical:**
 - The datasource block has **no `url` field** (Prisma 7 removed it from schema). The connection is wired at runtime via `@prisma/adapter-pg`: `new PrismaPg({ connectionString: process.env.DATABASE_URL })` passed to `super({ adapter })` in `PrismaService`.
@@ -35,8 +35,8 @@ npm run lint            # ESLint
 
 **Auth flow:**
 - Global `JwtAuthGuard` protects all routes by default; opt out with `@Public()`.
-- Two JWTs: access token (15 min, `JWT_SECRET`) + refresh token (7 days, `JWT_REFRESH_SECRET`). Refresh tokens are bcrypt-hashed before storage in `User.refreshToken`.
-- OAuth (Google/GitHub): `GET /auth/google` → provider → `GET /auth/google/callback` → redirect to `${FRONTEND_URL}/callback?accessToken=x&refreshToken=y`. Strategies use `?? 'placeholder'` so the server starts without real OAuth credentials.
+- Two JWTs: access token (15 min, `JWT_SECRET`) + refresh token (7 days, `JWT_REFRESH_SECRET`). Refresh tokens are bcrypt-hashed before storage in the `RefreshToken` table (separate model, not a column on `User`).
+- OAuth (Google/GitHub): `GET /auth/google` → provider → `GET /auth/google/callback` → `storeOAuthCode(tokens)` stores the token pair in a server-side `Map` for 60 s → redirect to `${FRONTEND_URL}/callback?code=<uuid>` → frontend POSTs `POST /auth/exchange-code { code }` to retrieve the token pair. Tokens are never exposed in the redirect URL. Strategies use `?? 'placeholder'` so the server starts without real OAuth credentials.
 - `issueTokens` is the single method that signs both tokens, hashes+stores the refresh token, and returns the pair.
 
 **Error handling:** Global `PrismaExceptionFilter` maps P2002 → 409, P2025 → 404, and passes NestJS `HttpException` subclasses through unchanged.
@@ -66,7 +66,7 @@ Tests in `backend/test/app.e2e-spec.ts` run against the **live dev database**. E
 
 ### Database Schema
 
-Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`.
+Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete.
 
 
 # CLAUDE.md

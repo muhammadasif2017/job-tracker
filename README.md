@@ -1,6 +1,6 @@
 # Job Tracker
 
-A full-stack job application tracker built as a portfolio project. Track every application from wishlist to offer with a kanban board, dashboard analytics, interview scheduling, and a full application timeline.
+A full-stack job application tracker with AI-powered company intelligence. Track every application from wishlist to offer with a kanban board, dashboard analytics, and a full application timeline. Background workers automatically enrich company profiles using web search and LLM extraction.
 
 ## Features
 
@@ -10,6 +10,7 @@ A full-stack job application tracker built as a portfolio project. Track every a
 - **Application timeline** — automatic audit log of every status change per job
 - **Interview scheduling** — set a next-interview date on any application
 - **Dashboard** — stats cards (total, this month, response rate) + donut chart breakdown by status
+- **Company enrichment** — background queue (BullMQ + Redis) fetches company data (industry, tech stack, culture, remote policy) via Brave Search + Claude Haiku `tool_use`
 - **CSV export** — download all applications (or filtered subset) as a spreadsheet
 - **Profile management** — update name, change password, view connected OAuth accounts, delete account
 - **Security** — helmet HTTP headers, rate limiting (10 req/min on auth routes), bcrypt password hashing, hashed refresh tokens in DB
@@ -22,6 +23,9 @@ A full-stack job application tracker built as a portfolio project. Track every a
 - NestJS 11 + TypeScript
 - PostgreSQL + Prisma 7 (driver adapter: `@prisma/adapter-pg`)
 - Passport.js — Local, JWT, JWT-Refresh, Google OAuth2, GitHub OAuth2
+- BullMQ + Redis — async company enrichment queue
+- Anthropic Claude Haiku — structured data extraction via `tool_use`
+- Brave Search API — company web search (2000 req/month free tier)
 - helmet, nestjs-pino, @nestjs/throttler, class-validator
 
 **Frontend**
@@ -69,6 +73,11 @@ JWT_REFRESH_SECRET="<random string, minimum 32 characters, different from above>
 JWT_EXPIRES_IN="15m"
 JWT_REFRESH_EXPIRES_IN="7d"
 FRONTEND_URL="http://localhost:3000"
+
+# Optional — company enrichment (app starts without these)
+ANTHROPIC_API_KEY=
+BRAVE_SEARCH_API_KEY=
+REDIS_URL="redis://localhost:6379"
 
 # Optional — only needed for OAuth
 GOOGLE_CLIENT_ID=
@@ -131,6 +140,8 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 | GET | `/jobs/:id/events` | Application timeline |
 | PATCH | `/jobs/:id` | Update job |
 | DELETE | `/jobs/:id` | Delete job |
+| POST | `/enrichment/:jobId` | Trigger company enrichment (async) |
+| GET | `/enrichment/:jobId` | Get enrichment status + result |
 | GET | `/users/me` | Full user profile |
 | PATCH | `/users/me` | Update profile |
 | PATCH | `/users/me/password` | Change password |
@@ -146,6 +157,8 @@ job-tracker/
 │   │   ├── auth/        # JWT, OAuth strategies, guards
 │   │   ├── jobs/        # Job CRUD, timeline, CSV export
 │   │   ├── users/       # Profile management
+│   │   ├── enrichment/  # BullMQ queue, processor, AI/search services
+│   │   ├── health/      # /health endpoint
 │   │   ├── prisma/      # PrismaService
 │   │   └── common/      # Guards, filters, decorators
 │   └── test/            # E2E tests (supertest)
