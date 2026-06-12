@@ -26,6 +26,13 @@ enum JobEventType {
   STATUS_CHANGE
 }
 
+enum EnrichmentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -61,25 +68,47 @@ model Account {
 }
 
 model Job {
-  id              String     @id @default(cuid())
+  id              String          @id @default(cuid())
   company         String
   position        String
   location        String?
   url             String?
-  status          JobStatus  @default(APPLIED)
-  priority        JobPriority @default(MEDIUM)
+  status          JobStatus       @default(APPLIED)
+  priority        JobPriority     @default(MEDIUM)
   notes           String?
-  appliedAt       DateTime   @default(now())
+  appliedAt       DateTime        @default(now())
   nextInterviewAt DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   userId          String
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   events          JobEvent[]
+  companyProfile  CompanyProfile?
 
   @@index([userId])
   @@index([userId, status])
   @@index([userId, appliedAt])
+}
+
+model CompanyProfile {
+  id              String           @id @default(cuid())
+  jobId           String           @unique
+  job             Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  status          EnrichmentStatus @default(PENDING)
+  industry        String?
+  companySize     String?
+  techStack       String[]
+  cultureSummary  String?
+  remotePolicy    String?
+  workLifeBalance String?
+  headquarters    String?
+  founded         String?
+  errorMessage    String?
+  enrichedAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@map("company_profiles")
 }
 
 model JobEvent {
