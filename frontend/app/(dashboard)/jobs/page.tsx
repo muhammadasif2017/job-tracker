@@ -86,14 +86,14 @@ export default function JobsPage() {
     },
   });
 
-  const openEdit = (job: Job) => {
+  const openEdit = useCallback((job: Job) => {
     setEditJob(job);
     setFormOpen(true);
-  };
-  const closeForm = () => {
+  }, []);
+  const closeForm = useCallback(() => {
     setFormOpen(false);
     setEditJob(undefined);
-  };
+  }, []);
 
   const handleExport = async () => {
     try {

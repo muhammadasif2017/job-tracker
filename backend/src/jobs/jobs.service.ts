@@ -104,8 +104,19 @@ export class JobsService {
     return job;
   }
 
+  // Lean ownership check — only selects id + status, no companyProfile JOIN.
+  // Use this in write operations that don't need enrichment data.
+  private async findOwned(userId: string, jobId: string) {
+    const job = await this.prisma.job.findFirst({
+      where: { id: jobId, userId },
+      select: { id: true, status: true },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+    return job;
+  }
+
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
-    const existing = await this.findOne(userId, jobId);
+    const existing = await this.findOwned(userId, jobId);
 
     const statusChanged = dto.status && dto.status !== existing.status;
 
@@ -140,16 +151,19 @@ export class JobsService {
   }
 
   async remove(userId: string, jobId: string) {
-    await this.findOne(userId, jobId);
-    await this.prisma.job.delete({ where: { id: jobId } });
+    const { count } = await this.prisma.job.deleteMany({
+      where: { id: jobId, userId },
+    });
+    if (count === 0) throw new NotFoundException('Job not found');
     return { message: 'Job deleted' };
   }
 
   async getEvents(userId: string, jobId: string) {
-    await this.findOne(userId, jobId);
+    await this.findOwned(userId, jobId);
     return this.prisma.jobEvent.findMany({
       where: { jobId },
       orderBy: { createdAt: 'asc' },
+      take: 200,
     });
   }
 

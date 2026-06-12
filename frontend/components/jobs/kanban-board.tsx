@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DragDropContext,
@@ -67,6 +68,18 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
     },
   });
 
+  const jobsByStatus = useMemo(
+    () =>
+      KANBAN_COLS.reduce(
+        (acc, s) => ({
+          ...acc,
+          [s]: data?.data.filter((j) => j.status === s) ?? [],
+        }),
+        {} as Record<JobStatus, Job[]>,
+      ),
+    [data],
+  );
+
   const onDragEnd = (result: DropResult) => {
     if (!result.destination) return;
     const newStatus = result.destination.droppableId as JobStatus;
@@ -91,14 +104,6 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       </div>
     );
   }
-
-  const jobsByStatus = KANBAN_COLS.reduce(
-    (acc, s) => ({
-      ...acc,
-      [s]: data?.data.filter((j) => j.status === s) ?? [],
-    }),
-    {} as Record<JobStatus, Job[]>,
-  );
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>

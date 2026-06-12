@@ -15,6 +15,7 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    deleteMany: jest.fn(),
   },
   jobEvent: { findMany: jest.fn() },
 };
@@ -79,6 +80,93 @@ describe('JobsService', () => {
         where: { id: 'job-1', userId: 'user-1' },
         include: { companyProfile: true },
       });
+    });
+  });
+
+  describe('update', () => {
+    it('does not include companyProfile when checking ownership', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockPrisma.job.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          select: { id: true, status: true },
+        }),
+      );
+      expect(mockPrisma.job.findFirst).not.toHaveBeenCalledWith(
+        expect.objectContaining({ include: expect.anything() }),
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('returns success message when job is deleted', async () => {
+      mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.remove('user-1', 'job-1');
+
+      expect(result).toEqual({ message: 'Job deleted' });
+    });
+
+    it('throws NotFoundException when job does not belong to the user', async () => {
+      mockPrisma.job.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.remove('user-1', 'job-99')).rejects.toThrow(
+        'Job not found',
+      );
+    });
+
+    it('uses a single deleteMany to avoid a separate ownership SELECT', async () => {
+      mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove('user-1', 'job-1');
+
+      expect(mockPrisma.job.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'job-1', userId: 'user-1' },
+      });
+    });
+  });
+
+  describe('getEvents', () => {
+    it('returns events ordered by createdAt asc', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      const events = [{ id: 'e1' }, { id: 'e2' }];
+      mockPrisma.jobEvent.findMany.mockResolvedValue(events);
+
+      const result = await service.getEvents('user-1', 'job-1');
+
+      expect(result).toBe(events);
+    });
+
+    it('caps the query at 200 events', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+
+      await service.getEvents('user-1', 'job-1');
+
+      expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ take: 200 }),
+      );
+    });
+
+    it('throws NotFoundException when job does not belong to the user', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(null);
+
+      await expect(service.getEvents('user-1', 'job-99')).rejects.toThrow(
+        'Job not found',
+      );
     });
   });
 
