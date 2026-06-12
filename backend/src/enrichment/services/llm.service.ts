@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
 
 export interface CompanyData {
@@ -70,12 +71,34 @@ const EXTRACT_TOOL: Anthropic.Tool = {
   },
 };
 
+function sanitize(raw: Record<string, unknown>): CompanyData {
+  return {
+    industry: typeof raw.industry === 'string' ? raw.industry : 'Unknown',
+    companySize:
+      typeof raw.companySize === 'string' ? raw.companySize : 'Unknown',
+    techStack: Array.isArray(raw.techStack)
+      ? raw.techStack.filter((t): t is string => typeof t === 'string')
+      : [],
+    cultureSummary:
+      typeof raw.cultureSummary === 'string' ? raw.cultureSummary : 'Unknown',
+    remotePolicy:
+      typeof raw.remotePolicy === 'string' ? raw.remotePolicy : 'Unknown',
+    workLifeBalance:
+      typeof raw.workLifeBalance === 'string' ? raw.workLifeBalance : 'Unknown',
+    headquarters:
+      typeof raw.headquarters === 'string' ? raw.headquarters : 'Unknown',
+    founded: typeof raw.founded === 'string' ? raw.founded : 'Unknown',
+  };
+}
+
 @Injectable()
 export class LlmService {
   private readonly client: Anthropic;
 
-  constructor() {
-    this.client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  constructor(private readonly config: ConfigService) {
+    this.client = new Anthropic({
+      apiKey: this.config.get('ANTHROPIC_API_KEY'),
+    });
   }
 
   async extract(companyName: string, context: string): Promise<CompanyData> {
@@ -101,7 +124,7 @@ export class LlmService {
       const toolUse = response.content.find((b) => b.type === 'tool_use');
       if (!toolUse || toolUse.type !== 'tool_use') return { ...UNKNOWN_DATA };
 
-      return toolUse.input as CompanyData;
+      return sanitize(toolUse.input as Record<string, unknown>);
     } catch {
       return { ...UNKNOWN_DATA };
     }

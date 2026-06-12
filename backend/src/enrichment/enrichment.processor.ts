@@ -58,12 +58,16 @@ export class EnrichmentProcessor extends WorkerHost {
       });
     } catch (error) {
       try {
+        const raw =
+          error instanceof Error ? error.message : 'Enrichment failed';
+        const errorMessage = raw
+          .replace(/https?:\/\/\S+/g, '[url]')
+          .slice(0, 200);
         await this.prisma.companyProfile.update({
           where: { jobId },
           data: {
             status: EnrichmentStatus.FAILED,
-            errorMessage:
-              error instanceof Error ? error.message : 'Enrichment failed',
+            errorMessage,
           },
         });
       } catch {

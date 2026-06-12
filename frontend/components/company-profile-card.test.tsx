@@ -154,6 +154,14 @@ describe('CompanyProfileCard', () => {
       expect(screen.queryByText('Tech Stack')).not.toBeInTheDocument();
     });
 
+    it('deduplicates tech stack entries so each badge appears once', () => {
+      renderCard(
+        makeProfile({ techStack: ['TypeScript', 'React', 'TypeScript'] }),
+      );
+      expect(screen.getAllByText('TypeScript')).toHaveLength(1);
+      expect(screen.getByText('React')).toBeInTheDocument();
+    });
+
     it('shows remote policy when present', () => {
       renderCard(makeProfile({ remotePolicy: 'Fully remote' }));
       expect(screen.getByText('Fully remote')).toBeInTheDocument();

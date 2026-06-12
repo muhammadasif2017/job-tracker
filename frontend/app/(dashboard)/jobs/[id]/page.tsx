@@ -91,7 +91,10 @@ export default function JobDetailPage() {
     mutationFn: (status: JobStatus) =>
       api.patch(`/jobs/${id}`, { status }).then((r) => r.data),
     onSuccess: (updated) => {
-      qc.setQueryData(['job', id], updated);
+      qc.setQueryData<Job>(['job', id], (prev) => ({
+        ...updated,
+        companyProfile: prev?.companyProfile,
+      }));
       qc.invalidateQueries({ queryKey: ['job-events', id] });
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });

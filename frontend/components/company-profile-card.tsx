@@ -128,7 +128,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             Tech Stack
           </p>
           <div className="flex flex-wrap gap-1.5">
-            {profile.techStack.map((tech) => (
+            {[...new Set(profile.techStack)].map((tech) => (
               <span
                 key={tech}
                 className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"

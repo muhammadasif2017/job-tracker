@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { SearchService } from './search.service.js';
 
 const braveResponse = {
@@ -19,26 +20,28 @@ const braveResponse = {
   },
 };
 
+const mockConfigService = { get: jest.fn() };
+
 describe('SearchService', () => {
   let service: SearchService;
   let fetchSpy: jest.SpyInstance;
-  const originalKey = process.env.BRAVE_SEARCH_API_KEY;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
     const module = await Test.createTestingModule({
-      providers: [SearchService],
+      providers: [
+        SearchService,
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
     service = module.get(SearchService);
     fetchSpy = jest.spyOn(global, 'fetch');
   });
 
-  afterEach(() => {
-    fetchSpy.mockRestore();
-    process.env.BRAVE_SEARCH_API_KEY = originalKey;
-  });
+  afterEach(() => fetchSpy.mockRestore());
 
   it('returns description snippets from Brave API results', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'test-key';
+    mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(braveResponse),
@@ -52,7 +55,7 @@ describe('SearchService', () => {
   });
 
   it('passes the query and auth header to Brave API', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'my-brave-key';
+    mockConfigService.get.mockReturnValue('my-brave-key');
     fetchSpy.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(braveResponse),
@@ -67,8 +70,8 @@ describe('SearchService', () => {
     ).toBe('my-brave-key');
   });
 
-  it('returns empty array when BRAVE_SEARCH_API_KEY is not set', async () => {
-    delete process.env.BRAVE_SEARCH_API_KEY;
+  it('returns empty array when BRAVE_SEARCH_API_KEY is not configured', async () => {
+    mockConfigService.get.mockReturnValue(undefined);
 
     const snippets = await service.search('Acme Corp');
 
@@ -77,7 +80,7 @@ describe('SearchService', () => {
   });
 
   it('returns empty array when fetch rejects', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'test-key';
+    mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockRejectedValue(new Error('Network error'));
 
     const snippets = await service.search('Acme Corp');
@@ -86,7 +89,7 @@ describe('SearchService', () => {
   });
 
   it('returns empty array when API response is not ok', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'test-key';
+    mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({
       ok: false,
       status: 429,
@@ -99,7 +102,7 @@ describe('SearchService', () => {
   });
 
   it('filters out results with no description', async () => {
-    process.env.BRAVE_SEARCH_API_KEY = 'test-key';
+    mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({
       ok: true,
       json: () =>

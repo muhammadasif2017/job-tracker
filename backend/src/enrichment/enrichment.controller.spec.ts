@@ -1,10 +1,13 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EnrichmentController } from './enrichment.controller.js';
 import { EnrichmentService } from './enrichment.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
-const mockPrisma = { job: { findFirst: jest.fn() } };
+const mockPrisma = {
+  job: { findFirst: jest.fn() },
+  companyProfile: { findFirst: jest.fn() },
+};
 const mockEnrichment = { enqueueEnrichment: jest.fn() };
 const user = { id: 'user-1' };
 
@@ -25,6 +28,7 @@ describe('EnrichmentController', () => {
 
   it('returns { message } and enqueues when job belongs to user', async () => {
     mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+    mockPrisma.companyProfile.findFirst.mockResolvedValue(null);
     mockEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
 
     const result = await controller.triggerEnrichment(user, 'job-1');
@@ -35,6 +39,7 @@ describe('EnrichmentController', () => {
 
   it('scopes the ownership check to the authenticated user', async () => {
     mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+    mockPrisma.companyProfile.findFirst.mockResolvedValue(null);
     mockEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
 
     await controller.triggerEnrichment(user, 'job-1');
@@ -52,4 +57,17 @@ describe('EnrichmentController', () => {
     );
     expect(mockEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
   });
+
+  it.each(['PENDING', 'PROCESSING'])(
+    'throws ConflictException when enrichment is already %s',
+    async (status) => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.companyProfile.findFirst.mockResolvedValue({ status });
+
+      await expect(controller.triggerEnrichment(user, 'job-1')).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
+    },
+  );
 });

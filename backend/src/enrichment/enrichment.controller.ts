@@ -1,4 +1,11 @@
-import { Controller, NotFoundException, Param, Post } from '@nestjs/common';
+import {
+  Controller,
+  ConflictException,
+  NotFoundException,
+  Param,
+  Post,
+} from '@nestjs/common';
+import { EnrichmentStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from './enrichment.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
@@ -19,6 +26,16 @@ export class EnrichmentController {
       where: { id: jobId, userId: user.id },
     });
     if (!job) throw new NotFoundException('Job not found');
+
+    const existing = await this.prisma.companyProfile.findFirst({
+      where: { jobId },
+    });
+    if (
+      existing?.status === EnrichmentStatus.PENDING ||
+      existing?.status === EnrichmentStatus.PROCESSING
+    ) {
+      throw new ConflictException('Enrichment already in progress');
+    }
 
     await this.enrichment.enqueueEnrichment(jobId);
     return { message: 'Enrichment queued' };

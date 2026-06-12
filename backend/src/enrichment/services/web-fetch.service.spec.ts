@@ -76,4 +76,25 @@ describe('WebFetchService', () => {
 
     expect(result.length).toBeLessThanOrEqual(8000);
   });
+
+  it('returns empty string for an empty url without calling fetch', async () => {
+    const result = await service.fetchPageText('');
+    expect(result).toBe('');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    'http://localhost/admin',
+    'http://127.0.0.1/etc/passwd',
+    'http://0.0.0.0',
+    'http://10.0.0.1/metadata',
+    'http://192.168.1.1/router',
+    'http://172.16.0.1/internal',
+    'http://169.254.169.254/latest/meta-data/',
+    'ftp://acme.com/file',
+  ])('blocks SSRF-prone url %s without calling fetch', async (url) => {
+    const result = await service.fetchPageText(url);
+    expect(result).toBe('');
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
 });

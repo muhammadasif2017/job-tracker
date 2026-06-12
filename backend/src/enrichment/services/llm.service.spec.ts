@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConfigService } from '@nestjs/config';
 import { LlmService } from './llm.service.js';
 
 const mockCreate = jest.fn();
@@ -9,6 +10,8 @@ jest.mock('@anthropic-ai/sdk', () => ({
     messages: { create: mockCreate },
   })),
 }));
+
+const mockConfigService = { get: jest.fn().mockReturnValue('test-api-key') };
 
 const toolUseResponse = {
   content: [
@@ -35,8 +38,12 @@ describe('LlmService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('test-api-key');
     const module = await Test.createTestingModule({
-      providers: [LlmService],
+      providers: [
+        LlmService,
+        { provide: ConfigService, useValue: mockConfigService },
+      ],
     }).compile();
     service = module.get(LlmService);
   });
@@ -106,5 +113,52 @@ describe('LlmService', () => {
       tool_choice: { type: string };
     };
     expect(call.tool_choice).toEqual({ type: 'any' });
+  });
+
+  it('falls back to Unknown for a null techStack instead of throwing', async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        {
+          type: 'tool_use',
+          id: 'toolu_02',
+          name: 'extract_company_data',
+          input: {
+            industry: 'SaaS',
+            companySize: 'Small (50-200)',
+            techStack: null,
+            cultureSummary: 'Good culture.',
+            remotePolicy: 'Remote',
+            workLifeBalance: 'Good',
+            headquarters: 'Austin, TX',
+            founded: '2020',
+          },
+        },
+      ],
+    });
+
+    const result = await service.extract('Acme', 'context');
+
+    expect(result.techStack).toEqual([]);
+    expect(result.industry).toBe('SaaS');
+  });
+
+  it('filters non-string items from a mixed techStack array', async () => {
+    mockCreate.mockResolvedValue({
+      content: [
+        {
+          type: 'tool_use',
+          id: 'toolu_03',
+          name: 'extract_company_data',
+          input: {
+            ...toolUseResponse.content[0].input,
+            techStack: ['TypeScript', 42, null, 'React'],
+          },
+        },
+      ],
+    });
+
+    const result = await service.extract('Acme', 'context');
+
+    expect(result.techStack).toEqual(['TypeScript', 'React']);
   });
 });

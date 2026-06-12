@@ -12,6 +12,16 @@ import { JobsModule } from './jobs/jobs.module.js';
 import { HealthModule } from './health/health.module.js';
 import { EnrichmentModule } from './enrichment/enrichment.module.js';
 
+function parseRedisConnection() {
+  const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
+  return {
+    host: u.hostname,
+    port: Number(u.port || 6379),
+    ...(u.password ? { password: decodeURIComponent(u.password) } : {}),
+    maxRetriesPerRequest: null,
+  };
+}
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -25,6 +35,8 @@ import { EnrichmentModule } from './enrichment/enrichment.module.js';
         JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
         FRONTEND_URL: Joi.string().default('http://localhost:3000'),
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
+        ANTHROPIC_API_KEY: Joi.string().optional(),
+        BRAVE_SEARCH_API_KEY: Joi.string().optional(),
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),
@@ -33,15 +45,7 @@ import { EnrichmentModule } from './enrichment/enrichment.module.js';
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     BullModule.forRoot({
-      connection: (() => {
-        const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
-        return {
-          host: u.hostname,
-          port: Number(u.port || 6379),
-          ...(u.password ? { password: decodeURIComponent(u.password) } : {}),
-          maxRetriesPerRequest: null,
-        };
-      })(),
+      connection: parseRedisConnection(),
     }),
     LoggerModule.forRoot({
       pinoHttp: {

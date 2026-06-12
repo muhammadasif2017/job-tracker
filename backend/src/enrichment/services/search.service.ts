@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
 
@@ -14,8 +15,10 @@ interface BraveResponse {
 
 @Injectable()
 export class SearchService {
+  constructor(private readonly config: ConfigService) {}
+
   async search(query: string): Promise<string[]> {
-    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+    const apiKey = this.config.get<string>('BRAVE_SEARCH_API_KEY');
     if (!apiKey) return [];
 
     try {

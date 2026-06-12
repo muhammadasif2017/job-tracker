@@ -30,8 +30,8 @@ describe('EnrichmentProcessor', () => {
     jest.clearAllMocks();
     processor = new EnrichmentProcessor(
       mockPrisma as never,
-      mockWebFetch,
-      mockSearch,
+      mockWebFetch as never,
+      mockSearch as never,
       mockLlm as never,
     );
   });
@@ -125,6 +125,37 @@ describe('EnrichmentProcessor', () => {
         data: expect.objectContaining({ status: EnrichmentStatus.FAILED }),
       }),
     );
+  });
+
+  it('strips URLs from the error message before storing it', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(
+      new Error('Failed to fetch https://api.example.com/v1/search?q=acme'),
+    );
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const updateCall = mockPrisma.companyProfile.update.mock.calls[0][0] as {
+      data: { errorMessage: string };
+    };
+    expect(updateCall.data.errorMessage).not.toContain('https://');
+    expect(updateCall.data.errorMessage).toContain('[url]');
+  });
+
+  it('caps the error message at 200 characters', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(new Error('x'.repeat(300)));
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const updateCall = mockPrisma.companyProfile.update.mock.calls[0][0] as {
+      data: { errorMessage: string };
+    };
+    expect(updateCall.data.errorMessage.length).toBeLessThanOrEqual(200);
   });
 
   it('does not rethrow when the FAILED update itself throws (profile deleted mid-flight)', async () => {
