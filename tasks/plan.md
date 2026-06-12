@@ -57,19 +57,19 @@ Spec: `docs/specs/company-enrichment.md`
 
 ### Phase 4 — Documentation
 
-- [ ] **Task 10: Update .env.example files**
+- [x] **Task 10: Update .env.example files**
   - Acceptance: Both root `.env.example` and `backend/` env docs mention `ANTHROPIC_API_KEY`, `BRAVE_SEARCH_API_KEY`, `REDIS_URL`.
   - Verify: Visual check
   - Files: `.env.example`, any backend `.env.example`
 
 ### Phase 5 — Frontend
 
-- [ ] **Task 11: CompanyProfileCard component**
+- [x] **Task 11: CompanyProfileCard component**
   - Acceptance: Component renders skeleton while `PENDING`/`PROCESSING`; renders structured card for `COMPLETED`; renders error state for `FAILED`; includes "Refresh" button.
   - Verify: `npm run build` in `frontend/`
   - Files: `frontend/components/company-profile-card.tsx`
 
-- [ ] **Task 12: Wire CompanyProfileCard into job detail page**
+- [x] **Task 12: Wire CompanyProfileCard into job detail page**
   - Acceptance: Job detail page shows `CompanyProfileCard`; TanStack Query polls every 3s while status is `PENDING`/`PROCESSING`; stops on `COMPLETED`/`FAILED`.
   - Verify: `npm run build` in `frontend/`
   - Files: `frontend/app/(dashboard)/jobs/[id]/page.tsx`
