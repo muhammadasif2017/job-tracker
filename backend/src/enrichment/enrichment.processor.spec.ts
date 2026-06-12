@@ -126,4 +126,15 @@ describe('EnrichmentProcessor', () => {
       }),
     );
   });
+
+  it('does not rethrow when the FAILED update itself throws (profile deleted mid-flight)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(new Error('Search API down'));
+    mockPrisma.companyProfile.update.mockRejectedValue(
+      new Error('Record to update not found'),
+    );
+
+    await expect(processor.process(bullJob)).resolves.toBeUndefined();
+  });
 });
