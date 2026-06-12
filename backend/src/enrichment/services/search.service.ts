@@ -1,0 +1,40 @@
+import { Injectable } from '@nestjs/common';
+
+const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
+
+interface BraveResult {
+  title: string;
+  url: string;
+  description?: string;
+}
+
+interface BraveResponse {
+  web?: { results: BraveResult[] };
+}
+
+@Injectable()
+export class SearchService {
+  async search(query: string): Promise<string[]> {
+    const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+    if (!apiKey) return [];
+
+    try {
+      const params = new URLSearchParams({ q: query, count: '5' });
+      const res = await fetch(`${BRAVE_SEARCH_URL}?${params}`, {
+        headers: {
+          'X-Subscription-Token': apiKey,
+          Accept: 'application/json',
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!res.ok) return [];
+
+      const data: BraveResponse = await res.json();
+      return (data.web?.results ?? [])
+        .filter((r) => !!r.description)
+        .map((r) => r.description as string);
+    } catch {
+      return [];
+    }
+  }
+}
