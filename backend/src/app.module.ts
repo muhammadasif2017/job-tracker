@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module.js';
@@ -9,6 +10,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { HealthModule } from './health/health.module.js';
+import { EnrichmentModule } from './enrichment/enrichment.module.js';
 
 @Module({
   imports: [
@@ -22,6 +24,7 @@ import { HealthModule } from './health/health.module.js';
         JWT_EXPIRES_IN: Joi.string().default('15m'),
         JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
         FRONTEND_URL: Joi.string().default('http://localhost:3000'),
+        REDIS_URL: Joi.string().default('redis://localhost:6379'),
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),
@@ -29,6 +32,17 @@ import { HealthModule } from './health/health.module.js';
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
+    BullModule.forRoot({
+      connection: (() => {
+        const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
+        return {
+          host: u.hostname,
+          port: Number(u.port || 6379),
+          ...(u.password ? { password: decodeURIComponent(u.password) } : {}),
+          maxRetriesPerRequest: null,
+        };
+      })(),
+    }),
     LoggerModule.forRoot({
       pinoHttp: {
         transport:
@@ -50,6 +64,7 @@ import { HealthModule } from './health/health.module.js';
     UsersModule,
     JobsModule,
     HealthModule,
+    EnrichmentModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
