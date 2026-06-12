@@ -16,6 +16,7 @@ import { Button } from '../../../../components/ui/button';
 import { StatusBadge } from '../../../../components/ui/badge';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
+import { CompanyProfileCard } from '../../../../components/company-profile-card';
 import { formatDate } from '../../../../lib/utils';
 import {
   JOB_STATUSES,
@@ -74,6 +75,10 @@ export default function JobDetailPage() {
   const { data: job, isLoading } = useQuery<Job>({
     queryKey: ['job', id],
     queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
+    refetchInterval: (query) => {
+      const status = query.state.data?.companyProfile?.status;
+      return status === 'PENDING' || status === 'PROCESSING' ? 3000 : false;
+    },
   });
 
   const { data: events = [] } = useQuery<JobEvent[]>({
@@ -219,6 +224,7 @@ export default function JobDetailPage() {
           </div>
 
           <Timeline events={events} />
+          <CompanyProfileCard profile={job.companyProfile} jobId={id} />
           <JobForm
             open={editOpen}
             onClose={() => setEditOpen(false)}

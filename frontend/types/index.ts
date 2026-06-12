@@ -25,6 +25,30 @@ export interface JobEvent {
   createdAt: string;
 }
 
+export type EnrichmentStatus =
+  | 'PENDING'
+  | 'PROCESSING'
+  | 'COMPLETED'
+  | 'FAILED';
+
+export interface CompanyProfile {
+  id: string;
+  jobId: string;
+  status: EnrichmentStatus;
+  industry?: string;
+  companySize?: string;
+  techStack: string[];
+  cultureSummary?: string;
+  remotePolicy?: string;
+  workLifeBalance?: string;
+  headquarters?: string;
+  founded?: string;
+  errorMessage?: string;
+  enrichedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Job {
   id: string;
   company: string;
@@ -39,6 +63,7 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  companyProfile?: CompanyProfile;
 }
 
 export interface User {
