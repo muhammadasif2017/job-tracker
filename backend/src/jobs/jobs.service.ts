@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -7,11 +8,14 @@ import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
 
 @Injectable()
 export class JobsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private enrichment: EnrichmentService,
+  ) {}
 
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
-    return this.prisma.job.create({
+    const job = await this.prisma.job.create({
       data: {
         company: dto.company,
         position: dto.position,
@@ -30,6 +34,12 @@ export class JobsService {
         },
       },
     });
+    try {
+      await this.enrichment.enqueueEnrichment(job.id);
+    } catch {
+      // enrichment is best-effort; job creation always succeeds
+    }
+    return job;
   }
 
   // Shared filter builder for the list and CSV export — both expose the same
@@ -88,6 +98,7 @@ export class JobsService {
     // from one that doesn't exist (404 for both — no existence leak).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
+      include: { companyProfile: true },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;

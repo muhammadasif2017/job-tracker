@@ -2,7 +2,9 @@ import { Test } from '@nestjs/testing';
 import { JobStatus } from '@prisma/client';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import { CreateJobDto } from './dto/create-job.dto.js';
 
 const mockPrisma = {
   job: {
@@ -17,6 +19,8 @@ const mockPrisma = {
   jobEvent: { findMany: jest.fn() },
 };
 
+const mockEnrichment = { enqueueEnrichment: jest.fn() };
+
 describe('JobsService', () => {
   let service: JobsService;
 
@@ -26,9 +30,56 @@ describe('JobsService', () => {
       providers: [
         JobsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: EnrichmentService, useValue: mockEnrichment },
       ],
     }).compile();
     service = module.get(JobsService);
+  });
+
+  describe('create', () => {
+    it('calls enqueueEnrichment with the created job id', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+
+      const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
+      await service.create('user-1', dto);
+
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
+    });
+
+    it('still returns the created job even if enqueueEnrichment throws', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockEnrichment.enqueueEnrichment.mockRejectedValue(
+        new Error('Redis down'),
+      );
+
+      const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
+      const result = await service.create('user-1', dto);
+
+      expect(result).toMatchObject({ id: 'job-new' });
+    });
+  });
+
+  describe('findOne', () => {
+    it('includes companyProfile in the Prisma query', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyProfile: null,
+      });
+
+      await service.findOne('user-1', 'job-1');
+
+      expect(mockPrisma.job.findFirst).toHaveBeenCalledWith({
+        where: { id: 'job-1', userId: 'user-1' },
+        include: { companyProfile: true },
+      });
+    });
   });
 
   describe('getStats', () => {
@@ -53,12 +104,10 @@ describe('JobsService', () => {
         { status: JobStatus.OFFER, _count: { _all: 1 } },
         { status: JobStatus.REJECTED, _count: { _all: 1 } },
       ]);
-      // total is called before thisMonth inside Promise.all
       mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
 
       const stats = await service.getStats('u1');
 
-      // responded = INTERVIEWING(3) + OFFER(1) + REJECTED(1) = 5 / 10 total = 50%
       expect(stats.responseRate).toBe(50);
       expect(stats.total).toBe(10);
       expect(stats.thisMonth).toBe(4);
@@ -95,7 +144,6 @@ describe('JobsService', () => {
       const csv = await service.exportCsv('u1', new JobQueryDto());
       const row = csv.split('\r\n')[1];
 
-      // CSV spec: each " inside a quoted field is doubled
       expect(row).toContain('"Acme ""Corp"""');
     });
 
@@ -116,7 +164,6 @@ describe('JobsService', () => {
       const csv = await service.exportCsv('u1', new JobQueryDto());
       const row = csv.split('\r\n')[1];
 
-      // null location sits between Status and Applied Date — both neighbors are non-null
       expect(row).toContain(',"",');
     });
   });
