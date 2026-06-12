@@ -5,12 +5,14 @@ import {
   EnrichmentProcessor,
   ENRICHMENT_QUEUE,
 } from './enrichment.processor.js';
+import { EnrichmentController } from './enrichment.controller.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
 import { LlmService } from './services/llm.service.js';
 
 @Module({
   imports: [BullModule.registerQueue({ name: ENRICHMENT_QUEUE })],
+  controllers: [EnrichmentController],
   providers: [
     EnrichmentService,
     EnrichmentProcessor,
