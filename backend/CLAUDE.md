@@ -172,20 +172,23 @@ import type { Request, Response } from 'express';
 
 ## Environment Variables
 
-| Variable                 | Required | Default                 | Notes                                                                  |
-| ------------------------ | -------- | ----------------------- | ---------------------------------------------------------------------- |
-| `DATABASE_URL`           | Yes      | —                       | PostgreSQL connection string                                           |
-| `PORT`                   | No       | `3001`                  |                                                                        |
-| `JWT_SECRET`             | Yes      | —                       | Min 32 chars                                                           |
-| `JWT_REFRESH_SECRET`     | Yes      | —                       | Min 32 chars                                                           |
-| `JWT_EXPIRES_IN`         | No       | `15m`                   |                                                                        |
-| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                    |                                                                        |
-| `FRONTEND_URL`           | No       | `http://localhost:3000` | Used for CORS and OAuth redirect                                       |
-| `BACKEND_URL`            | No       | `http://localhost:3001` | Backend origin used to build OAuth callback URLs sent to Google/GitHub |
-| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`         | App starts without it                                                  |
-| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`         | App starts without it                                                  |
-| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`         | App starts without it                                                  |
-| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`         | App starts without it                                                  |
+| Variable                 | Required | Default                  | Notes                                                                           |
+| ------------------------ | -------- | ------------------------ | ------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | Yes      | —                        | PostgreSQL connection string                                                    |
+| `PORT`                   | No       | `3001`                   |                                                                                 |
+| `JWT_SECRET`             | Yes      | —                        | Min 32 chars                                                                    |
+| `JWT_REFRESH_SECRET`     | Yes      | —                        | Min 32 chars                                                                    |
+| `JWT_EXPIRES_IN`         | No       | `15m`                    |                                                                                 |
+| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                     |                                                                                 |
+| `FRONTEND_URL`           | No       | `http://localhost:3000`  | Used for CORS and OAuth redirect                                                |
+| `BACKEND_URL`            | No       | `http://localhost:3001`  | Backend origin used to build OAuth callback URLs sent to Google/GitHub          |
+| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                           |
+| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                           |
+| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                           |
+| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                           |
+| `ANTHROPIC_API_KEY`      | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail |
+| `BRAVE_SEARCH_API_KEY`   | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset                   |
+| `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                      |
 
 ---
 
