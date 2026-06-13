@@ -65,7 +65,11 @@ export class ResumesService {
       });
 
       if (oldKey) {
-        await this.storage.delete(oldKey).catch(() => undefined);
+        await this.storage
+          .delete(oldKey)
+          .catch((err: Error) =>
+            this.logger.warn(`Failed to delete old resume key: ${err.message}`),
+          );
       }
 
       return this.toDto(resume);
