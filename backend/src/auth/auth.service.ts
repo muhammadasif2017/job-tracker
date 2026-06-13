@@ -90,8 +90,9 @@ export class AuthService {
   } {
     const entry = this.oauthCodes.get(code);
     this.oauthCodes.delete(code);
-    if (!entry || entry.expiresAt < Date.now())
+    if (!entry || entry.expiresAt < Date.now()) {
       throw new ForbiddenException('OAuth code expired or already used');
+    }
     return { accessToken: entry.accessToken, refreshToken: entry.refreshToken };
   }
 
