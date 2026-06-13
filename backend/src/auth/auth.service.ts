@@ -59,11 +59,12 @@ export class AuthService {
       where: { id: jti },
     });
     if (!stored || stored.userId !== userId || stored.expiresAt < new Date()) {
-      throw new ForbiddenException();
+      throw new ForbiddenException('Refresh token invalid or expired');
     }
 
     const valid = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
-    if (!valid) throw new ForbiddenException();
+    if (!valid)
+      throw new ForbiddenException('Refresh token invalid or expired');
 
     await this.prisma.refreshToken.delete({ where: { id: jti } });
     return this.issueTokens(userId, email);
@@ -89,7 +90,8 @@ export class AuthService {
   } {
     const entry = this.oauthCodes.get(code);
     this.oauthCodes.delete(code);
-    if (!entry || entry.expiresAt < Date.now()) throw new ForbiddenException();
+    if (!entry || entry.expiresAt < Date.now())
+      throw new ForbiddenException('OAuth code expired or already used');
     return { accessToken: entry.accessToken, refreshToken: entry.refreshToken };
   }
 
