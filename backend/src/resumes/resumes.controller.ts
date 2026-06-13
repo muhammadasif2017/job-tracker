@@ -103,7 +103,8 @@ export class ResumesController {
     // Key format: resumes/<userId>/<jobId>/<uuid>.pdf
     // Verify the userId segment matches the authenticated user.
     const keyUserId = key.split('/')[1];
-    if (keyUserId !== user.id) throw new ForbiddenException();
+    if (keyUserId !== user.id)
+      throw new ForbiddenException('Access denied to this file');
 
     try {
       await fs.access(filePath);
