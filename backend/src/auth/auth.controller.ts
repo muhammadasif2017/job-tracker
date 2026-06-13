@@ -34,6 +34,7 @@ export class AuthController {
       limit: process.env.NODE_ENV === 'production' ? 10 : 100,
     },
   })
+  @HttpCode(HttpStatus.OK)
   @Post('register')
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);

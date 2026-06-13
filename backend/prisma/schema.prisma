@@ -84,6 +84,7 @@ model Job {
   user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   events          JobEvent[]
   companyProfile  CompanyProfile?
+  resume          Resume?
 
   @@index([userId])
   @@index([userId, status])
@@ -110,6 +111,16 @@ model CompanyProfile {
   updatedAt       DateTime         @updatedAt
 
   @@map("company_profiles")
+}
+
+model Resume {
+  id           String   @id @default(cuid())
+  jobId        String   @unique
+  job          Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  originalName String
+  size         Int
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
 }
 
 model JobEvent {

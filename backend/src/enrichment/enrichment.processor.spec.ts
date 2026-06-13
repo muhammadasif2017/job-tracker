@@ -33,6 +33,7 @@ describe('EnrichmentProcessor', () => {
       mockWebFetch as never,
       mockSearch as never,
       mockLlm as never,
+      { log: jest.fn(), warn: jest.fn(), error: jest.fn() } as never,
     );
   });
 

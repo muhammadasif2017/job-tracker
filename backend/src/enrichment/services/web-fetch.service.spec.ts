@@ -1,5 +1,8 @@
 import { Test } from '@nestjs/testing';
+import { Logger } from 'nestjs-pino';
 import { WebFetchService } from './web-fetch.service.js';
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 const htmlPage = `
 <html>
@@ -22,7 +25,7 @@ describe('WebFetchService', () => {
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      providers: [WebFetchService],
+      providers: [WebFetchService, { provide: Logger, useValue: mockLogger }],
     }).compile();
     service = module.get(WebFetchService);
     fetchSpy = jest.spyOn(global, 'fetch');

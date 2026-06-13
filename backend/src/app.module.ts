@@ -11,6 +11,14 @@ import { UsersModule } from './users/users.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { HealthModule } from './health/health.module.js';
 import { EnrichmentModule } from './enrichment/enrichment.module.js';
+import { StorageModule } from './storage/storage.module.js';
+import { ResumesModule } from './resumes/resumes.module.js';
+
+const ociRequired = Joi.when('STORAGE_DRIVER', {
+  is: 'oracle',
+  then: Joi.string().required(),
+  otherwise: Joi.string().optional(),
+});
 
 function parseRedisConnection() {
   const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
@@ -27,6 +35,9 @@ function parseRedisConnection() {
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({
+        NODE_ENV: Joi.string()
+          .valid('development', 'production', 'test')
+          .default('development'),
         DATABASE_URL: Joi.string().required(),
         PORT: Joi.number().default(3001),
         JWT_SECRET: Joi.string().min(32).required(),
@@ -36,11 +47,17 @@ function parseRedisConnection() {
         FRONTEND_URL: Joi.string().default('http://localhost:3000'),
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
         ANTHROPIC_API_KEY: Joi.string().optional(),
-        BRAVE_SEARCH_API_KEY: Joi.string().optional(),
+        TAVILY_API_KEY: Joi.string().optional(),
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),
         GITHUB_CLIENT_SECRET: Joi.string().optional(),
+        STORAGE_DRIVER: Joi.string().valid('local', 'oracle').default('local'),
+        OCI_NAMESPACE: ociRequired,
+        OCI_REGION: ociRequired,
+        OCI_BUCKET_NAME: ociRequired,
+        OCI_ACCESS_KEY_ID: ociRequired,
+        OCI_SECRET_ACCESS_KEY: ociRequired,
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
@@ -64,7 +81,9 @@ function parseRedisConnection() {
       },
     }),
     PrismaModule,
+    StorageModule,
     AuthModule,
+    ResumesModule,
     UsersModule,
     JobsModule,
     HealthModule,

@@ -1,16 +1,23 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
+import {
+  STORAGE_SERVICE,
+  type IStorageService,
+} from '../storage/storage.service.js';
 
 @Injectable()
 export class JobsService {
   constructor(
     private prisma: PrismaService,
     private enrichment: EnrichmentService,
+    @Inject(STORAGE_SERVICE) private storage: IStorageService,
+    private logger: Logger,
   ) {}
 
   async create(userId: string, dto: CreateJobDto) {
@@ -98,7 +105,7 @@ export class JobsService {
     // from one that doesn't exist (404 for both — no existence leak).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      include: { companyProfile: true },
+      include: { companyProfile: true, resume: true },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;
@@ -122,6 +129,7 @@ export class JobsService {
 
     return this.prisma.job.update({
       where: { id: jobId },
+      include: { companyProfile: true, resume: true },
       data: {
         company: dto.company,
         position: dto.position,
@@ -151,19 +159,35 @@ export class JobsService {
   }
 
   async remove(userId: string, jobId: string) {
+    const resume = await this.prisma.resume.findFirst({
+      where: { jobId, job: { userId } },
+      select: { storageKey: true },
+    });
+
     const { count } = await this.prisma.job.deleteMany({
       where: { id: jobId, userId },
     });
     if (count === 0) throw new NotFoundException('Job not found');
+
+    if (resume) {
+      await this.storage.delete(resume.storageKey).catch((err: unknown) =>
+        this.logger.warn('Storage delete failed after job remove', {
+          storageKey: resume.storageKey,
+          err,
+        }),
+      );
+    }
+
     return { message: 'Job deleted' };
   }
 
-  async getEvents(userId: string, jobId: string) {
+  async getEvents(userId: string, jobId: string, page = 1, limit = 50) {
     await this.findOwned(userId, jobId);
     return this.prisma.jobEvent.findMany({
       where: { jobId },
       orderBy: { createdAt: 'asc' },
-      take: 200,
+      skip: (page - 1) * limit,
+      take: Math.min(limit, 200),
     });
   }
 
@@ -189,6 +213,7 @@ export class JobsService {
     );
     for (const row of counts) byStatus[row.status] = row._count._all;
 
+    // responseRate = (INTERVIEWING + OFFER + REJECTED) / total * 100, rounded to 1 dp
     const responded =
       byStatus[JobStatus.INTERVIEWING] +
       byStatus[JobStatus.OFFER] +

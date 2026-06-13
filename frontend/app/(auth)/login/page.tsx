@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { OAuthButton } from '../../../components/auth/oauth-button';
@@ -13,7 +14,7 @@ import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
 type FormData = z.infer<typeof schema>;
@@ -37,8 +38,12 @@ export default function LoginPage() {
       });
       setAuth(user, tokens.accessToken, tokens.refreshToken);
       router.replace('/');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Login failed');
+    } catch (err) {
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Login failed')
+          : 'Login failed',
+      );
     }
   };
 
@@ -51,7 +56,6 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3">
-          <OAuthButton provider="google" />
           <OAuthButton provider="github" />
         </div>
 

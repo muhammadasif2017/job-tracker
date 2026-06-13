@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -32,6 +34,8 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
+  // 'stats' and 'export' must remain above ':id' — fixed segments take priority
+  // over parameterized ones only when registered first in the same router.
   @Get('stats')
   getStats(@CurrentUser() user: { id: string }) {
     return this.jobsService.getStats(user.id);
@@ -44,8 +48,12 @@ export class JobsController {
     @Res() res: Response,
   ) {
     const csv = await this.jobsService.exportCsv(user.id, query);
+    const suffix = query.status ? `-${query.status.toLowerCase()}` : '';
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="jobs.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="jobs${suffix}.csv"`,
+    );
     res.send(csv);
   }
 
@@ -55,8 +63,13 @@ export class JobsController {
   }
 
   @Get(':id/events')
-  getEvents(@CurrentUser() user: { id: string }, @Param('id') id: string) {
-    return this.jobsService.getEvents(user.id, id);
+  getEvents(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ) {
+    return this.jobsService.getEvents(user.id, id, page, limit);
   }
 
   @Patch(':id')

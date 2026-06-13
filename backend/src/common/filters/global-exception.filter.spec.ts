@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { PrismaExceptionFilter } from './prisma-exception.filter.js';
+import { GlobalExceptionFilter } from './global-exception.filter.js';
 
 const mockResponse = {
   status: jest.fn().mockReturnThis(),
@@ -11,14 +11,14 @@ const mockHost = {
   }),
 };
 
-describe('PrismaExceptionFilter', () => {
-  let filter: PrismaExceptionFilter;
+describe('GlobalExceptionFilter', () => {
+  let filter: GlobalExceptionFilter;
 
   beforeEach(() => {
     jest.clearAllMocks();
     mockResponse.status.mockReturnThis();
     mockResponse.json.mockReturnThis();
-    filter = new PrismaExceptionFilter();
+    filter = new GlobalExceptionFilter();
   });
 
   it('passes NestJS HttpException through with its own status and body', () => {

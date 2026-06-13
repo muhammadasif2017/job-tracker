@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { OAuthButton } from '../../../components/auth/oauth-button';
@@ -15,7 +16,7 @@ import api from '../../../lib/api';
 const schema = z
   .object({
     name: z.string().min(1, 'Name is required'),
-    email: z.string().email('Enter a valid email'),
+    email: z.email('Enter a valid email'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirm: z.string(),
   })
@@ -48,8 +49,12 @@ export default function RegisterPage() {
       });
       setAuth(user, tokens.accessToken, tokens.refreshToken);
       router.replace('/');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Registration failed');
+    } catch (err) {
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Registration failed')
+          : 'Registration failed',
+      );
     }
   };
 
@@ -64,7 +69,6 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-3">
-          <OAuthButton provider="google" />
           <OAuthButton provider="github" />
           <p className="text-center text-xs text-slate-400">
             OAuth sign-up skips email verification

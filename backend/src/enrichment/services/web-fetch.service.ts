@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import * as cheerio from 'cheerio';
+import { Logger } from 'nestjs-pino';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
 
 @Injectable()
 export class WebFetchService {
+  constructor(private readonly logger: Logger) {}
+
   private isSafeUrl(url: string): boolean {
     try {
       const u = new URL(url);
@@ -31,7 +34,10 @@ export class WebFetchService {
         },
         signal: AbortSignal.timeout(10_000),
       });
-      if (!res.ok) return '';
+      if (!res.ok) {
+        this.logger.warn('web_fetch_error', { url, status: res.status });
+        return '';
+      }
 
       const html = await res.text();
       const $ = cheerio.load(html);
@@ -39,7 +45,11 @@ export class WebFetchService {
 
       const text = $('body').text().replace(/\s+/g, ' ').trim();
       return text.slice(0, LLM_CONTEXT_BUDGET);
-    } catch {
+    } catch (err) {
+      this.logger.warn('web_fetch_failed', {
+        url,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return '';
     }
   }

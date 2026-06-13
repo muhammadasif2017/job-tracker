@@ -13,7 +13,7 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async getProfile(userId: string) {
+  private async toProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -39,6 +39,10 @@ export class UsersService {
     };
   }
 
+  async getProfile(userId: string) {
+    return await this.toProfile(userId);
+  }
+
   async updateProfile(userId: string, dto: UpdateUserDto) {
     if (dto.email) {
       const taken = await this.prisma.user.findFirst({
@@ -47,11 +51,8 @@ export class UsersService {
       if (taken) throw new BadRequestException('Email already in use');
     }
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: dto,
-      select: { id: true, email: true, name: true, avatarUrl: true },
-    });
+    await this.prisma.user.update({ where: { id: userId }, data: dto });
+    return await this.toProfile(userId);
   }
 
   async changePassword(userId: string, dto: ChangePasswordDto) {

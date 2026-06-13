@@ -1,14 +1,16 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { isAxiosError } from 'axios';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
+import { ResumeUpload } from './resume-upload';
 import {
   JOB_PRIORITIES,
   JOB_STATUSES,
@@ -40,6 +42,7 @@ interface JobFormProps {
 export function JobForm({ open, onClose, job }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
   const {
     register,
@@ -54,6 +57,12 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
       appliedAt: new Date().toISOString().split('T')[0],
     },
   });
+
+  useEffect(() => {
+    if (!open) {
+      setCreatedJobId(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -90,17 +99,49 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
         ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
         : api.post('/jobs', payload).then((r) => r.data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
-      if (isEdit) qc.invalidateQueries({ queryKey: ['job', job.id] });
-      toast.success(isEdit ? 'Job updated' : 'Job added');
-      reset();
-      onClose();
+      if (isEdit) {
+        qc.invalidateQueries({ queryKey: ['job', job.id] });
+        toast.success('Job updated');
+        reset();
+        onClose();
+      } else {
+        toast.success('Job added');
+        setCreatedJobId(data.id);
+      }
     },
-    onError: (err: any) =>
-      toast.error(err.response?.data?.message ?? 'Something went wrong'),
+    onError: (err: unknown) =>
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Something went wrong')
+          : 'Something went wrong',
+      ),
   });
+
+  if (createdJobId) {
+    return (
+      <Modal open={open} onClose={onClose} title="Job Added">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Job added successfully. Optionally attach a resume before closing.
+          </p>
+          <ResumeUpload jobId={createdJobId} initialResume={null} />
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -133,10 +174,14 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
             {...register('location')}
           />
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label
+              htmlFor="job-status"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
               Status
             </label>
             <select
+              id="job-status"
               className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               {...register('status')}
             >
@@ -148,10 +193,14 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
             </select>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            <label
+              htmlFor="job-priority"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
               Priority
             </label>
             <select
+              id="job-priority"
               className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
               {...register('priority')}
             >
@@ -179,16 +228,23 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label
+            htmlFor="job-notes"
+            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+          >
             Notes
           </label>
           <textarea
+            id="job-notes"
             rows={3}
             placeholder="Recruiter contact, notes…"
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
             {...register('notes')}
           />
         </div>
+        {isEdit && (
+          <ResumeUpload jobId={job.id} initialResume={job.resume ?? null} />
+        )}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
