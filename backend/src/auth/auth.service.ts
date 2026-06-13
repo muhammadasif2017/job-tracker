@@ -63,9 +63,9 @@ export class AuthService {
     }
 
     const valid = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
-    if (!valid)
+    if (!valid) {
       throw new ForbiddenException('Refresh token invalid or expired');
-
+    }
     await this.prisma.refreshToken.delete({ where: { id: jti } });
     return this.issueTokens(userId, email);
   }
