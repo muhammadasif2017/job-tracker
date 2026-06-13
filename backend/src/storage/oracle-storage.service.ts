@@ -27,6 +27,11 @@ export class OracleStorageService implements IStorageService {
         secretAccessKey: config.getOrThrow<string>('OCI_SECRET_ACCESS_KEY'),
       },
       forcePathStyle: true,
+      // OCI's S3-compatible API can't verify the SDK's default CRC32 streaming
+      // checksums and returns a misleading SignatureDoesNotMatch error. Only
+      // send checksums when an operation strictly requires them.
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
     });
   }
 
