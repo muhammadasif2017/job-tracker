@@ -6,7 +6,7 @@ import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
-import { PrismaExceptionFilter } from '../src/common/filters/prisma-exception.filter';
+import { GlobalExceptionFilter } from '../src/common/filters/prisma-exception.filter';
 
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;
@@ -33,7 +33,7 @@ describe('Job Tracker (e2e)', () => {
       }),
     );
     app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
-    app.useGlobalFilters(new PrismaExceptionFilter());
+    app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
 
     prisma = app.get(PrismaService);

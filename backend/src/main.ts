@@ -6,7 +6,7 @@ import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
-import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter.js';
+import { GlobalExceptionFilter } from './common/filters/prisma-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -26,7 +26,7 @@ async function bootstrap() {
   );
 
   app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
-  app.useGlobalFilters(new PrismaExceptionFilter());
+  app.useGlobalFilters(new GlobalExceptionFilter());
 
   if (config.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()

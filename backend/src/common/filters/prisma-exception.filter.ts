@@ -12,8 +12,8 @@ const PRISMA_UNIQUE_VIOLATION = 'P2002';
 const PRISMA_NOT_FOUND = 'P2025';
 
 @Catch()
-export class PrismaExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(PrismaExceptionFilter.name);
+export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
 
   catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
