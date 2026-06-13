@@ -47,7 +47,7 @@ function parseRedisConnection() {
         FRONTEND_URL: Joi.string().default('http://localhost:3000'),
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
         ANTHROPIC_API_KEY: Joi.string().optional(),
-        BRAVE_SEARCH_API_KEY: Joi.string().optional(),
+        TAVILY_API_KEY: Joi.string().optional(),
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),

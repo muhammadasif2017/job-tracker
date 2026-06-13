@@ -76,7 +76,7 @@ FRONTEND_URL="http://localhost:3000"
 
 # Optional — company enrichment (app starts without these)
 ANTHROPIC_API_KEY=
-BRAVE_SEARCH_API_KEY=
+TAVILY_API_KEY=
 REDIS_URL="redis://localhost:6379"
 
 # Optional — only needed for OAuth

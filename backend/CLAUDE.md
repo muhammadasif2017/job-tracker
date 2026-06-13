@@ -222,7 +222,7 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 | `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                  |
 | `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                  |
 | `ANTHROPIC_API_KEY`      | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail                                                        |
-| `BRAVE_SEARCH_API_KEY`   | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset                                                                          |
+| `TAVILY_API_KEY`         | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset (free tier: 1000 req/month at app.tavily.com)                            |
 | `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                                                                             |
 | `STORAGE_DRIVER`         | No       | `local`                  | `local` or `oracle` — selects the storage backend at startup                                                                           |
 | `OCI_NAMESPACE`          | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |

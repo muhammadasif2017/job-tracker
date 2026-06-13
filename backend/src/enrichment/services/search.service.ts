@@ -2,16 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 
-const BRAVE_SEARCH_URL = 'https://api.search.brave.com/res/v1/web/search';
+const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
-interface BraveResult {
-  title: string;
-  url: string;
-  description?: string;
+interface TavilyResult {
+  content?: string;
 }
 
-interface BraveResponse {
-  web?: { results: BraveResult[] };
+interface TavilyResponse {
+  results?: TavilyResult[];
 }
 
 @Injectable()
@@ -22,29 +20,27 @@ export class SearchService {
   ) {}
 
   async search(query: string): Promise<string[]> {
-    const apiKey = this.config.get<string>('BRAVE_SEARCH_API_KEY');
+    const apiKey = this.config.get<string>('TAVILY_API_KEY');
     if (!apiKey) return [];
 
     try {
-      const params = new URLSearchParams({ q: query, count: '5' });
-      const res = await fetch(`${BRAVE_SEARCH_URL}?${params}`, {
-        headers: {
-          'X-Subscription-Token': apiKey,
-          Accept: 'application/json',
-        },
+      const res = await fetch(TAVILY_SEARCH_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: apiKey, query, max_results: 5 }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
-        this.logger.warn('brave_search_error', { query, status: res.status });
+        this.logger.warn('tavily_search_error', { query, status: res.status });
         return [];
       }
 
-      const data: BraveResponse = await res.json();
-      return (data.web?.results ?? [])
-        .filter((r) => !!r.description)
-        .map((r) => r.description as string);
+      const data: TavilyResponse = await res.json();
+      return (data.results ?? [])
+        .map((r) => r.content)
+        .filter((c): c is string => !!c);
     } catch (err) {
-      this.logger.warn('brave_search_failed', {
+      this.logger.warn('tavily_search_failed', {
         query,
         error: err instanceof Error ? err.message : String(err),
       });
