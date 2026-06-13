@@ -129,6 +129,7 @@ export class JobsService {
 
     return this.prisma.job.update({
       where: { id: jobId },
+      include: { companyProfile: true, resume: true },
       data: {
         company: dto.company,
         position: dto.position,
