@@ -25,6 +25,11 @@ src/
 ├── prisma/
 │   ├── prisma.module.ts     # Global PrismaModule (exports PrismaService)
 │   └── prisma.service.ts    # Extends PrismaClient with PrismaPg adapter
+├── storage/
+│   ├── storage.module.ts    # Global StorageModule — factory picks driver from STORAGE_DRIVER env var
+│   ├── storage.service.ts   # IStorageService interface + STORAGE_SERVICE injection token
+│   ├── local-storage.service.ts   # Dev driver: writes files to uploads/ on disk
+│   └── oracle-storage.service.ts  # Prod driver: Oracle Cloud Object Storage (S3-compatible)
 ├── auth/
 │   ├── auth.module.ts
 │   ├── auth.controller.ts   # /auth/* routes
@@ -38,6 +43,11 @@ src/
 ├── jobs/
 │   ├── jobs.controller.ts   # /jobs/* routes
 │   ├── jobs.service.ts      # CRUD, stats, CSV export, event logging
+│   └── dto/
+├── resumes/
+│   ├── resumes.module.ts
+│   ├── resumes.controller.ts  # POST/GET/DELETE /jobs/:jobId/resumes, GET /jobs/resumes/file
+│   ├── resumes.service.ts     # upload, getPresignedUrl, findByJob, remove
 │   └── dto/
 └── common/
     ├── decorators/
@@ -170,25 +180,56 @@ import type { Request, Response } from 'express';
 
 ---
 
+## Storage: Dual-Driver Pattern
+
+`StorageModule` is global. It exposes a single `STORAGE_SERVICE` injection token backed by either `LocalStorageService` (dev) or `OracleStorageService` (prod), selected at startup by `STORAGE_DRIVER`:
+
+```ts
+@Inject(STORAGE_SERVICE) private storage: IStorageService
+```
+
+**`STORAGE_DRIVER=local` (default)** — writes files to `backend/uploads/` on disk. The controller serves them via `GET /jobs/resumes/file?key=<path>` (path-traversal-safe, auth-gated). This endpoint throws 404 when `STORAGE_DRIVER=oracle` — don't call it in prod.
+
+**`STORAGE_DRIVER=oracle`** — uploads to Oracle Cloud Object Storage via S3-compatible API. Clients receive short-lived presigned URLs (`GET /jobs/:jobId/resumes/url`) and fetch the file directly from OCI. The backend never proxies binary file content in this mode.
+
+---
+
+## Resumes: Upload Consistency
+
+`ResumesService.upload` writes to storage **before** the DB upsert. If the DB fails, the `catch` block deletes the newly uploaded file. This ordering is intentional:
+
+- Storage-first: a dangling storage file is better than a DB record pointing at nothing
+- The old storage key (when replacing an existing resume) is deleted **after** the DB upsert succeeds, so the old file remains accessible until the new record is committed
+
+When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` before calling `deleteMany`, then fires a fire-and-forget storage delete. The `Resume` row itself is cleaned up by cascade.
+
+---
+
 ## Environment Variables
 
-| Variable                 | Required | Default                  | Notes                                                                           |
-| ------------------------ | -------- | ------------------------ | ------------------------------------------------------------------------------- |
-| `DATABASE_URL`           | Yes      | —                        | PostgreSQL connection string                                                    |
-| `PORT`                   | No       | `3001`                   |                                                                                 |
-| `JWT_SECRET`             | Yes      | —                        | Min 32 chars                                                                    |
-| `JWT_REFRESH_SECRET`     | Yes      | —                        | Min 32 chars                                                                    |
-| `JWT_EXPIRES_IN`         | No       | `15m`                    |                                                                                 |
-| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                     |                                                                                 |
-| `FRONTEND_URL`           | No       | `http://localhost:3000`  | Used for CORS and OAuth redirect                                                |
-| `BACKEND_URL`            | No       | `http://localhost:3001`  | Backend origin used to build OAuth callback URLs sent to Google/GitHub          |
-| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                           |
-| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                           |
-| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                           |
-| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                           |
-| `ANTHROPIC_API_KEY`      | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail |
-| `BRAVE_SEARCH_API_KEY`   | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset                   |
-| `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                      |
+| Variable                 | Required | Default                  | Notes                                                                                                                                  |
+| ------------------------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | Yes      | —                        | PostgreSQL connection string                                                                                                           |
+| `PORT`                   | No       | `3001`                   |                                                                                                                                        |
+| `JWT_SECRET`             | Yes      | —                        | Min 32 chars                                                                                                                           |
+| `JWT_REFRESH_SECRET`     | Yes      | —                        | Min 32 chars                                                                                                                           |
+| `JWT_EXPIRES_IN`         | No       | `15m`                    |                                                                                                                                        |
+| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                     |                                                                                                                                        |
+| `FRONTEND_URL`           | No       | `http://localhost:3000`  | Used for CORS and OAuth redirect                                                                                                       |
+| `BACKEND_URL`            | No       | `http://localhost:3001`  | Backend origin used to build OAuth callback URLs sent to Google/GitHub; also used by `LocalStorageService` to build the file-serve URL |
+| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                  |
+| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                  |
+| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                  |
+| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                  |
+| `ANTHROPIC_API_KEY`      | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail                                                        |
+| `BRAVE_SEARCH_API_KEY`   | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset                                                                          |
+| `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                                                                             |
+| `STORAGE_DRIVER`         | No       | `local`                  | `local` or `oracle` — selects the storage backend at startup                                                                           |
+| `OCI_NAMESPACE`          | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
+| `OCI_REGION`             | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
+| `OCI_BUCKET_NAME`        | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
+| `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                            |
+| `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                            |
 
 ---
 
