@@ -48,8 +48,12 @@ export class JobsController {
     @Res() res: Response,
   ) {
     const csv = await this.jobsService.exportCsv(user.id, query);
+    const suffix = query.status ? `-${query.status.toLowerCase()}` : '';
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename="jobs.csv"');
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="jobs${suffix}.csv"`,
+    );
     res.send(csv);
   }
 
