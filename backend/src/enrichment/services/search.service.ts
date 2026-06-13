@@ -26,8 +26,11 @@ export class SearchService {
     try {
       const res = await fetch(TAVILY_SEARCH_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ api_key: apiKey, query, max_results: 5 }),
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ query, max_results: 5 }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {

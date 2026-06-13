@@ -60,7 +60,10 @@ describe('SearchService', () => {
     expect(url).toBe('https://api.tavily.com/search');
     const body = JSON.parse(init.body as string);
     expect(body.query).toBe('Stripe tech stack');
-    expect(body.api_key).toBe('my-tavily-key');
+    expect(body.api_key).toBeUndefined();
+    expect((init.headers as Record<string, string>)['Authorization']).toBe(
+      'Bearer my-tavily-key',
+    );
   });
 
   it('returns empty array when TAVILY_API_KEY is not configured', async () => {
