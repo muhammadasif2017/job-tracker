@@ -6,6 +6,7 @@ import {
 } from '@nestjs/terminus';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { Public } from '../common/decorators/public.decorator.js';
+import { RedisHealthIndicator } from './redis.health.js';
 
 @Controller('health')
 export class HealthController {
@@ -13,6 +14,7 @@ export class HealthController {
     private health: HealthCheckService,
     private db: PrismaHealthIndicator,
     private prisma: PrismaService,
+    private redis: RedisHealthIndicator,
   ) {}
 
   @Public()
@@ -21,6 +23,7 @@ export class HealthController {
   check() {
     return this.health.check([
       () => this.db.pingCheck('database', this.prisma),
+      () => this.redis.isHealthy('redis'),
     ]);
   }
 }

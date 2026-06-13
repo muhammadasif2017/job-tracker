@@ -1,6 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
+import { Logger } from 'nestjs-pino';
 import { SearchService } from './search.service.js';
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 const braveResponse = {
   web: {
@@ -32,6 +35,7 @@ describe('SearchService', () => {
       providers: [
         SearchService,
         { provide: ConfigService, useValue: mockConfigService },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(SearchService);

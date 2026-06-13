@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Anthropic from '@anthropic-ai/sdk';
+import { Logger } from 'nestjs-pino';
 
 export interface CompanyData {
   industry: string;
@@ -95,7 +96,10 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
 export class LlmService {
   private readonly client: Anthropic;
 
-  constructor(private readonly config: ConfigService) {
+  constructor(
+    private readonly config: ConfigService,
+    private readonly logger: Logger,
+  ) {
     this.client = new Anthropic({
       apiKey: this.config.get('ANTHROPIC_API_KEY'),
     });
@@ -125,7 +129,11 @@ export class LlmService {
       if (!toolUse || toolUse.type !== 'tool_use') return { ...UNKNOWN_DATA };
 
       return sanitize(toolUse.input as Record<string, unknown>);
-    } catch {
+    } catch (err) {
+      this.logger.warn('llm_extract_failed', {
+        company: companyName,
+        error: err instanceof Error ? err.message : String(err),
+      });
       return { ...UNKNOWN_DATA };
     }
   }

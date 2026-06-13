@@ -2,6 +2,7 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Job } from 'bullmq';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
@@ -17,15 +18,23 @@ export class EnrichmentProcessor extends WorkerHost {
     private readonly webFetch: WebFetchService,
     private readonly search: SearchService,
     private readonly llm: LlmService,
+    private readonly logger: Logger,
   ) {
     super();
   }
 
   async process(job: Job<{ jobId: string }>): Promise<void> {
     const { jobId } = job.data;
+    const startedAt = Date.now();
 
     const dbJob = await this.prisma.job.findFirst({ where: { id: jobId } });
-    if (!dbJob) return;
+    if (!dbJob) {
+      this.logger.warn('enrichment_job_not_found', { jobId });
+      return;
+    }
+
+    const company = dbJob.company;
+    this.logger.log('enrichment_started', { jobId, company });
 
     try {
       await this.prisma.companyProfile.upsert({
@@ -35,8 +44,8 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       const [cultureSnippets, techSnippets] = await Promise.all([
-        this.search.search(`${dbJob.company} company culture reviews`),
-        this.search.search(`${dbJob.company} tech stack engineering`),
+        this.search.search(`${company} company culture reviews`),
+        this.search.search(`${company} tech stack engineering`),
       ]);
 
       const pageText = await this.webFetch.fetchPageText(dbJob.url ?? '');
@@ -46,7 +55,7 @@ export class EnrichmentProcessor extends WorkerHost {
         .join('\n\n')
         .slice(0, 8000);
 
-      const data = await this.llm.extract(dbJob.company, context);
+      const data = await this.llm.extract(company, context);
 
       await this.prisma.companyProfile.update({
         where: { jobId },
@@ -56,13 +65,26 @@ export class EnrichmentProcessor extends WorkerHost {
           enrichedAt: new Date(),
         },
       });
+
+      this.logger.log('enrichment_completed', {
+        jobId,
+        company,
+        durationMs: Date.now() - startedAt,
+      });
     } catch (error) {
+      const raw = error instanceof Error ? error.message : 'Enrichment failed';
+      const errorMessage = raw
+        .replace(/https?:\/\/\S+/g, '[url]')
+        .slice(0, 200);
+
+      this.logger.warn('enrichment_failed', {
+        jobId,
+        company,
+        error: errorMessage,
+        durationMs: Date.now() - startedAt,
+      });
+
       try {
-        const raw =
-          error instanceof Error ? error.message : 'Enrichment failed';
-        const errorMessage = raw
-          .replace(/https?:\/\/\S+/g, '[url]')
-          .slice(0, 200);
         await this.prisma.companyProfile.update({
           where: { jobId },
           data: {
