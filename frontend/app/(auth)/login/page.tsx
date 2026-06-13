@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
+import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { OAuthButton } from '../../../components/auth/oauth-button';
@@ -37,8 +38,12 @@ export default function LoginPage() {
       });
       setAuth(user, tokens.accessToken, tokens.refreshToken);
       router.replace('/');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Login failed');
+    } catch (err) {
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Login failed')
+          : 'Login failed',
+      );
     }
   };
 
