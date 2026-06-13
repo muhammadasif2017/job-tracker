@@ -16,20 +16,20 @@ export class ResumesService {
     private logger: Logger,
   ) {}
 
-  private toDto(resume: {
+  private toDto({
+    id,
+    jobId,
+    originalName,
+    size,
+    createdAt,
+  }: {
     id: string;
     jobId: string;
     originalName: string;
     size: number;
     createdAt: Date;
   }): ResumeResponseDto {
-    return {
-      id: resume.id,
-      jobId: resume.jobId,
-      originalName: resume.originalName,
-      size: resume.size,
-      createdAt: resume.createdAt,
-    };
+    return { id, jobId, originalName, size, createdAt };
   }
 
   async upload(

@@ -14,6 +14,12 @@ import { EnrichmentModule } from './enrichment/enrichment.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './resumes/resumes.module.js';
 
+const ociRequired = Joi.when('STORAGE_DRIVER', {
+  is: 'oracle',
+  then: Joi.string().required(),
+  otherwise: Joi.string().optional(),
+});
+
 function parseRedisConnection() {
   const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
   return {
@@ -44,31 +50,11 @@ function parseRedisConnection() {
         GITHUB_CLIENT_ID: Joi.string().optional(),
         GITHUB_CLIENT_SECRET: Joi.string().optional(),
         STORAGE_DRIVER: Joi.string().valid('local', 'oracle').default('local'),
-        OCI_NAMESPACE: Joi.when('STORAGE_DRIVER', {
-          is: 'oracle',
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional(),
-        }),
-        OCI_REGION: Joi.when('STORAGE_DRIVER', {
-          is: 'oracle',
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional(),
-        }),
-        OCI_BUCKET_NAME: Joi.when('STORAGE_DRIVER', {
-          is: 'oracle',
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional(),
-        }),
-        OCI_ACCESS_KEY_ID: Joi.when('STORAGE_DRIVER', {
-          is: 'oracle',
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional(),
-        }),
-        OCI_SECRET_ACCESS_KEY: Joi.when('STORAGE_DRIVER', {
-          is: 'oracle',
-          then: Joi.string().required(),
-          otherwise: Joi.string().optional(),
-        }),
+        OCI_NAMESPACE: ociRequired,
+        OCI_REGION: ociRequired,
+        OCI_BUCKET_NAME: ociRequired,
+        OCI_ACCESS_KEY_ID: ociRequired,
+        OCI_SECRET_ACCESS_KEY: ociRequired,
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
