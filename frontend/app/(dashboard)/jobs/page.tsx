@@ -252,16 +252,16 @@ export default function JobsPage() {
                     key={job.id}
                     className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
                   >
-                    <td className="px-4 py-3 font-medium">
+                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                      {job.company}
+                    </td>
+                    <td className="px-4 py-3">
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="hover:text-indigo-600"
+                        className="font-medium text-slate-900 hover:text-indigo-600 dark:text-slate-100"
                       >
-                        {job.company}
+                        {job.position}
                       </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
-                      {job.position}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={job.status} />
