@@ -116,6 +116,18 @@ describe('ResumesController', () => {
   });
 
   describe('serveFile', () => {
+    const resumeDto = {
+      id: 'r-1',
+      jobId: 'j-1',
+      originalName: 'my resume.pdf',
+      size: 2048,
+      createdAt: new Date(),
+    };
+
+    beforeEach(() => {
+      mockService.findByJob.mockResolvedValue(resumeDto);
+    });
+
     it('throws NotFoundException when STORAGE_DRIVER is oracle', async () => {
       mockConfig.get.mockReturnValue('oracle');
       await expect(
@@ -181,7 +193,7 @@ describe('ResumesController', () => {
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        expect.stringContaining('inline'),
+        'inline; filename="my%20resume.pdf"; filename*=UTF-8\'\'my%20resume.pdf',
       );
       expect(res.sendFile).toHaveBeenCalled();
     });
@@ -199,7 +211,7 @@ describe('ResumesController', () => {
 
       expect(res.setHeader).toHaveBeenCalledWith(
         'Content-Disposition',
-        expect.stringContaining('attachment'),
+        'attachment; filename="my%20resume.pdf"; filename*=UTF-8\'\'my%20resume.pdf',
       );
     });
 

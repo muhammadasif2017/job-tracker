@@ -1,5 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { ResumesService } from './resumes.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -27,7 +30,7 @@ const mockFile = {
   originalname: 'resume.pdf',
   mimetype: 'application/pdf',
   size: 2048,
-  buffer: Buffer.from('pdf'),
+  buffer: Buffer.from('%PDF-1.4 fake content'),
 } as Express.Multer.File;
 
 const resumeRecord = {
@@ -62,6 +65,38 @@ describe('ResumesService', () => {
         NotFoundException,
       );
       expect(mockStorage.upload).not.toHaveBeenCalled();
+    });
+
+    it('throws UnprocessableEntityException when file does not start with %PDF magic bytes', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'j-1', resume: null });
+      const nonPdfFile = {
+        ...mockFile,
+        buffer: Buffer.from('not a pdf file'),
+      } as Express.Multer.File;
+      await expect(service.upload('u-1', 'j-1', nonPdfFile)).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(mockStorage.upload).not.toHaveBeenCalled();
+    });
+
+    it('sanitizes path separators and null bytes in originalname before storing', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'j-1', resume: null });
+      mockStorage.upload.mockResolvedValue(undefined);
+      mockPrisma.resume.upsert.mockResolvedValue(resumeRecord);
+      const maliciousFile = {
+        ...mockFile,
+        originalname: '../../../etc/passwd\0.pdf',
+      };
+
+      await service.upload('u-1', 'j-1', maliciousFile);
+
+      expect(mockPrisma.resume.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            originalName: '.._.._.._etc_passwd.pdf',
+          }),
+        }),
+      );
     });
 
     it('uploads file and creates resume record when no previous resume exists', async () => {
@@ -135,9 +170,10 @@ describe('ResumesService', () => {
       expect(mockStorage.getPresignedUrl).toHaveBeenCalledWith(
         resumeRecord.storageKey,
       );
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         url: 'https://signed-url',
         originalName: 'resume.pdf',
+        expiresAt: expect.any(String),
       });
     });
   });
