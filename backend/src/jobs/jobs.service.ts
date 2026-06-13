@@ -181,12 +181,13 @@ export class JobsService {
     return { message: 'Job deleted' };
   }
 
-  async getEvents(userId: string, jobId: string) {
+  async getEvents(userId: string, jobId: string, page = 1, limit = 50) {
     await this.findOwned(userId, jobId);
     return this.prisma.jobEvent.findMany({
       where: { jobId },
       orderBy: { createdAt: 'asc' },
-      take: 200,
+      skip: (page - 1) * limit,
+      take: Math.min(limit, 200),
     });
   }
 
