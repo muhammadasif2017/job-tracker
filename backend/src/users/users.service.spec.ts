@@ -110,26 +110,39 @@ describe('UsersService', () => {
     });
 
     it('skips the email uniqueness check when no email is in the dto', async () => {
-      mockPrisma.user.update.mockResolvedValue({
+      mockPrisma.user.update.mockResolvedValue({});
+      mockPrisma.user.findUnique.mockResolvedValue({
         id: 'u-1',
         email: 'a@b.com',
         name: 'New Name',
         avatarUrl: null,
+        createdAt: new Date(),
+        password: null,
+        accounts: [],
       });
       await service.updateProfile('u-1', { name: 'New Name' });
       expect(mockPrisma.user.findFirst).not.toHaveBeenCalled();
     });
 
-    it('updates and returns the user', async () => {
+    it('updates and returns the full profile shape', async () => {
       mockPrisma.user.findFirst.mockResolvedValue(null);
-      mockPrisma.user.update.mockResolvedValue({
+      mockPrisma.user.update.mockResolvedValue({});
+      mockPrisma.user.findUnique.mockResolvedValue({
         id: 'u-1',
         email: 'new@b.com',
         name: 'Alice',
         avatarUrl: null,
+        createdAt: new Date(),
+        password: '$2b$hash',
+        accounts: [{ provider: 'google' }],
       });
       const result = await service.updateProfile('u-1', { email: 'new@b.com' });
-      expect(result).toMatchObject({ id: 'u-1', email: 'new@b.com' });
+      expect(result).toMatchObject({
+        id: 'u-1',
+        email: 'new@b.com',
+        hasPassword: true,
+        connectedProviders: ['google'],
+      });
     });
   });
 
