@@ -1,6 +1,8 @@
 import {
   Controller,
   ConflictException,
+  HttpCode,
+  HttpStatus,
   NotFoundException,
   Param,
   Post,
@@ -17,6 +19,7 @@ export class EnrichmentController {
     private readonly enrichment: EnrichmentService,
   ) {}
 
+  @HttpCode(HttpStatus.ACCEPTED)
   @Post(':id/enrichment')
   async triggerEnrichment(
     @CurrentUser() user: { id: string },
