@@ -108,8 +108,12 @@ export class ResumesController {
     }
 
     // Key format: resumes/<userId>/<jobId>/<uuid>.pdf
-    // Verify the userId segment matches the authenticated user.
-    const keyUserId = key.split('/')[1];
+    // Validate all segments explicitly — positional split is fragile if format changes.
+    const parts = key.split('/');
+    if (parts.length !== 4 || parts[0] !== 'resumes') {
+      throw new BadRequestException('Invalid key format');
+    }
+    const [, keyUserId, jobId] = parts;
     if (keyUserId !== user.id) {
       throw new ForbiddenException('Access denied to this file');
     }
@@ -120,13 +124,16 @@ export class ResumesController {
       throw new NotFoundException('File not found');
     }
 
+    const resume = await this.resumesService.findByJob(user.id, jobId);
+    if (!resume) throw new NotFoundException('File not found');
+
     const disposition = download === 'true' ? 'attachment' : 'inline';
-    const filename = path.basename(filePath);
+    const safeName = encodeURIComponent(resume.originalName);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
       'Content-Disposition',
-      `${disposition}; filename="${filename}"`,
+      `${disposition}; filename="${safeName}"; filename*=UTF-8''${safeName}`,
     );
     res.sendFile(filePath);
   }
