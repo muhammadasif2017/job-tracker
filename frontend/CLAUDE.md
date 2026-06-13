@@ -43,6 +43,7 @@ frontend/
 │   │   └── status-chart.tsx    # Recharts pie/bar chart
 │   ├── jobs/
 │   │   ├── job-form.tsx        # Shared create/edit modal form
+│   │   ├── resume-upload.tsx   # Resume attach/view/download/remove widget (used in JobForm + job detail)
 │   │   └── kanban-board.tsx    # Drag-and-drop board (@hello-pangea/dnd)
 │   └── ui/                     # Generic primitives (Button, Input, Modal, Badge, Skeleton, Spinner)
 ├── lib/
@@ -125,7 +126,8 @@ Single source of truth for all shared types and UI constants:
 | Export                                  | Type                                                                                     |
 | --------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `JobStatus`                             | Union: `'WISHLIST' \| 'APPLIED' \| 'INTERVIEWING' \| 'OFFER' \| 'REJECTED' \| 'GHOSTED'` |
-| `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces                                                                   |
+| `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces (`Job` has an optional `resume?: Resume \| null` field)           |
+| `Resume`                                | `{ id, jobId, originalName, size, createdAt }` — storageKey is never sent to the client  |
 | `JobStats`                              | `{ total, byStatus, thisMonth, responseRate }`                                           |
 | `PaginatedJobs`                         | `{ data: Job[], meta: { total, page, limit, totalPages } }`                              |
 | `JOB_STATUSES`                          | Ordered array of all statuses                                                            |
@@ -141,8 +143,9 @@ Single source of truth for all shared types and UI constants:
 - Query key pattern:
   - `['stats']` — dashboard stats
   - `['jobs', filters]` — paginated job list (filters object is part of the key)
-  - `['job', id]` — single job detail
+  - `['job', id]` — single job detail (includes `resume` relation)
   - `['job-events', id]` — timeline events for a job
+  - `['resume', jobId]` — resume metadata for a specific job; managed by `ResumeUpload` via `setQueryData` on mutation, not via invalidation
   - `['profile']` — user profile
 - **Mutations always invalidate related keys on success.** When a job is created/edited/deleted, invalidate `['jobs']` and `['stats']`. On status change from job detail, also invalidate `['job-events', id]`.
 - Use `qc.setQueryData` for optimistic updates (see `KanbanBoard` drag-and-drop) — always roll back in `onError`.
@@ -163,8 +166,18 @@ Single source of truth for all shared types and UI constants:
 ### `JobForm`
 
 - `open: boolean`, `onClose: () => void`, `job?: Job` (optional — if present, edit mode)
-- On success: invalidates `['jobs']`, `['stats']`, and `['job', job.id]` (edit only)
+- On create success: stays open and renders `<ResumeUpload>` so the user can optionally attach a PDF before closing. Closing at that point calls `reset()` + `onClose()`.
+- On edit success: invalidates `['jobs']`, `['stats']`, `['job', job.id]`, then closes immediately.
 - URL field: empty string is sent as `undefined` to the API (backend requires valid URL or nothing)
+
+### `ResumeUpload`
+
+- Props: `jobId: string | null`, `initialResume?: Resume | null`
+- Renders nothing when `jobId` is `null` (safe to render before a job exists).
+- Uses `['resume', jobId]` query with `initialData` from the parent — **no extra network request fires on mount** when `initialResume` is provided.
+- Upload/remove mutations update the cache via `qc.setQueryData` (not invalidation) so the UI updates without a roundtrip.
+- View opens a presigned URL in a new tab. Download fetches the blob client-side and triggers a `<a download>` — this cross-origin-safe approach works for both local and Oracle presigned URLs.
+- `GET /jobs/resumes/file` (the URL returned by `LocalStorageService.getPresignedUrl`) is a **dev-only** endpoint — it returns 404 in production (`STORAGE_DRIVER=oracle`). Don't hardcode calls to it.
 
 ### `KanbanBoard`
 
