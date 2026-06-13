@@ -1,12 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
@@ -43,6 +44,10 @@ export default function ProfilePage() {
   });
   const passwordForm = useForm({ resolver: zodResolver(passwordSchema) });
 
+  useEffect(() => {
+    if (profile?.name) profileForm.reset({ name: profile.name });
+  }, [profile, profileForm]);
+
   const updateProfile = useMutation({
     mutationFn: (data: { name: string }) =>
       api.patch('/users/me', data).then((r) => r.data),
@@ -51,8 +56,12 @@ export default function ProfilePage() {
       qc.invalidateQueries({ queryKey: ['profile'] });
       toast.success('Profile updated');
     },
-    onError: (e: any) =>
-      toast.error(e.response?.data?.message ?? 'Failed to update'),
+    onError: (err: unknown) =>
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Failed to update')
+          : 'Failed to update',
+      ),
   });
 
   const changePassword = useMutation({
@@ -68,8 +77,12 @@ export default function ProfilePage() {
       toast.success('Password changed');
       passwordForm.reset();
     },
-    onError: (e: any) =>
-      toast.error(e.response?.data?.message ?? 'Failed to change password'),
+    onError: (err: unknown) =>
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Failed to change password')
+          : 'Failed to change password',
+      ),
   });
 
   const deleteAccount = useMutation({

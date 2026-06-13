@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
+import { Modal } from '../../../components/ui/modal';
 import { StatusBadge, PriorityBadge } from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
@@ -51,6 +52,7 @@ export default function JobsPage() {
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [editJob, setEditJob] = useState<Job | undefined>();
+  const [deleteTarget, setDeleteTarget] = useState<Job | undefined>();
 
   const debouncedSearch = useDebounce(search);
 
@@ -82,6 +84,7 @@ export default function JobsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      setDeleteTarget(undefined);
       toast.success('Job deleted');
     },
   });
@@ -138,6 +141,7 @@ export default function JobsPage() {
         <div className="relative flex-1 min-w-48">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
           <input
+            aria-label="Search jobs"
             className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900"
             placeholder="Search company or position…"
             value={search}
@@ -148,6 +152,7 @@ export default function JobsPage() {
           />
         </div>
         <select
+          aria-label="Filter by status"
           className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           value={statusFilter}
           onChange={(e) => {
@@ -163,6 +168,7 @@ export default function JobsPage() {
           ))}
         </select>
         <select
+          aria-label="Filter by priority"
           className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
           value={priorityFilter}
           onChange={(e) => {
@@ -180,12 +186,14 @@ export default function JobsPage() {
         <div className="flex rounded-lg border border-slate-300 dark:border-slate-700">
           <button
             onClick={() => setView('list')}
+            aria-pressed={view === 'list'}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-l-lg transition-colors ${view === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'}`}
           >
             <List className="h-3.5 w-3.5" /> List
           </button>
           <button
             onClick={() => setView('kanban')}
+            aria-pressed={view === 'kanban'}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-r-lg transition-colors ${view === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'}`}
           >
             <LayoutGrid className="h-3.5 w-3.5" /> Board
@@ -274,6 +282,7 @@ export default function JobsPage() {
                             href={job.url}
                             target="_blank"
                             rel="noopener noreferrer"
+                            aria-label={`View job posting for ${job.company}`}
                             className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
@@ -281,12 +290,14 @@ export default function JobsPage() {
                         )}
                         <button
                           onClick={() => openEdit(job)}
+                          aria-label={`Edit ${job.company}`}
                           className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
-                          onClick={() => deleteMutation.mutate(job.id)}
+                          onClick={() => setDeleteTarget(job)}
+                          aria-label={`Delete ${job.company}`}
                           className="rounded p-1.5 text-slate-400 hover:text-red-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -328,6 +339,35 @@ export default function JobsPage() {
       )}
 
       <JobForm open={formOpen} onClose={closeForm} job={editJob} />
+
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(undefined)}
+        title="Delete job?"
+        description={
+          deleteTarget
+            ? `Remove ${deleteTarget.company} — ${deleteTarget.position}? This cannot be undone.`
+            : undefined
+        }
+      >
+        <div className="flex justify-end gap-3 pt-2">
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteTarget(undefined)}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            loading={deleteMutation.isPending}
+            onClick={() =>
+              deleteTarget && deleteMutation.mutate(deleteTarget.id)
+            }
+          >
+            Delete
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

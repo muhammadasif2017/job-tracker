@@ -238,7 +238,15 @@ export default function JobDetailPage() {
           />
         </>
       ) : (
-        <p className="text-slate-500">Job not found.</p>
+        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
+          <p className="text-slate-500">Job not found.</p>
+          <Link
+            href="/jobs"
+            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Jobs
+          </Link>
+        </div>
       )}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, TrendingUp, Award, BarChart2 } from 'lucide-react';
+import Link from 'next/link';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { StatusChart } from '../../components/dashboard/status-chart';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -11,12 +12,20 @@ import api from '../../lib/api';
 import type { JobStats, PaginatedJobs } from '../../types';
 
 export default function DashboardPage() {
-  const { data: stats, isLoading: statsLoading } = useQuery<JobStats>({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    isError: statsError,
+  } = useQuery<JobStats>({
     queryKey: ['stats'],
     queryFn: () => api.get('/jobs/stats').then((r) => r.data),
   });
 
-  const { data: recent } = useQuery<PaginatedJobs>({
+  const {
+    data: recent,
+    isLoading: recentLoading,
+    isError: recentError,
+  } = useQuery<PaginatedJobs>({
     queryKey: ['jobs', { limit: 5, sortBy: 'createdAt' }],
     queryFn: () =>
       api
@@ -64,6 +73,8 @@ export default function DashboardPage() {
           <h2 className="mb-4 text-sm font-semibold">Applications by Status</h2>
           {statsLoading ? (
             <Skeleton className="h-56 w-full" />
+          ) : statsError ? (
+            <p className="text-sm text-red-500">Failed to load chart.</p>
           ) : (
             stats && <StatusChart stats={stats} />
           )}
@@ -71,17 +82,27 @@ export default function DashboardPage() {
 
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
           <h2 className="mb-4 text-sm font-semibold">Recent Activity</h2>
-          {!recent ? (
+          {recentLoading ? (
             <div className="space-y-3">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : recent.data.length === 0 ? (
-            <p className="text-sm text-slate-400">No jobs tracked yet.</p>
+          ) : recentError ? (
+            <p className="text-sm text-red-500">Failed to load recent jobs.</p>
+          ) : recent?.data.length === 0 ? (
+            <div className="flex flex-col items-center py-8 text-center">
+              <p className="text-sm text-slate-400">No jobs tracked yet.</p>
+              <Link
+                href="/jobs"
+                className="mt-2 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+              >
+                Add your first application →
+              </Link>
+            </div>
           ) : (
             <ul className="space-y-3">
-              {recent.data.map((job) => (
+              {recent?.data.map((job) => (
                 <li
                   key={job.id}
                   className="flex items-center justify-between gap-3"
