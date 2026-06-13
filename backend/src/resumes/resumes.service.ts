@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -7,6 +12,8 @@ import {
   type IStorageService,
 } from '../storage/storage.service.js';
 import type { ResumeResponseDto } from './dto/resume-response.dto.js';
+
+const PRESIGNED_URL_TTL = 900; // seconds
 
 @Injectable()
 export class ResumesService {
@@ -43,6 +50,15 @@ export class ResumesService {
     });
     if (!job) throw new NotFoundException('Job not found');
 
+    if (file.buffer.subarray(0, 4).toString('ascii') !== '%PDF') {
+      throw new UnprocessableEntityException('File must be a valid PDF');
+    }
+
+    const originalName = file.originalname
+      .replace(/[/\\]/g, '_')
+      .replace(/\0/g, '')
+      .slice(0, 255);
+
     const key = `resumes/${userId}/${jobId}/${randomUUID()}.pdf`;
     const oldKey = job.resume?.storageKey ?? null;
 
@@ -53,12 +69,12 @@ export class ResumesService {
         where: { jobId },
         create: {
           jobId,
-          originalName: file.originalname,
+          originalName,
           size: file.size,
           storageKey: key,
         },
         update: {
-          originalName: file.originalname,
+          originalName,
           size: file.size,
           storageKey: key,
         },
@@ -82,14 +98,17 @@ export class ResumesService {
   async getPresignedUrl(
     userId: string,
     jobId: string,
-  ): Promise<{ url: string; originalName: string }> {
+  ): Promise<{ url: string; originalName: string; expiresAt: string }> {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
     });
     if (!resume) throw new NotFoundException('Resume not found');
 
     const url = await this.storage.getPresignedUrl(resume.storageKey);
-    return { url, originalName: resume.originalName };
+    const expiresAt = new Date(
+      Date.now() + PRESIGNED_URL_TTL * 1000,
+    ).toISOString();
+    return { url, originalName: resume.originalName, expiresAt };
   }
 
   async findByJob(
