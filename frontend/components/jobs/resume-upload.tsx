@@ -129,7 +129,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
   if (!jobId) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="flex flex-col gap-2">
       <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
         Resume
       </label>
@@ -150,6 +150,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
                 Remove resume?
               </span>
               <Button
+                type="button"
                 variant="danger"
                 size="sm"
                 loading={removeMutation.isPending}
@@ -158,6 +159,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
                 Yes
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => setConfirming(false)}
@@ -167,11 +169,17 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
             </div>
           ) : (
             <div className="flex shrink-0 items-center gap-1">
-              <Button variant="ghost" size="sm" onClick={handleView}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleView}
+              >
                 <Eye className="h-4 w-4" />
                 View
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 loading={isDownloading}
@@ -181,6 +189,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
                 Download
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
