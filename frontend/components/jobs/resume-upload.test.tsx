@@ -133,7 +133,7 @@ describe('ResumeUpload', () => {
       fireEvent.change(input, { target: { files: [file] } });
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/resumes/jobs/j-1',
+          '/jobs/j-1/resumes',
           expect.any(FormData),
           expect.objectContaining({
             headers: { 'Content-Type': 'multipart/form-data' },
@@ -157,6 +157,7 @@ describe('ResumeUpload', () => {
 
     it('shows error toast when upload fails', async () => {
       vi.mocked(api.post).mockRejectedValue({
+        isAxiosError: true,
         response: { data: { message: 'Server error' } },
       });
       const { container } = renderUpload('j-1', null);
@@ -194,7 +195,7 @@ describe('ResumeUpload', () => {
       fireEvent.click(screen.getByRole('button', { name: /remove/i }));
       fireEvent.click(screen.getByRole('button', { name: /yes/i }));
       await waitFor(() => {
-        expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/resumes/jobs/j-1');
+        expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/jobs/j-1/resumes');
       });
     });
 
@@ -210,6 +211,7 @@ describe('ResumeUpload', () => {
 
     it('shows error toast when remove fails', async () => {
       vi.mocked(api.delete).mockRejectedValue({
+        isAxiosError: true,
         response: { data: { message: 'Not found' } },
       });
       renderUpload('j-1', resume);

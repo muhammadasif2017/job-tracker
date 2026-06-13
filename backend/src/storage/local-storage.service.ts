@@ -25,7 +25,7 @@ export class LocalStorageService implements IStorageService {
 
   getPresignedUrl(key: string, _expiresIn?: number): Promise<string> {
     return Promise.resolve(
-      `${this.backendUrl}/resumes/file?key=${encodeURIComponent(key)}`,
+      `${this.backendUrl}/jobs/resumes/file?key=${encodeURIComponent(key)}`,
     );
   }
 

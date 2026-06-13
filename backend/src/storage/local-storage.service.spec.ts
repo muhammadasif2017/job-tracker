@@ -66,7 +66,7 @@ describe('LocalStorageService', () => {
       const url = await service.getPresignedUrl('resumes/u-1/j-1/abc.pdf');
 
       expect(url).toBe(
-        'http://localhost:3001/resumes/file?key=resumes%2Fu-1%2Fj-1%2Fabc.pdf',
+        'http://localhost:3001/jobs/resumes/file?key=resumes%2Fu-1%2Fj-1%2Fabc.pdf',
       );
     });
 

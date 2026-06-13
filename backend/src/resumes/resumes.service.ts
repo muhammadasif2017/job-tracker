@@ -1,5 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service.js';
 import {
   STORAGE_SERVICE,
@@ -12,7 +13,24 @@ export class ResumesService {
   constructor(
     private prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
+    private logger: Logger,
   ) {}
+
+  private toDto(resume: {
+    id: string;
+    jobId: string;
+    originalName: string;
+    size: number;
+    createdAt: Date;
+  }): ResumeResponseDto {
+    return {
+      id: resume.id,
+      jobId: resume.jobId,
+      originalName: resume.originalName,
+      size: resume.size,
+      createdAt: resume.createdAt,
+    };
+  }
 
   async upload(
     userId: string,
@@ -50,7 +68,7 @@ export class ResumesService {
         await this.storage.delete(oldKey).catch(() => undefined);
       }
 
-      return resume;
+      return this.toDto(resume);
     } catch (err) {
       await this.storage.delete(key).catch(() => undefined);
       throw err;
@@ -74,13 +92,10 @@ export class ResumesService {
     userId: string,
     jobId: string,
   ): Promise<ResumeResponseDto | null> {
-    const job = await this.prisma.job.findFirst({
-      where: { id: jobId, userId },
-      select: { id: true },
+    const resume = await this.prisma.resume.findFirst({
+      where: { jobId, job: { userId } },
     });
-    if (!job) throw new NotFoundException('Job not found');
-
-    return this.prisma.resume.findUnique({ where: { jobId } });
+    return resume ? this.toDto(resume) : null;
   }
 
   async remove(userId: string, jobId: string): Promise<{ message: string }> {
@@ -89,8 +104,14 @@ export class ResumesService {
     });
     if (!resume) throw new NotFoundException('Resume not found');
 
-    await this.storage.delete(resume.storageKey).catch(() => undefined);
     await this.prisma.resume.delete({ where: { id: resume.id } });
+
+    await this.storage.delete(resume.storageKey).catch((err: unknown) =>
+      this.logger.warn('Storage delete failed after resume remove', {
+        storageKey: resume.storageKey,
+        err,
+      }),
+    );
 
     return { message: 'Resume removed' };
   }

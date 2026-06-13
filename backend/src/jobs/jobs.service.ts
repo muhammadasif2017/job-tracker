@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -16,6 +17,7 @@ export class JobsService {
     private prisma: PrismaService,
     private enrichment: EnrichmentService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
+    private logger: Logger,
   ) {}
 
   async create(userId: string, dto: CreateJobDto) {
@@ -167,7 +169,12 @@ export class JobsService {
     if (count === 0) throw new NotFoundException('Job not found');
 
     if (resume) {
-      await this.storage.delete(resume.storageKey).catch(() => undefined);
+      await this.storage.delete(resume.storageKey).catch((err: unknown) =>
+        this.logger.warn('Storage delete failed after job remove', {
+          storageKey: resume.storageKey,
+          err,
+        }),
+      );
     }
 
     return { message: 'Job deleted' };

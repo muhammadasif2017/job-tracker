@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileText, Eye, Download, Trash2, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
+import { isAxiosError } from 'axios';
 import api from '../../lib/api';
 import type { Resume } from '../../types';
 
@@ -31,7 +32,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
 
   const { data: resume } = useQuery<Resume | null>({
     queryKey: ['resume', jobId],
-    queryFn: () => api.get(`/resumes/jobs/${jobId}`).then((r) => r.data),
+    queryFn: () => api.get(`/jobs/${jobId}/resumes`).then((r) => r.data),
     initialData: initialResume !== undefined ? initialResume : undefined,
     initialDataUpdatedAt: initialTimestamp,
     enabled: !!jobId,
@@ -43,7 +44,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
       const form = new FormData();
       form.append('file', file);
       return api
-        .post(`/resumes/jobs/${jobId}`, form, {
+        .post(`/jobs/${jobId}/resumes`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
         })
         .then((r) => r.data);
@@ -52,20 +53,28 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
       qc.setQueryData(['resume', jobId], data);
       toast.success('Resume uploaded');
     },
-    onError: (err: any) =>
-      toast.error(err.response?.data?.message ?? 'Upload failed'),
+    onError: (err: unknown) =>
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Upload failed')
+          : 'Upload failed',
+      ),
   });
 
   const removeMutation = useMutation({
-    mutationFn: () => api.delete(`/resumes/jobs/${jobId}`).then((r) => r.data),
+    mutationFn: () => api.delete(`/jobs/${jobId}/resumes`).then((r) => r.data),
     onSuccess: () => {
       qc.setQueryData(['resume', jobId], null);
       setConfirming(false);
       toast.success('Resume removed');
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       setConfirming(false);
-      toast.error(err.response?.data?.message ?? 'Remove failed');
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Remove failed')
+          : 'Remove failed',
+      );
     },
   });
 
@@ -88,7 +97,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
 
   async function handleView() {
     try {
-      const { data } = await api.get(`/resumes/jobs/${jobId}/url`);
+      const { data } = await api.get(`/jobs/${jobId}/resumes/url`);
       window.open(data.url, '_blank', 'noopener,noreferrer');
     } catch {
       toast.error('Could not open file');
@@ -99,7 +108,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
     if (!resume) return;
     setIsDownloading(true);
     try {
-      const { data } = await api.get(`/resumes/jobs/${jobId}/url`);
+      const { data } = await api.get(`/jobs/${jobId}/resumes/url`);
       const response = await fetch(data.url);
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);

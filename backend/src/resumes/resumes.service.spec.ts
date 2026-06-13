@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { Logger } from 'nestjs-pino';
 import { ResumesService } from './resumes.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { STORAGE_SERVICE } from '../storage/storage.service.js';
@@ -19,6 +20,8 @@ const mockStorage = {
   getPresignedUrl: jest.fn(),
   delete: jest.fn(),
 };
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 const mockFile = {
   originalname: 'resume.pdf',
@@ -46,6 +49,7 @@ describe('ResumesService', () => {
         ResumesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(ResumesService);
@@ -79,7 +83,8 @@ describe('ResumesService', () => {
         }),
       );
       expect(mockStorage.delete).not.toHaveBeenCalled();
-      expect(result).toEqual(resumeRecord);
+      const { storageKey: _sk, ...dto } = resumeRecord;
+      expect(result).toEqual(dto);
     });
 
     it('deletes the old storage key after replacing an existing resume', async () => {
@@ -138,27 +143,31 @@ describe('ResumesService', () => {
   });
 
   describe('findByJob', () => {
-    it('throws NotFoundException when job does not belong to user', async () => {
-      mockPrisma.job.findFirst.mockResolvedValue(null);
-      await expect(service.findByJob('u-1', 'j-1')).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('returns null when the job has no resume', async () => {
-      mockPrisma.job.findFirst.mockResolvedValue({ id: 'j-1' });
-      mockPrisma.resume.findUnique.mockResolvedValue(null);
+    it('returns null when no resume exists for the job (or job is not owned by user)', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
 
       const result = await service.findByJob('u-1', 'j-1');
       expect(result).toBeNull();
     });
 
-    it('returns the resume when one exists', async () => {
-      mockPrisma.job.findFirst.mockResolvedValue({ id: 'j-1' });
-      mockPrisma.resume.findUnique.mockResolvedValue(resumeRecord);
+    it('queries by jobId and userId in a single Prisma call', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(resumeRecord);
+
+      await service.findByJob('u-1', 'j-1');
+
+      expect(mockPrisma.resume.findFirst).toHaveBeenCalledWith({
+        where: { jobId: 'j-1', job: { userId: 'u-1' } },
+      });
+      expect(mockPrisma.job.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('returns the resume DTO without storageKey when one exists', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(resumeRecord);
 
       const result = await service.findByJob('u-1', 'j-1');
-      expect(result).toEqual(resumeRecord);
+
+      const { storageKey: _sk, ...dto } = resumeRecord;
+      expect(result).toEqual(dto);
     });
   });
 

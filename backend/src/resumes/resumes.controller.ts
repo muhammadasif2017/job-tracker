@@ -11,8 +11,10 @@ import {
   UseInterceptors,
   UploadedFile,
   BadRequestException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import {
   MaxFileSizeValidator,
@@ -25,17 +27,19 @@ import * as path from 'path';
 import type { Response } from 'express';
 import { ResumesService } from './resumes.service.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
-import { Public } from '../common/decorators/public.decorator.js';
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
 
-@Controller('resumes')
+@Controller('jobs')
 export class ResumesController {
   private readonly uploadsDir = path.resolve(process.cwd(), 'uploads');
 
-  constructor(private resumesService: ResumesService) {}
+  constructor(
+    private resumesService: ResumesService,
+    private config: ConfigService,
+  ) {}
 
-  @Post('jobs/:jobId')
+  @Post(':jobId/resumes')
   @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
   uploadResume(
     @CurrentUser() user: { id: string },
@@ -54,7 +58,7 @@ export class ResumesController {
     return this.resumesService.upload(user.id, jobId, file);
   }
 
-  @Get('jobs/:jobId/url')
+  @Get(':jobId/resumes/url')
   getPresignedUrl(
     @CurrentUser() user: { id: string },
     @Param('jobId') jobId: string,
@@ -62,7 +66,7 @@ export class ResumesController {
     return this.resumesService.getPresignedUrl(user.id, jobId);
   }
 
-  @Get('jobs/:jobId')
+  @Get(':jobId/resumes')
   findByJob(
     @CurrentUser() user: { id: string },
     @Param('jobId') jobId: string,
@@ -70,22 +74,22 @@ export class ResumesController {
     return this.resumesService.findByJob(user.id, jobId);
   }
 
-  @Delete('jobs/:jobId')
+  @Delete(':jobId/resumes')
   @HttpCode(HttpStatus.OK)
   remove(@CurrentUser() user: { id: string }, @Param('jobId') jobId: string) {
     return this.resumesService.remove(user.id, jobId);
   }
 
   // Dev-only: serves files stored by LocalStorageService.
-  // In production STORAGE_DRIVER=oracle so this path is never used.
-  @Public()
-  @Get('file')
+  // In production (STORAGE_DRIVER=oracle) clients use presigned URLs instead.
+  @Get('resumes/file')
   async serveFile(
+    @CurrentUser() user: { id: string },
     @Query('key') key: string,
     @Query('download') download: string,
     @Res() res: Response,
   ) {
-    if (process.env.STORAGE_DRIVER === 'oracle') {
+    if (this.config.get('STORAGE_DRIVER') === 'oracle') {
       throw new NotFoundException();
     }
     if (!key) throw new BadRequestException('Missing key');
@@ -95,6 +99,11 @@ export class ResumesController {
     if (!filePath.startsWith(this.uploadsDir + path.sep)) {
       throw new BadRequestException('Invalid key');
     }
+
+    // Key format: resumes/<userId>/<jobId>/<uuid>.pdf
+    // Verify the userId segment matches the authenticated user.
+    const keyUserId = key.split('/')[1];
+    if (keyUserId !== user.id) throw new ForbiddenException();
 
     try {
       await fs.access(filePath);

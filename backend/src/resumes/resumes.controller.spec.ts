@@ -1,5 +1,10 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import type { Response } from 'express';
 import { ResumesController } from './resumes.controller.js';
@@ -15,6 +20,8 @@ const mockService = {
   remove: jest.fn(),
 };
 
+const mockConfig = { get: jest.fn().mockReturnValue('local') };
+
 const user = { id: 'u-1' };
 interface MockRes {
   setHeader: jest.Mock;
@@ -27,10 +34,13 @@ describe('ResumesController', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
-    delete process.env.STORAGE_DRIVER;
+    mockConfig.get.mockReturnValue('local');
     const module = await Test.createTestingModule({
       controllers: [ResumesController],
-      providers: [{ provide: ResumesService, useValue: mockService }],
+      providers: [
+        { provide: ResumesService, useValue: mockService },
+        { provide: ConfigService, useValue: mockConfig },
+      ],
     }).compile();
     controller = module.get(ResumesController);
   });
@@ -107,9 +117,10 @@ describe('ResumesController', () => {
 
   describe('serveFile', () => {
     it('throws NotFoundException when STORAGE_DRIVER is oracle', async () => {
-      process.env.STORAGE_DRIVER = 'oracle';
+      mockConfig.get.mockReturnValue('oracle');
       await expect(
         controller.serveFile(
+          user,
           'resumes/u-1/j-1/abc.pdf',
           '',
           mockRes() as unknown as Response,
@@ -119,13 +130,25 @@ describe('ResumesController', () => {
 
     it('throws BadRequestException when key is missing', async () => {
       await expect(
-        controller.serveFile('', '', mockRes() as unknown as Response),
+        controller.serveFile(user, '', '', mockRes() as unknown as Response),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws ForbiddenException when key userId segment does not match caller', async () => {
+      await expect(
+        controller.serveFile(
+          { id: 'other-user' },
+          'resumes/u-1/j-1/abc.pdf',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('throws BadRequestException for a path traversal attempt', async () => {
       await expect(
         controller.serveFile(
+          user,
           '../../../etc/passwd',
           '',
           mockRes() as unknown as Response,
@@ -137,6 +160,7 @@ describe('ResumesController', () => {
       mockFs.access.mockRejectedValue(new Error('ENOENT'));
       await expect(
         controller.serveFile(
+          user,
           'resumes/u-1/j-1/abc.pdf',
           '',
           mockRes() as unknown as Response,
@@ -149,6 +173,7 @@ describe('ResumesController', () => {
       const res = mockRes();
 
       await controller.serveFile(
+        user,
         'resumes/u-1/j-1/abc.pdf',
         '',
         res as unknown as Response,
@@ -166,6 +191,7 @@ describe('ResumesController', () => {
       const res = mockRes();
 
       await controller.serveFile(
+        user,
         'resumes/u-1/j-1/abc.pdf',
         'true',
         res as unknown as Response,
@@ -182,6 +208,7 @@ describe('ResumesController', () => {
       const res = mockRes();
 
       await controller.serveFile(
+        user,
         'resumes/u-1/j-1/abc.pdf',
         '',
         res as unknown as Response,

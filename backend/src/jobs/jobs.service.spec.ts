@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { JobStatus } from '@prisma/client';
+import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
@@ -28,6 +29,7 @@ const mockStorage = {
   getPresignedUrl: jest.fn(),
   delete: jest.fn(),
 };
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 describe('JobsService', () => {
   let service: JobsService;
@@ -40,6 +42,7 @@ describe('JobsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EnrichmentService, useValue: mockEnrichment },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(JobsService);
