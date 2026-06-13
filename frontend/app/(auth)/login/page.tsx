@@ -14,7 +14,7 @@ import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 
 const schema = z.object({
-  email: z.string().email('Enter a valid email'),
+  email: z.email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
 type FormData = z.infer<typeof schema>;
