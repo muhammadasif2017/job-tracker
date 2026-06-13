@@ -17,7 +17,7 @@ export class EnrichmentController {
     private readonly enrichment: EnrichmentService,
   ) {}
 
-  @Post(':id/enrich')
+  @Post(':id/enrichment')
   async triggerEnrichment(
     @CurrentUser() user: { id: string },
     @Param('id') jobId: string,

@@ -113,6 +113,6 @@ export class ResumesService {
       }),
     );
 
-    return { message: 'Resume removed' };
+    return { message: 'Resume deleted' };
   }
 }

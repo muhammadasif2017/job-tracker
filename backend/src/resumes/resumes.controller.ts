@@ -80,6 +80,8 @@ export class ResumesController {
 
   // Dev-only: serves files stored by LocalStorageService.
   // In production (STORAGE_DRIVER=oracle) clients use presigned URLs instead.
+  // Auth derives userId from the key format (resumes/<userId>/...) and compares
+  // it against @CurrentUser() — if the key format ever changes, update this check.
   @Get('resumes/file')
   async serveFile(
     @CurrentUser() user: { id: string },

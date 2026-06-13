@@ -110,12 +110,12 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /jobs/:id/enrich when Refresh is clicked', async () => {
+    it('calls POST /jobs/:id/enrichment when Refresh is clicked', async () => {
       renderCard(makeProfile({ status: 'FAILED' }), 'job-xyz');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/jobs/job-xyz/enrich',
+          '/jobs/job-xyz/enrichment',
         );
       });
     });
@@ -186,12 +186,12 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /jobs/:id/enrich when Refresh is clicked', async () => {
+    it('calls POST /jobs/:id/enrichment when Refresh is clicked', async () => {
       renderCard(makeProfile(), 'job-abc');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/jobs/job-abc/enrich',
+          '/jobs/job-abc/enrichment',
         );
       });
     });

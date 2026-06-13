@@ -211,6 +211,7 @@ export class JobsService {
     );
     for (const row of counts) byStatus[row.status] = row._count._all;
 
+    // responseRate = (INTERVIEWING + OFFER + REJECTED) / total * 100, rounded to 1 dp
     const responded =
       byStatus[JobStatus.INTERVIEWING] +
       byStatus[JobStatus.OFFER] +

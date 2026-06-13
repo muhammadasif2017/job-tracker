@@ -17,7 +17,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
-    mutationFn: () => api.post(`/jobs/${jobId}/enrich`).then((r) => r.data),
+    mutationFn: () => api.post(`/jobs/${jobId}/enrichment`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Enrichment queued');

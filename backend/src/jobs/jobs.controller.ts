@@ -32,6 +32,8 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
+  // 'stats' and 'export' must remain above ':id' — fixed segments take priority
+  // over parameterized ones only when registered first in the same router.
   @Get('stats')
   getStats(@CurrentUser() user: { id: string }) {
     return this.jobsService.getStats(user.id);
