@@ -18,6 +18,7 @@ import {
   ParseFilePipe,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import * as fs from 'fs/promises';
@@ -38,7 +39,13 @@ export class ResumesController {
   ) {}
 
   @Post(':jobId/resumes')
-  @UseInterceptors(FileInterceptor('file', { storage: memoryStorage() }))
+  @Throttle({ default: { ttl: 60000, limit: 5 } })
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_FILE_SIZE },
+    }),
+  )
   uploadResume(
     @CurrentUser() user: { id: string },
     @Param('jobId') jobId: string,
