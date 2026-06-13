@@ -185,7 +185,7 @@ describe('JobsService', () => {
       expect(result).toBe(events);
     });
 
-    it('caps the query at 200 events', async () => {
+    it('defaults to page 1 with limit 50', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         status: JobStatus.APPLIED,
@@ -193,6 +193,20 @@ describe('JobsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
 
       await service.getEvents('user-1', 'job-1');
+
+      expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ skip: 0, take: 50 }),
+      );
+    });
+
+    it('caps limit at 200 regardless of the requested value', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+
+      await service.getEvents('user-1', 'job-1', 1, 500);
 
       expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 200 }),

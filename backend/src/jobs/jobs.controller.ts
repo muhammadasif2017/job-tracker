@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
+  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -57,8 +59,13 @@ export class JobsController {
   }
 
   @Get(':id/events')
-  getEvents(@CurrentUser() user: { id: string }, @Param('id') id: string) {
-    return this.jobsService.getEvents(user.id, id);
+  getEvents(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+  ) {
+    return this.jobsService.getEvents(user.id, id, page, limit);
   }
 
   @Patch(':id')
