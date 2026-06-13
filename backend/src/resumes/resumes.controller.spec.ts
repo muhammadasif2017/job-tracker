@@ -1,0 +1,196 @@
+import { Test } from '@nestjs/testing';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import * as fs from 'fs/promises';
+import type { Response } from 'express';
+import { ResumesController } from './resumes.controller.js';
+import { ResumesService } from './resumes.service.js';
+
+jest.mock('fs/promises');
+const mockFs = fs as jest.Mocked<typeof fs>;
+
+const mockService = {
+  upload: jest.fn(),
+  getPresignedUrl: jest.fn(),
+  findByJob: jest.fn(),
+  remove: jest.fn(),
+};
+
+const user = { id: 'u-1' };
+interface MockRes {
+  setHeader: jest.Mock;
+  sendFile: jest.Mock;
+}
+const mockRes = (): MockRes => ({ setHeader: jest.fn(), sendFile: jest.fn() });
+
+describe('ResumesController', () => {
+  let controller: ResumesController;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    delete process.env.STORAGE_DRIVER;
+    const module = await Test.createTestingModule({
+      controllers: [ResumesController],
+      providers: [{ provide: ResumesService, useValue: mockService }],
+    }).compile();
+    controller = module.get(ResumesController);
+  });
+
+  describe('uploadResume', () => {
+    it('delegates to service with userId, jobId, and file', async () => {
+      const file = { originalname: 'cv.pdf' } as Express.Multer.File;
+      mockService.upload.mockResolvedValue({ id: 'r-1' });
+
+      await controller.uploadResume(user, 'j-1', file);
+
+      expect(mockService.upload).toHaveBeenCalledWith('u-1', 'j-1', file);
+    });
+
+    it('returns the result from the service', async () => {
+      const file = { originalname: 'cv.pdf' } as Express.Multer.File;
+      const resume = { id: 'r-1', originalName: 'cv.pdf', size: 1024 };
+      mockService.upload.mockResolvedValue(resume);
+
+      const result = await controller.uploadResume(user, 'j-1', file);
+
+      expect(result).toEqual(resume);
+    });
+  });
+
+  describe('getPresignedUrl', () => {
+    it('delegates to service with userId and jobId', async () => {
+      mockService.getPresignedUrl.mockResolvedValue({
+        url: 'https://signed',
+        originalName: 'cv.pdf',
+      });
+
+      await controller.getPresignedUrl(user, 'j-1');
+
+      expect(mockService.getPresignedUrl).toHaveBeenCalledWith('u-1', 'j-1');
+    });
+  });
+
+  describe('findByJob', () => {
+    it('delegates to service with userId and jobId', async () => {
+      mockService.findByJob.mockResolvedValue(null);
+
+      await controller.findByJob(user, 'j-1');
+
+      expect(mockService.findByJob).toHaveBeenCalledWith('u-1', 'j-1');
+    });
+
+    it('returns null when the job has no resume', async () => {
+      mockService.findByJob.mockResolvedValue(null);
+
+      const result = await controller.findByJob(user, 'j-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('remove', () => {
+    it('delegates to service with userId and jobId', async () => {
+      mockService.remove.mockResolvedValue({ message: 'Resume removed' });
+
+      await controller.remove(user, 'j-1');
+
+      expect(mockService.remove).toHaveBeenCalledWith('u-1', 'j-1');
+    });
+
+    it('returns the success message from the service', async () => {
+      mockService.remove.mockResolvedValue({ message: 'Resume removed' });
+
+      const result = await controller.remove(user, 'j-1');
+
+      expect(result).toEqual({ message: 'Resume removed' });
+    });
+  });
+
+  describe('serveFile', () => {
+    it('throws NotFoundException when STORAGE_DRIVER is oracle', async () => {
+      process.env.STORAGE_DRIVER = 'oracle';
+      await expect(
+        controller.serveFile(
+          'resumes/u-1/j-1/abc.pdf',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws BadRequestException when key is missing', async () => {
+      await expect(
+        controller.serveFile('', '', mockRes() as unknown as Response),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws BadRequestException for a path traversal attempt', async () => {
+      await expect(
+        controller.serveFile(
+          '../../../etc/passwd',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('throws NotFoundException when the file does not exist on disk', async () => {
+      mockFs.access.mockRejectedValue(new Error('ENOENT'));
+      await expect(
+        controller.serveFile(
+          'resumes/u-1/j-1/abc.pdf',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('sends the file inline when download param is absent', async () => {
+      mockFs.access.mockResolvedValue(undefined);
+      const res = mockRes();
+
+      await controller.serveFile(
+        'resumes/u-1/j-1/abc.pdf',
+        '',
+        res as unknown as Response,
+      );
+
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringContaining('inline'),
+      );
+      expect(res.sendFile).toHaveBeenCalled();
+    });
+
+    it('sends the file as attachment when download=true', async () => {
+      mockFs.access.mockResolvedValue(undefined);
+      const res = mockRes();
+
+      await controller.serveFile(
+        'resumes/u-1/j-1/abc.pdf',
+        'true',
+        res as unknown as Response,
+      );
+
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        expect.stringContaining('attachment'),
+      );
+    });
+
+    it('sets Content-Type to application/pdf', async () => {
+      mockFs.access.mockResolvedValue(undefined);
+      const res = mockRes();
+
+      await controller.serveFile(
+        'resumes/u-1/j-1/abc.pdf',
+        '',
+        res as unknown as Response,
+      );
+
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'application/pdf',
+      );
+    });
+  });
+});

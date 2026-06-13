@@ -49,6 +49,14 @@ export interface CompanyProfile {
   updatedAt: string;
 }
 
+export interface Resume {
+  id: string;
+  jobId: string;
+  originalName: string;
+  size: number;
+  createdAt: string;
+}
+
 export interface Job {
   id: string;
   company: string;
@@ -64,6 +72,7 @@ export interface Job {
   updatedAt: string;
   userId: string;
   companyProfile?: CompanyProfile;
+  resume?: Resume | null;
 }
 
 export interface User {

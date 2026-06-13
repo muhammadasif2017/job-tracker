@@ -11,6 +11,8 @@ import { UsersModule } from './users/users.module.js';
 import { JobsModule } from './jobs/jobs.module.js';
 import { HealthModule } from './health/health.module.js';
 import { EnrichmentModule } from './enrichment/enrichment.module.js';
+import { StorageModule } from './storage/storage.module.js';
+import { ResumesModule } from './resumes/resumes.module.js';
 
 function parseRedisConnection() {
   const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
@@ -41,6 +43,12 @@ function parseRedisConnection() {
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),
         GITHUB_CLIENT_SECRET: Joi.string().optional(),
+        STORAGE_DRIVER: Joi.string().valid('local', 'oracle').default('local'),
+        OCI_NAMESPACE: Joi.string().optional(),
+        OCI_REGION: Joi.string().optional(),
+        OCI_BUCKET_NAME: Joi.string().optional(),
+        OCI_ACCESS_KEY_ID: Joi.string().optional(),
+        OCI_SECRET_ACCESS_KEY: Joi.string().optional(),
       }),
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
@@ -64,7 +72,9 @@ function parseRedisConnection() {
       },
     }),
     PrismaModule,
+    StorageModule,
     AuthModule,
+    ResumesModule,
     UsersModule,
     JobsModule,
     HealthModule,

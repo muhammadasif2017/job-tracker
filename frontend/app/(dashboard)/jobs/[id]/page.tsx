@@ -16,6 +16,7 @@ import { Button } from '../../../../components/ui/button';
 import { StatusBadge } from '../../../../components/ui/badge';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
+import { ResumeUpload } from '../../../../components/jobs/resume-upload';
 import { CompanyProfileCard } from '../../../../components/company-profile-card';
 import { formatDate } from '../../../../lib/utils';
 import {
@@ -224,6 +225,8 @@ export default function JobDetailPage() {
                 </p>
               </div>
             )}
+
+            <ResumeUpload jobId={id} initialResume={job.resume ?? null} />
           </div>
 
           <Timeline events={events} />

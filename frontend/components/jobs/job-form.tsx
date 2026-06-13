@@ -1,7 +1,7 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
+import { ResumeUpload } from './resume-upload';
 import {
   JOB_PRIORITIES,
   JOB_STATUSES,
@@ -40,6 +41,7 @@ interface JobFormProps {
 export function JobForm({ open, onClose, job }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;
+  const [createdJobId, setCreatedJobId] = useState<string | null>(null);
 
   const {
     register,
@@ -54,6 +56,12 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
       appliedAt: new Date().toISOString().split('T')[0],
     },
   });
+
+  useEffect(() => {
+    if (!open) {
+      setCreatedJobId(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -90,17 +98,45 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
         ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
         : api.post('/jobs', payload).then((r) => r.data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
-      if (isEdit) qc.invalidateQueries({ queryKey: ['job', job.id] });
-      toast.success(isEdit ? 'Job updated' : 'Job added');
-      reset();
-      onClose();
+      if (isEdit) {
+        qc.invalidateQueries({ queryKey: ['job', job.id] });
+        toast.success('Job updated');
+        reset();
+        onClose();
+      } else {
+        toast.success('Job added');
+        setCreatedJobId(data.id);
+      }
     },
     onError: (err: any) =>
       toast.error(err.response?.data?.message ?? 'Something went wrong'),
   });
+
+  if (createdJobId) {
+    return (
+      <Modal open={open} onClose={onClose} title="Job Added">
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 dark:text-slate-400">
+            Job added successfully. Optionally attach a resume before closing.
+          </p>
+          <ResumeUpload jobId={createdJobId} initialResume={null} />
+          <div className="flex justify-end pt-2">
+            <Button
+              onClick={() => {
+                reset();
+                onClose();
+              }}
+            >
+              Done
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -189,6 +225,9 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
             {...register('notes')}
           />
         </div>
+        {isEdit && (
+          <ResumeUpload jobId={job.id} initialResume={job.resume ?? null} />
+        )}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel

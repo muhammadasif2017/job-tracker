@@ -3,6 +3,7 @@ import { JobStatus } from '@prisma/client';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { STORAGE_SERVICE } from '../storage/storage.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 
@@ -18,9 +19,15 @@ const mockPrisma = {
     deleteMany: jest.fn(),
   },
   jobEvent: { findMany: jest.fn() },
+  resume: { findFirst: jest.fn() },
 };
 
 const mockEnrichment = { enqueueEnrichment: jest.fn() };
+const mockStorage = {
+  upload: jest.fn(),
+  getPresignedUrl: jest.fn(),
+  delete: jest.fn(),
+};
 
 describe('JobsService', () => {
   let service: JobsService;
@@ -32,6 +39,7 @@ describe('JobsService', () => {
         JobsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EnrichmentService, useValue: mockEnrichment },
+        { provide: STORAGE_SERVICE, useValue: mockStorage },
       ],
     }).compile();
     service = module.get(JobsService);
@@ -68,17 +76,18 @@ describe('JobsService', () => {
   });
 
   describe('findOne', () => {
-    it('includes companyProfile in the Prisma query', async () => {
+    it('includes companyProfile and resume in the Prisma query', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         companyProfile: null,
+        resume: null,
       });
 
       await service.findOne('user-1', 'job-1');
 
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith({
         where: { id: 'job-1', userId: 'user-1' },
-        include: { companyProfile: true },
+        include: { companyProfile: true, resume: true },
       });
     });
   });
@@ -106,6 +115,7 @@ describe('JobsService', () => {
 
   describe('remove', () => {
     it('returns success message when job is deleted', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
       mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
 
       const result = await service.remove('user-1', 'job-1');
@@ -114,6 +124,7 @@ describe('JobsService', () => {
     });
 
     it('throws NotFoundException when job does not belong to the user', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
       mockPrisma.job.deleteMany.mockResolvedValue({ count: 0 });
 
       await expect(service.remove('user-1', 'job-99')).rejects.toThrow(
@@ -121,7 +132,8 @@ describe('JobsService', () => {
       );
     });
 
-    it('uses a single deleteMany to avoid a separate ownership SELECT', async () => {
+    it('uses deleteMany for the job delete without a separate job ownership SELECT', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
       mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
 
       await service.remove('user-1', 'job-1');
@@ -130,6 +142,29 @@ describe('JobsService', () => {
       expect(mockPrisma.job.deleteMany).toHaveBeenCalledWith({
         where: { id: 'job-1', userId: 'user-1' },
       });
+    });
+
+    it('deletes the resume file from storage when the job has an attached resume', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue({
+        storageKey: 'resumes/user-1/job-1/abc.pdf',
+      });
+      mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
+      mockStorage.delete.mockResolvedValue(undefined);
+
+      await service.remove('user-1', 'job-1');
+
+      expect(mockStorage.delete).toHaveBeenCalledWith(
+        'resumes/user-1/job-1/abc.pdf',
+      );
+    });
+
+    it('skips storage delete when the job has no attached resume', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
+      mockPrisma.job.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove('user-1', 'job-1');
+
+      expect(mockStorage.delete).not.toHaveBeenCalled();
     });
   });
 

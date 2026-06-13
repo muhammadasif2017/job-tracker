@@ -1,16 +1,21 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
+import {
+  STORAGE_SERVICE,
+  type IStorageService,
+} from '../storage/storage.service.js';
 
 @Injectable()
 export class JobsService {
   constructor(
     private prisma: PrismaService,
     private enrichment: EnrichmentService,
+    @Inject(STORAGE_SERVICE) private storage: IStorageService,
   ) {}
 
   async create(userId: string, dto: CreateJobDto) {
@@ -98,7 +103,7 @@ export class JobsService {
     // from one that doesn't exist (404 for both — no existence leak).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      include: { companyProfile: true },
+      include: { companyProfile: true, resume: true },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;
@@ -151,10 +156,20 @@ export class JobsService {
   }
 
   async remove(userId: string, jobId: string) {
+    const resume = await this.prisma.resume.findFirst({
+      where: { jobId, job: { userId } },
+      select: { storageKey: true },
+    });
+
     const { count } = await this.prisma.job.deleteMany({
       where: { id: jobId, userId },
     });
     if (count === 0) throw new NotFoundException('Job not found');
+
+    if (resume) {
+      await this.storage.delete(resume.storageKey).catch(() => undefined);
+    }
+
     return { message: 'Job deleted' };
   }
 
