@@ -152,6 +152,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                                   href={job.url}
                                   target="_blank"
                                   rel="noopener noreferrer"
+                                  aria-label={`View job posting for ${job.company}`}
                                   className="rounded p-1 text-slate-400 hover:text-indigo-600"
                                 >
                                   <ExternalLink className="h-3 w-3" />
@@ -159,6 +160,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                               )}
                               <button
                                 onClick={() => onEdit(job)}
+                                aria-label={`Edit ${job.company}`}
                                 className="rounded p-1 text-slate-400 hover:text-indigo-600"
                               >
                                 <Pencil className="h-3 w-3" />
