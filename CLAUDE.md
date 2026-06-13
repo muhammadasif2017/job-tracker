@@ -56,7 +56,7 @@ npm run lint            # ESLint
 2. `store/auth.store.ts` — Zustand + persist for `user` and `isAuthenticated`. Also manages the `jt_authed` cookie (set on `setAuth`, cleared on `logout`) which is the signal `proxy.ts` reads.
 3. `lib/api.ts` — Axios instance with a request interceptor (attaches Bearer token) and a response interceptor (queues 401s, calls refresh, retries; redirects to `/login` on failure).
 
-**Data fetching:** TanStack Query v5 with `staleTime: 60_000`. Query keys follow the pattern `['jobs', filters]`, `['job', id]`, `['job-events', id]`, `['stats']`. Mutations invalidate related query keys on success.
+**Data fetching:** TanStack Query v5 with `staleTime: 60_000`. Query keys follow the pattern `['jobs', filters]`, `['job', id]`, `['job-events', id]`, `['stats']`, `['resume', jobId]`. Mutations invalidate related query keys on success; the `['resume', jobId]` cache is updated via `setQueryData` on mutation (not invalidation).
 
 **Forms:** React Hook Form + Zod. Schemas are defined inline in the component file. The `JobForm` component handles both create (POST `/jobs`) and edit (PATCH `/jobs/:id`).
 
@@ -66,7 +66,7 @@ Tests in `backend/test/app.e2e-spec.ts` run against the **live dev database**. E
 
 ### Database Schema
 
-Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete.
+Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`, `Job → Resume?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete. `Resume` is a 1:1 optional relation to `Job` — one PDF per job, stored by key in the configured storage driver; `storageKey` is never sent to the client.
 
 
 # CLAUDE.md
