@@ -51,7 +51,7 @@ describe('Job Tracker (e2e)', () => {
       const res = await request(app.getHttpServer())
         .post('/auth/register')
         .send({ email: EMAIL, password: PASSWORD, name: 'E2E Tester' })
-        .expect(201);
+        .expect(200);
 
       expect(res.body).toHaveProperty('accessToken');
       expect(res.body).toHaveProperty('refreshToken');
