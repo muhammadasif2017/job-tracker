@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 
-// Prisma error codes we care about
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
 const PRISMA_NOT_FOUND = 'P2025';
 

@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Logger } from '@nestjs/common';
-import { GlobalExceptionFilter } from './prisma-exception.filter.js';
+import { GlobalExceptionFilter } from './global-exception.filter.js';
 
 const mockResponse = {
   status: jest.fn().mockReturnThis(),

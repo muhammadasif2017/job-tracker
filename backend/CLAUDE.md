@@ -20,7 +20,7 @@ npx prisma studio                             # GUI DB browser
 
 ```
 src/
-├── main.ts                  # Bootstrap: helmet, CORS, ValidationPipe, JwtAuthGuard, PrismaExceptionFilter, Swagger
+├── main.ts                  # Bootstrap: helmet, CORS, ValidationPipe, JwtAuthGuard, GlobalExceptionFilter, Swagger
 ├── app.module.ts            # Root module: ConfigModule, ThrottlerModule, LoggerModule, feature modules
 ├── prisma/
 │   ├── prisma.module.ts     # Global PrismaModule (exports PrismaService)
@@ -56,7 +56,7 @@ src/
     ├── guards/
     │   └── jwt-auth.guard.ts        # Global guard; respects @Public()
     └── filters/
-        └── prisma-exception.filter.ts # Maps P2002→409, P2025→404
+        └── global-exception.filter.ts # Maps P2002→409, P2025→404; passes HttpExceptions through; 500 for all else
 ```
 
 ---
@@ -235,9 +235,9 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 
 ## Error Handling
 
-- Throw NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) — `PrismaExceptionFilter` passes them through unchanged.
+- Throw NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) — `GlobalExceptionFilter` passes them through unchanged.
 - Do **not** throw plain `Error` objects — they fall through to the 500 catch-all.
-- `PrismaExceptionFilter` catches `P2002` (unique) → 409, `P2025` (not found) → 404.
+- `GlobalExceptionFilter` catches `P2002` (unique) → 409, `P2025` (not found) → 404.
 - Use `ValidationPipe` errors for DTO validation failures — these are automatic.
 
 ---

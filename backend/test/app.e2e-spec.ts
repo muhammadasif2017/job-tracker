@@ -6,7 +6,7 @@ import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
-import { GlobalExceptionFilter } from '../src/common/filters/prisma-exception.filter';
+import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;

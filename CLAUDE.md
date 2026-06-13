@@ -39,7 +39,7 @@ npm run lint            # ESLint
 - OAuth (Google/GitHub): `GET /auth/google` → provider → `GET /auth/google/callback` → `storeOAuthCode(tokens)` stores the token pair in a server-side `Map` for 60 s → redirect to `${FRONTEND_URL}/callback?code=<uuid>` → frontend POSTs `POST /auth/exchange-code { code }` to retrieve the token pair. Tokens are never exposed in the redirect URL. Strategies use `?? 'placeholder'` so the server starts without real OAuth credentials.
 - `issueTokens` is the single method that signs both tokens, hashes+stores the refresh token, and returns the pair.
 
-**Error handling:** Global `PrismaExceptionFilter` maps P2002 → 409, P2025 → 404, and passes NestJS `HttpException` subclasses through unchanged.
+**Error handling:** Global `GlobalExceptionFilter` maps P2002 → 409, P2025 → 404, and passes NestJS `HttpException` subclasses through unchanged.
 
 **Logging:** `nestjs-pino` via `LoggerModule.forRoot()` in `AppModule`. In dev it pretty-prints (set by `NODE_ENV !== 'production'`). Authorization headers are redacted from request logs.
 

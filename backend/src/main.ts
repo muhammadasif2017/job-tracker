@@ -6,7 +6,7 @@ import { Logger } from 'nestjs-pino';
 import helmet from 'helmet';
 import { AppModule } from './app.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
-import { GlobalExceptionFilter } from './common/filters/prisma-exception.filter.js';
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
@@ -15,7 +15,10 @@ async function bootstrap() {
   const config = app.get(ConfigService);
 
   app.use(helmet());
-  app.enableCors({ origin: config.get('FRONTEND_URL'), credentials: true });
+  app.enableCors({
+    origin: config.get<string>('FRONTEND_URL'),
+    credentials: true,
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
