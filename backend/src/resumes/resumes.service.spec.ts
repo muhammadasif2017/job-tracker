@@ -198,7 +198,7 @@ describe('ResumesService', () => {
       mockPrisma.resume.delete.mockResolvedValue(resumeRecord);
 
       const result = await service.remove('u-1', 'j-1');
-      expect(result).toEqual({ message: 'Resume removed' });
+      expect(result).toEqual({ message: 'Resume deleted' });
     });
   });
 });
