@@ -132,7 +132,7 @@ export default function ProfilePage() {
       {user?.connectedProviders && user.connectedProviders.length > 0 && (
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-3">
           <h2 className="font-medium">Connected Accounts</h2>
-          {['google', 'github'].map((provider) => {
+          {['github'].map((provider) => {
             const connected = user.connectedProviders!.includes(provider);
             return (
               <div key={provider} className="flex items-center justify-between">

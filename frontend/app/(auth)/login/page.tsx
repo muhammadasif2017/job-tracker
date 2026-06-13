@@ -56,7 +56,6 @@ export default function LoginPage() {
         </div>
 
         <div className="space-y-3">
-          <OAuthButton provider="google" />
           <OAuthButton provider="github" />
         </div>
 

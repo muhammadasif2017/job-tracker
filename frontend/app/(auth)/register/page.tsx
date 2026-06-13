@@ -69,7 +69,6 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-3">
-          <OAuthButton provider="google" />
           <OAuthButton provider="github" />
           <p className="text-center text-xs text-slate-400">
             OAuth sign-up skips email verification
