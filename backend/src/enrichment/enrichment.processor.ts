@@ -96,9 +96,15 @@ export class EnrichmentProcessor extends WorkerHost {
             errorMessage,
           },
         });
-      } catch {
-        // Profile was deleted (cascaded from job deletion); nothing to update.
+      } catch (updateErr) {
+        this.logger.warn('enrichment_profile_update_failed', {
+          jobId,
+          error:
+            updateErr instanceof Error ? updateErr.message : String(updateErr),
+        });
       }
+
+      throw error;
     }
   }
 }

@@ -60,6 +60,7 @@ describe('SearchService', () => {
     expect(url).toBe('https://api.tavily.com/search');
     const body = JSON.parse(init.body as string);
     expect(body.query).toBe('Stripe tech stack');
+    expect(body.include_answer).toBe(true);
     expect(body.api_key).toBeUndefined();
     expect((init.headers as Record<string, string>)['Authorization']).toBe(
       'Bearer my-tavily-key',
@@ -95,6 +96,56 @@ describe('SearchService', () => {
     const snippets = await service.search('Acme Corp');
 
     expect(snippets).toEqual([]);
+  });
+
+  it('prepends Tavily synthesized answer as first snippet', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          answer: 'Acme is a SaaS company founded in 2010.',
+          results: [{ content: 'Some result.' }],
+        }),
+    });
+
+    const snippets = await service.search('Acme Corp');
+
+    expect(snippets[0]).toBe(
+      '[Summary] Acme is a SaaS company founded in 2010.',
+    );
+    expect(snippets[1]).toBe('Some result.');
+  });
+
+  it('prefixes snippet with title when title is present', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          results: [{ title: 'Glassdoor', content: 'Great workplace.' }],
+        }),
+    });
+
+    const snippets = await service.search('Acme Corp');
+
+    expect(snippets[0]).toBe('[Glassdoor] Great workplace.');
+  });
+
+  it('drops results where content is undefined', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          results: [{ title: 'No Content' }, { content: 'Has content.' }],
+        }),
+    });
+
+    const snippets = await service.search('Acme');
+
+    expect(snippets).toHaveLength(1);
+    expect(snippets[0]).toBe('Has content.');
   });
 
   it('filters out results with no content', async () => {
