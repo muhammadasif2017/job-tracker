@@ -13,13 +13,25 @@ import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import type { Request, Response } from 'express';
 import { Throttle } from '@nestjs/throttler';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiBody,
+  ApiOkResponse,
+  ApiUnauthorizedResponse,
+  ApiConflictResponse,
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
+import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
+@ApiTags('auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -36,6 +48,9 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @Post('register')
+  @ApiOperation({ summary: 'Register a new user' })
+  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
+  @ApiConflictResponse({ description: 'Email already in use' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
@@ -50,6 +65,10 @@ export class AuthController {
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @Post('login')
+  @ApiOperation({ summary: 'Login with email and password' })
+  @ApiBody({ type: LoginDto })
+  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
+  @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   login(@Req() req: Request) {
     const user = req.user as { id: string; email: string };
     return this.authService.login(user.id, user.email);
@@ -65,6 +84,9 @@ export class AuthController {
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
+  @ApiOperation({ summary: 'Rotate tokens using a refresh token' })
+  @ApiOkResponse({ description: 'Returns new access and refresh tokens' })
+  @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
   refresh(@Body() dto: RefreshDto, @Req() req: Request) {
     const user = req.user as { sub: string; email: string; jti: string };
     return this.authService.refresh(
@@ -84,17 +106,27 @@ export class AuthController {
   })
   @HttpCode(HttpStatus.OK)
   @Post('exchange-code')
+  @ApiOperation({ summary: 'Exchange short-lived OAuth code for tokens' })
+  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
   exchangeCode(@Body() dto: ExchangeCodeDto) {
     return this.authService.exchangeOAuthCode(dto.code);
   }
 
   @HttpCode(HttpStatus.OK)
   @Post('logout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Invalidate the current refresh token' })
+  @ApiOkResponse({ description: 'Logged out successfully' })
   logout(@CurrentUser() user: { id: string }) {
     return this.authService.logout(user.id);
   }
 
   @Get('me')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiOkResponse({
+    description: 'Returns the JWT payload for the current user',
+  })
   me(@CurrentUser() user: unknown) {
     return user;
   }
@@ -104,6 +136,8 @@ export class AuthController {
   @Public()
   @Get('google')
   @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Initiate Google OAuth flow' })
+  @ApiExcludeEndpoint()
   googleAuth() {
     // Guard redirects to Google
   }
@@ -111,6 +145,7 @@ export class AuthController {
   @Public()
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
+  @ApiExcludeEndpoint()
   googleCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
@@ -123,6 +158,8 @@ export class AuthController {
   @Public()
   @Get('github')
   @UseGuards(AuthGuard('github'))
+  @ApiOperation({ summary: 'Initiate GitHub OAuth flow' })
+  @ApiExcludeEndpoint()
   githubAuth() {
     // Guard redirects to GitHub
   }
@@ -130,6 +167,7 @@ export class AuthController {
   @Public()
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
+  @ApiExcludeEndpoint()
   githubCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
