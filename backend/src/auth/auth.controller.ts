@@ -28,6 +28,9 @@ import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { RefreshDto } from './dto/refresh.dto.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
+import { AuthTokensDto } from './dto/auth-tokens.dto.js';
+import { CurrentUserDto } from './dto/current-user.dto.js';
+import { MessageDto } from '../common/dto/message.dto.js';
 import { Public } from '../common/decorators/public.decorator.js';
 import { CurrentUser } from '../common/decorators/current-user.decorator.js';
 
@@ -49,7 +52,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
-  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
+  @ApiOkResponse({ type: AuthTokensDto })
   @ApiConflictResponse({ description: 'Email already in use' })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
@@ -67,7 +70,7 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiBody({ type: LoginDto })
-  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
+  @ApiOkResponse({ type: AuthTokensDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials' })
   login(@Req() req: Request) {
     const user = req.user as { id: string; email: string };
@@ -85,7 +88,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
   @ApiOperation({ summary: 'Rotate tokens using a refresh token' })
-  @ApiOkResponse({ description: 'Returns new access and refresh tokens' })
+  @ApiOkResponse({ type: AuthTokensDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or expired refresh token' })
   refresh(@Body() dto: RefreshDto, @Req() req: Request) {
     const user = req.user as { sub: string; email: string; jti: string };
@@ -107,7 +110,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('exchange-code')
   @ApiOperation({ summary: 'Exchange short-lived OAuth code for tokens' })
-  @ApiOkResponse({ description: 'Returns access and refresh tokens' })
+  @ApiOkResponse({ type: AuthTokensDto })
   exchangeCode(@Body() dto: ExchangeCodeDto) {
     return this.authService.exchangeOAuthCode(dto.code);
   }
@@ -116,7 +119,7 @@ export class AuthController {
   @Post('logout')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Invalidate the current refresh token' })
-  @ApiOkResponse({ description: 'Logged out successfully' })
+  @ApiOkResponse({ type: MessageDto })
   logout(@CurrentUser() user: { id: string }) {
     return this.authService.logout(user.id);
   }
@@ -124,9 +127,7 @@ export class AuthController {
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user' })
-  @ApiOkResponse({
-    description: 'Returns the JWT payload for the current user',
-  })
+  @ApiOkResponse({ type: CurrentUserDto })
   me(@CurrentUser() user: unknown) {
     return user;
   }
