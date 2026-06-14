@@ -43,14 +43,18 @@ export class EnrichmentProcessor extends WorkerHost {
         update: { status: EnrichmentStatus.PROCESSING, errorMessage: null },
       });
 
-      const [cultureSnippets, techSnippets] = await Promise.all([
-        this.search.search(`${company} company culture reviews`),
-        this.search.search(`${company} tech stack engineering`),
+      const [overviewSnippets, cultureSnippets] = await Promise.all([
+        this.search.search(
+          `${company} company overview headquarters founded employees industry`,
+        ),
+        this.search.search(
+          `${company} engineering tech stack remote work culture glassdoor`,
+        ),
       ]);
 
       const pageText = await this.webFetch.fetchPageText(dbJob.url ?? '');
 
-      const context = [...cultureSnippets, ...techSnippets, pageText]
+      const context = [...overviewSnippets, ...cultureSnippets, pageText]
         .filter(Boolean)
         .join('\n\n')
         .slice(0, 8000);
@@ -92,9 +96,15 @@ export class EnrichmentProcessor extends WorkerHost {
             errorMessage,
           },
         });
-      } catch {
-        // Profile was deleted (cascaded from job deletion); nothing to update.
+      } catch (updateErr) {
+        this.logger.warn('enrichment_profile_update_failed', {
+          jobId,
+          error:
+            updateErr instanceof Error ? updateErr.message : String(updateErr),
+        });
       }
+
+      throw error;
     }
   }
 }

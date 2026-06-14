@@ -93,13 +93,13 @@ describe('EnrichmentProcessor', () => {
     expect(mockPrisma.companyProfile.update).not.toHaveBeenCalled();
   });
 
-  it('marks profile FAILED and does not rethrow when search throws', async () => {
+  it('marks profile FAILED and rethrows for BullMQ retry when search throws', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockRejectedValue(new Error('Search API down'));
     mockPrisma.companyProfile.update.mockResolvedValue({});
 
-    await expect(processor.process(bullJob)).resolves.toBeUndefined();
+    await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
 
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -111,7 +111,7 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
-  it('marks profile FAILED and does not rethrow when LLM throws', async () => {
+  it('marks profile FAILED and rethrows for BullMQ retry when LLM throws', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -119,7 +119,7 @@ describe('EnrichmentProcessor', () => {
     mockLlm.extract.mockRejectedValue(new Error('LLM timeout'));
     mockPrisma.companyProfile.update.mockResolvedValue({});
 
-    await expect(processor.process(bullJob)).resolves.toBeUndefined();
+    await expect(processor.process(bullJob)).rejects.toThrow('LLM timeout');
 
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -136,7 +136,7 @@ describe('EnrichmentProcessor', () => {
     );
     mockPrisma.companyProfile.update.mockResolvedValue({});
 
-    await processor.process(bullJob);
+    await expect(processor.process(bullJob)).rejects.toThrow();
 
     const updateCall = mockPrisma.companyProfile.update.mock.calls[0][0] as {
       data: { errorMessage: string };
@@ -151,7 +151,7 @@ describe('EnrichmentProcessor', () => {
     mockSearch.search.mockRejectedValue(new Error('x'.repeat(300)));
     mockPrisma.companyProfile.update.mockResolvedValue({});
 
-    await processor.process(bullJob);
+    await expect(processor.process(bullJob)).rejects.toThrow();
 
     const updateCall = mockPrisma.companyProfile.update.mock.calls[0][0] as {
       data: { errorMessage: string };
@@ -159,7 +159,7 @@ describe('EnrichmentProcessor', () => {
     expect(updateCall.data.errorMessage.length).toBeLessThanOrEqual(200);
   });
 
-  it('does not rethrow when the FAILED update itself throws (profile deleted mid-flight)', async () => {
+  it('throws original error even when the FAILED update itself throws', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockRejectedValue(new Error('Search API down'));
@@ -167,6 +167,6 @@ describe('EnrichmentProcessor', () => {
       new Error('Record to update not found'),
     );
 
-    await expect(processor.process(bullJob)).resolves.toBeUndefined();
+    await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
   });
 });

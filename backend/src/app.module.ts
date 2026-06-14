@@ -46,7 +46,7 @@ function parseRedisConnection() {
         JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
         FRONTEND_URL: Joi.string().default('http://localhost:3000'),
         REDIS_URL: Joi.string().default('redis://localhost:6379'),
-        ANTHROPIC_API_KEY: Joi.string().optional(),
+        GROQ_API_KEY: Joi.string().optional(),
         TAVILY_API_KEY: Joi.string().optional(),
         GOOGLE_CLIENT_ID: Joi.string().optional(),
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
