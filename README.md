@@ -118,7 +118,7 @@ Tests cover: register, login, token refresh, logout, job CRUD, status-change tim
 
 ## API Documentation
 
-Swagger UI is available at `http://localhost:3001/api/docs` in development (`NODE_ENV !== 'production'`).
+Swagger UI is available at `http://localhost:3001/api/docs` in development (`NODE_ENV !== 'production'`). All endpoints include typed request and response schemas with examples.
 
 ### Key endpoints
 
@@ -140,8 +140,11 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 | GET | `/jobs/:id/events` | Application timeline |
 | PATCH | `/jobs/:id` | Update job |
 | DELETE | `/jobs/:id` | Delete job |
-| POST | `/enrichment/:jobId` | Trigger company enrichment (async) |
-| GET | `/enrichment/:jobId` | Get enrichment status + result |
+| POST | `/jobs/:id/enrichment` | Trigger company enrichment (async, 202) |
+| POST | `/jobs/:jobId/resumes` | Upload or replace resume PDF (max 8 MB) |
+| GET | `/jobs/:jobId/resumes` | Resume metadata |
+| GET | `/jobs/:jobId/resumes/url` | Presigned download URL (oracle driver only) |
+| DELETE | `/jobs/:jobId/resumes` | Delete resume |
 | GET | `/users/me` | Full user profile |
 | PATCH | `/users/me` | Update profile |
 | PATCH | `/users/me/password` | Change password |
