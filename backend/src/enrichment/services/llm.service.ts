@@ -75,23 +75,24 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
   },
 };
 
+function str(val: unknown): string {
+  return typeof val === 'string' && val.trim() ? val.trim() : 'Unknown';
+}
+
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
-    industry: typeof raw.industry === 'string' ? raw.industry : 'Unknown',
-    companySize:
-      typeof raw.companySize === 'string' ? raw.companySize : 'Unknown',
+    industry: str(raw.industry),
+    companySize: str(raw.companySize),
     techStack: Array.isArray(raw.techStack)
-      ? raw.techStack.filter((t): t is string => typeof t === 'string')
+      ? raw.techStack.filter(
+          (t): t is string => typeof t === 'string' && !!t.trim(),
+        )
       : [],
-    cultureSummary:
-      typeof raw.cultureSummary === 'string' ? raw.cultureSummary : 'Unknown',
-    remotePolicy:
-      typeof raw.remotePolicy === 'string' ? raw.remotePolicy : 'Unknown',
-    workLifeBalance:
-      typeof raw.workLifeBalance === 'string' ? raw.workLifeBalance : 'Unknown',
-    headquarters:
-      typeof raw.headquarters === 'string' ? raw.headquarters : 'Unknown',
-    founded: typeof raw.founded === 'string' ? raw.founded : 'Unknown',
+    cultureSummary: str(raw.cultureSummary),
+    remotePolicy: str(raw.remotePolicy),
+    workLifeBalance: str(raw.workLifeBalance),
+    headquarters: str(raw.headquarters),
+    founded: str(raw.founded),
   };
 }
 

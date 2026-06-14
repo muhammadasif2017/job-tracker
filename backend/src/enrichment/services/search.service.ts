@@ -5,10 +5,12 @@ import { Logger } from 'nestjs-pino';
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
 interface TavilyResult {
+  title?: string;
   content?: string;
 }
 
 interface TavilyResponse {
+  answer?: string;
   results?: TavilyResult[];
 }
 
@@ -30,7 +32,7 @@ export class SearchService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ query, max_results: 5 }),
+        body: JSON.stringify({ query, max_results: 5, include_answer: true }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
@@ -39,9 +41,12 @@ export class SearchService {
       }
 
       const data: TavilyResponse = await res.json();
-      return (data.results ?? [])
-        .map((r) => r.content)
+      const snippets = (data.results ?? [])
+        .map((r) => (r.title ? `[${r.title}] ${r.content ?? ''}` : r.content))
         .filter((c): c is string => !!c);
+
+      if (data.answer) snippets.unshift(`[Summary] ${data.answer}`);
+      return snippets;
     } catch (err) {
       this.logger.warn('tavily_search_failed', {
         query,
