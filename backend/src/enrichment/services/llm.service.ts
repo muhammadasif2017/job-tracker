@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Anthropic from '@anthropic-ai/sdk';
+import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
 
 export interface CompanyData {
@@ -25,50 +25,53 @@ const UNKNOWN_DATA: CompanyData = {
   founded: 'Unknown',
 };
 
-const EXTRACT_TOOL: Anthropic.Tool = {
-  name: 'extract_company_data',
-  description: 'Extract structured company information from web content',
-  input_schema: {
-    type: 'object' as const,
-    properties: {
-      industry: { type: 'string' },
-      companySize: {
-        type: 'string',
-        enum: [
-          'Startup (<50)',
-          'Small (50-200)',
-          'Mid-size (200-1000)',
-          'Large (1000-5000)',
-          'Enterprise (5000+)',
-          'Unknown',
-        ],
+const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'extract_company_data',
+    description: 'Extract structured company information from web content',
+    parameters: {
+      type: 'object',
+      properties: {
+        industry: { type: 'string' },
+        companySize: {
+          type: 'string',
+          enum: [
+            'Startup (<50)',
+            'Small (50-200)',
+            'Mid-size (200-1000)',
+            'Large (1000-5000)',
+            'Enterprise (5000+)',
+            'Unknown',
+          ],
+        },
+        techStack: { type: 'array', items: { type: 'string' } },
+        cultureSummary: {
+          type: 'string',
+          description: '2-3 sentences about work culture',
+        },
+        remotePolicy: {
+          type: 'string',
+          enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
+        },
+        workLifeBalance: {
+          type: 'string',
+          enum: ['Excellent', 'Good', 'Average', 'Below Average', 'Unknown'],
+        },
+        headquarters: { type: 'string' },
+        founded: { type: 'string' },
       },
-      techStack: { type: 'array', items: { type: 'string' } },
-      cultureSummary: {
-        type: 'string',
-        description: '2-3 sentences about work culture',
-      },
-      remotePolicy: {
-        type: 'string',
-        enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
-      },
-      workLifeBalance: {
-        type: 'string',
-        enum: ['Excellent', 'Good', 'Average', 'Below Average', 'Unknown'],
-      },
-      headquarters: { type: 'string' },
-      founded: { type: 'string' },
+      required: [
+        'industry',
+        'companySize',
+        'techStack',
+        'cultureSummary',
+        'remotePolicy',
+        'workLifeBalance',
+        'headquarters',
+        'founded',
+      ],
     },
-    required: [
-      'industry',
-      'companySize',
-      'techStack',
-      'cultureSummary',
-      'remotePolicy',
-      'workLifeBalance',
-      'headquarters',
-      'founded',
-    ],
   },
 };
 
@@ -94,24 +97,24 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
 
 @Injectable()
 export class LlmService {
-  private readonly client: Anthropic;
+  private readonly client: Groq;
 
   constructor(
     private readonly config: ConfigService,
     private readonly logger: Logger,
   ) {
-    this.client = new Anthropic({
-      apiKey: this.config.get('ANTHROPIC_API_KEY'),
+    this.client = new Groq({
+      apiKey: this.config.get('GROQ_API_KEY'),
     });
   }
 
   async extract(companyName: string, context: string): Promise<CompanyData> {
     try {
-      const response = await this.client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
+      const response = await this.client.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
         max_tokens: 1024,
         tools: [EXTRACT_TOOL],
-        tool_choice: { type: 'any' },
+        tool_choice: 'required',
         messages: [
           {
             role: 'user',
@@ -125,16 +128,20 @@ export class LlmService {
         ],
       });
 
-      const toolUse = response.content.find((b) => b.type === 'tool_use');
-      if (!toolUse || toolUse.type !== 'tool_use') return { ...UNKNOWN_DATA };
+      const toolCall = response.choices[0]?.message?.tool_calls?.[0];
+      if (!toolCall) return { ...UNKNOWN_DATA };
 
-      return sanitize(toolUse.input as Record<string, unknown>);
+      const raw = JSON.parse(toolCall.function.arguments) as Record<
+        string,
+        unknown
+      >;
+      return sanitize(raw);
     } catch (err) {
       this.logger.warn('llm_extract_failed', {
         company: companyName,
         error: err instanceof Error ? err.message : String(err),
       });
-      return { ...UNKNOWN_DATA };
+      throw err;
     }
   }
 }
