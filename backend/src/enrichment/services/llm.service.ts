@@ -14,17 +14,6 @@ export interface CompanyData {
   founded: string;
 }
 
-const UNKNOWN_DATA: CompanyData = {
-  industry: 'Unknown',
-  companySize: 'Unknown',
-  techStack: [],
-  cultureSummary: 'Unknown',
-  remotePolicy: 'Unknown',
-  workLifeBalance: 'Unknown',
-  headquarters: 'Unknown',
-  founded: 'Unknown',
-};
-
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
   type: 'function',
   function: {
@@ -113,7 +102,7 @@ export class LlmService {
     try {
       const response = await this.client.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
-        max_tokens: 1024,
+        max_tokens: 2048,
         tools: [EXTRACT_TOOL],
         tool_choice: 'required',
         messages: [
@@ -130,7 +119,7 @@ export class LlmService {
       });
 
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-      if (!toolCall) return { ...UNKNOWN_DATA };
+      if (!toolCall) throw new Error('No tool call in Groq response');
 
       const raw = JSON.parse(toolCall.function.arguments) as Record<
         string,

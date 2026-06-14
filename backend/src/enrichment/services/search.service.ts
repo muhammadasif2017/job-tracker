@@ -40,9 +40,12 @@ export class SearchService {
         return [];
       }
 
-      const data: TavilyResponse = await res.json();
+      const data = (await res.json()) as TavilyResponse;
       const snippets = (data.results ?? [])
-        .map((r) => (r.title ? `[${r.title}] ${r.content ?? ''}` : r.content))
+        .map((r) => {
+          if (!r.content) return undefined;
+          return r.title ? `[${r.title}] ${r.content}` : r.content;
+        })
         .filter((c): c is string => !!c);
 
       if (data.answer) snippets.unshift(`[Summary] ${data.answer}`);
