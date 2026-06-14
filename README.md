@@ -84,6 +84,14 @@ GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
+
+# Optional — Oracle Cloud Object Storage (set STORAGE_DRIVER=oracle in prod)
+STORAGE_DRIVER=local
+OCI_NAMESPACE=
+OCI_REGION=
+OCI_BUCKET_NAME=
+OCI_ACCESS_KEY_ID=
+OCI_SECRET_ACCESS_KEY=
 ```
 
 > Generate secrets with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
