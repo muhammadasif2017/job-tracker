@@ -39,7 +39,7 @@ function CallbackHandler() {
         toast.error('Could not complete sign-in. Please try again.');
         router.replace('/login');
       });
-  }, []);
+  }, [params, router, setAuth]);
 
   return null;
 }

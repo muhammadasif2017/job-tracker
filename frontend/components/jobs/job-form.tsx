@@ -58,11 +58,10 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
     },
   });
 
-  useEffect(() => {
-    if (!open) {
-      setCreatedJobId(null);
-    }
-  }, [open]);
+  const handleClose = () => {
+    setCreatedJobId(null);
+    onClose();
+  };
 
   useEffect(() => {
     if (open) {
@@ -122,7 +121,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
 
   if (createdJobId) {
     return (
-      <Modal open={open} onClose={onClose} title="Job Added">
+      <Modal open={open} onClose={handleClose} title="Job Added">
         <div className="space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Job added successfully. Optionally attach a resume before closing.
@@ -132,7 +131,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
             <Button
               onClick={() => {
                 reset();
-                onClose();
+                handleClose();
               }}
             >
               Done
@@ -146,7 +145,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={handleClose}
       title={isEdit ? 'Edit Job' : 'Add Job'}
     >
       <form

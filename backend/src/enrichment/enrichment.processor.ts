@@ -61,6 +61,16 @@ export class EnrichmentProcessor extends WorkerHost {
 
       const data = await this.llm.extract(company, context);
 
+      const stillExists = await this.prisma.job.findFirst({
+        where: { id: jobId },
+      });
+      if (!stillExists) {
+        this.logger.log('enrichment_job_deleted_during_processing', {
+          jobId,
+        });
+        return;
+      }
+
       await this.prisma.companyProfile.update({
         where: { jobId },
         data: {
@@ -88,20 +98,27 @@ export class EnrichmentProcessor extends WorkerHost {
         durationMs: Date.now() - startedAt,
       });
 
-      try {
-        await this.prisma.companyProfile.update({
-          where: { jobId },
-          data: {
-            status: EnrichmentStatus.FAILED,
-            errorMessage,
-          },
-        });
-      } catch (updateErr) {
-        this.logger.warn('enrichment_profile_update_failed', {
-          jobId,
-          error:
-            updateErr instanceof Error ? updateErr.message : String(updateErr),
-        });
+      const stillExists = await this.prisma.job.findFirst({
+        where: { id: jobId },
+      });
+      if (stillExists) {
+        try {
+          await this.prisma.companyProfile.update({
+            where: { jobId },
+            data: {
+              status: EnrichmentStatus.FAILED,
+              errorMessage,
+            },
+          });
+        } catch (updateErr) {
+          this.logger.warn('enrichment_profile_update_failed', {
+            jobId,
+            error:
+              updateErr instanceof Error
+                ? updateErr.message
+                : String(updateErr),
+          });
+        }
       }
 
       throw error;

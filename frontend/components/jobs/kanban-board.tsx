@@ -10,11 +10,9 @@ import {
 } from '@hello-pangea/dnd';
 import { Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
-import { StatusBadge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { formatDate } from '../../lib/utils';
 import {
-  JOB_STATUSES,
   STATUS_LABELS,
   STATUS_DOT_COLORS,
   type Job,
