@@ -138,7 +138,8 @@ git clone <your-repo-url> job-tracker && cd job-tracker
 cp .env.deploy.example .env
 nano .env        # DATABASE_URL (Neon), secrets, BACKEND_DOMAIN, FRONTEND_URL (see notes below)
 
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
 The backend runs `prisma migrate deploy` automatically on startup, so the schema is
@@ -195,22 +196,32 @@ the client IDs keep OAuth disabled and the server still boots.
 
 ## Updating after a code change
 
+Push to `main` — CI builds the image and the VM auto-deploys (see below). To update
+manually instead:
+
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d
 ```
 
 ## Automated deploys (GitHub Actions)
 
-`.github/workflows/deploy.yml` SSHes into the VM on every push to `main` and runs the
-same pull + rebuild. The image build happens **on the VM** (which is Arm64), so CI only
-needs SSH access — no registry or cross-arch build.
+`.github/workflows/deploy.yml` runs on every push to `main`, two jobs:
+
+1. **`build-push`** — builds the backend image on a native arm64 GitHub-hosted runner
+   (free for public repos) and pushes it to GHCR as
+   `ghcr.io/muhammadasif2017/job-tracker-backend:latest`. The package is public, so the
+   VM needs **no registry auth** to pull it.
+2. **`deploy`** — SSHes into the VM and runs `docker compose pull` + `up -d`. No image
+   build happens on the VM — it only pulls the already-built image and restarts the
+   container.
 
 **One-time setup:**
 
 1. Make sure the repo is already cloned at the deploy path on the VM (default
-   `~/job-tracker`) with `.env` in place — the workflow updates an existing checkout, it
-   does not bootstrap a fresh one.
+   `~/job-tracker`) with `.env` and `docker-compose.prod.yml` in place — the workflow
+   updates an existing checkout, it does not bootstrap a fresh one.
 
 2. Create a dedicated deploy key on the VM and authorize it:
 
