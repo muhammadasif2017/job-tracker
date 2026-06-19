@@ -6,6 +6,15 @@
 #   docker compose -f docker-compose.prod.yml --env-file .env up -d
 #
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/muhammadasif2017/job-tracker-backend:latest
     restart: unless-stopped
@@ -15,6 +24,7 @@ services:
       # Neon connection string (with ?sslmode=require). Used by the app and by
       # `prisma migrate deploy` on startup.
       DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-15m}
@@ -26,6 +36,11 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-placeholder}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-placeholder}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-placeholder}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      TAVILY_API_KEY: ${TAVILY_API_KEY}
+    depends_on:
+      redis:
+        condition: service_healthy
 
   caddy:
     image: caddy:2-alpine
