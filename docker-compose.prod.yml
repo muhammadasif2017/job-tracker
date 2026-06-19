@@ -2,13 +2,12 @@
 # only ports 80/443 are exposed. Postgres is hosted on Neon (managed, free tier),
 # so there is no database container here.
 #
-#   docker compose -f docker-compose.prod.yml --env-file .env up -d --build
+#   docker compose -f docker-compose.prod.yml --env-file .env pull
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
 #
 services:
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile.prod
+    image: ghcr.io/muhammadasif2017/job-tracker-backend:latest
     restart: unless-stopped
     environment:
       NODE_ENV: production
