@@ -94,7 +94,7 @@ export class LlmService {
     private readonly logger: Logger,
   ) {
     this.client = new Groq({
-      apiKey: this.config.get('GROQ_API_KEY'),
+      apiKey: this.config.get('GROQ_API_KEY') ?? 'placeholder',
     });
   }
 
