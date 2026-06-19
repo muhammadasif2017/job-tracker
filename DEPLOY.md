@@ -209,8 +209,8 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
 
 `.github/workflows/deploy.yml` runs on every push to `main`, two jobs:
 
-1. **`build-push`** — builds the backend image on a native arm64 GitHub-hosted runner
-   (free for public repos) and pushes it to GHCR as
+1. **`build-push`** — builds the backend image on a GitHub-hosted `ubuntu-latest` (amd64)
+   runner and pushes it to GHCR as
    `ghcr.io/muhammadasif2017/job-tracker-backend:latest`. The package is public, so the
    VM needs **no registry auth** to pull it.
 2. **`deploy`** — SSHes into the VM and runs `docker compose pull` + `up -d`. No image
