@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { ENRICHMENT_QUEUE } from './enrichment.processor.js';
 
 @Injectable()

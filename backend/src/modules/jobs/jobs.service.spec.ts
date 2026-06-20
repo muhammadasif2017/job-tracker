@@ -2,9 +2,9 @@ import { Test } from '@nestjs/testing';
 import { JobStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
-import { STORAGE_SERVICE } from '../storage/storage.service.js';
+import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 

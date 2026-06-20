@@ -5,8 +5,8 @@ import {
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { ResumesService } from './resumes.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
-import { STORAGE_SERVICE } from '../storage/storage.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 
 const mockPrisma = {
   job: { findFirst: jest.fn() },

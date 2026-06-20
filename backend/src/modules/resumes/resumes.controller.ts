@@ -40,7 +40,7 @@ import {
 } from '@nestjs/swagger';
 import { ResumesService } from './resumes.service.js';
 import { ResumeResponseDto } from './dto/resume-response.dto.js';
-import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
 const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
 

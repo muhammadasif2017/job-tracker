@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
 import { LlmService } from './services/llm.service.js';

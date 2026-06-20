@@ -26,7 +26,7 @@ npm run lint            # ESLint
 
 ### Backend (NestJS 11)
 
-**Module structure:** `AppModule` → `PrismaModule` (global), `StorageModule` (global), `AuthModule`, `UsersModule`, `JobsModule`, `ResumesModule`, `EnrichmentModule`, `HealthModule`. `StorageModule` selects a storage driver (`local` or `oracle`) at startup based on `STORAGE_DRIVER`. `EnrichmentModule` registers a BullMQ queue and processor for async company data enrichment. Each feature module owns its controller, service, and `dto/` folder.
+**Module structure:** `AppModule` → `PrismaModule` (global), `StorageModule` (global), `AuthModule`, `UsersModule`, `JobsModule`, `ResumesModule`, `EnrichmentModule`, `HealthModule`. `StorageModule` selects a storage driver (`local` or `oracle`) at startup based on `STORAGE_DRIVER`. `EnrichmentModule` registers a BullMQ queue and processor for async company data enrichment. Each feature module owns its controller, service, and `dto/` folder. Feature modules live under `src/modules/` (`src/modules/auth`, `src/modules/jobs`, etc.); `prisma/`, `storage/`, and `common/` stay at `src/` root.
 
 **Prisma 7 quirks — critical:**
 - The datasource block has **no `url` field** (Prisma 7 removed it from schema). The connection is wired at runtime via `@prisma/adapter-pg`: `new PrismaPg({ connectionString: process.env.DATABASE_URL })` passed to `super({ adapter })` in `PrismaService`.

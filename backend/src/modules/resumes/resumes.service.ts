@@ -6,11 +6,11 @@ import {
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import {
   STORAGE_SERVICE,
   type IStorageService,
-} from '../storage/storage.service.js';
+} from '../../storage/storage.service.js';
 import type { ResumeResponseDto } from './dto/resume-response.dto.js';
 
 const PRESIGNED_URL_TTL = 900; // seconds
