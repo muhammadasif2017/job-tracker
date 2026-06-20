@@ -30,6 +30,8 @@ jobs:
 
       - run: npm ci
 
+      - run: npx prisma generate
+
       - run: npx tsc --noEmit
 
       - run: npx jest
@@ -76,6 +78,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
+            set -e
             cd ${{ vars.DEPLOY_PATH || '~/job-tracker' }}
             docker compose -f docker-compose.prod.yml --env-file .env pull
             docker compose -f docker-compose.prod.yml --env-file .env up -d
