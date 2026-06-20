@@ -18,9 +18,9 @@ import {
   ApiConflictResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from './enrichment.service.js';
-import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
 @ApiTags('jobs')
 @ApiBearerAuth()

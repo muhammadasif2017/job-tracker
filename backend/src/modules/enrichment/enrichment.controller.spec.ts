@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EnrichmentController } from './enrichment.controller.js';
 import { EnrichmentService } from './enrichment.service.js';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 
 const mockPrisma = {
   job: { findFirst: jest.fn() },

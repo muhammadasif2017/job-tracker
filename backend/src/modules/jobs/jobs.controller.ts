@@ -33,8 +33,8 @@ import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
-import { MessageDto } from '../common/dto/message.dto.js';
-import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { MessageDto } from '../../common/dto/message.dto.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
 @ApiTags('jobs')
 @ApiBearerAuth()

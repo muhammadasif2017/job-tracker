@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, Inject } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../prisma/prisma.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -9,7 +9,7 @@ import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
-} from '../storage/storage.service.js';
+} from '../../storage/storage.service.js';
 
 @Injectable()
 export class JobsService {

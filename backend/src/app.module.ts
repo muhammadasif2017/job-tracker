@@ -6,13 +6,13 @@ import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module.js';
-import { AuthModule } from './auth/auth.module.js';
-import { UsersModule } from './users/users.module.js';
-import { JobsModule } from './jobs/jobs.module.js';
-import { HealthModule } from './health/health.module.js';
-import { EnrichmentModule } from './enrichment/enrichment.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { UsersModule } from './modules/users/users.module.js';
+import { JobsModule } from './modules/jobs/jobs.module.js';
+import { HealthModule } from './modules/health/health.module.js';
+import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
 import { StorageModule } from './storage/storage.module.js';
-import { ResumesModule } from './resumes/resumes.module.js';
+import { ResumesModule } from './modules/resumes/resumes.module.js';
 
 const ociRequired = Joi.when('STORAGE_DRIVER', {
   is: 'oracle',

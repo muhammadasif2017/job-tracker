@@ -30,25 +30,28 @@ src/
 │   ├── storage.service.ts   # IStorageService interface + STORAGE_SERVICE injection token
 │   ├── local-storage.service.ts   # Dev driver: writes files to uploads/ on disk
 │   └── oracle-storage.service.ts  # Prod driver: Oracle Cloud Object Storage (S3-compatible)
-├── auth/
-│   ├── auth.module.ts
-│   ├── auth.controller.ts   # /auth/* routes
-│   ├── auth.service.ts      # issueTokens, register, login, refresh, logout, OAuth
-│   ├── dto/
-│   └── strategies/          # local, jwt, jwt-refresh, google, github
-├── users/
-│   ├── users.controller.ts  # /users/* routes
-│   ├── users.service.ts     # getProfile, updateProfile, changePassword, deleteAccount
-│   └── dto/
-├── jobs/
-│   ├── jobs.controller.ts   # /jobs/* routes
-│   ├── jobs.service.ts      # CRUD, stats, CSV export, event logging
-│   └── dto/
-├── resumes/
-│   ├── resumes.module.ts
-│   ├── resumes.controller.ts  # POST/GET/DELETE /jobs/:jobId/resumes, GET /jobs/resumes/file
-│   ├── resumes.service.ts     # upload, getPresignedUrl, findByJob, remove
-│   └── dto/
+├── modules/
+│   ├── auth/
+│   │   ├── auth.module.ts
+│   │   ├── auth.controller.ts   # /auth/* routes
+│   │   ├── auth.service.ts      # issueTokens, register, login, refresh, logout, OAuth
+│   │   ├── dto/
+│   │   └── strategies/          # local, jwt, jwt-refresh, google, github
+│   ├── users/
+│   │   ├── users.controller.ts  # /users/* routes
+│   │   ├── users.service.ts     # getProfile, updateProfile, changePassword, deleteAccount
+│   │   └── dto/
+│   ├── jobs/
+│   │   ├── jobs.controller.ts   # /jobs/* routes
+│   │   ├── jobs.service.ts      # CRUD, stats, CSV export, event logging
+│   │   └── dto/
+│   ├── resumes/
+│   │   ├── resumes.module.ts
+│   │   ├── resumes.controller.ts  # POST/GET/DELETE /jobs/:jobId/resumes, GET /jobs/resumes/file
+│   │   ├── resumes.service.ts     # upload, getPresignedUrl, findByJob, remove
+│   │   └── dto/
+│   ├── enrichment/           # BullMQ queue + processor for async company data enrichment
+│   └── health/
 └── common/
     ├── decorators/
     │   ├── public.decorator.ts      # @Public() — skips JwtAuthGuard

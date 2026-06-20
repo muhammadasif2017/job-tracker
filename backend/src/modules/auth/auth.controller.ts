@@ -30,9 +30,9 @@ import { RefreshDto } from './dto/refresh.dto.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
 import { AuthTokensDto } from './dto/auth-tokens.dto.js';
 import { CurrentUserDto } from './dto/current-user.dto.js';
-import { MessageDto } from '../common/dto/message.dto.js';
-import { Public } from '../common/decorators/public.decorator.js';
-import { CurrentUser } from '../common/decorators/current-user.decorator.js';
+import { MessageDto } from '../../common/dto/message.dto.js';
+import { Public } from '../../common/decorators/public.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
 @ApiTags('auth')
 @Controller('auth')
