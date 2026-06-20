@@ -5,6 +5,10 @@ on:
     branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
 env:
   IMAGE: ghcr.io/muhammadasif2017/job-tracker-backend
 
@@ -52,7 +56,11 @@ jobs:
           file: ./backend/Dockerfile.prod
           platforms: linux/amd64
           push: true
-          tags: ${{ env.IMAGE }}:latest
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     needs: build-push
