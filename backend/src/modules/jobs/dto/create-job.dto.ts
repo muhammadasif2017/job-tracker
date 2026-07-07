@@ -8,7 +8,7 @@ import {
   IsUrl,
   MaxLength,
 } from 'class-validator';
-import { JobStatus, JobPriority } from '@prisma/client';
+import { JobStatus, JobPriority, JobType } from '@prisma/client';
 
 export class CreateJobDto {
   @ApiProperty({ example: 'Acme Corp', maxLength: 200 })
@@ -47,6 +47,11 @@ export class CreateJobDto {
   @IsOptional()
   @IsEnum(JobPriority)
   priority?: JobPriority;
+
+  @ApiPropertyOptional({ enum: JobType })
+  @IsOptional()
+  @IsEnum(JobType)
+  jobType?: JobType;
 
   @ApiPropertyOptional({ example: 'Referral from John', maxLength: 5000 })
   @IsOptional()

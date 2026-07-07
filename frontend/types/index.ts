@@ -13,6 +13,10 @@ export const JOB_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
 
 export type JobPriority = (typeof JOB_PRIORITIES)[number];
 
+export const JOB_TYPES = ['ONSITE', 'HYBRID', 'REMOTE'] as const;
+
+export type JobType = (typeof JOB_TYPES)[number];
+
 export type JobEventType = 'CREATED' | 'STATUS_CHANGE';
 
 export interface JobEvent {
@@ -65,6 +69,7 @@ export interface Job {
   url?: string;
   status: JobStatus;
   priority: JobPriority;
+  jobType: JobType;
   notes?: string;
   appliedAt: string;
   nextInterviewAt?: string;
@@ -129,6 +134,20 @@ export const PRIORITY_COLORS: Record<JobPriority, string> = {
   MEDIUM:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+};
+
+export const JOB_TYPE_LABELS: Record<JobType, string> = {
+  ONSITE: 'Onsite',
+  HYBRID: 'Hybrid',
+  REMOTE: 'Remote',
+};
+
+export const JOB_TYPE_COLORS: Record<JobType, string> = {
+  ONSITE: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  HYBRID:
+    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  REMOTE:
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
 };
 
 export const STATUS_LABELS: Record<JobStatus, string> = {

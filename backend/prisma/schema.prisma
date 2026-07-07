@@ -21,6 +21,12 @@ enum JobPriority {
   HIGH
 }
 
+enum JobType {
+  ONSITE
+  HYBRID
+  REMOTE
+}
+
 enum JobEventType {
   CREATED
   STATUS_CHANGE
@@ -75,6 +81,7 @@ model Job {
   url             String?
   status          JobStatus       @default(APPLIED)
   priority        JobPriority     @default(MEDIUM)
+  jobType         JobType         @default(ONSITE)
   notes           String?
   appliedAt       DateTime        @default(now())
   nextInterviewAt DateTime?

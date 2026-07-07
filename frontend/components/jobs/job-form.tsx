@@ -14,6 +14,8 @@ import { ResumeUpload } from './resume-upload';
 import {
   JOB_PRIORITIES,
   JOB_STATUSES,
+  JOB_TYPES,
+  JOB_TYPE_LABELS,
   PRIORITY_LABELS,
   STATUS_LABELS,
   type Job,
@@ -27,6 +29,7 @@ const schema = z.object({
   url: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
   status: z.enum(JOB_STATUSES),
   priority: z.enum(JOB_PRIORITIES),
+  jobType: z.enum(JOB_TYPES),
   appliedAt: z.string().optional(),
   nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),
@@ -54,6 +57,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
     defaultValues: {
       status: 'APPLIED',
       priority: 'MEDIUM',
+      jobType: 'ONSITE',
       appliedAt: new Date().toISOString().split('T')[0],
     },
   });
@@ -73,6 +77,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               location: job.location ?? '',
               status: job.status,
               priority: job.priority,
+              jobType: job.jobType,
               url: job.url ?? '',
               appliedAt: job.appliedAt?.split('T')[0],
               nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
@@ -81,6 +86,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
           : {
               status: 'APPLIED',
               priority: 'MEDIUM',
+              jobType: 'ONSITE',
               appliedAt: new Date().toISOString().split('T')[0],
             },
       );
@@ -206,6 +212,25 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               {JOB_PRIORITIES.map((p) => (
                 <option key={p} value={p}>
                   {PRIORITY_LABELS[p]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="job-type"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Job Type
+            </label>
+            <select
+              id="job-type"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              {...register('jobType')}
+            >
+              {JOB_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {JOB_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>

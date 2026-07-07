@@ -16,7 +16,11 @@ import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
-import { StatusBadge, PriorityBadge } from '../../../components/ui/badge';
+import {
+  StatusBadge,
+  PriorityBadge,
+  JobTypeBadge,
+} from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
@@ -212,6 +216,7 @@ export default function JobsPage() {
                   'Position',
                   'Status',
                   'Priority',
+                  'Job Type',
                   'Applied',
                   'Location',
                   '',
@@ -229,7 +234,7 @@ export default function JobsPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(7)].map((_, j) => (
+                    {[...Array(8)].map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-full" />
                       </td>
@@ -238,7 +243,7 @@ export default function JobsPage() {
                 ))
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-16 text-center text-slate-400">
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -267,6 +272,9 @@ export default function JobsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <PriorityBadge priority={job.priority} />
+                    </td>
+                    <td className="px-4 py-3">
+                      <JobTypeBadge jobType={job.jobType} />
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {formatDate(job.appliedAt)}
