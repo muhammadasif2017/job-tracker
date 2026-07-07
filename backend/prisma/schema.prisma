@@ -111,6 +111,7 @@ model CompanyProfile {
   remotePolicy    String?
   workLifeBalance String?
   headquarters    String?
+  address         String?
   founded         String?
   errorMessage    String?
   enrichedAt      DateTime?

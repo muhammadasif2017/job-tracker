@@ -36,6 +36,11 @@ export class CompanyProfileResponseDto {
   @ApiPropertyOptional({ example: 'San Francisco, CA' })
   headquarters: string | null;
 
+  @ApiPropertyOptional({
+    example: '1600 Amphitheatre Parkway, Mountain View, CA 94043',
+  })
+  address: string | null;
+
   @ApiPropertyOptional({ example: '2010' })
   founded: string | null;
 

@@ -84,6 +84,30 @@ describe('EnrichmentProcessor', () => {
     expect(context).toContain('Website content.');
   });
 
+  it('passes domain and location disambiguation hints to the LLM', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      location: 'Austin, TX',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const [, , disambiguation] = mockLlm.extract.mock.calls[0] as [
+      string,
+      string,
+      { domain?: string; location?: string },
+    ];
+    expect(disambiguation).toEqual({
+      domain: 'acme.com',
+      location: 'Austin, TX',
+    });
+  });
+
   it('returns early without touching the profile when job is not found', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(null);
 

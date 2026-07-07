@@ -46,6 +46,7 @@ export interface CompanyProfile {
   remotePolicy?: string;
   workLifeBalance?: string;
   headquarters?: string;
+  address?: string;
   founded?: string;
   errorMessage?: string;
   enrichedAt?: string;

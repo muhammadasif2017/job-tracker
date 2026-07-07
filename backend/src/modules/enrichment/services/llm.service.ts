@@ -11,6 +11,7 @@ export interface CompanyData {
   remotePolicy: string;
   workLifeBalance: string;
   headquarters: string;
+  address: string;
   founded: string;
 }
 
@@ -48,6 +49,11 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
           enum: ['Excellent', 'Good', 'Average', 'Below Average', 'Unknown'],
         },
         headquarters: { type: 'string' },
+        address: {
+          type: 'string',
+          description:
+            'Full postal/street address of the company office, if stated',
+        },
         founded: { type: 'string' },
       },
       required: [
@@ -58,6 +64,7 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
         'remotePolicy',
         'workLifeBalance',
         'headquarters',
+        'address',
         'founded',
       ],
     },
@@ -81,6 +88,7 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
     remotePolicy: str(raw.remotePolicy),
     workLifeBalance: str(raw.workLifeBalance),
     headquarters: str(raw.headquarters),
+    address: str(raw.address),
     founded: str(raw.founded),
   };
 }
@@ -98,8 +106,29 @@ export class LlmService {
     });
   }
 
-  async extract(companyName: string, context: string): Promise<CompanyData> {
+  async extract(
+    companyName: string,
+    context: string,
+    disambiguation?: { domain?: string; location?: string },
+  ): Promise<CompanyData> {
     try {
+      const hints: string[] = [];
+      if (disambiguation?.domain) {
+        hints.push(
+          `The job posting's official domain is "${disambiguation.domain}". Only use ` +
+            `content that refers to the company at this domain — ignore snippets about ` +
+            `unrelated companies that merely share the same name.`,
+        );
+      }
+      if (disambiguation?.location) {
+        hints.push(
+          `The job is located in "${disambiguation.location}" — prefer content consistent ` +
+            `with a company operating in or near this location over same-named companies ` +
+            `elsewhere.`,
+        );
+      }
+      const disambiguationBlock = hints.length ? `\n\n${hints.join('\n')}` : '';
+
       const response = await this.client.chat.completions.create({
         model: 'llama-3.3-70b-versatile',
         max_tokens: 2048,
@@ -113,7 +142,7 @@ export class LlmService {
               `from the following web content about "${companyName}".\n\n` +
               `If information is not available in the provided content, use "Unknown" for ` +
               `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
-              `in the content.\n\nWeb content:\n${context}`,
+              `in the content.${disambiguationBlock}\n\nWeb content:\n${context}`,
           },
         ],
       });

@@ -34,6 +34,8 @@ export class EnrichmentProcessor extends WorkerHost {
     }
 
     const company = dbJob.company;
+    const location = dbJob.location ?? undefined;
+    const domain = this.extractDomain(dbJob.url);
     this.logger.log('enrichment_started', { jobId, company });
 
     try {
@@ -43,12 +45,13 @@ export class EnrichmentProcessor extends WorkerHost {
         update: { status: EnrichmentStatus.PROCESSING, errorMessage: null },
       });
 
+      const locationSuffix = location ? ` ${location}` : '';
       const [overviewSnippets, cultureSnippets] = await Promise.all([
         this.search.search(
-          `${company} company overview headquarters founded employees industry`,
+          `${company}${locationSuffix} company overview headquarters address founded employees industry`,
         ),
         this.search.search(
-          `${company} engineering tech stack remote work culture glassdoor`,
+          `${company}${locationSuffix} engineering tech stack remote work culture glassdoor`,
         ),
       ]);
 
@@ -59,7 +62,10 @@ export class EnrichmentProcessor extends WorkerHost {
         .join('\n\n')
         .slice(0, 8000);
 
-      const data = await this.llm.extract(company, context);
+      const data = await this.llm.extract(company, context, {
+        domain,
+        location,
+      });
 
       const stillExists = await this.prisma.job.findFirst({
         where: { id: jobId },
@@ -122,6 +128,15 @@ export class EnrichmentProcessor extends WorkerHost {
       }
 
       throw error;
+    }
+  }
+
+  private extractDomain(url: string | null): string | undefined {
+    if (!url) return undefined;
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return undefined;
     }
   }
 }

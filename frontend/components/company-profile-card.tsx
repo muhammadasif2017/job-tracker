@@ -140,6 +140,15 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
         </div>
       )}
 
+      {profile.address && (
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+            Address
+          </p>
+          <p className="text-sm">{profile.address}</p>
+        </div>
+      )}
+
       {profile.remotePolicy && (
         <div>
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
