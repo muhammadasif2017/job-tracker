@@ -5,6 +5,7 @@ node_modules/
 dist/
 .next/
 out/
+*.tsbuildinfo
 
 # Environment files
 .env
@@ -35,7 +36,7 @@ docs/
 # Next.js cache
 .next/cache/
 
-.cluade/
+.claude/
 
 tasks/
 
