@@ -1,5 +1,7 @@
 # Job Tracker
 
+![Deploy](https://github.com/muhammadasif2017/job-tracker/actions/workflows/deploy.yml/badge.svg)
+
 A full-stack job application tracker with AI-powered company intelligence. Track every application from wishlist to offer with a kanban board, dashboard analytics, and a full application timeline. Background workers automatically enrich company profiles using web search and LLM extraction.
 
 ## Features
@@ -11,6 +13,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - **Interview scheduling** — set a next-interview date on any application
 - **Dashboard** — stats cards (total, this month, response rate) + donut chart breakdown by status
 - **Company enrichment** — background queue (BullMQ + Redis) fetches company data (industry, tech stack, culture, remote policy) via Tavily search + Groq (llama-3.3-70b-versatile) tool calling
+- **Resume per job** — upload one PDF resume per application (max 8 MB), stored via a pluggable storage driver (local disk or Oracle Cloud Object Storage)
 - **CSV export** — download all applications (or filtered subset) as a spreadsheet
 - **Profile management** — update name, change password, view connected OAuth accounts, delete account
 - **Security** — helmet HTTP headers, rate limiting (10 req/min on auth routes), bcrypt password hashing, hashed refresh tokens in DB
@@ -33,6 +36,38 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - Tailwind CSS 4
 - TanStack Query v5, Axios, Zustand
 - React Hook Form + Zod, @hello-pangea/dnd, Recharts, Sonner, Radix UI
+
+## Architecture: Company Enrichment
+
+Enrichment runs asynchronously so the API responds immediately (`202 Accepted`) while a background worker gathers and extracts company data:
+
+```mermaid
+sequenceDiagram
+    participant C as Client
+    participant API as NestJS API
+    participant Q as BullMQ (Redis)
+    participant W as Enrichment Processor
+    participant T as Tavily Search
+    participant G as Groq LLM
+
+    C->>API: POST /jobs/:id/enrichment
+    API->>Q: enqueue job
+    API-->>C: 202 Accepted
+    Q->>W: process
+    W->>W: CompanyProfile → PROCESSING
+    par gather context
+        W->>T: search company overview
+    and
+        W->>T: search tech stack & culture
+    and
+        W->>W: fetch job posting page text
+    end
+    W->>G: extract structured fields (tool calling)
+    G-->>W: industry, techStack, culture, remote policy…
+    W->>W: CompanyProfile → COMPLETED (or FAILED + errorMessage)
+    C->>API: GET /jobs/:id (poll)
+    API-->>C: job with companyProfile
+```
 
 ## Local Development
 
@@ -103,7 +138,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 
 ## Docker
 
-Run the entire stack (PostgreSQL + backend + frontend) with one command:
+Run the entire stack (PostgreSQL + Redis + backend + frontend) with one command — company enrichment works out of the box if you set `GROQ_API_KEY` and `TAVILY_API_KEY`:
 
 ```bash
 docker compose up --build
@@ -112,6 +147,12 @@ docker compose up --build
 The backend runs migrations automatically on startup. Visit `http://localhost:3000`.
 
 > Set secure values for `JWT_SECRET` and `JWT_REFRESH_SECRET` in `docker-compose.yml` before deploying.
+
+For local development you can run just the infrastructure (PostgreSQL + Redis) in Docker and keep the apps on your machine:
+
+```bash
+docker compose -f docker-compose.dev.yml up -d
+```
 
 ## Running Tests
 
@@ -163,16 +204,19 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 ```
 job-tracker/
 ├── backend/
-│   ├── prisma/          # Schema + migrations
+│   ├── prisma/              # Schema + migrations
 │   ├── src/
-│   │   ├── auth/        # JWT, OAuth strategies, guards
-│   │   ├── jobs/        # Job CRUD, timeline, CSV export
-│   │   ├── users/       # Profile management
-│   │   ├── enrichment/  # BullMQ queue, processor, AI/search services
-│   │   ├── health/      # /health endpoint
-│   │   ├── prisma/      # PrismaService
-│   │   └── common/      # Guards, filters, decorators
-│   └── test/            # E2E tests (supertest)
+│   │   ├── modules/
+│   │   │   ├── auth/        # JWT, OAuth strategies, guards
+│   │   │   ├── jobs/        # Job CRUD, timeline, CSV export
+│   │   │   ├── users/       # Profile management
+│   │   │   ├── resumes/     # Resume upload/download per job
+│   │   │   ├── enrichment/  # BullMQ queue, processor, AI/search services
+│   │   │   └── health/      # /health endpoint
+│   │   ├── storage/         # Storage drivers (local disk, Oracle Object Storage)
+│   │   ├── prisma/          # PrismaService
+│   │   └── common/          # Guards, filters, decorators
+│   └── test/                # E2E tests (supertest)
 └── frontend/
     ├── app/
     │   ├── (auth)/      # /login, /register, /callback
@@ -183,6 +227,24 @@ job-tracker/
     └── types/           # Shared TypeScript interfaces
 ```
 
+## Deployment
+
+Production runs the backend on a single VM behind Caddy (automatic HTTPS), with managed services for the rest:
+
+- **Backend** — Docker image built from `backend/Dockerfile.prod`, published to GHCR, run via `docker-compose.prod.yml` (Caddy + Redis + backend; ports 80/443 only). Migrations (`prisma migrate deploy`) run automatically on container startup.
+- **Database** — Neon managed PostgreSQL (`DATABASE_URL` with `?sslmode=require`).
+- **File storage** — Oracle Cloud Object Storage (`STORAGE_DRIVER=oracle`).
+- **Frontend** — deployed separately from the backend stack; point `NEXT_PUBLIC_API_URL` at the backend's public URL (a `frontend/Dockerfile.prod` is provided for containerized hosting).
+
+CI/CD (`.github/workflows/deploy.yml`): every PR runs typecheck + unit tests; on push to `main` it additionally builds and pushes the backend image, then SSHes into the VM and runs:
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env pull
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+```
+
+Required GitHub secrets: `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY` (optional `SSH_PORT`, `DEPLOY_PATH` var). Runtime secrets live in a `.env` file next to `docker-compose.prod.yml` on the VM.
+
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE).
