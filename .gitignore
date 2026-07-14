@@ -36,7 +36,7 @@ docs/
 # Next.js cache
 .next/cache/
 
-.cluade/
+.claude/
 
 tasks/
 
