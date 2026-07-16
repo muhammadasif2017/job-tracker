@@ -217,6 +217,11 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
    build happens on the VM — it only pulls the already-built image and restarts the
    container.
 
+> **Gotcha:** the deploy job does **not** `git pull` on the VM. Application code ships
+> inside the image, but changes to `docker-compose.prod.yml`, `Caddyfile`, or anything
+> else read from the VM checkout require a manual `git pull` in `~/job-tracker` before
+> `up -d` picks them up.
+
 **One-time setup:**
 
 1. Make sure the repo is already cloned at the deploy path on the VM (default

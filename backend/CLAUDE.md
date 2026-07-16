@@ -212,29 +212,30 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 
 ## Environment Variables
 
-| Variable                 | Required | Default                  | Notes                                                                                                                                  |
-| ------------------------ | -------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`           | Yes      | —                        | PostgreSQL connection string                                                                                                           |
-| `PORT`                   | No       | `3001`                   |                                                                                                                                        |
-| `JWT_SECRET`             | Yes      | —                        | Min 32 chars                                                                                                                           |
-| `JWT_REFRESH_SECRET`     | Yes      | —                        | Min 32 chars                                                                                                                           |
-| `JWT_EXPIRES_IN`         | No       | `15m`                    |                                                                                                                                        |
-| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                     |                                                                                                                                        |
-| `FRONTEND_URL`           | No       | `http://localhost:3000`  | Used for CORS and OAuth redirect                                                                                                       |
-| `BACKEND_URL`            | No       | `http://localhost:3001`  | Backend origin used to build OAuth callback URLs sent to Google/GitHub; also used by `LocalStorageService` to build the file-serve URL |
-| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                  |
-| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                  |
-| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                  |
-| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                  |
-| `GROQ_API_KEY`           | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail                                                        |
-| `TAVILY_API_KEY`         | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset (free tier: 1000 req/month at app.tavily.com)                            |
-| `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                                                                             |
-| `STORAGE_DRIVER`         | No       | `local`                  | `local` or `oracle` — selects the storage backend at startup                                                                           |
-| `OCI_NAMESPACE`          | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
-| `OCI_REGION`             | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
-| `OCI_BUCKET_NAME`        | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                  |
-| `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                            |
-| `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                            |
+| Variable                 | Required | Default                  | Notes                                                                                                                                                 |
+| ------------------------ | -------- | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`           | Yes      | —                        | PostgreSQL connection string                                                                                                                          |
+| `PORT`                   | No       | `3001`                   |                                                                                                                                                       |
+| `JWT_SECRET`             | Yes      | —                        | Min 32 chars                                                                                                                                          |
+| `JWT_REFRESH_SECRET`     | Yes      | —                        | Min 32 chars                                                                                                                                          |
+| `JWT_EXPIRES_IN`         | No       | `15m`                    |                                                                                                                                                       |
+| `JWT_REFRESH_EXPIRES_IN` | No       | `7d`                     |                                                                                                                                                       |
+| `FRONTEND_URL`           | No       | `http://localhost:3000`  | Used for CORS and OAuth redirect                                                                                                                      |
+| `BACKEND_URL`            | No       | `http://localhost:3001`  | Backend origin used to build OAuth callback URLs sent to Google/GitHub; also used by `LocalStorageService` to build the file-serve URL                |
+| `GOOGLE_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                                 |
+| `GOOGLE_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                                 |
+| `GITHUB_CLIENT_ID`       | No       | `'placeholder'`          | App starts without it                                                                                                                                 |
+| `GITHUB_CLIENT_SECRET`   | No       | `'placeholder'`          | App starts without it                                                                                                                                 |
+| `GROQ_API_KEY`           | Yes\*    | —                        | Required for company enrichment; app starts without it but enrichment will fail                                                                       |
+| `TAVILY_API_KEY`         | Yes\*    | —                        | Required for company enrichment; returns [] snippets if unset (free tier: 1000 req/month at app.tavily.com)                                           |
+| `REDIS_URL`              | No       | `redis://localhost:6379` | BullMQ connection for the enrichment queue                                                                                                            |
+| `LOG_LEVEL`              | No       | `info`                   | Pino log level. Set `debug` to log the full LLM context per enrichment run (`enrichment_context`) — the primary tool for diagnosing wrong extractions |
+| `STORAGE_DRIVER`         | No       | `local`                  | `local` or `oracle` — selects the storage backend at startup                                                                                          |
+| `OCI_NAMESPACE`          | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                                 |
+| `OCI_REGION`             | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                                 |
+| `OCI_BUCKET_NAME`        | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                                 |
+| `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                           |
+| `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                           |
 
 ---
 
