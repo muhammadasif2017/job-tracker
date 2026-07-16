@@ -62,6 +62,16 @@ export class EnrichmentProcessor extends WorkerHost {
         .join('\n\n')
         .slice(0, 8000);
 
+      // Full context visible with LOG_LEVEL=debug — for diagnosing wrong extractions
+      this.logger.debug('enrichment_context', {
+        jobId,
+        company,
+        overviewSnippetCount: overviewSnippets.length,
+        cultureSnippetCount: cultureSnippets.length,
+        pageTextLength: pageText.length,
+        context,
+      });
+
       const data = await this.llm.extract(company, context, {
         domain,
         location,
