@@ -64,7 +64,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
         </div>
-        <p className="text-sm text-red-600 dark:text-red-400">
+        <p className="text-sm text-red-600 dark:text-red-400 break-words">
           {profile.errorMessage ?? 'Enrichment failed. Try again.'}
         </p>
       </div>
@@ -93,7 +93,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
               Industry
             </p>
-            <p>{profile.industry}</p>
+            <p className="break-words">{profile.industry}</p>
           </div>
         )}
         {profile.companySize && (
@@ -101,7 +101,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
               Size
             </p>
-            <p>{profile.companySize}</p>
+            <p className="break-words">{profile.companySize}</p>
           </div>
         )}
         {profile.headquarters && (
@@ -109,7 +109,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
               HQ
             </p>
-            <p>{profile.headquarters}</p>
+            <p className="break-words">{profile.headquarters}</p>
           </div>
         )}
         {profile.founded && (
@@ -131,7 +131,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             {[...new Set(profile.techStack)].map((tech) => (
               <span
                 key={tech}
-                className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                className="max-w-full break-words rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
               >
                 {tech}
               </span>
@@ -145,7 +145,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
             Address
           </p>
-          <p className="text-sm">{profile.address}</p>
+          <p className="text-sm break-words">{profile.address}</p>
         </div>
       )}
 
@@ -154,7 +154,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
             Remote Policy
           </p>
-          <p className="text-sm">{profile.remotePolicy}</p>
+          <p className="text-sm break-words">{profile.remotePolicy}</p>
         </div>
       )}
 
@@ -163,7 +163,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
             Work-Life Balance
           </p>
-          <p className="text-sm">{profile.workLifeBalance}</p>
+          <p className="text-sm break-words">{profile.workLifeBalance}</p>
         </div>
       )}
 
@@ -172,7 +172,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
             Culture
           </p>
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
             {profile.cultureSummary}
           </p>
         </div>

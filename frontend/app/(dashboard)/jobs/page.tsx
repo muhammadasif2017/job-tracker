@@ -208,7 +208,7 @@ export default function JobsPage() {
       {view === 'kanban' ? (
         <KanbanBoard onEdit={openEdit} />
       ) : (
-        <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-hidden">
+        <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="border-b bg-slate-50 dark:bg-slate-800/50">
               <tr>

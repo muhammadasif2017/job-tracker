@@ -36,12 +36,12 @@ export function Modal({
           )}
         >
           <div className="mb-4 flex items-start justify-between gap-4">
-            <div>
-              <Dialog.Title className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            <div className="min-w-0">
+              <Dialog.Title className="text-base font-semibold text-slate-900 dark:text-slate-100 break-words">
                 {title}
               </Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-0.5 text-sm text-slate-500">
+                <Dialog.Description className="mt-0.5 text-sm text-slate-500 break-words">
                   {description}
                 </Dialog.Description>
               )}

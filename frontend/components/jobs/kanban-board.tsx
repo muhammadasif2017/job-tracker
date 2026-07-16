@@ -134,10 +134,10 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                           {...drag.dragHandleProps}
                           className={`rounded-lg border bg-white p-3 shadow-sm dark:bg-slate-900 ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
                         >
-                          <p className="text-sm font-medium leading-tight">
+                          <p className="text-sm font-medium leading-tight break-words">
                             {job.company}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500">
+                          <p className="mt-0.5 text-xs text-slate-500 break-words">
                             {job.position}
                           </p>
                           <div className="mt-2 flex items-center justify-between">

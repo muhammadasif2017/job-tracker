@@ -109,9 +109,9 @@ export default function ProfilePage() {
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
-          <div>
-            <p className="font-medium">{user?.name}</p>
-            <p className="text-sm text-slate-500">{user?.email}</p>
+          <div className="min-w-0">
+            <p className="font-medium break-words">{user?.name}</p>
+            <p className="text-sm text-slate-500 break-words">{user?.email}</p>
           </div>
         </div>
         <form

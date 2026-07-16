@@ -131,9 +131,11 @@ export default function JobDetailPage() {
         <>
           <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <h1 className="text-xl font-bold">{job.company}</h1>
-                <p className="mt-0.5 text-slate-500">{job.position}</p>
+              <div className="min-w-0">
+                <h1 className="text-xl font-bold break-words">{job.company}</h1>
+                <p className="mt-0.5 text-slate-500 break-words">
+                  {job.position}
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -195,7 +197,7 @@ export default function JobDetailPage() {
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
                     Location
                   </p>
-                  <p>{job.location}</p>
+                  <p className="break-words">{job.location}</p>
                 </div>
               )}
               {job.source && (
@@ -228,7 +230,7 @@ export default function JobDetailPage() {
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
                   Notes
                 </p>
-                <p className="whitespace-pre-wrap rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
+                <p className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
                   {job.notes}
                 </p>
               </div>
