@@ -20,6 +20,7 @@ import {
   StatusBadge,
   PriorityBadge,
   JobTypeBadge,
+  SourceBadge,
 } from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
@@ -217,6 +218,7 @@ export default function JobsPage() {
                   'Status',
                   'Priority',
                   'Job Type',
+                  'Source',
                   'Applied',
                   'Location',
                   '',
@@ -234,7 +236,7 @@ export default function JobsPage() {
               {isLoading ? (
                 [...Array(5)].map((_, i) => (
                   <tr key={i}>
-                    {[...Array(8)].map((_, j) => (
+                    {[...Array(9)].map((_, j) => (
                       <td key={j} className="px-4 py-3">
                         <Skeleton className="h-4 w-full" />
                       </td>
@@ -243,7 +245,7 @@ export default function JobsPage() {
                 ))
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                  <td colSpan={9} className="py-16 text-center text-slate-400">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -275,6 +277,13 @@ export default function JobsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <JobTypeBadge jobType={job.jobType} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {job.source ? (
+                        <SourceBadge source={job.source} />
+                      ) : (
+                        <span className="text-slate-500">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
                       {formatDate(job.appliedAt)}

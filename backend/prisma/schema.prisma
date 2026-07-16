@@ -27,6 +27,15 @@ enum JobType {
   REMOTE
 }
 
+enum JobSource {
+  LINKEDIN
+  INDEED
+  ROZEE
+  COMPANY_WEBSITE
+  REFERRAL
+  OTHER
+}
+
 enum JobEventType {
   CREATED
   STATUS_CHANGE
@@ -82,6 +91,7 @@ model Job {
   status          JobStatus       @default(APPLIED)
   priority        JobPriority     @default(MEDIUM)
   jobType         JobType         @default(ONSITE)
+  source          JobSource?
   notes           String?
   appliedAt       DateTime        @default(now())
   nextInterviewAt DateTime?

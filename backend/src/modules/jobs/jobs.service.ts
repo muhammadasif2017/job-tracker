@@ -30,6 +30,7 @@ export class JobsService {
         url: dto.url || undefined,
         status: initialStatus,
         priority: dto.priority ?? JobPriority.MEDIUM,
+        source: dto.source,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         nextInterviewAt: dto.nextInterviewAt
@@ -137,6 +138,7 @@ export class JobsService {
         url: dto.url,
         status: dto.status,
         priority: dto.priority,
+        source: dto.source,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         nextInterviewAt:
@@ -240,6 +242,7 @@ export class JobsService {
       'Company',
       'Position',
       'Status',
+      'Source',
       'Location',
       'Applied Date',
       'Next Interview',
@@ -252,6 +255,7 @@ export class JobsService {
         escape(j.company),
         escape(j.position),
         escape(j.status),
+        escape(j.source),
         escape(j.location),
         escape(j.appliedAt.toISOString().split('T')[0]),
         escape(j.nextInterviewAt?.toISOString().split('T')[0]),

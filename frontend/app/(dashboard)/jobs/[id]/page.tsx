@@ -13,7 +13,7 @@ import {
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
-import { StatusBadge } from '../../../../components/ui/badge';
+import { SourceBadge, StatusBadge } from '../../../../components/ui/badge';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
 import { ResumeUpload } from '../../../../components/jobs/resume-upload';
@@ -196,6 +196,14 @@ export default function JobDetailPage() {
                     Location
                   </p>
                   <p>{job.location}</p>
+                </div>
+              )}
+              {job.source && (
+                <div>
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                    Source
+                  </p>
+                  <SourceBadge source={job.source} />
                 </div>
               )}
               {job.url && (

@@ -17,6 +17,17 @@ export const JOB_TYPES = ['ONSITE', 'HYBRID', 'REMOTE'] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
 
+export const JOB_SOURCES = [
+  'LINKEDIN',
+  'INDEED',
+  'ROZEE',
+  'COMPANY_WEBSITE',
+  'REFERRAL',
+  'OTHER',
+] as const;
+
+export type JobSource = (typeof JOB_SOURCES)[number];
+
 export type JobEventType = 'CREATED' | 'STATUS_CHANGE';
 
 export interface JobEvent {
@@ -30,10 +41,7 @@ export interface JobEvent {
 }
 
 export type EnrichmentStatus =
-  | 'PENDING'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'FAILED';
+  'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
 
 export interface CompanyProfile {
   id: string;
@@ -71,6 +79,7 @@ export interface Job {
   status: JobStatus;
   priority: JobPriority;
   jobType: JobType;
+  source?: JobSource | null;
   notes?: string;
   appliedAt: string;
   nextInterviewAt?: string;
@@ -135,6 +144,26 @@ export const PRIORITY_COLORS: Record<JobPriority, string> = {
   MEDIUM:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+};
+
+export const SOURCE_LABELS: Record<JobSource, string> = {
+  LINKEDIN: 'LinkedIn',
+  INDEED: 'Indeed',
+  ROZEE: 'Rozee.pk',
+  COMPANY_WEBSITE: 'Company Website',
+  REFERRAL: 'Referral',
+  OTHER: 'Other',
+};
+
+export const SOURCE_COLORS: Record<JobSource, string> = {
+  LINKEDIN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  INDEED:
+    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  ROZEE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+  COMPANY_WEBSITE:
+    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
 export const JOB_TYPE_LABELS: Record<JobType, string> = {

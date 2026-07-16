@@ -5,8 +5,11 @@ import {
   JOB_TYPE_LABELS,
   PRIORITY_COLORS,
   PRIORITY_LABELS,
+  SOURCE_COLORS,
+  SOURCE_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
+  type JobSource,
   type JobStatus,
   type JobType,
 } from '../../types';
@@ -64,6 +67,25 @@ export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
       )}
     >
       {JOB_TYPE_LABELS[jobType]}
+    </span>
+  );
+}
+
+interface SourceBadgeProps {
+  source: JobSource;
+  className?: string;
+}
+
+export function SourceBadge({ source, className }: SourceBadgeProps) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        SOURCE_COLORS[source],
+        className,
+      )}
+    >
+      {SOURCE_LABELS[source]}
     </span>
   );
 }

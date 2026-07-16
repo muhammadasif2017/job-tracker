@@ -13,10 +13,12 @@ import { Modal } from '../ui/modal';
 import { ResumeUpload } from './resume-upload';
 import {
   JOB_PRIORITIES,
+  JOB_SOURCES,
   JOB_STATUSES,
   JOB_TYPES,
   JOB_TYPE_LABELS,
   PRIORITY_LABELS,
+  SOURCE_LABELS,
   STATUS_LABELS,
   type Job,
 } from '../../types';
@@ -30,6 +32,7 @@ const schema = z.object({
   status: z.enum(JOB_STATUSES),
   priority: z.enum(JOB_PRIORITIES),
   jobType: z.enum(JOB_TYPES),
+  source: z.enum(JOB_SOURCES).or(z.literal('')).optional(),
   appliedAt: z.string().optional(),
   nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),
@@ -78,6 +81,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               status: job.status,
               priority: job.priority,
               jobType: job.jobType,
+              source: job.source ?? '',
               url: job.url ?? '',
               appliedAt: job.appliedAt?.split('T')[0],
               nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
@@ -98,6 +102,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
       const payload = {
         ...data,
         url: data.url || undefined,
+        source: data.source || undefined,
         nextInterviewAt: data.nextInterviewAt || undefined,
       };
       return isEdit
@@ -231,6 +236,26 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               {JOB_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {JOB_TYPE_LABELS[t]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="job-source"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Source
+            </label>
+            <select
+              id="job-source"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              {...register('source')}
+            >
+              <option value="">—</option>
+              {JOB_SOURCES.map((s) => (
+                <option key={s} value={s}>
+                  {SOURCE_LABELS[s]}
                 </option>
               ))}
             </select>
