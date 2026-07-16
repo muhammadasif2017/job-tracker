@@ -14,6 +14,8 @@ npx prisma studio                             # GUI DB browser
 
 **After every `prisma migrate dev`, run `prisma generate`** — the TypeScript client (including new enums) is not updated by migrate alone.
 
+**`tsBuildInfoFile` must live inside `dist/`** (set in `tsconfig.json`). `nest start --watch` deletes `dist/` on startup (`deleteOutDir: true`), but a tsbuildinfo stored outside `dist/` survives and tells tsc the build is current — tsc emits nothing and the server crashes with `Cannot find module dist\main`. Keeping the tsbuildinfo inside `dist/` makes both get wiped together. If you ever see that crash, delete any stray `*.tsbuildinfo` at the backend root.
+
 ---
 
 ## Module Structure

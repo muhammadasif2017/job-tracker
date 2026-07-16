@@ -10,6 +10,8 @@ npm run build      # production build
 npm run lint       # ESLint
 ```
 
+**Turbopack cache corruption** — if pages enter an endless reload loop and the dev log shows `FATAL: ... Turbopack error` / `Next.js package not found`, the `.next` cache is corrupt (seen after disk I/O errors). Recovery: stop the dev server, verify nothing still listens on :3000 (a zombie node process serving the broken build will keep the loop alive, and a new server will silently start on :3002 where CORS/auth break), delete `.next`, restart.
+
 ---
 
 ## Project Structure
