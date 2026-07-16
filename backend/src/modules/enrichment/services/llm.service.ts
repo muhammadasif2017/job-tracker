@@ -143,9 +143,9 @@ export class LlmService {
               `If information is not available in the provided content, use "Unknown" for ` +
               `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
               `in the content. If the content describes a different company that merely ` +
-              `shares the name "${companyName}" (e.g. its location or industry contradicts ` +
-              `the hints below), return "Unknown" for all string fields and [] for arrays ` +
-              `rather than extracting from it.${disambiguationBlock}\n\nWeb content:\n${context}`,
+              `shares the name "${companyName}", return "Unknown" for all string fields ` +
+              `and [] for arrays rather than extracting from it.` +
+              `${disambiguationBlock}\n\nWeb content:\n${context}`,
           },
         ],
       });
