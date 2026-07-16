@@ -81,7 +81,9 @@ export class EnrichmentProcessor extends WorkerHost {
           : []),
       ]);
 
-      const officialParts = [...new Set([pageText, ...contactTexts])].filter(
+      // Contact pages first — they carry the address and are short; the homepage
+      // is marketing text that would otherwise fill the section cap alone
+      const officialParts = [...new Set([...contactTexts, pageText])].filter(
         Boolean,
       );
       // Set dedupes snippets returned by both queries (wastes context budget)
@@ -111,6 +113,7 @@ export class EnrichmentProcessor extends WorkerHost {
         overviewSnippetCount: overviewSnippets.length,
         cultureSnippetCount: cultureSnippets.length,
         pageTextLength: pageText.length,
+        contactTextLengths: contactTexts.map((t) => t.length),
         context,
       });
 
