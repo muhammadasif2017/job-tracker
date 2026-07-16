@@ -48,7 +48,9 @@ export class SearchService {
         })
         .filter((c): c is string => !!c);
 
-      if (data.answer) snippets.unshift(`[Summary] ${data.answer}`);
+      // Tavily's synthesized answer goes last: it is an LLM guess and, placed
+      // first, dominates extraction when it describes the wrong company
+      if (data.answer) snippets.push(`[Summary] ${data.answer}`);
       return snippets;
     } catch (err) {
       this.logger.warn('tavily_search_failed', {

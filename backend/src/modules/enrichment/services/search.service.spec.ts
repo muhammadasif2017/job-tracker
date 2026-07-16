@@ -98,7 +98,7 @@ describe('SearchService', () => {
     expect(snippets).toEqual([]);
   });
 
-  it('prepends Tavily synthesized answer as first snippet', async () => {
+  it('appends Tavily synthesized answer as last snippet', async () => {
     mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({
       ok: true,
@@ -111,10 +111,10 @@ describe('SearchService', () => {
 
     const snippets = await service.search('Acme Corp');
 
-    expect(snippets[0]).toBe(
+    expect(snippets[0]).toBe('Some result.');
+    expect(snippets[1]).toBe(
       '[Summary] Acme is a SaaS company founded in 2010.',
     );
-    expect(snippets[1]).toBe('Some result.');
   });
 
   it('prefixes snippet with title when title is present', async () => {
