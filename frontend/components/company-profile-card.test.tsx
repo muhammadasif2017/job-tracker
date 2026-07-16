@@ -163,7 +163,7 @@ describe('CompanyProfileCard', () => {
     });
 
     it('shows remote policy when present', () => {
-      renderCard(makeProfile({ remotePolicy: 'Fully remote' }));
+      renderCard(makeProfile({ workPolicy: 'Fully remote' }));
       expect(screen.getByText('Fully remote')).toBeInTheDocument();
     });
 
