@@ -48,6 +48,62 @@ describe('JobsService', () => {
     service = module.get(JobsService);
   });
 
+  describe('getAttention', () => {
+    it('maps each rule to its attention type and dedupes by job', async () => {
+      const interviewJob = {
+        id: 'job-1',
+        nextInterviewAt: new Date('2026-07-17T10:00:00Z'),
+      };
+      const staleInterviewingJob = {
+        id: 'job-2',
+        updatedAt: new Date('2026-07-08T00:00:00Z'),
+        events: [{ createdAt: new Date('2026-07-09T00:00:00Z') }],
+      };
+      const staleAppliedJob = {
+        id: 'job-3',
+        appliedAt: new Date('2026-07-01T00:00:00Z'),
+      };
+      // job-1 also matches the stale-applied rule — must appear only once
+      const duplicateJob = {
+        id: 'job-1',
+        appliedAt: new Date('2026-07-02T00:00:00Z'),
+      };
+      mockPrisma.job.findMany
+        .mockResolvedValueOnce([interviewJob])
+        .mockResolvedValueOnce([staleInterviewingJob])
+        .mockResolvedValueOnce([staleAppliedJob, duplicateJob]);
+
+      const items = await service.getAttention('user-1');
+
+      expect(items).toHaveLength(3);
+      expect(items[0]).toMatchObject({
+        type: 'UPCOMING_INTERVIEW',
+        since: interviewJob.nextInterviewAt,
+        job: { id: 'job-1' },
+      });
+      expect(items[1]).toMatchObject({
+        type: 'STALE_INTERVIEWING',
+        since: staleInterviewingJob.events[0].createdAt,
+        job: { id: 'job-2' },
+      });
+      expect(items[1].job).not.toHaveProperty('events');
+      expect(items[2]).toMatchObject({
+        type: 'STALE_APPLIED',
+        job: { id: 'job-3' },
+      });
+      // job-1 matched two rules but appears only once, with the higher-priority type
+      expect(items.filter((i) => i.job.id === 'job-1')).toHaveLength(1);
+    });
+
+    it('returns an empty list when nothing needs attention', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([]);
+
+      const items = await service.getAttention('user-1');
+
+      expect(items).toEqual([]);
+    });
+  });
+
   describe('create', () => {
     it('calls enqueueEnrichment with the created job id', async () => {
       mockPrisma.job.create.mockResolvedValue({

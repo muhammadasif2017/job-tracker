@@ -63,6 +63,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['attention'] });
     },
   });
 
