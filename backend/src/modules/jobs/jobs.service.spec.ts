@@ -263,7 +263,7 @@ describe('JobsService', () => {
       const csv = await service.exportCsv('u1', new JobQueryDto());
 
       expect(csv.split('\r\n')[0]).toBe(
-        'Company,Position,Status,Location,Applied Date,Next Interview,URL,Notes',
+        'Company,Position,Status,Source,Location,Applied Date,Next Interview,URL,Notes',
       );
     });
 
