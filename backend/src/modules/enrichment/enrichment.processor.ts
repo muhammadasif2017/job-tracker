@@ -57,7 +57,11 @@ export class EnrichmentProcessor extends WorkerHost {
 
       const pageText = await this.webFetch.fetchPageText(dbJob.url ?? '');
 
-      const context = [...overviewSnippets, ...cultureSnippets, pageText]
+      // Set dedupes snippets returned by both queries (wastes context budget)
+      const context = [
+        ...new Set([...overviewSnippets, ...cultureSnippets]),
+        pageText,
+      ]
         .filter(Boolean)
         .join('\n\n')
         .slice(0, 8000);

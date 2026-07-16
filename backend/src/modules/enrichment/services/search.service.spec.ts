@@ -132,6 +132,31 @@ describe('SearchService', () => {
     expect(snippets[0]).toBe('[Glassdoor] Great workplace.');
   });
 
+  it('includes source hostname in snippet prefix when url is present', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          results: [
+            {
+              title: 'Glassdoor',
+              url: 'https://www.glassdoor.com/Reviews/acme',
+              content: 'Great workplace.',
+            },
+            { url: 'https://acme.com/contact', content: 'Contact us.' },
+            { url: 'not a url', content: 'Bad source.' },
+          ],
+        }),
+    });
+
+    const snippets = await service.search('Acme Corp');
+
+    expect(snippets[0]).toBe('[Glassdoor | glassdoor.com] Great workplace.');
+    expect(snippets[1]).toBe('[acme.com] Contact us.');
+    expect(snippets[2]).toBe('Bad source.');
+  });
+
   it('drops results where content is undefined', async () => {
     mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({

@@ -117,7 +117,9 @@ export class LlmService {
         hints.push(
           `The job posting's official domain is "${disambiguation.domain}". Only use ` +
             `content that refers to the company at this domain — ignore snippets about ` +
-            `unrelated companies that merely share the same name.`,
+            `unrelated companies that merely share the same name. In particular, extract ` +
+            `the address and other contact details only from snippets sourced from this ` +
+            `domain or that unambiguously describe "${companyName}".`,
         );
       }
       if (disambiguation?.location) {
@@ -140,6 +142,10 @@ export class LlmService {
             content:
               `You are helping a job applicant evaluate a company. Extract structured data ` +
               `from the following web content about "${companyName}".\n\n` +
+              `Snippets begin with their source title and domain in brackets — use these ` +
+              `to judge whether each snippet is really about "${companyName}"; a snippet ` +
+              `describing a different kind of business is about a different company even ` +
+              `if the name or city matches, so ignore it.\n\n` +
               `If information is not available in the provided content, use "Unknown" for ` +
               `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
               `in the content. If the content describes a different company that merely ` +

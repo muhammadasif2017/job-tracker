@@ -6,6 +6,7 @@ const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
 interface TavilyResult {
   title?: string;
+  url?: string;
   content?: string;
 }
 
@@ -44,7 +45,12 @@ export class SearchService {
       const snippets = (data.results ?? [])
         .map((r) => {
           if (!r.content) return undefined;
-          return r.title ? `[${r.title}] ${r.content}` : r.content;
+          // Source domain in the prefix lets the LLM judge which company a
+          // snippet is actually about (same-name/same-city collisions)
+          const source = [r.title, this.hostnameOf(r.url)]
+            .filter(Boolean)
+            .join(' | ');
+          return source ? `[${source}] ${r.content}` : r.content;
         })
         .filter((c): c is string => !!c);
 
@@ -58,6 +64,15 @@ export class SearchService {
         error: err instanceof Error ? err.message : String(err),
       });
       return [];
+    }
+  }
+
+  private hostnameOf(url?: string): string | undefined {
+    if (!url) return undefined;
+    try {
+      return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+      return undefined;
     }
   }
 }
