@@ -33,6 +33,7 @@ import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
+import { AttentionItemDto } from './dto/attention-item.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -59,8 +60,9 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
-  // 'stats' and 'export' must remain above ':id' — fixed segments take priority
-  // over parameterized ones only when registered first in the same router.
+  // 'stats', 'export', and 'attention' must remain above ':id' — fixed segments
+  // take priority over parameterized ones only when registered first in the
+  // same router.
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })
@@ -87,6 +89,16 @@ export class JobsController {
       `attachment; filename="jobs${suffix}.csv"`,
     );
     res.send(csv);
+  }
+
+  @Get('attention')
+  @ApiOperation({
+    summary:
+      'Jobs needing action: upcoming interviews and stalled applications',
+  })
+  @ApiOkResponse({ type: AttentionItemDto, isArray: true })
+  getAttention(@CurrentUser() user: { id: string }) {
+    return this.jobsService.getAttention(user.id);
   }
 
   @Get(':id')

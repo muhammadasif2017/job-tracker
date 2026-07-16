@@ -104,6 +104,15 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
+export type AttentionType =
+  'UPCOMING_INTERVIEW' | 'STALE_INTERVIEWING' | 'STALE_APPLIED';
+
+export interface AttentionItem {
+  type: AttentionType;
+  since: string;
+  job: Job;
+}
+
 export interface JobStats {
   total: number;
   byStatus: Record<JobStatus, number>;

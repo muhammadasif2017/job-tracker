@@ -88,6 +88,7 @@ export default function JobsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['attention'] });
       setDeleteTarget(undefined);
       toast.success('Job deleted');
     },

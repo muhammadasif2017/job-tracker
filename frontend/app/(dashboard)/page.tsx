@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, TrendingUp, Award, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
+import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { StatusChart } from '../../components/dashboard/status-chart';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -67,6 +68,8 @@ export default function DashboardPage() {
           loading={statsLoading}
         />
       </div>
+
+      <AttentionCard />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">

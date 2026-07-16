@@ -226,6 +226,67 @@ export class JobsService {
     return { total, byStatus, thisMonth, responseRate };
   }
 
+  // "Needs attention" heuristics — computed from existing fields, no stored state:
+  // interviews within 48h, INTERVIEWING jobs with no event for 5 days, and
+  // APPLIED jobs with no movement for 7 days.
+  async getAttention(userId: string) {
+    const now = new Date();
+    const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
+    const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    const [upcoming, staleInterviewing, staleApplied] = await Promise.all([
+      this.prisma.job.findMany({
+        where: { userId, nextInterviewAt: { gte: now, lte: in48h } },
+        orderBy: { nextInterviewAt: 'asc' },
+      }),
+      this.prisma.job.findMany({
+        where: {
+          userId,
+          status: JobStatus.INTERVIEWING,
+          events: { none: { createdAt: { gt: fiveDaysAgo } } },
+        },
+        include: { events: { orderBy: { createdAt: 'desc' }, take: 1 } },
+        orderBy: { updatedAt: 'asc' },
+      }),
+      this.prisma.job.findMany({
+        where: {
+          userId,
+          status: JobStatus.APPLIED,
+          appliedAt: { lt: sevenDaysAgo },
+        },
+        orderBy: { appliedAt: 'asc' },
+      }),
+    ]);
+
+    const items = [
+      ...upcoming.map((job) => ({
+        type: 'UPCOMING_INTERVIEW' as const,
+        since: job.nextInterviewAt!,
+        job,
+      })),
+      ...staleInterviewing.map(({ events, ...job }) => ({
+        type: 'STALE_INTERVIEWING' as const,
+        since: events[0]?.createdAt ?? job.updatedAt,
+        job,
+      })),
+      ...staleApplied.map((job) => ({
+        type: 'STALE_APPLIED' as const,
+        since: job.appliedAt,
+        job,
+      })),
+    ];
+
+    // A job can match several rules — keep only its highest-priority reason
+    // (array order above is the priority order)
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      if (seen.has(item.job.id)) return false;
+      seen.add(item.job.id);
+      return true;
+    });
+  }
+
   async exportCsv(userId: string, query: JobQueryDto) {
     const where = this.buildJobWhere(userId, query);
 
