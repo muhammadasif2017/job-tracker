@@ -10,6 +10,19 @@ import { LlmService } from './services/llm.service.js';
 
 export const ENRICHMENT_QUEUE = 'company-enrichment';
 
+// Hosts that are job boards, not the company's own site — their domain must not
+// be used as a trust hint or for contact-page fetching
+const JOB_BOARD_DOMAINS = [
+  'linkedin.com',
+  'indeed.com',
+  'glassdoor.com',
+  'rozee.pk',
+  'bayt.com',
+  'monster.com',
+  'ziprecruiter.com',
+  'wellfound.com',
+];
+
 @Injectable()
 @Processor(ENRICHMENT_QUEUE)
 export class EnrichmentProcessor extends WorkerHost {
@@ -55,16 +68,41 @@ export class EnrichmentProcessor extends WorkerHost {
         ),
       ]);
 
-      const pageText = await this.webFetch.fetchPageText(dbJob.url ?? '');
+      // With a real company domain, also fetch its contact page — the only
+      // reliable source for the street address (same-name companies in the same
+      // city poison search results)
+      const [pageText, ...contactTexts] = await Promise.all([
+        this.webFetch.fetchPageText(dbJob.url ?? ''),
+        ...(domain
+          ? [
+              this.webFetch.fetchPageText(`https://${domain}/contact`),
+              this.webFetch.fetchPageText(`https://${domain}/contact-us`),
+            ]
+          : []),
+      ]);
 
+      const officialParts = [...new Set([pageText, ...contactTexts])].filter(
+        Boolean,
+      );
       // Set dedupes snippets returned by both queries (wastes context budget)
-      const context = [
+      const searchParts = [
         ...new Set([...overviewSnippets, ...cultureSnippets]),
-        pageText,
-      ]
-        .filter(Boolean)
-        .join('\n\n')
-        .slice(0, 8000);
+      ].filter(Boolean);
+
+      const sections: string[] = [];
+      if (officialParts.length) {
+        const label = domain
+          ? `=== OFFICIAL COMPANY WEBSITE (${domain}) ===`
+          : '=== JOB POSTING PAGE ===';
+        sections.push(`${label}\n${officialParts.join('\n\n').slice(0, 4500)}`);
+      }
+      if (searchParts.length) {
+        sections.push(
+          `=== WEB SEARCH RESULTS (may describe other companies with similar names) ===\n` +
+            searchParts.join('\n\n').slice(0, 3500),
+        );
+      }
+      const context = sections.join('\n\n');
 
       // Full context visible with LOG_LEVEL=debug — for diagnosing wrong extractions
       this.logger.debug('enrichment_context', {
@@ -148,7 +186,11 @@ export class EnrichmentProcessor extends WorkerHost {
   private extractDomain(url: string | null): string | undefined {
     if (!url) return undefined;
     try {
-      return new URL(url).hostname.replace(/^www\./, '');
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      const isJobBoard = JOB_BOARD_DOMAINS.some(
+        (b) => host === b || host.endsWith(`.${b}`),
+      );
+      return isJobBoard ? undefined : host;
     } catch {
       return undefined;
     }

@@ -113,6 +113,49 @@ describe('EnrichmentProcessor', () => {
     });
   });
 
+  it('does not treat a job-board host as the company domain', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      url: 'https://pk.linkedin.com/jobs/view/12345',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const [, , disambiguation] = mockLlm.extract.mock.calls[0] as [
+      string,
+      string,
+      { domain?: string; location?: string },
+    ];
+    expect(disambiguation.domain).toBeUndefined();
+    // No contact-page fetch without a real company domain — only the job URL
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches the company contact pages when a real domain is known', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/contact',
+    );
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/contact-us',
+    );
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('=== OFFICIAL COMPANY WEBSITE (acme.com) ===');
+  });
+
   it('returns early without touching the profile when job is not found', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(null);
 

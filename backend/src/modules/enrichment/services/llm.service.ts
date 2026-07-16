@@ -52,7 +52,10 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
         address: {
           type: 'string',
           description:
-            'Full postal/street address of the company office, if stated',
+            'Full postal/street address of the company office. Extract ONLY from ' +
+            'the OFFICIAL COMPANY WEBSITE section of the content; if no address ' +
+            'appears there, use "Unknown". Never take an address from web search ' +
+            'results — they may belong to a different company with a similar name.',
         },
         founded: { type: 'string' },
       },
@@ -142,10 +145,13 @@ export class LlmService {
             content:
               `You are helping a job applicant evaluate a company. Extract structured data ` +
               `from the following web content about "${companyName}".\n\n` +
-              `Snippets begin with their source title and domain in brackets — use these ` +
-              `to judge whether each snippet is really about "${companyName}"; a snippet ` +
-              `describing a different kind of business is about a different company even ` +
-              `if the name or city matches, so ignore it.\n\n` +
+              `The web content is split into sections. Content under "OFFICIAL COMPANY ` +
+              `WEBSITE" comes from the company's own domain and is authoritative. Content ` +
+              `under "WEB SEARCH RESULTS" may describe different companies with similar ` +
+              `names — each snippet there begins with its source title and domain in ` +
+              `brackets; use these to judge whether it is really about "${companyName}". ` +
+              `A snippet describing a different kind of business is about a different ` +
+              `company even if the name or city matches, so ignore it.\n\n` +
               `If information is not available in the provided content, use "Unknown" for ` +
               `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
               `in the content. If the content describes a different company that merely ` +
