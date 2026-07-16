@@ -48,7 +48,7 @@ export class EnrichmentProcessor extends WorkerHost {
       const locationSuffix = location ? ` ${location}` : '';
       const [overviewSnippets, cultureSnippets] = await Promise.all([
         this.search.search(
-          `"${company}"${locationSuffix} company overview headquarters industry`,
+          `"${company}"${locationSuffix} company overview headquarters address founded employees industry`,
         ),
         this.search.search(
           `"${company}"${locationSuffix} tech stack work culture reviews`,
