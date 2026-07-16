@@ -22,7 +22,7 @@ export class EnrichmentService {
         companySize: null,
         techStack: [],
         cultureSummary: null,
-        remotePolicy: null,
+        workPolicy: null,
         workLifeBalance: null,
         headquarters: null,
         founded: null,

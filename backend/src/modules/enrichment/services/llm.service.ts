@@ -8,7 +8,7 @@ export interface CompanyData {
   companySize: string;
   techStack: string[];
   cultureSummary: string;
-  remotePolicy: string;
+  workPolicy: string;
   workLifeBalance: string;
   headquarters: string;
   address: string;
@@ -40,7 +40,7 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
           type: 'string',
           description: '2-3 sentences about work culture',
         },
-        remotePolicy: {
+        workPolicy: {
           type: 'string',
           enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
         },
@@ -64,7 +64,7 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
         'companySize',
         'techStack',
         'cultureSummary',
-        'remotePolicy',
+        'workPolicy',
         'workLifeBalance',
         'headquarters',
         'address',
@@ -88,7 +88,7 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
         )
       : [],
     cultureSummary: str(raw.cultureSummary),
-    remotePolicy: str(raw.remotePolicy),
+    workPolicy: str(raw.workPolicy),
     workLifeBalance: str(raw.workLifeBalance),
     headquarters: str(raw.headquarters),
     address: str(raw.address),

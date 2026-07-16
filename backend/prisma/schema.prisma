@@ -118,7 +118,7 @@ model CompanyProfile {
   companySize     String?
   techStack       String[]
   cultureSummary  String?
-  remotePolicy    String?
+  workPolicy      String?
   workLifeBalance String?
   headquarters    String?
   address         String?

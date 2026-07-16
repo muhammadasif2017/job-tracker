@@ -51,7 +51,7 @@ export interface CompanyProfile {
   companySize?: string;
   techStack: string[];
   cultureSummary?: string;
-  remotePolicy?: string;
+  workPolicy?: string;
   workLifeBalance?: string;
   headquarters?: string;
   address?: string;

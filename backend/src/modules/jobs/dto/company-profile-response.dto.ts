@@ -28,7 +28,7 @@ export class CompanyProfileResponseDto {
   cultureSummary: string | null;
 
   @ApiPropertyOptional({ example: 'Hybrid' })
-  remotePolicy: string | null;
+  workPolicy: string | null;
 
   @ApiPropertyOptional({ example: '4/5' })
   workLifeBalance: string | null;

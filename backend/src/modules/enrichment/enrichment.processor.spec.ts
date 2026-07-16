@@ -16,7 +16,7 @@ const extracted = {
   companySize: 'Small (50-200)',
   techStack: ['Python', 'Django'],
   cultureSummary: 'Great culture.',
-  remotePolicy: 'Remote',
+  workPolicy: 'Remote',
   workLifeBalance: 'Excellent',
   headquarters: 'Austin, TX',
   founded: '2018',

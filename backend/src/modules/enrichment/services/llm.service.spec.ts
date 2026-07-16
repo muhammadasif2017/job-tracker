@@ -20,7 +20,7 @@ const baseInput = {
   companySize: 'Mid-size (200-1000)',
   techStack: ['React', 'Node.js', 'PostgreSQL'],
   cultureSummary: 'Fast-paced culture with strong engineering standards.',
-  remotePolicy: 'Hybrid',
+  workPolicy: 'Hybrid',
   workLifeBalance: 'Good',
   headquarters: 'San Francisco, USA',
   founded: '2010',
@@ -67,7 +67,7 @@ describe('LlmService', () => {
     expect(result.industry).toBe('FinTech');
     expect(result.companySize).toBe('Mid-size (200-1000)');
     expect(result.techStack).toEqual(['React', 'Node.js', 'PostgreSQL']);
-    expect(result.remotePolicy).toBe('Hybrid');
+    expect(result.workPolicy).toBe('Hybrid');
     expect(result.workLifeBalance).toBe('Good');
     expect(result.headquarters).toBe('San Francisco, USA');
     expect(result.founded).toBe('2010');
