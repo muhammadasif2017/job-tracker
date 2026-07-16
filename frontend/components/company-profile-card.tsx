@@ -152,7 +152,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
       {profile.remotePolicy && (
         <div>
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Remote Policy
+            Work Policy
           </p>
           <p className="text-sm break-words">{profile.remotePolicy}</p>
         </div>
