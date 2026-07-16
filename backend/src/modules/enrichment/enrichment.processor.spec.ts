@@ -156,6 +156,52 @@ describe('EnrichmentProcessor', () => {
     expect(context).toContain('=== OFFICIAL COMPANY WEBSITE (acme.com) ===');
   });
 
+  it('keeps the extracted address when it appears on the company pages', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Visit our office: Plot 5, Main Street, Austin, TX.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      address: 'Plot 5 Main Street Austin TX',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          address: 'Plot 5 Main Street Austin TX',
+        }),
+      }),
+    );
+  });
+
+  it('rejects an address that only appears in search results', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([
+      '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
+    ]);
+    mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      address: 'Plot 10 Block BB Canal Road Lahore',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ address: 'Unknown' }),
+      }),
+    );
+  });
+
   it('returns early without touching the profile when job is not found', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(null);
 

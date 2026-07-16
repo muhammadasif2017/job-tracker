@@ -122,6 +122,24 @@ export class EnrichmentProcessor extends WorkerHost {
         location,
       });
 
+      // Deterministic guard: prompt instructions alone don't stop the LLM from
+      // taking a street address from a same-name company in search results.
+      // Accept an address only if most of its tokens appear in content from the
+      // company's own pages (official site / contact page / job posting).
+      if (data.address && data.address !== 'Unknown') {
+        const officialNorm = this.normalize(officialParts.join(' '));
+        const tokens = this.normalize(data.address).split(' ').filter(Boolean);
+        const hits = tokens.filter((t) => officialNorm.includes(t)).length;
+        if (!tokens.length || hits / tokens.length < 0.7) {
+          this.logger.log('enrichment_address_rejected', {
+            jobId,
+            company,
+            address: data.address,
+          });
+          data.address = 'Unknown';
+        }
+      }
+
       const stillExists = await this.prisma.job.findFirst({
         where: { id: jobId },
       });
@@ -184,6 +202,13 @@ export class EnrichmentProcessor extends WorkerHost {
 
       throw error;
     }
+  }
+
+  private normalize(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
   }
 
   private extractDomain(url: string | null): string | undefined {
