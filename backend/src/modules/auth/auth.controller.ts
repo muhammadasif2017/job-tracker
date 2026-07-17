@@ -147,10 +147,10 @@ export class AuthController {
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiExcludeEndpoint()
-  googleCallback(@Req() req: Request, @Res() res: Response) {
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
-    const code = this.authService.storeOAuthCode(tokens);
+    const code = await this.authService.storeOAuthCode(tokens);
     res.redirect(`${fe}/callback?code=${code}`);
   }
 
@@ -169,10 +169,10 @@ export class AuthController {
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
   @ApiExcludeEndpoint()
-  githubCallback(@Req() req: Request, @Res() res: Response) {
+  async githubCallback(@Req() req: Request, @Res() res: Response) {
     const tokens = req.user as { accessToken: string; refreshToken: string };
     const fe = this.config.get('FRONTEND_URL');
-    const code = this.authService.storeOAuthCode(tokens);
+    const code = await this.authService.storeOAuthCode(tokens);
     res.redirect(`${fe}/callback?code=${code}`);
   }
 }
