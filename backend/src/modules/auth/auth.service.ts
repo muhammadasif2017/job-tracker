@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -9,6 +11,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import ms, { type StringValue } from 'ms';
 import Redis from 'ioredis';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 
@@ -16,8 +19,9 @@ const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleDestroy {
   private readonly redis: Redis;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private prisma: PrismaService,
@@ -28,6 +32,23 @@ export class AuthService {
       this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
       { maxRetriesPerRequest: null },
     );
+    this.redis.on('error', (err) =>
+      this.logger.error('Redis connection error', err),
+    );
+  }
+
+  async onModuleDestroy() {
+    await this.redis.quit();
+  }
+
+  @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+  async cleanupExpiredRefreshTokens() {
+    const { count } = await this.prisma.refreshToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+    if (count > 0) {
+      this.logger.log(`Cleaned up ${count} expired refresh token(s)`);
+    }
   }
 
   async validateLocalUser(email: string, password: string) {
@@ -75,7 +96,19 @@ export class AuthService {
     if (!valid) {
       throw new ForbiddenException('Refresh token invalid or expired');
     }
-    await this.prisma.refreshToken.delete({ where: { id: jti } });
+
+    if (stored.revokedAt) {
+      // This token was already rotated once - somebody is replaying a stale
+      // refresh token, which only happens if it leaked. Kill every session
+      // for this user rather than just rejecting the one request.
+      await this.prisma.refreshToken.deleteMany({ where: { userId } });
+      throw new ForbiddenException('Refresh token invalid or expired');
+    }
+
+    await this.prisma.refreshToken.update({
+      where: { id: jti },
+      data: { revokedAt: new Date() },
+    });
     return this.issueTokens(userId, email);
   }
 

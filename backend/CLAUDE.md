@@ -95,9 +95,11 @@ login(...) {}
 Two JWTs issued together by the private `issueTokens(userId, email)` method:
 
 - **Access token** — 15 min, signed with `JWT_SECRET`. Sent as `Authorization: Bearer`.
-- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in `User.refreshToken`.
+- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`, carries a `jti`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in the separate `RefreshToken` table (keyed by `jti`, not a column on `User`).
 
-On every refresh, both tokens are rotated (new pair issued, old hash overwritten).
+On every refresh, the old `RefreshToken` row is soft-revoked (`revokedAt` set, not deleted) and a new pair (new `jti`, new row) is issued. Presenting an already-revoked token (replay of a rotated-out refresh token) is treated as a theft signal — it revokes every `RefreshToken` row for that user, not just the one presented.
+
+`AuthService.cleanupExpiredRefreshTokens` (`@Cron(EVERY_DAY_AT_MIDNIGHT)`, via `@nestjs/schedule`'s `ScheduleModule.forRoot()` in `AppModule`) deletes rows past `expiresAt` — both naturally expired and soft-revoked rows accumulate until this runs.
 
 ### `@CurrentUser()` Decorator
 

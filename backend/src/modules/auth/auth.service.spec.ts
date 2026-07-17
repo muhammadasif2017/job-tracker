@@ -20,6 +20,8 @@ jest.mock('ioredis', () => {
         store.delete(key);
         return Promise.resolve(1);
       }),
+      on: jest.fn(),
+      quit: jest.fn().mockResolvedValue('OK'),
     };
   });
 });
@@ -36,6 +38,7 @@ const mockPrisma = {
   refreshToken: {
     create: jest.fn(),
     findUnique: jest.fn(),
+    update: jest.fn(),
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
@@ -154,23 +157,47 @@ describe('AuthService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
-    it('deletes the old row, creates a new one, and returns a fresh token pair', async () => {
+    it('marks the old row revoked, creates a new one, and returns a fresh token pair', async () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         id: 'jti-1',
         userId: '1',
         tokenHash: 'oldhash',
         expiresAt: new Date(Date.now() + 10_000),
+        revokedAt: null,
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      mockPrisma.refreshToken.delete.mockResolvedValue({});
+      mockPrisma.refreshToken.update.mockResolvedValue({});
 
       const result = await service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1');
 
-      expect(mockPrisma.refreshToken.delete).toHaveBeenCalledWith({
+      expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
         where: { id: 'jti-1' },
+        data: { revokedAt: expect.any(Date) },
       });
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.deleteMany).not.toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
+    });
+
+    it('revokes every session for the user when a rotated (already-used) token is replayed', async () => {
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: 'oldhash',
+        expiresAt: new Date(Date.now() + 10_000),
+        revokedAt: new Date(Date.now() - 5_000),
+      });
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await expect(
+        service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1'),
+      ).rejects.toThrow(ForbiddenException);
+
+      expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
+        where: { userId: '1' },
+      });
+      expect(mockPrisma.refreshToken.update).not.toHaveBeenCalled();
+      expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
     });
   });
 
