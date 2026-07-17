@@ -33,6 +33,7 @@ api.interceptors.response.use(
     }
 
     if (isRefreshing) {
+      original._retry = true;
       return new Promise((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       }).then((token) => {
