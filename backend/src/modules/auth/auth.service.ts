@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { ConfigService } from '@nestjs/config';
@@ -16,8 +18,9 @@ const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleDestroy {
   private readonly redis: Redis;
+  private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private prisma: PrismaService,
@@ -28,6 +31,13 @@ export class AuthService {
       this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
       { maxRetriesPerRequest: null },
     );
+    this.redis.on('error', (err) =>
+      this.logger.error('Redis connection error', err),
+    );
+  }
+
+  async onModuleDestroy() {
+    await this.redis.quit();
   }
 
   async validateLocalUser(email: string, password: string) {

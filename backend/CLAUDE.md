@@ -95,9 +95,9 @@ login(...) {}
 Two JWTs issued together by the private `issueTokens(userId, email)` method:
 
 - **Access token** — 15 min, signed with `JWT_SECRET`. Sent as `Authorization: Bearer`.
-- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in `User.refreshToken`.
+- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`, carries a `jti`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in the separate `RefreshToken` table (keyed by `jti`, not a column on `User`).
 
-On every refresh, both tokens are rotated (new pair issued, old hash overwritten).
+On every refresh, the old `RefreshToken` row is deleted and a new pair (new `jti`, new row) is issued.
 
 ### `@CurrentUser()` Decorator
 

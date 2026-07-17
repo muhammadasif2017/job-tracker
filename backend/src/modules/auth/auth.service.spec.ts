@@ -20,6 +20,8 @@ jest.mock('ioredis', () => {
         store.delete(key);
         return Promise.resolve(1);
       }),
+      on: jest.fn(),
+      quit: jest.fn().mockResolvedValue('OK'),
     };
   });
 });
