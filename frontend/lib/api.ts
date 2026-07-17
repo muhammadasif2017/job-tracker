@@ -3,6 +3,9 @@ import { tokenStorage } from './auth';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
+  // Required both ways: lets the browser store the httpOnly refresh cookie
+  // from login/register/refresh responses, and resend it on later requests.
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
@@ -50,20 +53,16 @@ api.interceptors.response.use(
     original._retry = true;
     isRefreshing = true;
 
-    const refreshToken = tokenStorage.getRefresh();
-    if (!refreshToken) {
-      tokenStorage.clear();
-      document.cookie = 'jt_authed=; path=/; max-age=0';
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-
     try {
+      // No body — the refresh token is an httpOnly cookie the browser
+      // attaches automatically. If it's missing or expired, this 401s and
+      // falls into the catch below.
       const { data } = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
-        { refreshToken },
+        {},
+        { withCredentials: true },
       );
-      tokenStorage.set(data.accessToken, data.refreshToken);
+      tokenStorage.setAccess(data.accessToken);
       processQueue(null, data.accessToken);
       original.headers.Authorization = `Bearer ${data.accessToken}`;
       return api(original);

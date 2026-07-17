@@ -47,7 +47,7 @@ export default function RegisterPage() {
       const { data: user } = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${tokens.accessToken}` },
       });
-      setAuth(user, tokens.accessToken, tokens.refreshToken);
+      setAuth(user, tokens.accessToken);
       router.replace('/');
     } catch (err) {
       toast.error(

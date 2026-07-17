@@ -95,7 +95,7 @@ login(...) {}
 Two JWTs issued together by the private `issueTokens(userId, email)` method:
 
 - **Access token** — 15 min, signed with `JWT_SECRET`. Sent as `Authorization: Bearer`.
-- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`. Sent in request body. Stored as a **bcrypt hash** in `User.refreshToken`.
+- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in `User.refreshToken`.
 
 On every refresh, both tokens are rotated (new pair issued, old hash overwritten).
 
@@ -116,9 +116,9 @@ getProfile(@CurrentUser() user: { id: string }) {
 GET /auth/google
   → Google OAuth → GET /auth/google/callback
   → GoogleStrategy.validate() → handleOAuthUser() → issueTokens()
-  → storeOAuthCode(tokens) → short-lived UUID in memory Map (60s)
+  → storeOAuthCode(tokens) → short-lived UUID in Redis (60s TTL)
   → redirect to ${FRONTEND_URL}/callback?code=<uuid>
-  → Frontend: POST /auth/exchange-code { code } → { accessToken, refreshToken }
+  → Frontend: POST /auth/exchange-code { code } → { accessToken } + jt_refresh httpOnly cookie
 ```
 
 `handleOAuthUser` resolution order:

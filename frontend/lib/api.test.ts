@@ -27,8 +27,7 @@ vi.mock('axios', () => {
 vi.mock('./auth', () => ({
   tokenStorage: {
     getAccess: vi.fn(),
-    getRefresh: vi.fn(() => 'stored-refresh-token'),
-    set: vi.fn(),
+    setAccess: vi.fn(),
     clear: vi.fn(),
   },
 }));

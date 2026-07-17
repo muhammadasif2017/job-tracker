@@ -8,7 +8,7 @@ import { tokenStorage } from '../lib/auth';
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
-  setAuth: (user: User, accessToken: string, refreshToken: string) => void;
+  setAuth: (user: User, accessToken: string) => void;
   setUser: (user: User) => void;
   logout: () => void;
 }
@@ -19,8 +19,8 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
 
-      setAuth: (user, accessToken, refreshToken) => {
-        tokenStorage.set(accessToken, refreshToken);
+      setAuth: (user, accessToken) => {
+        tokenStorage.setAccess(accessToken);
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `jt_authed=1; path=/; max-age=604800; SameSite=Lax${secure}`;
         set({ user, isAuthenticated: true });
