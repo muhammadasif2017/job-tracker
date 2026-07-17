@@ -44,8 +44,9 @@ export class JobsService {
     });
     try {
       await this.enrichment.enqueueEnrichment(job.id);
-    } catch {
+    } catch (err: unknown) {
       // enrichment is best-effort; job creation always succeeds
+      this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
     }
     return job;
   }
@@ -289,12 +290,15 @@ export class JobsService {
 
   async exportCsv(userId: string, query: JobQueryDto) {
     const where = this.buildJobWhere(userId, query);
+    const exportLimit = 1_000;
 
     const jobs = await this.prisma.job.findMany({
       where,
       orderBy: { appliedAt: 'desc' },
-      take: 1_000,
+      take: exportLimit + 1,
     });
+    const truncated = jobs.length > exportLimit;
+    if (truncated) jobs.length = exportLimit;
 
     const escape = (v: string | null | undefined) =>
       `"${(v ?? '').replace(/"/g, '""')}"`;
@@ -325,6 +329,6 @@ export class JobsService {
       ].join(','),
     );
 
-    return [headers, ...rows].join('\r\n');
+    return { csv: [headers, ...rows].join('\r\n'), truncated };
   }
 }
