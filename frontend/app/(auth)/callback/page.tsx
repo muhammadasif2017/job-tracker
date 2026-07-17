@@ -25,13 +25,13 @@ function CallbackHandler() {
     api
       .post('/auth/exchange-code', { code })
       .then(({ data }) => {
-        const { accessToken, refreshToken } = data;
+        const { accessToken } = data;
         return api
           .get('/auth/me', {
             headers: { Authorization: `Bearer ${accessToken}` },
           })
           .then(({ data: user }) => {
-            setAuth(user, accessToken, refreshToken);
+            setAuth(user, accessToken);
             router.replace('/');
           });
       })

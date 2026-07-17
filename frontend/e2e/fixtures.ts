@@ -8,7 +8,6 @@ export interface TestUser {
   name: string;
   password: string;
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface TestJob {
@@ -30,9 +29,8 @@ export async function createTestUser(suffix = ''): Promise<TestUser> {
     body: JSON.stringify({ email, password, name }),
   });
   if (!regRes.ok) throw new Error(`Register failed: ${await regRes.text()}`);
-  const { accessToken, refreshToken } = (await regRes.json()) as {
+  const { accessToken } = (await regRes.json()) as {
     accessToken: string;
-    refreshToken: string;
   };
 
   const meRes = await fetch(`${API}/auth/me`, {
@@ -40,7 +38,7 @@ export async function createTestUser(suffix = ''): Promise<TestUser> {
   });
   const { id } = (await meRes.json()) as { id: string };
 
-  return { id, email, name, password, accessToken, refreshToken };
+  return { id, email, name, password, accessToken };
 }
 
 export async function deleteTestUser(accessToken: string): Promise<void> {
@@ -107,11 +105,11 @@ export async function injectAuth(page: Page, user: TestUser): Promise<void> {
     },
   ]);
 
-  // localStorage keys used by the Axios interceptor and Zustand persist
+  // localStorage keys used by the Axios interceptor and Zustand persist.
+  // Refresh token is an httpOnly cookie now — not seeded here, not readable by JS.
   await page.addInitScript(
-    ({ access, refresh, id, email, name }) => {
+    ({ access, id, email, name }) => {
       localStorage.setItem('jt_access', access);
-      localStorage.setItem('jt_refresh', refresh);
       localStorage.setItem(
         'jt-auth',
         JSON.stringify({
@@ -126,7 +124,6 @@ export async function injectAuth(page: Page, user: TestUser): Promise<void> {
     },
     {
       access: user.accessToken,
-      refresh: user.refreshToken,
       id: user.id,
       email: user.email,
       name: user.name,

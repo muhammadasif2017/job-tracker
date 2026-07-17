@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
@@ -15,8 +16,9 @@ const PASSWORD = 'E2ePass123!';
 describe('Job Tracker (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
+  // Agent persists the httpOnly refresh cookie across requests, same as a browser.
+  let agent: ReturnType<typeof request.agent>;
   let accessToken: string;
-  let refreshToken: string;
   let jobId: string;
 
   beforeAll(async () => {
@@ -25,6 +27,7 @@ describe('Job Tracker (e2e)', () => {
     }).compile();
 
     app = module.createNestApplication();
+    app.use(cookieParser());
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
@@ -37,6 +40,7 @@ describe('Job Tracker (e2e)', () => {
     await app.init();
 
     prisma = app.get(PrismaService);
+    agent = request.agent(app.getHttpServer());
   });
 
   afterAll(async () => {
@@ -48,24 +52,24 @@ describe('Job Tracker (e2e)', () => {
 
   describe('POST /auth/register', () => {
     it('creates a new user and returns tokens', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .post('/auth/register')
         .send({ email: EMAIL, password: PASSWORD, name: 'E2E Tester' })
         .expect(200);
 
       expect(res.body).toHaveProperty('accessToken');
-      expect(res.body).toHaveProperty('refreshToken');
+      expect(res.body).not.toHaveProperty('refreshToken');
+      expect(res.headers['set-cookie']?.[0]).toMatch(/^jt_refresh=.+HttpOnly/);
       accessToken = res.body.accessToken;
-      refreshToken = res.body.refreshToken;
       // Verify /auth/me returns the authenticated user
-      const me = await request(app.getHttpServer())
+      const me = await agent
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`);
       expect(me.body.email).toBe(EMAIL);
     });
 
     it('rejects duplicate email with 400', () =>
-      request(app.getHttpServer())
+      agent
         .post('/auth/register')
         .send({ email: EMAIL, password: PASSWORD, name: 'Dup' })
         .expect(400));
@@ -73,18 +77,17 @@ describe('Job Tracker (e2e)', () => {
 
   describe('POST /auth/login', () => {
     it('returns tokens for valid credentials', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .post('/auth/login')
         .send({ email: EMAIL, password: PASSWORD })
         .expect(200);
 
       expect(res.body).toHaveProperty('accessToken');
       accessToken = res.body.accessToken;
-      refreshToken = res.body.refreshToken;
     });
 
     it('rejects wrong password with 401', () =>
-      request(app.getHttpServer())
+      agent
         .post('/auth/login')
         .send({ email: EMAIL, password: 'wrong' })
         .expect(401));
@@ -92,7 +95,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('GET /auth/me', () => {
     it('returns current user', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -100,28 +103,28 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body.email).toBe(EMAIL);
     });
 
-    it('returns 401 without token', () =>
-      request(app.getHttpServer()).get('/auth/me').expect(401));
+    it('returns 401 without token', () => agent.get('/auth/me').expect(401));
   });
 
   describe('POST /auth/refresh', () => {
-    it('issues new token pair', async () => {
-      const res = await request(app.getHttpServer())
-        .post('/auth/refresh')
-        .send({ refreshToken })
-        .expect(200);
+    it('issues a new access token using the refresh cookie', async () => {
+      // No body needed — the agent resends the httpOnly cookie set at login.
+      const res = await agent.post('/auth/refresh').expect(200);
 
       expect(res.body).toHaveProperty('accessToken');
+      expect(res.body).not.toHaveProperty('refreshToken');
       accessToken = res.body.accessToken;
-      refreshToken = res.body.refreshToken;
     });
+
+    it('rejects a request with no refresh cookie', () =>
+      request(app.getHttpServer()).post('/auth/refresh').expect(401));
   });
 
   // ── Jobs ────────────────────────────────────────────────────────────────────
 
   describe('POST /jobs', () => {
     it('creates a job and CREATED timeline event', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .post('/jobs')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
@@ -136,22 +139,19 @@ describe('Job Tracker (e2e)', () => {
     });
 
     it('rejects empty company with 400', () =>
-      request(app.getHttpServer())
+      agent
         .post('/jobs')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ company: '', position: 'Dev' })
         .expect(400));
 
     it('returns 401 without token', () =>
-      request(app.getHttpServer())
-        .post('/jobs')
-        .send({ company: 'X', position: 'Y' })
-        .expect(401));
+      agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
   });
 
   describe('GET /jobs', () => {
     it('returns paginated job list', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get('/jobs')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -162,7 +162,7 @@ describe('Job Tracker (e2e)', () => {
     });
 
     it('filters by status', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get('/jobs?status=APPLIED')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -175,7 +175,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('GET /jobs/stats', () => {
     it('returns stats with byStatus breakdown', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get('/jobs/stats')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -188,7 +188,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('GET /jobs/:id', () => {
     it('returns the job', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -197,7 +197,7 @@ describe('Job Tracker (e2e)', () => {
     });
 
     it('returns 404 for non-existent id', () =>
-      request(app.getHttpServer())
+      agent
         .get('/jobs/nonexistent-id')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404));
@@ -205,7 +205,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('PATCH /jobs/:id', () => {
     it('updates status and creates STATUS_CHANGE event', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .patch(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ status: 'INTERVIEWING', nextInterviewAt: '2026-07-15' })
@@ -218,7 +218,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('GET /jobs/:id/events', () => {
     it('returns timeline with CREATED and STATUS_CHANGE events', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get(`/jobs/${jobId}/events`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -234,7 +234,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('GET /jobs/export', () => {
     it('returns CSV with correct headers', async () => {
-      const res = await request(app.getHttpServer())
+      const res = await agent
         .get('/jobs/export')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
@@ -247,13 +247,13 @@ describe('Job Tracker (e2e)', () => {
 
   describe('DELETE /jobs/:id', () => {
     it('deletes the job', () =>
-      request(app.getHttpServer())
+      agent
         .delete(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200));
 
     it('returns 404 after deletion', () =>
-      request(app.getHttpServer())
+      agent
         .get(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404));
@@ -261,7 +261,7 @@ describe('Job Tracker (e2e)', () => {
 
   describe('POST /auth/logout', () => {
     it('clears the refresh token', () =>
-      request(app.getHttpServer())
+      agent
         .post('/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200));

@@ -84,17 +84,17 @@ The cookie is a **presence signal only** (value `1`) — it does not contain a J
 
 ### `lib/auth.ts` — tokenStorage
 
-Pure `localStorage` wrapper. Keys: `jt_access`, `jt_refresh`. Only the Axios interceptor should read/write these directly.
+Pure `localStorage` wrapper for the access token only. Key: `jt_access`. Only the Axios interceptor should read/write this directly. The refresh token is **never** stored here — it's an `httpOnly` cookie (`jt_refresh`) set by the backend, invisible to JS entirely.
 
 ### `store/auth.store.ts` — Zustand store
 
 Persisted to `localStorage` under key `jt-auth`. Exposes:
 
-| Method                                     | What it does                                                                      |
-| ------------------------------------------ | --------------------------------------------------------------------------------- |
-| `setAuth(user, accessToken, refreshToken)` | Writes to tokenStorage, sets `jt_authed` cookie (7d, SameSite=Lax), updates state |
-| `setUser(user)`                            | Updates user profile without touching tokens — used after profile edit            |
-| `logout()`                                 | Clears tokenStorage, expires cookie, resets state                                 |
+| Method                       | What it does                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------- |
+| `setAuth(user, accessToken)` | Writes to tokenStorage, sets `jt_authed` cookie (7d, SameSite=Lax), updates state |
+| `setUser(user)`              | Updates user profile without touching tokens — used after profile edit            |
+| `logout()`                   | Clears tokenStorage, expires cookie, resets state                                 |
 
 **Always call `setAuth` after a successful login/OAuth/register** — it's the single place that syncs all three layers (tokenStorage, cookie, Zustand).
 
@@ -104,6 +104,8 @@ Persisted to `localStorage` under key `jt-auth`. Exposes:
 
 Base URL from `NEXT_PUBLIC_API_URL`.
 
+The instance is created with `withCredentials: true` — required both to let the browser store the `jt_refresh` httpOnly cookie from login/register/refresh responses, and to resend it on later requests.
+
 ### Request Interceptor
 
 Attaches `Authorization: Bearer <token>` unless the caller already set it. The manual header override is used when fetching `/auth/me` immediately after login (before the token is persisted).
@@ -112,10 +114,10 @@ Attaches `Authorization: Bearer <token>` unless the caller already set it. The m
 
 Handles concurrent 401s without duplicate refresh calls:
 
-1. First 401: marks `isRefreshing = true`, POSTs to `/auth/refresh`.
-2. Subsequent 401s while refreshing: queued in `failedQueue`.
+1. First 401: marks `isRefreshing = true`, POSTs to `/auth/refresh` with no body — the browser attaches the `jt_refresh` cookie automatically.
+2. Subsequent 401s while refreshing: queued in `failedQueue`, stamped `_retry = true` so a repeat 401 on the same request can't re-enter the refresh cycle.
 3. On refresh success: drains queue, retries all queued requests with new token.
-4. On failure or no refresh token: clears storage, expires cookie, `window.location.href = '/login'`.
+4. On failure (missing/expired refresh cookie): clears storage, expires cookie, `window.location.href = '/login'`.
 
 `/auth/login` and `/auth/register` 401s bypass this and surface directly to the caller.
 
