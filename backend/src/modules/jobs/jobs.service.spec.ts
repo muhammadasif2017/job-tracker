@@ -316,7 +316,7 @@ describe('JobsService', () => {
     it('produces the correct header row', async () => {
       mockPrisma.job.findMany.mockResolvedValue([]);
 
-      const csv = await service.exportCsv('u1', new JobQueryDto());
+      const { csv } = await service.exportCsv('u1', new JobQueryDto());
 
       expect(csv.split('\r\n')[0]).toBe(
         'Company,Position,Status,Source,Location,Applied Date,Next Interview,URL,Notes',
@@ -337,7 +337,7 @@ describe('JobsService', () => {
         },
       ]);
 
-      const csv = await service.exportCsv('u1', new JobQueryDto());
+      const { csv } = await service.exportCsv('u1', new JobQueryDto());
       const row = csv.split('\r\n')[1];
 
       expect(row).toContain('"Acme ""Corp"""');
@@ -357,7 +357,7 @@ describe('JobsService', () => {
         },
       ]);
 
-      const csv = await service.exportCsv('u1', new JobQueryDto());
+      const { csv } = await service.exportCsv('u1', new JobQueryDto());
       const row = csv.split('\r\n')[1];
 
       expect(row).toContain(',"",');
