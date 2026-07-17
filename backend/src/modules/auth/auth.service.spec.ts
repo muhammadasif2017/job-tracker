@@ -7,6 +7,22 @@ import { AuthService } from './auth.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
 jest.mock('bcrypt');
+jest.mock('ioredis', () => {
+  return jest.fn().mockImplementation(() => {
+    const store = new Map<string, string>();
+    return {
+      set: jest.fn((key: string, value: string) => {
+        store.set(key, value);
+        return Promise.resolve('OK');
+      }),
+      get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+      del: jest.fn((key: string) => {
+        store.delete(key);
+        return Promise.resolve(1);
+      }),
+    };
+  });
+});
 
 const mockPrisma = {
   user: {
@@ -194,6 +210,20 @@ describe('AuthService', () => {
       );
     });
 
+    it('throws ForbiddenException when the matching User already has a password', async () => {
+      mockPrisma.account.findUnique.mockResolvedValue(null);
+      mockPrisma.user.findUnique.mockResolvedValue({
+        id: 'u1',
+        email: 'u@g.com',
+        password: 'hashed',
+      });
+
+      await expect(service.handleOAuthUser(...args)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPrisma.account.create).not.toHaveBeenCalled();
+    });
+
     it('creates both a new User and Account when neither exists', async () => {
       mockPrisma.account.findUnique.mockResolvedValue(null);
       mockPrisma.user.findUnique.mockResolvedValue(null);
@@ -220,26 +250,27 @@ describe('AuthService', () => {
   });
 
   describe('storeOAuthCode / exchangeOAuthCode', () => {
-    it('returns the correct tokens for a valid code', () => {
+    it('returns the correct tokens for a valid code', async () => {
       const tokens = { accessToken: 'at', refreshToken: 'rt' };
-      const code = service.storeOAuthCode(tokens);
-      expect(service.exchangeOAuthCode(code)).toEqual(tokens);
+      const code = await service.storeOAuthCode(tokens);
+      expect(await service.exchangeOAuthCode(code)).toEqual(tokens);
     });
 
-    it('throws ForbiddenException for an unknown code', () => {
-      expect(() => service.exchangeOAuthCode('no-such-code')).toThrow(
+    it('throws ForbiddenException for an unknown code', async () => {
+      await expect(service.exchangeOAuthCode('no-such-code')).rejects.toThrow(
         ForbiddenException,
       );
     });
 
-    it('throws ForbiddenException for an expired code', () => {
-      const code = service.storeOAuthCode({
+    it('throws ForbiddenException when a code is exchanged twice (single-use)', async () => {
+      const code = await service.storeOAuthCode({
         accessToken: 'at',
         refreshToken: 'rt',
       });
-      // Force the entry to appear expired
-      (service as any).oauthCodes.get(code).expiresAt = Date.now() - 1;
-      expect(() => service.exchangeOAuthCode(code)).toThrow(ForbiddenException);
+      await service.exchangeOAuthCode(code);
+      await expect(service.exchangeOAuthCode(code)).rejects.toThrow(
+        ForbiddenException,
+      );
     });
   });
 });

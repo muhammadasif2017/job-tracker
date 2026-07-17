@@ -8,21 +8,27 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import ms, { type StringValue } from 'ms';
+import Redis from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 
+const OAUTH_CODE_PREFIX = 'oauth_code:';
+const OAUTH_CODE_TTL_SECONDS = 60;
+
 @Injectable()
 export class AuthService {
-  private readonly oauthCodes = new Map<
-    string,
-    { accessToken: string; refreshToken: string; expiresAt: number }
-  >();
+  private readonly redis: Redis;
 
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-  ) {}
+  ) {
+    this.redis = new Redis(
+      this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
+      { maxRetriesPerRequest: null },
+    );
+  }
 
   async validateLocalUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
@@ -59,6 +65,9 @@ export class AuthService {
       where: { id: jti },
     });
     if (!stored || stored.userId !== userId || stored.expiresAt < new Date()) {
+      if (stored) {
+        await this.prisma.refreshToken.deleteMany({ where: { id: jti } });
+      }
       throw new ForbiddenException('Refresh token invalid or expired');
     }
 
@@ -75,25 +84,30 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  storeOAuthCode(tokens: {
+  async storeOAuthCode(tokens: {
     accessToken: string;
     refreshToken: string;
-  }): string {
+  }): Promise<string> {
     const code = randomUUID();
-    this.oauthCodes.set(code, { ...tokens, expiresAt: Date.now() + 60_000 });
+    await this.redis.set(
+      OAUTH_CODE_PREFIX + code,
+      JSON.stringify(tokens),
+      'EX',
+      OAUTH_CODE_TTL_SECONDS,
+    );
     return code;
   }
 
-  exchangeOAuthCode(code: string): {
-    accessToken: string;
-    refreshToken: string;
-  } {
-    const entry = this.oauthCodes.get(code);
-    this.oauthCodes.delete(code);
-    if (!entry || entry.expiresAt < Date.now()) {
+  async exchangeOAuthCode(
+    code: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const key = OAUTH_CODE_PREFIX + code;
+    const raw = await this.redis.get(key);
+    if (!raw) {
       throw new ForbiddenException('OAuth code expired or already used');
     }
-    return { accessToken: entry.accessToken, refreshToken: entry.refreshToken };
+    await this.redis.del(key);
+    return JSON.parse(raw) as { accessToken: string; refreshToken: string };
   }
 
   async handleOAuthUser(
@@ -112,6 +126,13 @@ export class AuthService {
 
     // 2. Find by email and link, or create new user
     let user = await this.prisma.user.findUnique({ where: { email } });
+    if (user && user.password) {
+      // Don't silently link an OAuth identity onto an account someone else
+      // could have pre-registered with this email + a password.
+      throw new ForbiddenException(
+        'An account with this email already exists. Log in with your password first, then link this provider from account settings.',
+      );
+    }
     if (!user) {
       user = await this.prisma.user.create({
         data: { email, name, avatarUrl },
