@@ -1,17 +1,27 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import {
+  STORAGE_SERVICE,
+  type IStorageService,
+} from '../../storage/storage.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(STORAGE_SERVICE) private storage: IStorageService,
+    private logger: Logger,
+  ) {}
 
   private async toProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
@@ -76,7 +86,26 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string) {
+    // Storage files aren't part of the DB cascade — collect keys before the
+    // Job/Resume rows disappear, then clean them up after the delete commits.
+    const resumes = await this.prisma.resume.findMany({
+      where: { job: { userId } },
+      select: { storageKey: true },
+    });
+
     await this.prisma.user.delete({ where: { id: userId } });
+
+    await Promise.all(
+      resumes.map(({ storageKey }) =>
+        this.storage.delete(storageKey).catch((err: unknown) =>
+          this.logger.warn('Storage delete failed after account deletion', {
+            storageKey,
+            err,
+          }),
+        ),
+      ),
+    );
+
     return { message: 'Account deleted' };
   }
 }
