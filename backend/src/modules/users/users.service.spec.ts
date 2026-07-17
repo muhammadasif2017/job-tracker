@@ -5,8 +5,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Logger } from 'nestjs-pino';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -20,17 +22,32 @@ const mockPrisma = {
     update: jest.fn(),
     delete: jest.fn(),
   },
+  resume: {
+    findMany: jest.fn(),
+  },
 };
+
+const mockStorage = {
+  upload: jest.fn(),
+  getPresignedUrl: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 describe('UsersService', () => {
   let service: UsersService;
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrisma.resume.findMany.mockResolvedValue([]);
+    mockStorage.delete.mockResolvedValue(undefined);
     const module = await Test.createTestingModule({
       providers: [
         UsersService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: STORAGE_SERVICE, useValue: mockStorage },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(UsersService);
@@ -225,6 +242,40 @@ describe('UsersService', () => {
       mockPrisma.user.delete.mockResolvedValue({});
       const result = await service.deleteAccount('u-1');
       expect(result).toEqual({ message: 'Account deleted' });
+    });
+
+    it('deletes every resume storage key belonging to the user', async () => {
+      mockPrisma.resume.findMany.mockResolvedValue([
+        { storageKey: 'resumes/u-1/job-a/1.pdf' },
+        { storageKey: 'resumes/u-1/job-b/2.pdf' },
+      ]);
+      mockPrisma.user.delete.mockResolvedValue({});
+
+      await service.deleteAccount('u-1');
+
+      expect(mockPrisma.resume.findMany).toHaveBeenCalledWith({
+        where: { job: { userId: 'u-1' } },
+        select: { storageKey: true },
+      });
+      expect(mockStorage.delete).toHaveBeenCalledWith(
+        'resumes/u-1/job-a/1.pdf',
+      );
+      expect(mockStorage.delete).toHaveBeenCalledWith(
+        'resumes/u-1/job-b/2.pdf',
+      );
+    });
+
+    it('does not throw if a storage delete fails', async () => {
+      mockPrisma.resume.findMany.mockResolvedValue([
+        { storageKey: 'resumes/u-1/job-a/1.pdf' },
+      ]);
+      mockPrisma.user.delete.mockResolvedValue({});
+      mockStorage.delete.mockRejectedValue(new Error('storage down'));
+
+      await expect(service.deleteAccount('u-1')).resolves.toEqual({
+        message: 'Account deleted',
+      });
+      expect(mockLogger.warn).toHaveBeenCalled();
     });
   });
 });
