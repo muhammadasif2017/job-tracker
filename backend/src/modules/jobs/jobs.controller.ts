@@ -8,7 +8,6 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
-  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -108,10 +107,7 @@ export class JobsController {
   @ApiParam({ name: 'id', description: 'Job ID' })
   @ApiOkResponse({ type: JobResponseDto })
   @ApiNotFoundResponse({ description: 'Job not found' })
-  findOne(
-    @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  findOne(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.jobsService.findOne(user.id, id);
   }
 
@@ -123,7 +119,7 @@ export class JobsController {
   @ApiOkResponse({ type: JobEventDto, isArray: true })
   getEvents(
     @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
   ) {
@@ -137,7 +133,7 @@ export class JobsController {
   @ApiNotFoundResponse({ description: 'Job not found' })
   update(
     @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Body() dto: UpdateJobDto,
   ) {
     return this.jobsService.update(user.id, id, dto);
@@ -149,10 +145,7 @@ export class JobsController {
   @ApiParam({ name: 'id', description: 'Job ID' })
   @ApiOkResponse({ type: MessageDto })
   @ApiNotFoundResponse({ description: 'Job not found' })
-  remove(
-    @CurrentUser() user: { id: string },
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
+  remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.jobsService.remove(user.id, id);
   }
 }

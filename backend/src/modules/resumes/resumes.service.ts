@@ -121,6 +121,20 @@ export class ResumesService {
     return resume ? this.toDto(resume) : null;
   }
 
+  // Internal use only (never sent to clients): lets the local-driver file-serve
+  // endpoint confirm the requested storage key still matches the job's current
+  // resume, so a stale key from a replaced/deleted file can't still be served.
+  async getFileInfo(
+    userId: string,
+    jobId: string,
+  ): Promise<{ storageKey: string; originalName: string } | null> {
+    const resume = await this.prisma.resume.findFirst({
+      where: { jobId, job: { userId } },
+      select: { storageKey: true, originalName: true },
+    });
+    return resume;
+  }
+
   async remove(userId: string, jobId: string): Promise<{ message: string }> {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },

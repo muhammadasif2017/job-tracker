@@ -193,11 +193,13 @@ export class ResumesController {
       throw new NotFoundException('File not found');
     }
 
-    const resume = await this.resumesService.findByJob(user.id, jobId);
-    if (!resume) throw new NotFoundException('File not found');
+    const fileInfo = await this.resumesService.getFileInfo(user.id, jobId);
+    if (!fileInfo || fileInfo.storageKey !== key) {
+      throw new NotFoundException('File not found');
+    }
 
     const disposition = download === 'true' ? 'attachment' : 'inline';
-    const safeName = encodeURIComponent(resume.originalName);
+    const safeName = encodeURIComponent(fileInfo.originalName);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader(
