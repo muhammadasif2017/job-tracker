@@ -39,6 +39,7 @@ const mockPrisma = {
     create: jest.fn(),
     findUnique: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
@@ -166,12 +167,12 @@ describe('AuthService', () => {
         revokedAt: null,
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
-      mockPrisma.refreshToken.update.mockResolvedValue({});
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1');
 
-      expect(mockPrisma.refreshToken.update).toHaveBeenCalledWith({
-        where: { id: 'jti-1' },
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { id: 'jti-1', revokedAt: null },
         data: { revokedAt: expect.any(Date) },
       });
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
@@ -188,6 +189,8 @@ describe('AuthService', () => {
         revokedAt: new Date(Date.now() - 5_000),
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      // Already revoked, so the conditional update matches nothing.
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
 
       await expect(
         service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1'),
@@ -196,7 +199,6 @@ describe('AuthService', () => {
       expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
         where: { userId: '1' },
       });
-      expect(mockPrisma.refreshToken.update).not.toHaveBeenCalled();
       expect(mockPrisma.refreshToken.create).not.toHaveBeenCalled();
     });
   });

@@ -17,6 +17,7 @@ const mockService = {
   upload: jest.fn(),
   getPresignedUrl: jest.fn(),
   findByJob: jest.fn(),
+  getFileInfo: jest.fn(),
   remove: jest.fn(),
 };
 
@@ -126,6 +127,10 @@ describe('ResumesController', () => {
 
     beforeEach(() => {
       mockService.findByJob.mockResolvedValue(resumeDto);
+      mockService.getFileInfo.mockResolvedValue({
+        storageKey: 'resumes/u-1/j-1/abc.pdf',
+        originalName: resumeDto.originalName,
+      });
     });
 
     it('throws NotFoundException when STORAGE_DRIVER is oracle', async () => {
