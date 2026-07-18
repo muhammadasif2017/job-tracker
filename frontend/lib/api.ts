@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { tokenStorage } from './auth';
+import { useAuthStore } from '../store/auth.store';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
@@ -68,8 +69,7 @@ api.interceptors.response.use(
       return api(original);
     } catch (err) {
       processQueue(err, null);
-      tokenStorage.clear();
-      document.cookie = 'jt_authed=; path=/; max-age=0';
+      useAuthStore.getState().logout();
       window.location.href = '/login';
       return Promise.reject(err);
     } finally {
