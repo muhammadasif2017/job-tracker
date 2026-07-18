@@ -300,8 +300,13 @@ export class JobsService {
     const truncated = jobs.length > exportLimit;
     if (truncated) jobs.length = exportLimit;
 
-    const escape = (v: string | null | undefined) =>
-      `"${(v ?? '').replace(/"/g, '""')}"`;
+    // Prefix a leading ' on formula-trigger characters so Excel/Sheets treat
+    // the cell as literal text instead of evaluating it (CSV/formula injection).
+    const escape = (v: string | null | undefined) => {
+      const s = v ?? '';
+      const safe = /^[=+\-@]/.test(s) ? `'${s}` : s;
+      return `"${safe.replace(/"/g, '""')}"`;
+    };
 
     const headers = [
       'Company',

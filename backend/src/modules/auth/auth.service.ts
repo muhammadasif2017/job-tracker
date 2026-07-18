@@ -97,18 +97,22 @@ export class AuthService implements OnModuleDestroy {
       throw new ForbiddenException('Refresh token invalid or expired');
     }
 
-    if (stored.revokedAt) {
-      // This token was already rotated once - somebody is replaying a stale
-      // refresh token, which only happens if it leaked. Kill every session
-      // for this user rather than just rejecting the one request.
+    // Atomic claim: only succeeds if this row is still unrevoked. This closes
+    // the race where two concurrent requests both read revokedAt=null before
+    // either writes - only one can match revokedAt: null here, since the
+    // conditional update is serialized by the database's row lock.
+    const { count } = await this.prisma.refreshToken.updateMany({
+      where: { id: jti, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    if (count === 0) {
+      // Lost the race, or this token was already rotated - somebody is
+      // replaying a stale refresh token, which only happens if it leaked.
+      // Kill every session for this user rather than just rejecting the
+      // one request.
       await this.prisma.refreshToken.deleteMany({ where: { userId } });
       throw new ForbiddenException('Refresh token invalid or expired');
     }
-
-    await this.prisma.refreshToken.update({
-      where: { id: jti },
-      data: { revokedAt: new Date() },
-    });
     return this.issueTokens(userId, email);
   }
 
