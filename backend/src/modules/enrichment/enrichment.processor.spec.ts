@@ -74,9 +74,10 @@ describe('EnrichmentProcessor', () => {
   it('passes aggregated search snippets and page text to LLM', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
-    mockSearch.search
-      .mockResolvedValueOnce(['culture snippet one'])
-      .mockResolvedValueOnce(['tech snippet one']);
+    mockSearch.search.mockResolvedValue([
+      'culture snippet one',
+      'tech snippet one',
+    ]);
     mockWebFetch.fetchPageText.mockResolvedValue('Website content.');
     mockLlm.extract.mockResolvedValue(extracted);
     mockPrisma.companyProfile.update.mockResolvedValue({});
@@ -136,7 +137,7 @@ describe('EnrichmentProcessor', () => {
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(1);
   });
 
-  it('fetches the company contact pages when a real domain is known', async () => {
+  it('fetches the company contact page when a real domain is known', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -149,11 +150,34 @@ describe('EnrichmentProcessor', () => {
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
       'https://acme.com/contact',
     );
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+    // /contact already returned text, so the /contact-us fallback is skipped
+    expect(mockWebFetch.fetchPageText).not.toHaveBeenCalledWith(
       'https://acme.com/contact-us',
     );
     const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
     expect(context).toContain('=== OFFICIAL COMPANY WEBSITE (acme.com) ===');
+  });
+
+  it('falls back to /contact-us when /contact is empty', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) =>
+      Promise.resolve(url.endsWith('/contact-us') ? 'Fallback text.' : ''),
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/contact',
+    );
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/contact-us',
+    );
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('Fallback text.');
   });
 
   it('keeps the extracted address when it appears on the company pages', async () => {

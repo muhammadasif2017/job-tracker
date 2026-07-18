@@ -59,37 +59,32 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const [overviewSnippets, cultureSnippets] = await Promise.all([
-        this.search.search(
-          `"${company}"${locationSuffix} company overview headquarters address founded employees industry`,
-        ),
-        this.search.search(
-          `"${company}"${locationSuffix} tech stack work culture reviews`,
-        ),
-      ]);
+      const snippets = await this.search.search(
+        `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`,
+      );
 
       // With a real company domain, also fetch its contact page — the only
       // reliable source for the street address (same-name companies in the same
-      // city poison search results)
-      const [pageText, ...contactTexts] = await Promise.all([
+      // city poison search results). Try /contact first; only hit /contact-us
+      // (a second network call) if the first one came back empty.
+      const [pageText, primaryContactText] = await Promise.all([
         this.webFetch.fetchPageText(dbJob.url ?? ''),
-        ...(domain
-          ? [
-              this.webFetch.fetchPageText(`https://${domain}/contact`),
-              this.webFetch.fetchPageText(`https://${domain}/contact-us`),
-            ]
-          : []),
+        domain
+          ? this.webFetch.fetchPageText(`https://${domain}/contact`)
+          : Promise.resolve(''),
       ]);
+      const contactTexts = primaryContactText
+        ? [primaryContactText]
+        : domain
+          ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
+          : [];
 
       // Contact pages first — they carry the address and are short; the homepage
       // is marketing text that would otherwise fill the section cap alone
       const officialParts = [...new Set([...contactTexts, pageText])].filter(
         Boolean,
       );
-      // Set dedupes snippets returned by both queries (wastes context budget)
-      const searchParts = [
-        ...new Set([...overviewSnippets, ...cultureSnippets]),
-      ].filter(Boolean);
+      const searchParts = [...new Set(snippets)].filter(Boolean);
 
       const sections: string[] = [];
       if (officialParts.length) {
@@ -110,8 +105,7 @@ export class EnrichmentProcessor extends WorkerHost {
       this.logger.debug('enrichment_context', {
         jobId,
         company,
-        overviewSnippetCount: overviewSnippets.length,
-        cultureSnippetCount: cultureSnippets.length,
+        snippetCount: snippets.length,
         pageTextLength: pageText.length,
         contactTextLengths: contactTexts.map((t) => t.length),
         context,
