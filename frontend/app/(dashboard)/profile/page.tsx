@@ -38,7 +38,7 @@ export default function ProfilePage() {
   });
   const user = profile ?? storeUser;
 
-  const profileForm = useForm({
+  const profileForm = useForm<{ name: string }>({
     resolver: zodResolver(profileSchema),
     values: { name: profile?.name ?? storeUser?.name ?? '' },
     resetOptions: { keepDirtyValues: true },
