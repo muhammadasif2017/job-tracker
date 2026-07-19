@@ -56,11 +56,22 @@ test.describe('Create job', () => {
 
     await dialog.getByPlaceholder('Google').fill('New Corp');
     await dialog.getByPlaceholder('Senior Engineer').fill('QA Lead');
-    await dialog.locator('select').selectOption('INTERVIEWING');
+    await dialog
+      .getByLabel('Status', { exact: true })
+      .selectOption('INTERVIEWING');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
+    // After creating, the dialog stays open on a "Job Added" step to let the
+    // user optionally attach a resume before closing.
+    await expect(
+      dialog.getByRole('heading', { name: 'Job Added' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
     await expect(dialog).not.toBeVisible();
-    await expect(page.getByRole('cell', { name: 'New Corp' })).toBeVisible();
+
+    await expect(
+      page.getByRole('cell', { name: 'New Corp', exact: true }),
+    ).toBeVisible();
     await expect(
       page.getByRole('cell').filter({ hasText: 'Interviewing' }),
     ).toBeVisible();
@@ -114,7 +125,7 @@ test.describe('Edit job', () => {
 
     await expect(dialog).not.toBeVisible();
     await expect(
-      page.getByRole('cell', { name: 'Updated Corp' }),
+      page.getByRole('cell', { name: 'Updated Corp', exact: true }),
     ).toBeVisible();
   });
 });
@@ -128,13 +139,19 @@ test.describe('Delete job', () => {
     });
 
     await goToJobs(page);
-    await expect(page.getByRole('cell', { name: 'Delete Corp' })).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Delete Corp', exact: true }),
+    ).toBeVisible();
 
     const row = page.locator('tr').filter({ hasText: 'Delete Corp' });
-    await row.getByRole('button').last().click(); // trash icon
+    await row.getByRole('button').last().click(); // trash icon opens confirm modal
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Delete job?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
 
     await expect(
-      page.getByRole('cell', { name: 'Delete Corp' }),
+      page.getByRole('cell', { name: 'Delete Corp', exact: true }),
     ).not.toBeVisible();
     await expect(page.getByText('Job deleted')).toBeVisible();
 
@@ -170,20 +187,24 @@ test.describe('Search', () => {
 
     await page.getByPlaceholder('Search company or position…').fill('Alpha');
     // Wait for the 300ms debounce + network response
-    await expect(page.getByRole('cell', { name: 'Alpha Inc' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Beta Ltd' })).not.toBeVisible({
-      timeout: 3000,
-    });
+    await expect(
+      page.getByRole('cell', { name: 'Alpha Inc', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Beta Ltd', exact: true }),
+    ).not.toBeVisible({ timeout: 3000 });
   });
 
   test('filters jobs by position', async ({ page }) => {
     await goToJobs(page);
 
     await page.getByPlaceholder('Search company or position…').fill('Backend');
-    await expect(page.getByRole('cell', { name: 'Beta Ltd' })).toBeVisible();
-    await expect(page.getByRole('cell', { name: 'Alpha Inc' })).not.toBeVisible(
-      { timeout: 3000 },
-    );
+    await expect(
+      page.getByRole('cell', { name: 'Beta Ltd', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Alpha Inc', exact: true }),
+    ).not.toBeVisible({ timeout: 3000 });
   });
 
   test('shows empty state when search has no results', async ({ page }) => {
@@ -225,10 +246,10 @@ test.describe('Status filter', () => {
     await page.locator('select').first().selectOption('INTERVIEWING');
 
     await expect(
-      page.getByRole('cell', { name: 'Interview Co' }),
+      page.getByRole('cell', { name: 'Interview Co', exact: true }),
     ).toBeVisible();
     await expect(
-      page.getByRole('cell', { name: 'Applied Co' }),
+      page.getByRole('cell', { name: 'Applied Co', exact: true }),
     ).not.toBeVisible();
   });
 
@@ -238,9 +259,11 @@ test.describe('Status filter', () => {
     await page.locator('select').first().selectOption('APPLIED');
     await page.locator('select').first().selectOption('');
 
-    await expect(page.getByRole('cell', { name: 'Applied Co' })).toBeVisible();
     await expect(
-      page.getByRole('cell', { name: 'Interview Co' }),
+      page.getByRole('cell', { name: 'Applied Co', exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('cell', { name: 'Interview Co', exact: true }),
     ).toBeVisible();
   });
 });
@@ -261,12 +284,13 @@ test.describe('Job detail page', () => {
     await deleteTestJob(user.accessToken, job.id).catch(() => {});
   });
 
-  test('navigates to detail page by clicking company name', async ({
+  test('navigates to detail page by clicking the position link', async ({
     page,
   }) => {
     await goToJobs(page);
 
-    await page.getByRole('link', { name: 'Detail Corp' }).click();
+    // Company name is plain text; the position is the row's link to the detail page.
+    await page.getByRole('link', { name: 'PM' }).click();
 
     await expect(page).toHaveURL(new RegExp(`/jobs/${job.id}`));
     await expect(

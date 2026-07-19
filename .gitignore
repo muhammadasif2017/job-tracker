@@ -43,3 +43,5 @@ tasks/
 .understand-anything/*
 
 graphify-out/
+
+.playwright-mcp/

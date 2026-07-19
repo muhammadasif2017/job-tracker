@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -40,13 +40,10 @@ export default function ProfilePage() {
 
   const profileForm = useForm({
     resolver: zodResolver(profileSchema),
-    defaultValues: { name: storeUser?.name ?? '' },
+    values: { name: profile?.name ?? storeUser?.name ?? '' },
+    resetOptions: { keepDirtyValues: true },
   });
   const passwordForm = useForm({ resolver: zodResolver(passwordSchema) });
-
-  useEffect(() => {
-    if (profile?.name) profileForm.reset({ name: profile.name });
-  }, [profile, profileForm]);
 
   const updateProfile = useMutation({
     mutationFn: (data: { name: string }) =>
@@ -121,6 +118,7 @@ export default function ProfilePage() {
           <Input
             label="Name"
             error={profileForm.formState.errors.name?.message}
+            disabled={!profile}
             {...profileForm.register('name')}
           />
           <Button type="submit" size="sm" loading={updateProfile.isPending}>
