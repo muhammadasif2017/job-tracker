@@ -170,6 +170,73 @@ describe('JobsService', () => {
         expect.objectContaining({ include: expect.anything() }),
       );
     });
+
+    it('creates a STATUS_CHANGE event with fromStatus and toStatus when status changes', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.INTERVIEWING,
+      });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            events: {
+              create: {
+                type: 'STATUS_CHANGE',
+                fromStatus: JobStatus.APPLIED,
+                toStatus: JobStatus.INTERVIEWING,
+              },
+            },
+          }),
+        }),
+      );
+    });
+
+    it('does not create an event when the new status equals the existing status', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { status: JobStatus.APPLIED });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ events: expect.anything() }),
+        }),
+      );
+    });
+
+    it('does not create an event when status is omitted from the dto', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ events: expect.anything() }),
+        }),
+      );
+    });
+
+    it('throws NotFoundException when the job does not belong to the user', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', 'job-99', { status: JobStatus.OFFER }),
+      ).rejects.toThrow('Job not found');
+      expect(mockPrisma.job.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
