@@ -27,15 +27,15 @@ export function Modal({
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
           className={cn(
-            'fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2',
-            'rounded-xl bg-white p-6 shadow-xl dark:bg-slate-900',
+            'fixed left-1/2 top-1/2 z-50 flex w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col',
+            'max-h-[85vh] rounded-xl bg-white shadow-xl dark:bg-slate-900',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             className,
           )}
         >
-          <div className="mb-4 flex items-start justify-between gap-4">
+          <div className="flex shrink-0 items-start justify-between gap-4 p-6 pb-4">
             <div className="min-w-0">
               <Dialog.Title className="text-base font-semibold text-slate-900 dark:text-slate-100 break-words">
                 {title}
@@ -55,7 +55,7 @@ export function Modal({
               </button>
             </Dialog.Close>
           </div>
-          {children}
+          <div className="overflow-y-auto px-6 pb-6">{children}</div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
