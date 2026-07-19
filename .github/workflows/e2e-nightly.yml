@@ -1,0 +1,108 @@
+name: Frontend E2E (nightly)
+
+on:
+  schedule:
+    - cron: '0 3 * * *' # 03:00 UTC daily
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: job_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/job_tracker?schema=public
+      JWT_SECRET: nightly-e2e-jwt-secret-not-for-prod-use-32
+      JWT_REFRESH_SECRET: nightly-e2e-refresh-secret-not-for-prod-64
+      REDIS_URL: redis://localhost:6379
+      STORAGE_DRIVER: local
+      FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3001
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Apply migrations
+        working-directory: ./backend
+        run: npx prisma migrate deploy
+
+      - name: Generate Prisma client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Start backend
+        working-directory: ./backend
+        run: npm run start &
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: ./frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: Start frontend
+        working-directory: ./frontend
+        run: npm run start &
+
+      - name: Wait for backend and frontend
+        run: |
+          npx --yes wait-on --timeout 60000 http://localhost:3001/health http://localhost:3000
+
+      - name: Run Playwright tests
+        working-directory: ./frontend
+        env:
+          CI: true
+        run: npx playwright test --reporter=list,html
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 14
