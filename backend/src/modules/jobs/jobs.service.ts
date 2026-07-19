@@ -33,9 +33,6 @@ export class JobsService {
         source: dto.source,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
-        nextInterviewAt: dto.nextInterviewAt
-          ? new Date(dto.nextInterviewAt)
-          : undefined,
         userId,
         events: {
           create: { type: JobEventType.CREATED, toStatus: initialStatus },
@@ -107,7 +104,11 @@ export class JobsService {
     // from one that doesn't exist (404 for both — no existence leak).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      include: { companyProfile: true, resume: true },
+      include: {
+        companyProfile: true,
+        resume: true,
+        interviewRounds: { orderBy: { scheduledAt: 'asc' } },
+      },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;
@@ -142,12 +143,6 @@ export class JobsService {
         source: dto.source,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
-        nextInterviewAt:
-          dto.nextInterviewAt !== undefined
-            ? dto.nextInterviewAt
-              ? new Date(dto.nextInterviewAt)
-              : null
-            : undefined,
         ...(statusChanged && {
           events: {
             create: {

@@ -20,6 +20,7 @@ describe('Job Tracker (e2e)', () => {
   let agent: ReturnType<typeof request.agent>;
   let accessToken: string;
   let jobId: string;
+  let roundId: string;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -208,11 +209,10 @@ describe('Job Tracker (e2e)', () => {
       const res = await agent
         .patch(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ status: 'INTERVIEWING', nextInterviewAt: '2026-07-15' })
+        .send({ status: 'INTERVIEWING' })
         .expect(200);
 
       expect(res.body.status).toBe('INTERVIEWING');
-      expect(res.body.nextInterviewAt).toBeTruthy();
     });
   });
 
@@ -230,6 +230,90 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body[1].fromStatus).toBe('APPLIED');
       expect(res.body[1].toStatus).toBe('INTERVIEWING');
     });
+  });
+
+  // ── Interview Rounds ────────────────────────────────────────────────────────
+
+  describe('POST /jobs/:jobId/interview-rounds', () => {
+    it('creates a round and recomputes nextInterviewAt', async () => {
+      const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split('T')[0];
+
+      const res = await agent
+        .post(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Phone Screen', scheduledAt: future })
+        .expect(201);
+
+      expect(res.body.stage).toBe('Phone Screen');
+      expect(res.body.outcome).toBe('PENDING');
+      roundId = res.body.id;
+
+      const job = await agent
+        .get(`/jobs/${jobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(job.body.nextInterviewAt?.split('T')[0]).toBe(future);
+    });
+
+    it('returns 404 for a non-existent job', () =>
+      agent
+        .post('/jobs/nonexistent-id/interview-rounds')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Phone Screen', scheduledAt: '2026-08-01' })
+        .expect(404));
+  });
+
+  describe('GET /jobs/:jobId/interview-rounds', () => {
+    it('lists rounds ordered by scheduledAt', async () => {
+      const res = await agent
+        .get(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body).toBeInstanceOf(Array);
+      expect(res.body.length).toBe(1);
+      expect(res.body[0].id).toBe(roundId);
+    });
+  });
+
+  describe('PATCH /jobs/:jobId/interview-rounds/:roundId', () => {
+    it('updates outcome and recomputes nextInterviewAt to null when none remain pending', async () => {
+      const res = await agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ outcome: 'FAILED' })
+        .expect(200);
+      expect(res.body.outcome).toBe('FAILED');
+
+      const job = await agent
+        .get(`/jobs/${jobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(job.body.nextInterviewAt).toBeNull();
+    });
+
+    it('returns 404 for a round that does not belong to the job', () =>
+      agent
+        .patch(`/jobs/${jobId}/interview-rounds/nonexistent-id`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ outcome: 'PASSED' })
+        .expect(404));
+  });
+
+  describe('DELETE /jobs/:jobId/interview-rounds/:roundId', () => {
+    it('deletes the round', () =>
+      agent
+        .delete(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200));
+
+    it('returns 404 for an already-deleted round', () =>
+      agent
+        .delete(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
   });
 
   describe('GET /jobs/export', () => {

@@ -48,6 +48,13 @@ enum EnrichmentStatus {
   FAILED
 }
 
+enum InterviewOutcome {
+  PENDING
+  PASSED
+  FAILED
+  CANCELLED
+}
+
 model User {
   id            String         @id @default(cuid())
   email         String         @unique
@@ -103,6 +110,7 @@ model Job {
   events          JobEvent[]
   companyProfile  CompanyProfile?
   resume          Resume?
+  interviewRounds InterviewRound[]
 
   @@index([userId])
   @@index([userId, status])
@@ -140,6 +148,21 @@ model Resume {
   size         Int
   storageKey   String   @unique
   createdAt    DateTime @default(now())
+}
+
+model InterviewRound {
+  id          String           @id @default(cuid())
+  jobId       String
+  job         Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage       String
+  scheduledAt DateTime
+  outcome     InterviewOutcome @default(PENDING)
+  notes       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([jobId])
+  @@map("interview_rounds")
 }
 
 model JobEvent {

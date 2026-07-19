@@ -68,9 +68,4 @@ export class CreateJobDto {
   @IsOptional()
   @IsDateString()
   appliedAt?: string;
-
-  @ApiPropertyOptional({ example: '2024-03-22', format: 'date' })
-  @IsOptional()
-  @IsDateString()
-  nextInterviewAt?: string;
 }
