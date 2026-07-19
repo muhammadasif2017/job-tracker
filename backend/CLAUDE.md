@@ -53,6 +53,11 @@ src/
 │   │   ├── resumes.service.ts     # upload, getPresignedUrl, findByJob, remove
 │   │   └── dto/
 │   ├── enrichment/           # BullMQ queue + processor for async company data enrichment
+│   ├── interview-rounds/
+│   │   ├── interview-rounds.module.ts
+│   │   ├── interview-rounds.controller.ts # /jobs/:jobId/interview-rounds routes
+│   │   ├── interview-rounds.service.ts    # CRUD + recomputes Job.nextInterviewAt
+│   │   └── dto/
 │   └── health/
 └── common/
     ├── decorators/
@@ -184,6 +189,20 @@ import type { Request, Response } from 'express';
 6. Protect routes with `JwtAuthGuard` by default (already global); add `@Public()` only for truly public endpoints
 7. Use `@CurrentUser()` to get the authenticated user — never trust user IDs from the request body
 8. Add the new module to `AppModule.imports`
+
+## Jobs: nextInterviewAt Is Derived, Not User-Settable
+
+`Job.nextInterviewAt` is **not** in `CreateJobDto`/`UpdateJobDto` — it's computed
+by `InterviewRoundsService.recomputeNextInterviewAt(jobId)` after every
+create/update/delete of an `InterviewRound`, as the earliest future (`scheduledAt
+>= now`) round still `PENDING`, or `null` if none. Never add it back to the job
+DTOs; the global `ValidationPipe` has `forbidNonWhitelisted: true`, so a client
+sending it gets a 400. See ADR-015 for the full rationale (why a separate 1:many
+model instead of embedding, why this field isn't user-writable).
+
+`JobsService.findOne` includes `interviewRounds: { orderBy: { scheduledAt: 'asc'
+} }` alongside `companyProfile`/`resume` — the frontend gets round data for free
+from the existing `['job', id]` query; no separate fetch.
 
 ---
 

@@ -46,6 +46,7 @@ frontend/
 │   ├── jobs/
 │   │   ├── job-form.tsx        # Shared create/edit modal form
 │   │   ├── resume-upload.tsx   # Resume attach/view/download/remove widget (used in JobForm + job detail)
+│   │   ├── interview-rounds.tsx # Round list + add/edit outcome/delete (job detail only)
 │   │   └── kanban-board.tsx    # Drag-and-drop board (@hello-pangea/dnd)
 │   └── ui/                     # Generic primitives (Button, Input, Modal, Badge, Skeleton, Spinner)
 ├── lib/
@@ -134,6 +135,7 @@ Single source of truth for all shared types and UI constants:
 | `JobStatus`                             | Union: `'WISHLIST' \| 'APPLIED' \| 'INTERVIEWING' \| 'OFFER' \| 'REJECTED' \| 'GHOSTED'` |
 | `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces (`Job` has an optional `resume?: Resume \| null` field)           |
 | `Resume`                                | `{ id, jobId, originalName, size, createdAt }` — storageKey is never sent to the client  |
+| `InterviewRound`, `InterviewOutcome`    | `Job.interviewRounds?` — embedded on the job, not a separate fetch (see `InterviewRounds` component) |
 | `JobStats`                              | `{ total, byStatus, thisMonth, responseRate }`                                           |
 | `PaginatedJobs`                         | `{ data: Job[], meta: { total, page, limit, totalPages } }`                              |
 | `JOB_STATUSES`                          | Ordered array of all statuses                                                            |
@@ -184,6 +186,20 @@ Single source of truth for all shared types and UI constants:
 - Upload/remove mutations update the cache via `qc.setQueryData` (not invalidation) so the UI updates without a roundtrip.
 - View opens a presigned URL in a new tab. Download fetches the blob client-side and triggers a `<a download>` — this cross-origin-safe approach works for both local and Oracle presigned URLs.
 - `GET /jobs/resumes/file` (the URL returned by `LocalStorageService.getPresignedUrl`) is a **dev-only** endpoint — it returns 404 in production (`STORAGE_DRIVER=oracle`). Don't hardcode calls to it.
+
+### `InterviewRounds`
+
+- Props: `jobId: string`, `rounds: InterviewRound[]` — `rounds` comes straight from
+  the parent's `['job', id]` query (`job.interviewRounds`), **not** a separate
+  query key. The backend embeds rounds in `GET /jobs/:id`.
+- Create/update-outcome/delete mutations all `invalidateQueries(['job', jobId])`
+  and `invalidateQueries(['attention'])` — no optimistic updates (simpler than
+  `KanbanBoard`'s pattern; this isn't a drag interaction needing instant feedback).
+  Invalidating `['job', id]` also refreshes `job.nextInterviewAt`, which the
+  backend recomputes server-side (see backend `CLAUDE.md`, "nextInterviewAt Is
+  Derived") — the UI never sets that field directly.
+- Delete uses the same inline confirm-toggle pattern as `ResumeUpload` (`Remove?`
+  / Yes / No), not a modal.
 
 ### `KanbanBoard`
 
