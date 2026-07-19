@@ -34,7 +34,6 @@ const schema = z.object({
   jobType: z.enum(JOB_TYPES),
   source: z.enum(JOB_SOURCES).or(z.literal('')).optional(),
   appliedAt: z.string().optional(),
-  nextInterviewAt: z.string().optional(),
   notes: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
@@ -84,7 +83,6 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               source: job.source ?? '',
               url: job.url ?? '',
               appliedAt: job.appliedAt?.split('T')[0],
-              nextInterviewAt: job.nextInterviewAt?.split('T')[0] ?? '',
               notes: job.notes ?? '',
             }
           : {
@@ -103,7 +101,6 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
         ...data,
         url: data.url || undefined,
         source: data.source || undefined,
-        nextInterviewAt: data.nextInterviewAt || undefined,
       };
       return isEdit
         ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
@@ -269,14 +266,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
           error={errors.url?.message}
           {...register('url')}
         />
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input label="Applied Date" type="date" {...register('appliedAt')} />
-          <Input
-            label="Next Interview Date"
-            type="date"
-            {...register('nextInterviewAt')}
-          />
-        </div>
+        <Input label="Applied Date" type="date" {...register('appliedAt')} />
         <div className="flex flex-col gap-1">
           <label
             htmlFor="job-notes"

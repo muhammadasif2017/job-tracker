@@ -2,6 +2,7 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JobStatus, JobPriority, JobType, JobSource } from '@prisma/client';
 import { CompanyProfileResponseDto } from './company-profile-response.dto.js';
 import { ResumeResponseDto } from '../../resumes/dto/resume-response.dto.js';
+import { InterviewRoundResponseDto } from '../../interview-rounds/dto/interview-round-response.dto.js';
 
 export class JobResponseDto {
   @ApiProperty({ format: 'cuid' })
@@ -54,4 +55,7 @@ export class JobResponseDto {
 
   @ApiPropertyOptional({ type: () => ResumeResponseDto })
   resume: ResumeResponseDto | null;
+
+  @ApiPropertyOptional({ type: () => InterviewRoundResponseDto, isArray: true })
+  interviewRounds?: InterviewRoundResponseDto[];
 }

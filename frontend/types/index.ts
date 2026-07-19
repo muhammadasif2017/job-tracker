@@ -70,6 +70,19 @@ export interface Resume {
   createdAt: string;
 }
 
+export type InterviewOutcome = 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
+
+export interface InterviewRound {
+  id: string;
+  jobId: string;
+  stage: string;
+  scheduledAt: string;
+  outcome: InterviewOutcome;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Job {
   id: string;
   company: string;
@@ -88,6 +101,7 @@ export interface Job {
   userId: string;
   companyProfile?: CompanyProfile;
   resume?: Resume | null;
+  interviewRounds?: InterviewRound[];
 }
 
 export interface User {

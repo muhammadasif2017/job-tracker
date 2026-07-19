@@ -14,6 +14,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './modules/resumes/resumes.module.js';
+import { InterviewRoundsModule } from './modules/interview-rounds/interview-rounds.module.js';
 
 const ociRequired = Joi.when('STORAGE_DRIVER', {
   is: 'oracle',
@@ -87,6 +88,7 @@ function parseRedisConnection() {
     StorageModule,
     AuthModule,
     ResumesModule,
+    InterviewRoundsModule,
     UsersModule,
     JobsModule,
     HealthModule,

@@ -146,7 +146,11 @@ describe('JobsService', () => {
 
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith({
         where: { id: 'job-1', userId: 'user-1' },
-        include: { companyProfile: true, resume: true },
+        include: {
+          companyProfile: true,
+          resume: true,
+          interviewRounds: { orderBy: { scheduledAt: 'asc' } },
+        },
       });
     });
   });
