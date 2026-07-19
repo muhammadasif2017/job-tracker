@@ -125,7 +125,7 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-xl font-semibold">Jobs</h1>
           <p className="text-sm text-slate-500">
