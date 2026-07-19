@@ -207,6 +207,34 @@ describe('ResumesService', () => {
     });
   });
 
+  describe('getFileInfo', () => {
+    it('returns storageKey and originalName when a resume exists for the job', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue({
+        storageKey: resumeRecord.storageKey,
+        originalName: resumeRecord.originalName,
+      });
+
+      const result = await service.getFileInfo('u-1', 'j-1');
+
+      expect(mockPrisma.resume.findFirst).toHaveBeenCalledWith({
+        where: { jobId: 'j-1', job: { userId: 'u-1' } },
+        select: { storageKey: true, originalName: true },
+      });
+      expect(result).toEqual({
+        storageKey: resumeRecord.storageKey,
+        originalName: resumeRecord.originalName,
+      });
+    });
+
+    it('returns null when no resume exists for the job (or job is not owned by user)', async () => {
+      mockPrisma.resume.findFirst.mockResolvedValue(null);
+
+      const result = await service.getFileInfo('u-1', 'j-1');
+
+      expect(result).toBeNull();
+    });
+  });
+
   describe('remove', () => {
     it('throws NotFoundException when no resume exists for the job', async () => {
       mockPrisma.resume.findFirst.mockResolvedValue(null);

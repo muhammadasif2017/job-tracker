@@ -185,6 +185,37 @@ describe('ResumesController', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
+    it('throws NotFoundException when getFileInfo returns null (resume deleted)', async () => {
+      mockFs.access.mockResolvedValue(undefined);
+      mockService.getFileInfo.mockResolvedValue(null);
+
+      await expect(
+        controller.serveFile(
+          user,
+          'resumes/u-1/j-1/abc.pdf',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('throws NotFoundException when the requested key is a stale/replaced storageKey', async () => {
+      mockFs.access.mockResolvedValue(undefined);
+      mockService.getFileInfo.mockResolvedValue({
+        storageKey: 'resumes/u-1/j-1/new-current.pdf',
+        originalName: resumeDto.originalName,
+      });
+
+      await expect(
+        controller.serveFile(
+          user,
+          'resumes/u-1/j-1/abc.pdf',
+          '',
+          mockRes() as unknown as Response,
+        ),
+      ).rejects.toThrow(NotFoundException);
+    });
+
     it('sends the file inline when download param is absent', async () => {
       mockFs.access.mockResolvedValue(undefined);
       const res = mockRes();
