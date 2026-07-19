@@ -135,8 +135,8 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
       </label>
 
       {resume ? (
-        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50">
-          <FileText className="h-5 w-5 shrink-0 text-red-500" />
+        <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50 sm:flex-row sm:items-center">
+          <FileText className="hidden h-5 w-5 shrink-0 text-red-500 sm:block" />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
               {resume.originalName}
@@ -145,7 +145,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
           </div>
 
           {confirming ? (
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-slate-600 dark:text-slate-400">
                 Remove resume?
               </span>
@@ -168,7 +168,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
               </Button>
             </div>
           ) : (
-            <div className="flex shrink-0 items-center gap-1">
+            <div className="flex flex-wrap items-center gap-1">
               <Button
                 type="button"
                 variant="ghost"

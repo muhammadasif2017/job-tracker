@@ -14,7 +14,12 @@ const nav = [
   { href: '/profile', label: 'Profile', icon: User },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const router = useRouter();
@@ -28,7 +33,21 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="flex w-60 flex-col border-r border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+    <>
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 sm:hidden"
+          onClick={onClose}
+          aria-hidden="true"
+        />
+      )}
+      <aside
+        className={cn(
+          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-slate-200 bg-white transition-transform duration-200 dark:border-slate-800 dark:bg-slate-900',
+          'sm:static sm:translate-x-0',
+          isOpen ? 'translate-x-0' : '-translate-x-full',
+        )}
+      >
       <div className="flex h-14 items-center gap-2 border-b border-slate-200 px-4 dark:border-slate-800">
         <Briefcase className="h-5 w-5 text-indigo-600" />
         <span className="font-semibold tracking-tight">Job Tracker</span>
@@ -39,6 +58,7 @@ export function Sidebar() {
           <Link
             key={href}
             href={href}
+            onClick={onClose}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               (href === '/' ? pathname === '/' : pathname.startsWith(href))
@@ -70,6 +90,7 @@ export function Sidebar() {
           Sign out
         </button>
       </div>
-    </aside>
+      </aside>
+    </>
   );
 }
