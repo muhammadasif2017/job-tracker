@@ -97,6 +97,49 @@ describe('AuthService', () => {
     });
   });
 
+  describe('login', () => {
+    it('returns an access/refresh token pair for the given user', async () => {
+      const result = await service.login('u-1', 'a@b.com');
+
+      expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
+    });
+
+    it('signs the access and refresh tokens with their own secret and expiry', async () => {
+      mockConfig.get.mockImplementation((key: string) =>
+        ({
+          JWT_SECRET: 'access-secret',
+          JWT_EXPIRES_IN: '15m',
+          JWT_REFRESH_SECRET: 'refresh-secret',
+          JWT_REFRESH_EXPIRES_IN: '7d',
+        })[key],
+      );
+
+      await service.login('u-1', 'a@b.com');
+
+      expect(mockJwt.signAsync).toHaveBeenCalledWith(
+        { sub: 'u-1', email: 'a@b.com' },
+        { secret: 'access-secret', expiresIn: '15m' },
+      );
+      expect(mockJwt.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: 'u-1', email: 'a@b.com' }),
+        { secret: 'refresh-secret', expiresIn: '7d' },
+      );
+    });
+
+    it('persists a hashed refresh token row scoped to the user', async () => {
+      await service.login('u-1', 'a@b.com');
+
+      expect(mockPrisma.refreshToken.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            userId: 'u-1',
+            tokenHash: 'hashed',
+          }),
+        }),
+      );
+    });
+  });
+
   describe('register', () => {
     it('throws BadRequestException for a duplicate email', async () => {
       mockPrisma.user.findUnique.mockResolvedValue({ id: '1' });
