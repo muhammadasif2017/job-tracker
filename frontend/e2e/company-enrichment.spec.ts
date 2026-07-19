@@ -97,4 +97,39 @@ test.describe('Company enrichment card', () => {
     await expect(page.getByText('Enrichment queued')).toBeVisible();
     await expect(page.getByText(/Queued…|Researching…/)).toBeVisible();
   });
+
+  test('FAILED enrichment shows the error message and Refresh re-queues it', async ({
+    page,
+  }) => {
+    // Real enrichment rarely fails, so the FAILED branch is mocked at the
+    // network boundary to make this deterministic instead of racing a live
+    // search + LLM run toward failure.
+    let status: 'FAILED' | 'PENDING' = 'FAILED';
+
+    await page.route(`${API}/jobs/${job.id}`, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const response = await route.fetch();
+      const body = await response.json();
+      body.companyProfile =
+        status === 'FAILED'
+          ? { status: 'FAILED', errorMessage: 'No search results found' }
+          : { status: 'PENDING' };
+      await route.fulfill({ response, json: body });
+    });
+
+    await page.route(`${API}/jobs/${job.id}/enrichment`, async (route) => {
+      status = 'PENDING';
+      await route.fulfill({ status: 202, json: { message: 'Enrichment queued' } });
+    });
+
+    await goToJob(page, job);
+
+    await expect(page.getByText('No search results found')).toBeVisible();
+    const refreshButton = page.getByRole('button', { name: 'Refresh' });
+    await expect(refreshButton).toBeVisible();
+
+    await refreshButton.click();
+    await expect(page.getByText('Enrichment queued')).toBeVisible();
+    await expect(page.getByText('Queued…')).toBeVisible();
+  });
 });

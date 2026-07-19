@@ -70,4 +70,18 @@ describe('EnrichmentController', () => {
       expect(mockEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
     },
   );
+
+  it.each(['FAILED', 'COMPLETED'])(
+    'allows retry and enqueues when previous enrichment was %s',
+    async (status) => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.companyProfile.findFirst.mockResolvedValue({ status });
+      mockEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+
+      const result = await controller.triggerEnrichment(user, 'job-1');
+
+      expect(result).toEqual({ message: 'Enrichment queued' });
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-1');
+    },
+  );
 });
