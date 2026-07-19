@@ -68,6 +68,21 @@ Tests in `backend/test/app.e2e-spec.ts` run against the **live dev database**. E
 
 Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`, `Job → Resume?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete. `Resume` is a 1:1 optional relation to `Job` — one PDF per job, stored by key in the configured storage driver; `storageKey` is never sent to the client.
 
+## Boundaries
+
+- Never commit `.env` files or secrets — `.gitignore` covers `.env*`, but double-check diffs before pushing.
+- Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it.
+- After every `prisma migrate dev`, run `prisma generate` — forgetting this leaves the TS client out of sync (see Prisma 7 quirks above).
+- Don't skip lint/type-check/tests before committing — both `backend` and `frontend` are gated by CI (`.github/workflows/deploy.yml`, `frontend-ci.yml`) on every PR and push to `main`.
+- Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
+- Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
+
+## Patterns
+
+- **Backend feature module:** `backend/src/modules/jobs/` — controller + service + `dto/` folder, one DTO file per shape. Copy this structure for new modules.
+- **Frontend form (RHF + Zod):** `frontend/components/jobs/job-form.tsx` — inline Zod schema, handles both create and edit paths in one component.
+- **Frontend data-fetching page:** `frontend/app/(dashboard)/jobs/page.tsx` — TanStack Query with the `['jobs', filters]` key convention described above.
+
 
 # CLAUDE.md
 
