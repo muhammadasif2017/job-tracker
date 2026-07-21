@@ -7,6 +7,7 @@ import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { StatusChart } from '../../components/dashboard/status-chart';
 import { FunnelChart } from '../../components/dashboard/funnel-chart';
+import { ChartCard } from '../../components/dashboard/chart-card';
 import { Skeleton } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
 import { formatDate } from '../../lib/utils';
@@ -82,16 +83,14 @@ export default function DashboardPage() {
       <AttentionCard />
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
-          <h2 className="mb-4 text-sm font-semibold">Applications by Status</h2>
-          {statsLoading ? (
-            <Skeleton className="h-56 w-full" />
-          ) : statsError ? (
-            <p className="text-sm text-red-500">Failed to load chart.</p>
-          ) : (
-            stats && <StatusChart stats={stats} />
-          )}
-        </div>
+        <ChartCard
+          title="Applications by Status"
+          loading={statsLoading}
+          error={statsError}
+          errorMessage="Failed to load chart."
+        >
+          {stats && <StatusChart stats={stats} />}
+        </ChartCard>
 
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
           <h2 className="mb-4 text-sm font-semibold">Recent Activity</h2>
@@ -141,16 +140,14 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
-        <h2 className="mb-4 text-sm font-semibold">Application Funnel</h2>
-        {funnelLoading ? (
-          <Skeleton className="h-56 w-full" />
-        ) : funnelError ? (
-          <p className="text-sm text-red-500">Failed to load funnel.</p>
-        ) : (
-          funnel && <FunnelChart data={funnel} />
-        )}
-      </div>
+      <ChartCard
+        title="Application Funnel"
+        loading={funnelLoading}
+        error={funnelError}
+        errorMessage="Failed to load funnel."
+      >
+        {funnel && <FunnelChart data={funnel} />}
+      </ChartCard>
     </div>
   );
 }

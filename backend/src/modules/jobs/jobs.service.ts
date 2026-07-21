@@ -10,7 +10,12 @@ import {
   STORAGE_SERVICE,
   type IStorageService,
 } from '../../storage/storage.service.js';
-import { FUNNEL_STAGES, DROPOFF_STAGES } from './dto/funnel-stats.dto.js';
+import {
+  FUNNEL_STAGES,
+  DROPOFF_STAGES,
+  RESPONDED_STATUSES,
+  toPercent,
+} from './dto/funnel-stats.dto.js';
 
 @Injectable()
 export class JobsService {
@@ -212,13 +217,11 @@ export class JobsService {
     );
     for (const row of counts) byStatus[row.status] = row._count._all;
 
-    // responseRate = (INTERVIEWING + OFFER + REJECTED) / total * 100, rounded to 1 dp
-    const responded =
-      byStatus[JobStatus.INTERVIEWING] +
-      byStatus[JobStatus.OFFER] +
-      byStatus[JobStatus.REJECTED];
-    const responseRate =
-      total > 0 ? Math.round((responded / total) * 1000) / 10 : 0;
+    const responded = RESPONDED_STATUSES.reduce(
+      (sum, s) => sum + byStatus[s],
+      0,
+    );
+    const responseRate = toPercent(responded, total);
 
     return { total, byStatus, thisMonth, responseRate };
   }
@@ -227,6 +230,9 @@ export class JobsService {
     const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
 
     const [events, sourceStatusCounts] = await Promise.all([
+      // No upper bound on event history — acceptable at this app's scale
+      // (one user's own job search), but this becomes the slowest query on
+      // the page if event volume per user ever grows much larger.
       this.prisma.jobEvent.findMany({
         where: { job: { userId } },
         select: { jobId: true, toStatus: true, createdAt: true },
@@ -243,28 +249,35 @@ export class JobsService {
 
     // reached[stage] = distinct jobs whose event history ever hit that stage
     // (funnel stages and dropoff stages alike — same "ever reached" method
-    // for both, so dropoff and funnel numbers stay comparable);
-    // stageDurationsMs[stage] = closed-interval gaps (ms spent in that funnel
-    // stage before the job's next event), collected per job in event order.
+    // for both, so dropoff and funnel numbers stay comparable).
     const reached: Record<string, Set<string>> = {};
     for (const s of TRACKED_STAGES) reached[s] = new Set();
-    const stageDurationsMs: Record<string, number[]> = {};
-
-    let prev: { jobId: string; toStatus: JobStatus; createdAt: Date } | null =
-      null;
     for (const event of events) {
       if ((TRACKED_STAGES as readonly JobStatus[]).includes(event.toStatus)) {
         reached[event.toStatus].add(event.jobId);
       }
-      if (
-        prev &&
-        prev.jobId === event.jobId &&
-        (FUNNEL_STAGES as readonly JobStatus[]).includes(prev.toStatus)
-      ) {
-        const durations = (stageDurationsMs[prev.toStatus] ??= []);
-        durations.push(event.createdAt.getTime() - prev.createdAt.getTime());
+    }
+
+    // stageDurationsMs[stage] = closed-interval gaps (ms spent in that funnel
+    // stage before the job's next event). Computed per job so one job's
+    // events never leak into another's intervals.
+    const eventsByJob = new Map<string, typeof events>();
+    for (const event of events) {
+      const list = eventsByJob.get(event.jobId);
+      if (list) list.push(event);
+      else eventsByJob.set(event.jobId, [event]);
+    }
+    const stageDurationsMs: Record<string, number[]> = {};
+    for (const jobEvents of eventsByJob.values()) {
+      for (let i = 0; i < jobEvents.length - 1; i++) {
+        const current = jobEvents[i];
+        if (!(FUNNEL_STAGES as readonly JobStatus[]).includes(current.toStatus)) {
+          continue;
+        }
+        const next = jobEvents[i + 1];
+        const durations = (stageDurationsMs[current.toStatus] ??= []);
+        durations.push(next.createdAt.getTime() - current.createdAt.getTime());
       }
-      prev = event;
     }
 
     const funnel = FUNNEL_STAGES.map((status) => ({
@@ -290,11 +303,7 @@ export class JobsService {
       const key = row.source ?? 'UNSPECIFIED';
       const entry = bySource.get(key) ?? { total: 0, responded: 0 };
       entry.total += row._count._all;
-      if (
-        row.status === JobStatus.INTERVIEWING ||
-        row.status === JobStatus.OFFER ||
-        row.status === JobStatus.REJECTED
-      ) {
+      if ((RESPONDED_STATUSES as readonly JobStatus[]).includes(row.status)) {
         entry.responded += row._count._all;
       }
       bySource.set(key, entry);
@@ -303,7 +312,7 @@ export class JobsService {
       ([source, { total, responded }]) => ({
         source: source as JobSource | 'UNSPECIFIED',
         total,
-        responseRate: total > 0 ? Math.round((responded / total) * 1000) / 10 : 0,
+        responseRate: toPercent(responded, total),
       }),
     );
 

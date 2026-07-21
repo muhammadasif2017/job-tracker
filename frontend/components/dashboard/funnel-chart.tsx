@@ -15,16 +15,13 @@ import {
   STATUS_DOT_COLORS,
   SOURCE_LABELS,
 } from '../../types';
+import { EmptyChartState } from './empty-chart-state';
 
 export function FunnelChart({ data }: { data: FunnelStats }) {
   const hasData = data.funnel.some((f) => f.reached > 0);
 
   if (!hasData) {
-    return (
-      <div className="flex h-56 items-center justify-center text-sm text-slate-400">
-        No data yet
-      </div>
-    );
+    return <EmptyChartState />;
   }
 
   const chartData = data.funnel.map((f) => ({

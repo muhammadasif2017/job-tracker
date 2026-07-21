@@ -14,6 +14,7 @@ import {
   STATUS_DOT_COLORS,
   JOB_STATUSES,
 } from '../../types';
+import { EmptyChartState } from './empty-chart-state';
 
 export function StatusChart({ stats }: { stats: JobStats }) {
   const data = JOB_STATUSES.map((s) => ({
@@ -23,11 +24,7 @@ export function StatusChart({ stats }: { stats: JobStats }) {
   })).filter((d) => d.value > 0);
 
   if (data.length === 0) {
-    return (
-      <div className="flex h-56 items-center justify-center text-sm text-slate-400">
-        No data yet
-      </div>
-    );
+    return <EmptyChartState />;
   }
 
   return (
