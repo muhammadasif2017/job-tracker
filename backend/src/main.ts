@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
 async function bootstrap() {
@@ -30,7 +31,10 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
+  app.useGlobalGuards(
+    new JwtAuthGuard(app.get(Reflector)),
+    new RolesGuard(app.get(Reflector)),
+  );
   app.useGlobalFilters(new GlobalExceptionFilter());
 
   if (config.get('NODE_ENV') !== 'production') {
@@ -42,6 +46,7 @@ async function bootstrap() {
       .addTag('auth', 'Authentication — credentials & OAuth')
       .addTag('users', 'User profile management')
       .addTag('jobs', 'Job application tracking')
+      .addTag('admin', 'Admin-only user management')
       .build();
 
     const document = SwaggerModule.createDocument(app, swaggerConfig);

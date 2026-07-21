@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Role } from '@prisma/client';
 
 export class CurrentUserDto {
   @ApiProperty({ format: 'cuid' })
@@ -12,4 +13,7 @@ export class CurrentUserDto {
 
   @ApiPropertyOptional({ example: 'https://example.com/avatar.png' })
   avatarUrl: string | null;
+
+  @ApiProperty({ enum: Role })
+  role: Role;
 }

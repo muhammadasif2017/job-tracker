@@ -86,6 +86,12 @@ export class UsersService {
   }
 
   async deleteAccount(userId: string) {
+    await this.deleteById(userId);
+    return { message: 'Account deleted' };
+  }
+
+  // Shared by self-delete (deleteAccount) and admin-initiated deletion.
+  async deleteById(userId: string) {
     // Storage files aren't part of the DB cascade — collect keys before the
     // Job/Resume rows disappear, then clean them up after the delete commits.
     const resumes = await this.prisma.resume.findMany({
@@ -105,7 +111,5 @@ export class UsersService {
         ),
       ),
     );
-
-    return { message: 'Account deleted' };
   }
 }

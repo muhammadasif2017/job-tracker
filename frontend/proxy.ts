@@ -12,6 +12,11 @@ export function proxy(req: NextRequest) {
   if (!isAuthed && !isPublic) {
     return NextResponse.redirect(new URL('/login', req.url));
   }
+  if (pathname === '/admin' || pathname.startsWith('/admin/')) {
+    if (req.cookies.get('jt_role')?.value !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/', req.url));
+    }
+  }
   if (
     isAuthed &&
     isPublic &&

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Briefcase, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Briefcase, User, LogOut, ShieldCheck } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../lib/api';
@@ -23,6 +23,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
   const router = useRouter();
+  const navItems =
+    user?.role === 'ADMIN'
+      ? [...nav, { href: '/admin/users', label: 'Admin', icon: ShieldCheck }]
+      : nav;
 
   const handleLogout = async () => {
     try {
@@ -54,7 +58,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {nav.map(({ href, label, icon: Icon }) => (
+        {navItems.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}

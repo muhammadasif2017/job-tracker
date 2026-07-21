@@ -104,13 +104,35 @@ export interface Job {
   interviewRounds?: InterviewRound[];
 }
 
+export type Role = 'USER' | 'ADMIN';
+
 export interface User {
   id: string;
   email: string;
   name: string;
   avatarUrl?: string;
+  role?: Role;
   hasPassword?: boolean;
   connectedProviders?: string[];
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  name: string;
+  role: Role;
+  createdAt: string;
+  jobCount: number;
+}
+
+export interface PaginatedAdminUsers {
+  data: AdminUser[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export interface AuthTokens {
