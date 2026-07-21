@@ -100,6 +100,7 @@ export default function JobDetailPage() {
       qc.invalidateQueries({ queryKey: ['job-events', id] });
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
       qc.invalidateQueries({ queryKey: ['attention'] });
     },
   });
@@ -109,6 +110,7 @@ export default function JobDetailPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
       qc.invalidateQueries({ queryKey: ['attention'] });
       toast.success('Job deleted');
       router.replace('/jobs');

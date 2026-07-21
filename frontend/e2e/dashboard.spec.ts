@@ -30,7 +30,10 @@ test.describe('Dashboard', () => {
     await expect(cards.first()).toBeVisible();
     await expect(page.getByText('No jobs tracked yet.')).toBeVisible();
     // "No data yet" appears twice: status chart and funnel chart
-    await expect(page.getByText('No data yet')).toHaveCount(2);
+    const noDataYet = page.getByText('No data yet');
+    await expect(noDataYet).toHaveCount(2);
+    await expect(noDataYet.nth(0)).toBeVisible();
+    await expect(noDataYet.nth(1)).toBeVisible();
   });
 
   test('increments total applications after a job is added', async ({
@@ -70,6 +73,9 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByText('Application Funnel')).toBeVisible();
     await expect(page.getByText('No data yet')).toHaveCount(0);
+    // "Dropoff" only renders in the populated branch of FunnelChart — proves
+    // real funnel content rendered, not just that the empty state disappeared.
+    await expect(page.getByText('Dropoff')).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id);
   });

@@ -428,7 +428,6 @@ describe('JobsService', () => {
         { source: 'LINKEDIN', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
         { source: 'LINKEDIN', status: JobStatus.REJECTED, _count: { _all: 1 } },
         { source: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
-        { source: null, status: JobStatus.WISHLIST, _count: { _all: 1 } },
       ]);
 
       const result = await service.getFunnel('u1');
@@ -457,10 +456,53 @@ describe('JobsService', () => {
         expect.arrayContaining([
           { source: 'LINKEDIN', total: 2, responseRate: 100 },
           { source: 'REFERRAL', total: 1, responseRate: 100 },
-          { source: 'UNSPECIFIED', total: 1, responseRate: 0 },
         ]),
       );
-      expect(result.responseRateBySource).toHaveLength(3);
+      expect(result.responseRateBySource).toHaveLength(2);
+    });
+
+    it('excludes WISHLIST jobs from the responseRateBySource query', async () => {
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      await service.getFunnel('u1');
+
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'u1', status: { not: JobStatus.WISHLIST } },
+        }),
+      );
+    });
+
+    it('keeps dropoff on "ever reached" semantics and excludes non-funnel stages from avgTimeInStageDays, even for a reactivated job', async () => {
+      const day = 86_400_000;
+      const t0 = new Date('2026-01-01T00:00:00Z').getTime();
+      const at = (ms: number) => new Date(t0 + ms);
+
+      // jE: APPLIED -> REJECTED (3d) -> APPLIED (2d later, reactivated), still open
+      mockPrisma.jobEvent.findMany.mockResolvedValue([
+        { jobId: 'jE', toStatus: JobStatus.APPLIED, createdAt: at(0) },
+        { jobId: 'jE', toStatus: JobStatus.REJECTED, createdAt: at(3 * day) },
+        { jobId: 'jE', toStatus: JobStatus.APPLIED, createdAt: at(5 * day) },
+      ]);
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { source: 'OTHER', status: JobStatus.APPLIED, _count: { _all: 1 } },
+      ]);
+
+      const result = await service.getFunnel('u1');
+
+      // Still counted as dropoff even though the job was later reactivated —
+      // dropoff and funnel.reached both use "ever reached", not current status.
+      expect(result.dropoff).toEqual([
+        { status: JobStatus.REJECTED, count: 1 },
+        { status: JobStatus.GHOSTED, count: 0 },
+      ]);
+
+      // APPLIED -> REJECTED (3d) is a closed interval attributed to APPLIED.
+      expect(result.avgTimeInStageDays[JobStatus.APPLIED]).toBe(3);
+      // REJECTED -> APPLIED (2d) must NOT leak into avgTimeInStageDays —
+      // REJECTED isn't a funnel stage.
+      expect(result.avgTimeInStageDays[JobStatus.REJECTED]).toBeUndefined();
     });
   });
 

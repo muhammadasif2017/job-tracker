@@ -224,33 +224,43 @@ export class JobsService {
   }
 
   async getFunnel(userId: string) {
+    const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
+
     const [events, sourceStatusCounts] = await Promise.all([
       this.prisma.jobEvent.findMany({
         where: { job: { userId } },
         select: { jobId: true, toStatus: true, createdAt: true },
         orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
       }),
+      // Excludes WISHLIST: responseRateBySource is a rate over applications
+      // sent, not jobs merely saved for later.
       this.prisma.job.groupBy({
         by: ['source', 'status'],
-        where: { userId },
+        where: { userId, status: { not: JobStatus.WISHLIST } },
         _count: { _all: true },
       }),
     ]);
 
-    // reached[stage] = distinct jobs whose event history ever hit that stage;
-    // stageDurationsMs[stage] = closed-interval gaps (ms spent in that stage
-    // before the job's next event), collected per job in event order.
+    // reached[stage] = distinct jobs whose event history ever hit that stage
+    // (funnel stages and dropoff stages alike — same "ever reached" method
+    // for both, so dropoff and funnel numbers stay comparable);
+    // stageDurationsMs[stage] = closed-interval gaps (ms spent in that funnel
+    // stage before the job's next event), collected per job in event order.
     const reached: Record<string, Set<string>> = {};
-    for (const s of FUNNEL_STAGES) reached[s] = new Set();
+    for (const s of TRACKED_STAGES) reached[s] = new Set();
     const stageDurationsMs: Record<string, number[]> = {};
 
     let prev: { jobId: string; toStatus: JobStatus; createdAt: Date } | null =
       null;
     for (const event of events) {
-      if ((FUNNEL_STAGES as readonly JobStatus[]).includes(event.toStatus)) {
+      if ((TRACKED_STAGES as readonly JobStatus[]).includes(event.toStatus)) {
         reached[event.toStatus].add(event.jobId);
       }
-      if (prev && prev.jobId === event.jobId) {
+      if (
+        prev &&
+        prev.jobId === event.jobId &&
+        (FUNNEL_STAGES as readonly JobStatus[]).includes(prev.toStatus)
+      ) {
         const durations = (stageDurationsMs[prev.toStatus] ??= []);
         durations.push(event.createdAt.getTime() - prev.createdAt.getTime());
       }
@@ -272,9 +282,7 @@ export class JobsService {
 
     const dropoff = DROPOFF_STAGES.map((status) => ({
       status,
-      count: sourceStatusCounts
-        .filter((row) => row.status === status)
-        .reduce((sum, row) => sum + row._count._all, 0),
+      count: reached[status].size,
     }));
 
     const bySource = new Map<string, { total: number; responded: number }>();
