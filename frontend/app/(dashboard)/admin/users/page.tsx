@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
@@ -46,12 +47,12 @@ export default function AdminUsersPage() {
       setDeleteTarget(undefined);
       toast.success('User deleted');
     },
-    onError: (err: unknown) => {
-      const message =
-        (err as { response?: { data?: { message?: string } } })?.response
-          ?.data?.message ?? 'Failed to delete user';
-      toast.error(message);
-    },
+    onError: (err: unknown) =>
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Failed to delete user')
+          : 'Failed to delete user',
+      ),
   });
 
   return (
