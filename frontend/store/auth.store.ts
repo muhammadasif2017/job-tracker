@@ -23,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
         tokenStorage.setAccess(accessToken);
         const secure = window.location.protocol === 'https:' ? '; Secure' : '';
         document.cookie = `jt_authed=1; path=/; max-age=604800; SameSite=Lax${secure}`;
+        document.cookie = `jt_role=${user.role ?? 'USER'}; path=/; max-age=604800; SameSite=Lax${secure}`;
         set({ user, isAuthenticated: true });
       },
 
@@ -31,6 +32,7 @@ export const useAuthStore = create<AuthState>()(
       logout: () => {
         tokenStorage.clear();
         document.cookie = 'jt_authed=; path=/; max-age=0';
+        document.cookie = 'jt_role=; path=/; max-age=0';
         set({ user: null, isAuthenticated: false });
       },
     }),

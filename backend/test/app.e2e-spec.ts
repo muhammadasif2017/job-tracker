@@ -7,10 +7,12 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
+import { RolesGuard } from '../src/common/guards/roles.guard';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;
+const ADMIN_TARGET_EMAIL = `e2e-admin-target-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
@@ -19,6 +21,7 @@ describe('Job Tracker (e2e)', () => {
   // Agent persists the httpOnly refresh cookie across requests, same as a browser.
   let agent: ReturnType<typeof request.agent>;
   let accessToken: string;
+  let userId: string;
   let jobId: string;
   let roundId: string;
 
@@ -36,7 +39,10 @@ describe('Job Tracker (e2e)', () => {
         forbidNonWhitelisted: true,
       }),
     );
-    app.useGlobalGuards(new JwtAuthGuard(app.get(Reflector)));
+    app.useGlobalGuards(
+      new JwtAuthGuard(app.get(Reflector)),
+      new RolesGuard(app.get(Reflector)),
+    );
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
 
@@ -45,7 +51,9 @@ describe('Job Tracker (e2e)', () => {
   });
 
   afterAll(async () => {
-    await prisma.user.deleteMany({ where: { email: EMAIL } });
+    await prisma.user.deleteMany({
+      where: { email: { in: [EMAIL, ADMIN_TARGET_EMAIL] } },
+    });
     await app.close();
   });
 
@@ -67,6 +75,7 @@ describe('Job Tracker (e2e)', () => {
         .get('/auth/me')
         .set('Authorization', `Bearer ${accessToken}`);
       expect(me.body.email).toBe(EMAIL);
+      userId = me.body.id;
     });
 
     it('rejects duplicate email with 400', () =>
@@ -341,6 +350,55 @@ describe('Job Tracker (e2e)', () => {
         .get(`/jobs/${jobId}`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(404));
+  });
+
+  describe('GET /admin/users', () => {
+    it('returns 403 for a non-admin user', () =>
+      agent
+        .get('/admin/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(403));
+
+    it('returns the user list once promoted to ADMIN', async () => {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { role: 'ADMIN' },
+      });
+
+      const res = await agent
+        .get('/admin/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.meta).toHaveProperty('total');
+      expect(
+        res.body.data.some((u: { email: string }) => u.email === EMAIL),
+      ).toBe(true);
+    });
+
+    it('rejects deleting your own account with 403', () =>
+      agent
+        .delete(`/admin/users/${userId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(403));
+
+    it('deletes another user', async () => {
+      const target = await prisma.user.create({
+        data: {
+          email: ADMIN_TARGET_EMAIL,
+          name: 'Admin Target',
+          password: 'unused',
+        },
+      });
+
+      await agent
+        .delete(`/admin/users/${target.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const found = await prisma.user.findUnique({ where: { id: target.id } });
+      expect(found).toBeNull();
+    });
   });
 
   describe('POST /auth/logout', () => {
