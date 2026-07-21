@@ -16,4 +16,19 @@
   .dark * {
     border-color: theme(colors.slate.800);
   }
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px white inset;
+    -webkit-text-fill-color: theme(colors.slate.900);
+    caret-color: theme(colors.slate.900);
+    transition: background-color 9999s ease-in-out 0s;
+  }
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px theme(colors.slate.900) inset;
+    -webkit-text-fill-color: theme(colors.slate.100);
+    caret-color: theme(colors.slate.100);
+  }
 }
