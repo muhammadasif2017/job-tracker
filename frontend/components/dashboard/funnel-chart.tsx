@@ -46,7 +46,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
             width={90}
             tick={{ fontSize: 12 }}
           />
-          <Tooltip formatter={(v: number) => [v, 'Reached']} />
+          <Tooltip formatter={(v) => [v, 'Reached']} />
           <Bar dataKey="value" radius={4}>
             {chartData.map((entry) => (
               <Cell key={entry.name} fill={entry.color} />
