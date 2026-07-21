@@ -33,6 +33,7 @@ import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
+import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
 import { AttentionItemDto } from './dto/attention-item.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -60,14 +61,24 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
-  // 'stats', 'export', and 'attention' must remain above ':id' — fixed segments
-  // take priority over parameterized ones only when registered first in the
-  // same router.
+  // 'stats', 'stats/funnel', 'export', and 'attention' must remain above ':id'
+  // — fixed segments take priority over parameterized ones only when
+  // registered first in the same router.
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })
   getStats(@CurrentUser() user: { id: string }) {
     return this.jobsService.getStats(user.id);
+  }
+
+  @Get('stats/funnel')
+  @ApiOperation({
+    summary:
+      'Get funnel conversion, dropoff, avg time-in-stage, and response rate by source',
+  })
+  @ApiOkResponse({ type: FunnelStatsDto })
+  getFunnel(@CurrentUser() user: { id: string }) {
+    return this.jobsService.getFunnel(user.id);
   }
 
   @Get('export')

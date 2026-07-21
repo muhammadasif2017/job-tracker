@@ -74,6 +74,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 - Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it.
 - After every `prisma migrate dev`, run `prisma generate` — forgetting this leaves the TS client out of sync (see Prisma 7 quirks above).
 - Don't skip lint/type-check/tests before committing — both `backend` and `frontend` are gated by CI (`.github/workflows/deploy.yml`, `frontend-ci.yml`) on every PR and push to `main`.
+- Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
 
@@ -83,10 +84,9 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 - **Frontend form (RHF + Zod):** `frontend/components/jobs/job-form.tsx` — inline Zod schema, handles both create and edit paths in one component.
 - **Frontend data-fetching page:** `frontend/app/(dashboard)/jobs/page.tsx` — TanStack Query with the `['jobs', filters]` key convention described above.
 
+## Behavioral Guidelines
 
-# CLAUDE.md
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+Generic guidelines to reduce common LLM coding mistakes, applying repo-wide (backend/CLAUDE.md and frontend/CLAUDE.md inherit this file automatically — don't duplicate it there).
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 

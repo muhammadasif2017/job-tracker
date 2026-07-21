@@ -109,6 +109,7 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
+      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
       qc.invalidateQueries({ queryKey: ['attention'] });
       if (isEdit) {
         qc.invalidateQueries({ queryKey: ['job', job.id] });
