@@ -84,10 +84,9 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 - **Frontend form (RHF + Zod):** `frontend/components/jobs/job-form.tsx` — inline Zod schema, handles both create and edit paths in one component.
 - **Frontend data-fetching page:** `frontend/app/(dashboard)/jobs/page.tsx` — TanStack Query with the `['jobs', filters]` key convention described above.
 
+## Behavioral Guidelines
 
-# CLAUDE.md
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+Generic guidelines to reduce common LLM coding mistakes, applying repo-wide (backend/CLAUDE.md and frontend/CLAUDE.md inherit this file automatically — don't duplicate it there).
 
 **Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
 
