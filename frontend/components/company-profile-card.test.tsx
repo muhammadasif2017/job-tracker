@@ -89,17 +89,70 @@ describe('CompanyProfileCard', () => {
   });
 
   describe('when status is FAILED', () => {
-    it('shows the errorMessage when present', () => {
+    it('shows the raw errorMessage when it does not match a known failure kind', () => {
       renderCard(
-        makeProfile({ status: 'FAILED', errorMessage: 'API timeout' }),
+        makeProfile({
+          status: 'FAILED',
+          errorMessage: 'Unexpected tool-call shape from LLM',
+        }),
       );
-      expect(screen.getByText('API timeout')).toBeInTheDocument();
+      expect(
+        screen.getByText('Unexpected tool-call shape from LLM'),
+      ).toBeInTheDocument();
     });
 
     it('shows fallback message when errorMessage is absent', () => {
       renderCard(makeProfile({ status: 'FAILED' }));
       expect(
         screen.getByText('Enrichment failed. Try again.'),
+      ).toBeInTheDocument();
+    });
+
+    it('shows a friendly rate-limit message for a 429', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage:
+            '429 {"error":{"message":"Rate limit reached for model..."}}',
+        }),
+      );
+      expect(
+        screen.getByText(/Daily quota reached for company research/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/429/)).not.toBeInTheDocument();
+    });
+
+    it('shows a friendly unavailable message for a timeout', () => {
+      renderCard(
+        makeProfile({ status: 'FAILED', errorMessage: 'API timeout' }),
+      );
+      expect(
+        screen.getByText(/temporarily unreachable/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('API timeout')).not.toBeInTheDocument();
+    });
+
+    it('shows a friendly unavailable message for a connection error', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage: 'connect ECONNREFUSED 127.0.0.1:443',
+        }),
+      );
+      expect(
+        screen.getByText(/temporarily unreachable/),
+      ).toBeInTheDocument();
+    });
+
+    it('shows a friendly config message for an auth error', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage: '401 Invalid API Key provided',
+        }),
+      );
+      expect(
+        screen.getByText(/isn't configured correctly/),
       ).toBeInTheDocument();
     });
 
