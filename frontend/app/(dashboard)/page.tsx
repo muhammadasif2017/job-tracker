@@ -6,11 +6,12 @@ import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { StatusChart } from '../../components/dashboard/status-chart';
+import { FunnelChart } from '../../components/dashboard/funnel-chart';
 import { Skeleton } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
 import { formatDate } from '../../lib/utils';
 import api from '../../lib/api';
-import type { JobStats, PaginatedJobs } from '../../types';
+import type { JobStats, PaginatedJobs, FunnelStats } from '../../types';
 
 export default function DashboardPage() {
   const {
@@ -20,6 +21,15 @@ export default function DashboardPage() {
   } = useQuery<JobStats>({
     queryKey: ['stats'],
     queryFn: () => api.get('/jobs/stats').then((r) => r.data),
+  });
+
+  const {
+    data: funnel,
+    isLoading: funnelLoading,
+    isError: funnelError,
+  } = useQuery<FunnelStats>({
+    queryKey: ['analytics', 'funnel'],
+    queryFn: () => api.get('/jobs/stats/funnel').then((r) => r.data),
   });
 
   const {
@@ -129,6 +139,17 @@ export default function DashboardPage() {
             </ul>
           )}
         </div>
+      </div>
+
+      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
+        <h2 className="mb-4 text-sm font-semibold">Application Funnel</h2>
+        {funnelLoading ? (
+          <Skeleton className="h-56 w-full" />
+        ) : funnelError ? (
+          <p className="text-sm text-red-500">Failed to load funnel.</p>
+        ) : (
+          funnel && <FunnelChart data={funnel} />
+        )}
       </div>
     </div>
   );

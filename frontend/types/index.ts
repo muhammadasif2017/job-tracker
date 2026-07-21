@@ -134,6 +134,24 @@ export interface JobStats {
   responseRate: number;
 }
 
+export const FUNNEL_STAGES = [
+  'WISHLIST',
+  'APPLIED',
+  'INTERVIEWING',
+  'OFFER',
+] as const;
+
+export interface FunnelStats {
+  funnel: { status: (typeof FUNNEL_STAGES)[number]; reached: number }[];
+  dropoff: { status: 'REJECTED' | 'GHOSTED'; count: number }[];
+  avgTimeInStageDays: Partial<Record<JobStatus, number>>;
+  responseRateBySource: {
+    source: JobSource | 'UNSPECIFIED';
+    total: number;
+    responseRate: number;
+  }[];
+}
+
 export interface PaginatedJobs {
   data: Job[];
   meta: {

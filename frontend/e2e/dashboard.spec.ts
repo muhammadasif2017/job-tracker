@@ -29,7 +29,8 @@ test.describe('Dashboard', () => {
     const cards = page.locator('text=/^0$|^0%$/');
     await expect(cards.first()).toBeVisible();
     await expect(page.getByText('No jobs tracked yet.')).toBeVisible();
-    await expect(page.getByText('No data yet')).toBeVisible();
+    // "No data yet" appears twice: status chart and funnel chart
+    await expect(page.getByText('No data yet')).toHaveCount(2);
   });
 
   test('increments total applications after a job is added', async ({
@@ -57,6 +58,18 @@ test.describe('Dashboard', () => {
     await page.goto('/');
 
     await expect(page.getByText('Dash Corp')).toBeVisible();
+
+    await deleteTestJob(user.accessToken, job.id);
+  });
+
+  test('funnel section populates after a job is added', async ({ page }) => {
+    const job = await createTestJob(user.accessToken);
+
+    await injectAuth(page, user);
+    await page.goto('/');
+
+    await expect(page.getByText('Application Funnel')).toBeVisible();
+    await expect(page.getByText('No data yet')).toHaveCount(0);
 
     await deleteTestJob(user.accessToken, job.id);
   });

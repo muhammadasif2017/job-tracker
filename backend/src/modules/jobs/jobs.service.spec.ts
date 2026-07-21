@@ -383,6 +383,87 @@ describe('JobsService', () => {
     });
   });
 
+  describe('getFunnel', () => {
+    it('returns zero-filled shape when the user has no jobs', async () => {
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      const result = await service.getFunnel('u1');
+
+      expect(result.funnel).toEqual([
+        { status: JobStatus.WISHLIST, reached: 0 },
+        { status: JobStatus.APPLIED, reached: 0 },
+        { status: JobStatus.INTERVIEWING, reached: 0 },
+        { status: JobStatus.OFFER, reached: 0 },
+      ]);
+      expect(result.dropoff).toEqual([
+        { status: JobStatus.REJECTED, count: 0 },
+        { status: JobStatus.GHOSTED, count: 0 },
+      ]);
+      expect(result.avgTimeInStageDays).toEqual({});
+      expect(result.responseRateBySource).toEqual([]);
+    });
+
+    it('computes reached counts, dropoff, closed-interval avg time, and per-source response rate', async () => {
+      const day = 86_400_000;
+      const t0 = new Date('2026-01-01T00:00:00Z').getTime();
+      const at = (ms: number) => new Date(t0 + ms);
+
+      // jA: WISHLIST -> APPLIED (2d) -> INTERVIEWING (3d), still open on INTERVIEWING
+      // jB: APPLIED -> REJECTED (4d)
+      // jC: APPLIED -> INTERVIEWING (1d) -> OFFER (6d)
+      // jD: WISHLIST only, still open
+      mockPrisma.jobEvent.findMany.mockResolvedValue([
+        { jobId: 'jA', toStatus: JobStatus.WISHLIST, createdAt: at(0) },
+        { jobId: 'jA', toStatus: JobStatus.APPLIED, createdAt: at(2 * day) },
+        { jobId: 'jA', toStatus: JobStatus.INTERVIEWING, createdAt: at(5 * day) },
+        { jobId: 'jB', toStatus: JobStatus.APPLIED, createdAt: at(0) },
+        { jobId: 'jB', toStatus: JobStatus.REJECTED, createdAt: at(4 * day) },
+        { jobId: 'jC', toStatus: JobStatus.APPLIED, createdAt: at(0) },
+        { jobId: 'jC', toStatus: JobStatus.INTERVIEWING, createdAt: at(1 * day) },
+        { jobId: 'jC', toStatus: JobStatus.OFFER, createdAt: at(7 * day) },
+        { jobId: 'jD', toStatus: JobStatus.WISHLIST, createdAt: at(0) },
+      ]);
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { source: 'LINKEDIN', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
+        { source: 'LINKEDIN', status: JobStatus.REJECTED, _count: { _all: 1 } },
+        { source: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
+        { source: null, status: JobStatus.WISHLIST, _count: { _all: 1 } },
+      ]);
+
+      const result = await service.getFunnel('u1');
+
+      expect(result.funnel).toEqual([
+        { status: JobStatus.WISHLIST, reached: 2 }, // jA, jD
+        { status: JobStatus.APPLIED, reached: 3 }, // jA, jB, jC
+        { status: JobStatus.INTERVIEWING, reached: 2 }, // jA, jC
+        { status: JobStatus.OFFER, reached: 1 }, // jC
+      ]);
+
+      expect(result.dropoff).toEqual([
+        { status: JobStatus.REJECTED, count: 1 },
+        { status: JobStatus.GHOSTED, count: 0 },
+      ]);
+
+      // jD's open WISHLIST interval is excluded; only jA's closed WISHLIST->APPLIED (2d) counts.
+      expect(result.avgTimeInStageDays[JobStatus.WISHLIST]).toBe(2);
+      // APPLIED closed intervals: jA=3d, jB=4d, jC=1d -> avg 2.6667 rounded to 2.7
+      expect(result.avgTimeInStageDays[JobStatus.APPLIED]).toBe(2.7);
+      // jA's open INTERVIEWING interval excluded; only jC's closed INTERVIEWING->OFFER (6d) counts.
+      expect(result.avgTimeInStageDays[JobStatus.INTERVIEWING]).toBe(6);
+      expect(result.avgTimeInStageDays[JobStatus.OFFER]).toBeUndefined();
+
+      expect(result.responseRateBySource).toEqual(
+        expect.arrayContaining([
+          { source: 'LINKEDIN', total: 2, responseRate: 100 },
+          { source: 'REFERRAL', total: 1, responseRate: 100 },
+          { source: 'UNSPECIFIED', total: 1, responseRate: 0 },
+        ]),
+      );
+      expect(result.responseRateBySource).toHaveLength(3);
+    });
+  });
+
   describe('exportCsv', () => {
     it('produces the correct header row', async () => {
       mockPrisma.job.findMany.mockResolvedValue([]);

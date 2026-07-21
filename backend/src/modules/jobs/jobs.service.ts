@@ -5,11 +5,12 @@ import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { JobStatus, JobEventType, JobPriority } from '@prisma/client';
+import { JobStatus, JobEventType, JobPriority, JobSource } from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
 } from '../../storage/storage.service.js';
+import { FUNNEL_STAGES, DROPOFF_STAGES } from './dto/funnel-stats.dto.js';
 
 @Injectable()
 export class JobsService {
@@ -220,6 +221,85 @@ export class JobsService {
       total > 0 ? Math.round((responded / total) * 1000) / 10 : 0;
 
     return { total, byStatus, thisMonth, responseRate };
+  }
+
+  async getFunnel(userId: string) {
+    const [events, sourceStatusCounts] = await Promise.all([
+      this.prisma.jobEvent.findMany({
+        where: { job: { userId } },
+        select: { jobId: true, toStatus: true, createdAt: true },
+        orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
+      }),
+      this.prisma.job.groupBy({
+        by: ['source', 'status'],
+        where: { userId },
+        _count: { _all: true },
+      }),
+    ]);
+
+    // reached[stage] = distinct jobs whose event history ever hit that stage;
+    // stageDurationsMs[stage] = closed-interval gaps (ms spent in that stage
+    // before the job's next event), collected per job in event order.
+    const reached: Record<string, Set<string>> = {};
+    for (const s of FUNNEL_STAGES) reached[s] = new Set();
+    const stageDurationsMs: Record<string, number[]> = {};
+
+    let prev: { jobId: string; toStatus: JobStatus; createdAt: Date } | null =
+      null;
+    for (const event of events) {
+      if ((FUNNEL_STAGES as readonly JobStatus[]).includes(event.toStatus)) {
+        reached[event.toStatus].add(event.jobId);
+      }
+      if (prev && prev.jobId === event.jobId) {
+        const durations = (stageDurationsMs[prev.toStatus] ??= []);
+        durations.push(event.createdAt.getTime() - prev.createdAt.getTime());
+      }
+      prev = event;
+    }
+
+    const funnel = FUNNEL_STAGES.map((status) => ({
+      status,
+      reached: reached[status].size,
+    }));
+
+    const avgTimeInStageDays: Partial<Record<JobStatus, number>> = {};
+    for (const [status, durations] of Object.entries(stageDurationsMs)) {
+      const avgMs =
+        durations.reduce((sum, d) => sum + d, 0) / durations.length;
+      avgTimeInStageDays[status as JobStatus] =
+        Math.round((avgMs / 86_400_000) * 10) / 10;
+    }
+
+    const dropoff = DROPOFF_STAGES.map((status) => ({
+      status,
+      count: sourceStatusCounts
+        .filter((row) => row.status === status)
+        .reduce((sum, row) => sum + row._count._all, 0),
+    }));
+
+    const bySource = new Map<string, { total: number; responded: number }>();
+    for (const row of sourceStatusCounts) {
+      const key = row.source ?? 'UNSPECIFIED';
+      const entry = bySource.get(key) ?? { total: 0, responded: 0 };
+      entry.total += row._count._all;
+      if (
+        row.status === JobStatus.INTERVIEWING ||
+        row.status === JobStatus.OFFER ||
+        row.status === JobStatus.REJECTED
+      ) {
+        entry.responded += row._count._all;
+      }
+      bySource.set(key, entry);
+    }
+    const responseRateBySource = Array.from(bySource.entries()).map(
+      ([source, { total, responded }]) => ({
+        source: source as JobSource | 'UNSPECIFIED',
+        total,
+        responseRate: total > 0 ? Math.round((responded / total) * 1000) / 10 : 0,
+      }),
+    );
+
+    return { funnel, dropoff, avgTimeInStageDays, responseRateBySource };
   }
 
   // "Needs attention" heuristics — computed from existing fields, no stored state:
