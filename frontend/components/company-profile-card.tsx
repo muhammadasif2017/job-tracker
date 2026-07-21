@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Clock, WifiOff, KeyRound } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -11,6 +11,54 @@ import type { CompanyProfile } from '../types';
 interface Props {
   profile: CompanyProfile | null | undefined;
   jobId: string;
+}
+
+type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG';
+
+const FAILURE_COPY: Record<
+  FailureKind,
+  { icon: typeof Clock; tone: 'amber' | 'red'; message: string }
+> = {
+  RATE_LIMITED: {
+    icon: Clock,
+    tone: 'amber',
+    message:
+      'Daily quota reached for company research. This resets automatically — try Refresh again in a few hours.',
+  },
+  UNAVAILABLE: {
+    icon: WifiOff,
+    tone: 'amber',
+    message:
+      'Company research service is temporarily unreachable. Try Refresh again in a few minutes.',
+  },
+  CONFIG: {
+    icon: KeyRound,
+    tone: 'red',
+    message:
+      "Company research isn't configured correctly (API key issue). Check GROQ_API_KEY on the backend.",
+  },
+};
+
+function classifyFailure(message: string | null | undefined): FailureKind | null {
+  if (!message) return null;
+  if (/rate.?limit/i.test(message) || /^429\b/.test(message)) {
+    return 'RATE_LIMITED';
+  }
+  if (
+    /^40[13]\b/.test(message) ||
+    /invalid api key|unauthorized|forbidden/i.test(message)
+  ) {
+    return 'CONFIG';
+  }
+  if (
+    /^50[0234]\b/.test(message) ||
+    /internal server error|service unavailable|bad gateway/i.test(message) ||
+    /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET/i.test(message) ||
+    /timeout|timed out|network|fetch failed|AbortError/i.test(message)
+  ) {
+    return 'UNAVAILABLE';
+  }
+  return null;
 }
 
 export function CompanyProfileCard({ profile, jobId }: Props) {
@@ -49,6 +97,10 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
   }
 
   if (profile.status === 'FAILED') {
+    const kind = classifyFailure(profile.errorMessage);
+    const copy = kind ? FAILURE_COPY[kind] : null;
+    const Icon = copy?.icon;
+
     return (
       <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-3">
         <div className="flex items-center justify-between">
@@ -64,9 +116,36 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
         </div>
-        <p className="text-sm text-red-600 dark:text-red-400 break-words">
-          {profile.errorMessage ?? 'Enrichment failed. Try again.'}
-        </p>
+        {copy && Icon ? (
+          <div
+            className={
+              copy.tone === 'amber'
+                ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
+                : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
+            }
+          >
+            <Icon
+              className={
+                copy.tone === 'amber'
+                  ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
+                  : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
+              }
+            />
+            <p
+              className={
+                copy.tone === 'amber'
+                  ? 'text-sm text-amber-700 dark:text-amber-400'
+                  : 'text-sm text-red-700 dark:text-red-400'
+              }
+            >
+              {copy.message}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-red-600 dark:text-red-400 break-words">
+            {profile.errorMessage ?? 'Enrichment failed. Try again.'}
+          </p>
+        )}
       </div>
     );
   }
