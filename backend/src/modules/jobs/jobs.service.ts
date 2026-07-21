@@ -15,7 +15,7 @@ import {
   DROPOFF_STAGES,
   RESPONDED_STATUSES,
   toPercent,
-} from './dto/funnel-stats.dto.js';
+} from './jobs.constants.js';
 
 @Injectable()
 export class JobsService {
