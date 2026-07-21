@@ -23,6 +23,14 @@ npm run test:e2e   # Playwright e2e (requires both dev servers running)
 
 ---
 
+## Tailwind v4 Dark Mode
+
+Tailwind v4 has no `tailwind.config.js` — dark mode is CSS-config only. Without an explicit variant declaration, `dark:` utilities compile to `@media (prefers-color-scheme: dark)` and **ignore** any `.dark` class on `<html>`, silently breaking class-based toggles like `theme-toggle.tsx`.
+
+`app/globals.css` declares `@custom-variant dark (&:where(.dark, .dark *));` right after `@import 'tailwindcss';` to make `dark:` respond to the `.dark` class instead. Don't remove this line — the toggle button has no effect without it.
+
+---
+
 ## Auth Guard (`proxy.ts`)
 
 Runs on every request except static assets (see `matcher`). Reads the `jt_authed` cookie:
