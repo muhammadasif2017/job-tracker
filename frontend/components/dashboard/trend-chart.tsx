@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   ComposedChart,
   Bar,
@@ -14,15 +15,19 @@ import type { TrendStats } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 
 export function TrendChart({ data }: { data: TrendStats }) {
+  const chartData = useMemo(
+    () =>
+      data.buckets.map((b) => ({
+        label: b.label,
+        count: b.count,
+        cumulative: b.cumulative,
+      })),
+    [data.buckets],
+  );
+
   if (data.buckets.length === 0) {
     return <EmptyChartState />;
   }
-
-  const chartData = data.buckets.map((b) => ({
-    label: b.label,
-    count: b.count,
-    cumulative: b.cumulative,
-  }));
 
   return (
     <ResponsiveContainer width="100%" height={220}>

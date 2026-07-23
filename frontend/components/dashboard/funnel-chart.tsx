@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -59,35 +60,50 @@ function MiniBarChart({
 export function FunnelChart({ data }: { data: FunnelStats }) {
   const hasData = data.funnel.some((f) => f.reached > 0);
 
+  const chartData = useMemo(
+    () =>
+      data.funnel.map((f) => ({
+        name: STATUS_LABELS[f.status],
+        value: f.reached,
+        color: STATUS_DOT_COLORS[f.status],
+      })),
+    [data.funnel],
+  );
+
+  const dropoffData = useMemo(
+    () =>
+      data.dropoff.map((d) => ({
+        name: STATUS_LABELS[d.status],
+        value: d.count,
+        color: STATUS_DOT_COLORS[d.status],
+      })),
+    [data.dropoff],
+  );
+
+  const avgTimeData = useMemo(
+    () =>
+      Object.entries(data.avgTimeInStageDays).map(([status, days]) => ({
+        name: STATUS_LABELS[status as keyof typeof STATUS_LABELS],
+        value: days as number,
+        color: STATUS_DOT_COLORS[status as keyof typeof STATUS_DOT_COLORS],
+      })),
+    [data.avgTimeInStageDays],
+  );
+
+  const responseRateData = useMemo(
+    () =>
+      data.responseRateBySource.map((s) => ({
+        name:
+          s.source === 'UNSPECIFIED' ? 'Unspecified' : SOURCE_LABELS[s.source],
+        value: s.responseRate,
+        color: '#6366f1',
+      })),
+    [data.responseRateBySource],
+  );
+
   if (!hasData) {
     return <EmptyChartState />;
   }
-
-  const chartData = data.funnel.map((f) => ({
-    name: STATUS_LABELS[f.status],
-    value: f.reached,
-    color: STATUS_DOT_COLORS[f.status],
-  }));
-
-  const avgTimeEntries = Object.entries(data.avgTimeInStageDays);
-
-  const dropoffData = data.dropoff.map((d) => ({
-    name: STATUS_LABELS[d.status],
-    value: d.count,
-    color: STATUS_DOT_COLORS[d.status],
-  }));
-
-  const avgTimeData = avgTimeEntries.map(([status, days]) => ({
-    name: STATUS_LABELS[status as keyof typeof STATUS_LABELS],
-    value: days as number,
-    color: STATUS_DOT_COLORS[status as keyof typeof STATUS_DOT_COLORS],
-  }));
-
-  const responseRateData = data.responseRateBySource.map((s) => ({
-    name: s.source === 'UNSPECIFIED' ? 'Unspecified' : SOURCE_LABELS[s.source],
-    value: s.responseRate,
-    color: '#6366f1',
-  }));
 
   return (
     <div className="space-y-5">

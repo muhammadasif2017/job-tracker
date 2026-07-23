@@ -1,14 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { StatusChart } from '../../components/dashboard/status-chart';
-import { FunnelChart } from '../../components/dashboard/funnel-chart';
-import { TrendChart } from '../../components/dashboard/trend-chart';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -23,6 +22,16 @@ import type {
   DashboardRange,
 } from '../../types';
 
+// Below-the-fold charts: code-split out of the initial dashboard bundle.
+const FunnelChart = dynamic(
+  () => import('../../components/dashboard/funnel-chart').then((m) => m.FunnelChart),
+  { ssr: false },
+);
+const TrendChart = dynamic(
+  () => import('../../components/dashboard/trend-chart').then((m) => m.TrendChart),
+  { ssr: false },
+);
+
 export default function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>('90d');
 
@@ -33,6 +42,7 @@ export default function DashboardPage() {
   } = useQuery<JobStats>({
     queryKey: ['stats', range],
     queryFn: () => api.get(`/jobs/stats?range=${range}`).then((r) => r.data),
+    placeholderData: (prev) => prev,
   });
 
   const {
@@ -43,6 +53,7 @@ export default function DashboardPage() {
     queryKey: ['analytics', 'funnel', range],
     queryFn: () =>
       api.get(`/jobs/stats/funnel?range=${range}`).then((r) => r.data),
+    placeholderData: (prev) => prev,
   });
 
   const {
@@ -53,6 +64,7 @@ export default function DashboardPage() {
     queryKey: ['analytics', 'trend', range],
     queryFn: () =>
       api.get(`/jobs/stats/trend?range=${range}`).then((r) => r.data),
+    placeholderData: (prev) => prev,
   });
 
   const {
@@ -176,6 +188,7 @@ export default function DashboardPage() {
         loading={funnelLoading}
         error={funnelError}
         errorMessage="Failed to load funnel."
+        skeletonClassName="h-[420px] w-full"
       >
         {funnel && <FunnelChart data={funnel} />}
       </ChartCard>
