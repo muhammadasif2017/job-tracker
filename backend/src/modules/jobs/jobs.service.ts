@@ -15,6 +15,9 @@ import {
   DROPOFF_STAGES,
   RESPONDED_STATUSES,
   toPercent,
+  type StatsRange,
+  rangeToCutoff,
+  computeTrendBuckets,
 } from './jobs.constants.js';
 
 @Injectable()
@@ -195,17 +198,20 @@ export class JobsService {
     });
   }
 
-  async getStats(userId: string) {
+  async getStats(userId: string, range: StatsRange) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const cutoff = rangeToCutoff(range);
+    // thisMonth is always "applications this calendar month" — not scoped by `range`.
+    const rangeWhere = { userId, ...(cutoff ? { appliedAt: { gte: cutoff } } : {}) };
 
     const [counts, total, thisMonth] = await Promise.all([
       this.prisma.job.groupBy({
         by: ['status'],
-        where: { userId },
+        where: rangeWhere,
         _count: { _all: true },
       }),
-      this.prisma.job.count({ where: { userId } }),
+      this.prisma.job.count({ where: rangeWhere }),
       this.prisma.job.count({
         where: { userId, appliedAt: { gte: startOfMonth } },
       }),
@@ -226,15 +232,19 @@ export class JobsService {
     return { total, byStatus, thisMonth, responseRate };
   }
 
-  async getFunnel(userId: string) {
+  async getFunnel(userId: string, range: StatsRange) {
     const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
+    const cutoff = rangeToCutoff(range);
+    // Filtered on the job's appliedAt, not event createdAt — a job either
+    // belongs to the range or it doesn't; its full event history still counts.
+    const jobRangeFilter = cutoff ? { appliedAt: { gte: cutoff } } : {};
 
     const [events, sourceStatusCounts] = await Promise.all([
       // No upper bound on event history — acceptable at this app's scale
       // (one user's own job search), but this becomes the slowest query on
       // the page if event volume per user ever grows much larger.
       this.prisma.jobEvent.findMany({
-        where: { job: { userId } },
+        where: { job: { userId, ...jobRangeFilter } },
         select: { jobId: true, toStatus: true, createdAt: true },
         orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
       }),
@@ -242,7 +252,7 @@ export class JobsService {
       // sent, not jobs merely saved for later.
       this.prisma.job.groupBy({
         by: ['source', 'status'],
-        where: { userId, status: { not: JobStatus.WISHLIST } },
+        where: { userId, status: { not: JobStatus.WISHLIST }, ...jobRangeFilter },
         _count: { _all: true },
       }),
     ]);
@@ -317,6 +327,19 @@ export class JobsService {
     );
 
     return { funnel, dropoff, avgTimeInStageDays, responseRateBySource };
+  }
+
+  async getTrend(userId: string, range: StatsRange) {
+    const cutoff = rangeToCutoff(range);
+    const jobs = await this.prisma.job.findMany({
+      where: { userId, ...(cutoff ? { appliedAt: { gte: cutoff } } : {}) },
+      select: { appliedAt: true },
+    });
+
+    return computeTrendBuckets(
+      jobs.map((j) => j.appliedAt),
+      range,
+    );
   }
 
   // "Needs attention" heuristics — computed from existing fields, no stored state:

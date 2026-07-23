@@ -7,6 +7,7 @@ import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
+import { computeTrendBuckets } from './jobs.constants.js';
 
 const mockPrisma = {
   job: {
@@ -354,7 +355,7 @@ describe('JobsService', () => {
       mockPrisma.job.groupBy.mockResolvedValue([]);
       mockPrisma.job.count.mockResolvedValue(0);
 
-      const stats = await service.getStats('u1');
+      const stats = await service.getStats('u1', 'all');
 
       expect(stats.total).toBe(0);
       expect(stats.thisMonth).toBe(0);
@@ -373,13 +374,56 @@ describe('JobsService', () => {
       ]);
       mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
 
-      const stats = await service.getStats('u1');
+      const stats = await service.getStats('u1', 'all');
 
       expect(stats.responseRate).toBe(50);
       expect(stats.total).toBe(10);
       expect(stats.thisMonth).toBe(4);
       expect(stats.byStatus[JobStatus.APPLIED]).toBe(5);
       expect(stats.byStatus[JobStatus.WISHLIST]).toBe(0);
+    });
+
+    it('omitting range (all) reproduces output identical to pre-range-filter behavior', async () => {
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { status: JobStatus.APPLIED, _count: { _all: 5 } },
+      ]);
+      mockPrisma.job.count.mockResolvedValueOnce(5).mockResolvedValueOnce(2);
+
+      await service.getStats('u1', 'all');
+
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'u1' } }),
+      );
+      // thisMonth's count call is untouched by range — still just userId + calendar-month cutoff.
+      expect(mockPrisma.job.count).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({ where: { userId: 'u1' } }),
+      );
+    });
+
+    it('range=30d adds an appliedAt cutoff to total/byStatus but not to thisMonth', async () => {
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+      mockPrisma.job.count.mockResolvedValue(0);
+
+      await service.getStats('u1', '30d');
+
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'u1', appliedAt: { gte: expect.any(Date) } },
+        }),
+      );
+      const [totalCall, thisMonthCall] = mockPrisma.job.count.mock.calls;
+      expect(totalCall[0]).toEqual({
+        where: { userId: 'u1', appliedAt: { gte: expect.any(Date) } },
+      });
+      expect(thisMonthCall[0].where).toEqual({
+        userId: 'u1',
+        appliedAt: { gte: expect.any(Date) },
+      });
+      // thisMonth's cutoff is the calendar month start, not the 30-day range cutoff.
+      const rangeCutoff = totalCall[0].where.appliedAt.gte as Date;
+      const monthCutoff = thisMonthCall[0].where.appliedAt.gte as Date;
+      expect(monthCutoff.getTime()).not.toBe(rangeCutoff.getTime());
     });
   });
 
@@ -388,7 +432,7 @@ describe('JobsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
       mockPrisma.job.groupBy.mockResolvedValue([]);
 
-      const result = await service.getFunnel('u1');
+      const result = await service.getFunnel('u1', 'all');
 
       expect(result.funnel).toEqual([
         { status: JobStatus.WISHLIST, reached: 0 },
@@ -430,7 +474,7 @@ describe('JobsService', () => {
         { source: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
       ]);
 
-      const result = await service.getFunnel('u1');
+      const result = await service.getFunnel('u1', 'all');
 
       expect(result.funnel).toEqual([
         { status: JobStatus.WISHLIST, reached: 2 }, // jA, jD
@@ -465,7 +509,7 @@ describe('JobsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
       mockPrisma.job.groupBy.mockResolvedValue([]);
 
-      await service.getFunnel('u1');
+      await service.getFunnel('u1', 'all');
 
       expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -489,7 +533,7 @@ describe('JobsService', () => {
         { source: 'OTHER', status: JobStatus.APPLIED, _count: { _all: 1 } },
       ]);
 
-      const result = await service.getFunnel('u1');
+      const result = await service.getFunnel('u1', 'all');
 
       // Still counted as dropoff even though the job was later reactivated —
       // dropoff and funnel.reached both use "ever reached", not current status.
@@ -503,6 +547,138 @@ describe('JobsService', () => {
       // REJECTED -> APPLIED (2d) must NOT leak into avgTimeInStageDays —
       // REJECTED isn't a funnel stage.
       expect(result.avgTimeInStageDays[JobStatus.REJECTED]).toBeUndefined();
+    });
+
+    it('omitting range (all) reproduces the pre-range-filter where clauses exactly', async () => {
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      await service.getFunnel('u1', 'all');
+
+      expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { job: { userId: 'u1' } } }),
+      );
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'u1', status: { not: JobStatus.WISHLIST } },
+        }),
+      );
+    });
+
+    it('range=30d filters events and response-rate-by-source by the job\'s appliedAt', async () => {
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      await service.getFunnel('u1', '30d');
+
+      expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { job: { userId: 'u1', appliedAt: { gte: expect.any(Date) } } },
+        }),
+      );
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'u1',
+            status: { not: JobStatus.WISHLIST },
+            appliedAt: { gte: expect.any(Date) },
+          },
+        }),
+      );
+    });
+  });
+
+  describe('getTrend', () => {
+    it('fetches jobs scoped by range and delegates bucketing to computeTrendBuckets', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([
+        { appliedAt: new Date('2026-07-01T00:00:00Z') },
+      ]);
+
+      const result = await service.getTrend('u1', '30d');
+
+      expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', appliedAt: { gte: expect.any(Date) } },
+        select: { appliedAt: true },
+      });
+      expect(result.granularity).toBe('day');
+      expect(result.buckets.length).toBeGreaterThan(0);
+    });
+
+    it('omitting range (all) fetches with no appliedAt lower bound', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([]);
+
+      await service.getTrend('u1', 'all');
+
+      expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
+        where: { userId: 'u1' },
+        select: { appliedAt: true },
+      });
+    });
+  });
+
+  describe('computeTrendBuckets', () => {
+    const now = new Date('2026-07-24T12:00:00Z');
+
+    it('range=all with no jobs returns empty buckets, not an error', () => {
+      const result = computeTrendBuckets([], 'all', now);
+      expect(result).toEqual({ granularity: 'month', buckets: [] });
+    });
+
+    it('range=30d/90d with no jobs also returns empty buckets (matches StatusChart/FunnelChart empty-state convention, not an all-zero chart)', () => {
+      expect(computeTrendBuckets([], '30d', now)).toEqual({
+        granularity: 'day',
+        buckets: [],
+      });
+      expect(computeTrendBuckets([], '90d', now)).toEqual({
+        granularity: 'week',
+        buckets: [],
+      });
+    });
+
+    it('range=30d buckets by day and gap-fills days with zero applications', () => {
+      const applied = [new Date('2026-07-20T09:00:00Z')];
+      const result = computeTrendBuckets(applied, '30d', now);
+
+      expect(result.granularity).toBe('day');
+      // 30-day window ending today (inclusive) — every day present, even with count 0.
+      expect(result.buckets.length).toBe(31);
+      const day20 = result.buckets.find((b) => b.label === 'Jul 20');
+      expect(day20?.count).toBe(1);
+      const day19 = result.buckets.find((b) => b.label === 'Jul 19');
+      expect(day19?.count).toBe(0);
+    });
+
+    it('range=90d buckets by week', () => {
+      const result = computeTrendBuckets(
+        [new Date('2026-07-01T00:00:00Z')],
+        '90d',
+        now,
+      );
+      expect(result.granularity).toBe('week');
+      expect(result.buckets.length).toBeGreaterThan(0);
+    });
+
+    it('range=all buckets by month starting at the earliest appliedAt', () => {
+      const applied = [
+        new Date('2026-05-15T00:00:00Z'),
+        new Date('2026-07-10T00:00:00Z'),
+      ];
+      const result = computeTrendBuckets(applied, 'all', now);
+
+      expect(result.granularity).toBe('month');
+      expect(result.buckets[0].label).toBe('May 2026');
+      expect(result.buckets[result.buckets.length - 1].label).toBe('Jul 2026');
+    });
+
+    it('cumulative at the last bucket equals the total number of applications', () => {
+      const applied = [
+        new Date('2026-07-01T00:00:00Z'),
+        new Date('2026-07-10T00:00:00Z'),
+        new Date('2026-07-15T00:00:00Z'),
+      ];
+      const result = computeTrendBuckets(applied, '30d', now);
+      const last = result.buckets[result.buckets.length - 1];
+      expect(last.cumulative).toBe(3);
     });
   });
 

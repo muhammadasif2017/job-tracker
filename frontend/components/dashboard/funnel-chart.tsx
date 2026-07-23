@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from 'recharts';
 import {
   type FunnelStats,
@@ -16,6 +17,42 @@ import {
   SOURCE_LABELS,
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
+
+function MiniBarChart({
+  data,
+  valueFormatter = (v: number) => `${v}`,
+}: {
+  data: { name: string; value: number; color: string }[];
+  valueFormatter?: (v: number) => string;
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={Math.max(60, data.length * 32)}>
+      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 28 }}>
+        <XAxis type="number" allowDecimals={false} hide />
+        <YAxis
+          type="category"
+          dataKey="name"
+          width={90}
+          tick={{ fontSize: 12 }}
+        />
+        <Tooltip
+          formatter={(v) => [valueFormatter(Number(v)), 'Value']}
+        />
+        <Bar dataKey="value" radius={4}>
+          {data.map((entry) => (
+            <Cell key={entry.name} fill={entry.color} />
+          ))}
+          <LabelList
+            dataKey="value"
+            position="right"
+            formatter={(v: React.ReactNode) => valueFormatter(Number(v))}
+            style={{ fontSize: 12, fill: 'currentColor' }}
+          />
+        </Bar>
+      </BarChart>
+    </ResponsiveContainer>
+  );
+}
 
 export function FunnelChart({ data }: { data: FunnelStats }) {
   const hasData = data.funnel.some((f) => f.reached > 0);
@@ -31,6 +68,24 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
   }));
 
   const avgTimeEntries = Object.entries(data.avgTimeInStageDays);
+
+  const dropoffData = data.dropoff.map((d) => ({
+    name: STATUS_LABELS[d.status],
+    value: d.count,
+    color: STATUS_DOT_COLORS[d.status],
+  }));
+
+  const avgTimeData = avgTimeEntries.map(([status, days]) => ({
+    name: STATUS_LABELS[status as keyof typeof STATUS_LABELS],
+    value: days as number,
+    color: STATUS_DOT_COLORS[status as keyof typeof STATUS_DOT_COLORS],
+  }));
+
+  const responseRateData = data.responseRateBySource.map((s) => ({
+    name: s.source === 'UNSPECIFIED' ? 'Unspecified' : SOURCE_LABELS[s.source],
+    value: s.responseRate,
+    color: '#6366f1',
+  }));
 
   return (
     <div className="space-y-5">
@@ -55,25 +110,20 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
           <p className="mb-1 font-medium text-slate-500">Dropoff</p>
-          {data.dropoff.map((d) => (
-            <p key={d.status}>
-              {STATUS_LABELS[d.status]}: {d.count}
-            </p>
-          ))}
+          <MiniBarChart data={dropoffData} />
         </div>
 
         <div>
           <p className="mb-1 font-medium text-slate-500">
             Avg. time in stage
           </p>
-          {avgTimeEntries.length === 0 ? (
+          {avgTimeData.length === 0 ? (
             <p className="text-slate-400">—</p>
           ) : (
-            avgTimeEntries.map(([status, days]) => (
-              <p key={status}>
-                {STATUS_LABELS[status as keyof typeof STATUS_LABELS]}: {days}d
-              </p>
-            ))
+            <MiniBarChart
+              data={avgTimeData}
+              valueFormatter={(v) => `${v}d`}
+            />
           )}
         </div>
 
@@ -81,15 +131,13 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
           <p className="mb-1 font-medium text-slate-500">
             Response rate by source
           </p>
-          {data.responseRateBySource.length === 0 ? (
+          {responseRateData.length === 0 ? (
             <p className="text-slate-400">—</p>
           ) : (
-            data.responseRateBySource.map((s) => (
-              <p key={s.source}>
-                {s.source === 'UNSPECIFIED' ? 'Unspecified' : SOURCE_LABELS[s.source]}
-                : {s.responseRate}%
-              </p>
-            ))
+            <MiniBarChart
+              data={responseRateData}
+              valueFormatter={(v) => `${v}%`}
+            />
           )}
         </div>
       </div>
