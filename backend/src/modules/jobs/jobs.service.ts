@@ -16,7 +16,7 @@ import {
   RESPONDED_STATUSES,
   toPercent,
   type StatsRange,
-  rangeToCutoff,
+  appliedAtRangeFilter,
   computeTrendBuckets,
 } from './jobs.constants.js';
 
@@ -201,9 +201,8 @@ export class JobsService {
   async getStats(userId: string, range: StatsRange) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const cutoff = rangeToCutoff(range);
     // thisMonth is always "applications this calendar month" — not scoped by `range`.
-    const rangeWhere = { userId, ...(cutoff ? { appliedAt: { gte: cutoff } } : {}) };
+    const rangeWhere = { userId, ...appliedAtRangeFilter(range) };
 
     const [counts, total, thisMonth] = await Promise.all([
       this.prisma.job.groupBy({
@@ -234,10 +233,9 @@ export class JobsService {
 
   async getFunnel(userId: string, range: StatsRange) {
     const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
-    const cutoff = rangeToCutoff(range);
     // Filtered on the job's appliedAt, not event createdAt — a job either
     // belongs to the range or it doesn't; its full event history still counts.
-    const jobRangeFilter = cutoff ? { appliedAt: { gte: cutoff } } : {};
+    const jobRangeFilter = appliedAtRangeFilter(range);
 
     const [events, sourceStatusCounts] = await Promise.all([
       // No upper bound on event history — acceptable at this app's scale
@@ -330,9 +328,8 @@ export class JobsService {
   }
 
   async getTrend(userId: string, range: StatsRange) {
-    const cutoff = rangeToCutoff(range);
     const jobs = await this.prisma.job.findMany({
-      where: { userId, ...(cutoff ? { appliedAt: { gte: cutoff } } : {}) },
+      where: { userId, ...appliedAtRangeFilter(range) },
       select: { appliedAt: true },
     });
 

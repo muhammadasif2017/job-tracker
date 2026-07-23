@@ -49,6 +49,16 @@ export function rangeToCutoff(range: StatsRange): Date | undefined {
   return new Date(Date.now() - days * 86_400_000);
 }
 
+// Prisma where-fragment for scoping a query to `range` — `{}` (no lower
+// bound) for 'all'. Centralized so getStats/getFunnel/getTrend can't drift
+// apart on how a range is applied.
+export function appliedAtRangeFilter(
+  range: StatsRange,
+): { appliedAt?: { gte: Date } } {
+  const cutoff = rangeToCutoff(range);
+  return cutoff ? { appliedAt: { gte: cutoff } } : {};
+}
+
 export type TrendGranularity = 'day' | 'week' | 'month';
 
 export interface TrendBucket {

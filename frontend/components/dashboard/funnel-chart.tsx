@@ -19,18 +19,29 @@ import {
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 
-function MiniBarChart({
+// Shared by the main funnel bar and the dropoff/avg-time/response-rate
+// mini-charts below it — same horizontal-bar layout, differing only in
+// height, tooltip label, and whether bars carry an inline value label.
+function RangeBarChart({
   data,
+  height,
   valueFormatter = (v: number) => `${v}`,
   valueLabel = 'Value',
+  showValueLabels = false,
 }: {
   data: { name: string; value: number; color: string }[];
+  height: number;
   valueFormatter?: (v: number) => string;
   valueLabel?: string;
+  showValueLabels?: boolean;
 }) {
   return (
-    <ResponsiveContainer width="100%" height={Math.max(60, data.length * 32)}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 28 }}>
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart
+        data={data}
+        layout="vertical"
+        margin={showValueLabels ? { left: 8, right: 28 } : { left: 8 }}
+      >
         <XAxis type="number" allowDecimals={false} hide />
         <YAxis
           type="category"
@@ -38,22 +49,42 @@ function MiniBarChart({
           width={90}
           tick={{ fontSize: 12 }}
         />
-        <Tooltip
-          formatter={(v) => [valueFormatter(Number(v)), valueLabel]}
-        />
+        <Tooltip formatter={(v) => [valueFormatter(Number(v)), valueLabel]} />
         <Bar dataKey="value" radius={4}>
           {data.map((entry) => (
             <Cell key={entry.name} fill={entry.color} />
           ))}
-          <LabelList
-            dataKey="value"
-            position="right"
-            formatter={(v: React.ReactNode) => valueFormatter(Number(v))}
-            style={{ fontSize: 12, fill: 'currentColor' }}
-          />
+          {showValueLabels && (
+            <LabelList
+              dataKey="value"
+              position="right"
+              formatter={(v: React.ReactNode) => valueFormatter(Number(v))}
+              style={{ fontSize: 12, fill: 'currentColor' }}
+            />
+          )}
         </Bar>
       </BarChart>
     </ResponsiveContainer>
+  );
+}
+
+function MiniBarChart({
+  data,
+  valueFormatter,
+  valueLabel,
+}: {
+  data: { name: string; value: number; color: string }[];
+  valueFormatter?: (v: number) => string;
+  valueLabel?: string;
+}) {
+  return (
+    <RangeBarChart
+      data={data}
+      height={Math.max(60, data.length * 32)}
+      valueFormatter={valueFormatter}
+      valueLabel={valueLabel}
+      showValueLabels
+    />
   );
 }
 
@@ -107,23 +138,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
 
   return (
     <div className="space-y-5">
-      <ResponsiveContainer width="100%" height={180}>
-        <BarChart data={chartData} layout="vertical" margin={{ left: 8 }}>
-          <XAxis type="number" allowDecimals={false} hide />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={90}
-            tick={{ fontSize: 12 }}
-          />
-          <Tooltip formatter={(v) => [v, 'Reached']} />
-          <Bar dataKey="value" radius={4}>
-            {chartData.map((entry) => (
-              <Cell key={entry.name} fill={entry.color} />
-            ))}
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <RangeBarChart data={chartData} height={180} valueLabel="Reached" />
 
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
