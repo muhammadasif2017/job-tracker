@@ -680,6 +680,22 @@ describe('JobsService', () => {
       const last = result.buckets[result.buckets.length - 1];
       expect(last.cumulative).toBe(3);
     });
+
+    it('range=all with a single job in the current month produces exactly one bucket', () => {
+      const result = computeTrendBuckets(
+        [new Date('2026-07-10T00:00:00Z')],
+        'all',
+        now,
+      );
+      expect(result.granularity).toBe('month');
+      expect(result.buckets).toHaveLength(1);
+      expect(result.buckets[0]).toEqual({
+        label: 'Jul 2026',
+        periodStart: new Date(2026, 6, 1).toISOString(),
+        count: 1,
+        cumulative: 1,
+      });
+    });
   });
 
   describe('exportCsv', () => {
