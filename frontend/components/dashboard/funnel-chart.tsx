@@ -21,9 +21,11 @@ import { EmptyChartState } from './empty-chart-state';
 function MiniBarChart({
   data,
   valueFormatter = (v: number) => `${v}`,
+  valueLabel = 'Value',
 }: {
   data: { name: string; value: number; color: string }[];
   valueFormatter?: (v: number) => string;
+  valueLabel?: string;
 }) {
   return (
     <ResponsiveContainer width="100%" height={Math.max(60, data.length * 32)}>
@@ -36,7 +38,7 @@ function MiniBarChart({
           tick={{ fontSize: 12 }}
         />
         <Tooltip
-          formatter={(v) => [valueFormatter(Number(v)), 'Value']}
+          formatter={(v) => [valueFormatter(Number(v)), valueLabel]}
         />
         <Bar dataKey="value" radius={4}>
           {data.map((entry) => (
@@ -110,7 +112,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
           <p className="mb-1 font-medium text-slate-500">Dropoff</p>
-          <MiniBarChart data={dropoffData} />
+          <MiniBarChart data={dropoffData} valueLabel="Count" />
         </div>
 
         <div>
@@ -123,6 +125,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
             <MiniBarChart
               data={avgTimeData}
               valueFormatter={(v) => `${v}d`}
+              valueLabel="Avg days"
             />
           )}
         </div>
@@ -137,6 +140,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
             <MiniBarChart
               data={responseRateData}
               valueFormatter={(v) => `${v}%`}
+              valueLabel="Response rate"
             />
           )}
         </div>

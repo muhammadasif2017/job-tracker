@@ -16,6 +16,7 @@ export function DateRangeSelect({
         <button
           key={option.value}
           type="button"
+          aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
             'rounded-md px-3 py-1 text-sm font-medium transition-colors',
