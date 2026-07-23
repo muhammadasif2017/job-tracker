@@ -21,14 +21,22 @@ function makeData(overrides: Partial<FunnelStats> = {}): FunnelStats {
   };
 }
 
+// jsdom has no ResizeObserver, so recharts' ResponsiveContainer renders at
+// 0x0 and never draws bar/label content — these tests assert chart presence
+// (one `.recharts-responsive-container` per rendered mini-chart) rather than
+// rendered pixel/text content.
+function chartCount(container: HTMLElement) {
+  return container.querySelectorAll('.recharts-responsive-container').length;
+}
+
 describe('FunnelChart', () => {
   it('shows "No data yet" when every stage has zero reached', () => {
     render(<FunnelChart data={makeData()} />);
     expect(screen.getByText('No data yet')).toBeInTheDocument();
   });
 
-  it('renders dropoff counts when data is present', () => {
-    render(
+  it('renders the funnel bar and a dropoff mini-chart when data is present', () => {
+    const { container } = render(
       <FunnelChart
         data={makeData({
           funnel: [
@@ -44,8 +52,10 @@ describe('FunnelChart', () => {
         })}
       />,
     );
-    expect(screen.getByText(/Rejected: 3/)).toBeInTheDocument();
-    expect(screen.getByText(/Ghosted: 1/)).toBeInTheDocument();
+    expect(screen.getByText('Dropoff')).toBeInTheDocument();
+    // main funnel bar + dropoff mini-chart, avg-time/response-rate empty ("—")
+    expect(chartCount(container)).toBe(2);
+    expect(screen.getAllByText('—')).toHaveLength(2);
   });
 
   it('renders "—" for avg time in stage and response rate when empty', () => {
@@ -57,8 +67,8 @@ describe('FunnelChart', () => {
     expect(screen.getAllByText('—')).toHaveLength(2);
   });
 
-  it('renders avg time in stage and response rate by source when present', () => {
-    render(
+  it('renders avg-time and response-rate mini-charts when data is present', () => {
+    const { container } = render(
       <FunnelChart
         data={makeData({
           funnel: [{ status: 'APPLIED', reached: 1 }],
@@ -70,8 +80,10 @@ describe('FunnelChart', () => {
         })}
       />,
     );
-    expect(screen.getByText(/Applied: 2.7d/)).toBeInTheDocument();
-    expect(screen.getByText(/LinkedIn: 100%/)).toBeInTheDocument();
-    expect(screen.getByText(/Unspecified: 0%/)).toBeInTheDocument();
+    expect(screen.getByText('Avg. time in stage')).toBeInTheDocument();
+    expect(screen.getByText('Response rate by source')).toBeInTheDocument();
+    expect(screen.queryByText('—')).not.toBeInTheDocument();
+    // main funnel bar + dropoff + avg-time + response-rate = 4 mini-charts
+    expect(chartCount(container)).toBe(4);
   });
 });
