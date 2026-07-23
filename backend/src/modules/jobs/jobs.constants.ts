@@ -43,10 +43,10 @@ const RANGE_TO_DAYS: Partial<Record<StatsRange, number>> = {
 };
 
 // undefined cutoff = no lower bound (range: 'all')
-export function rangeToCutoff(range: StatsRange): Date | undefined {
+export function rangeToCutoff(range: StatsRange, now: Date = new Date()): Date | undefined {
   const days = RANGE_TO_DAYS[range];
   if (days === undefined) return undefined;
-  return new Date(Date.now() - days * 86_400_000);
+  return new Date(now.getTime() - days * 86_400_000);
 }
 
 // Prisma where-fragment for scoping a query to `range` — `{}` (no lower
@@ -54,8 +54,9 @@ export function rangeToCutoff(range: StatsRange): Date | undefined {
 // apart on how a range is applied.
 export function appliedAtRangeFilter(
   range: StatsRange,
+  now: Date = new Date(),
 ): { appliedAt?: { gte: Date } } {
-  const cutoff = rangeToCutoff(range);
+  const cutoff = rangeToCutoff(range, now);
   return cutoff ? { appliedAt: { gte: cutoff } } : {};
 }
 
@@ -113,7 +114,7 @@ export function computeTrendBuckets(
   now: Date = new Date(),
 ): { granularity: TrendGranularity; buckets: TrendBucket[] } {
   const granularity = rangeToGranularity(range);
-  const cutoff = rangeToCutoff(range);
+  const cutoff = rangeToCutoff(range, now);
 
   if (appliedDates.length === 0) {
     // No applications at all (in range) — match StatusChart/FunnelChart's
@@ -123,8 +124,13 @@ export function computeTrendBuckets(
 
   const sorted = [...appliedDates].sort((a, b) => a.getTime() - b.getTime());
   const earliest = sorted[0];
+  const latest = sorted[sorted.length - 1];
   const windowStart = startOfPeriod(cutoff ?? earliest, granularity);
-  const windowEndExclusive = nextPeriod(startOfPeriod(now, granularity), granularity);
+  // Anchor the window end to whichever is later — `now` or the latest applied
+  // date — so a future-dated appliedAt still gets its own bucket instead of
+  // silently falling outside [windowStart, windowEndExclusive) and vanishing.
+  const windowEndAnchor = latest.getTime() > now.getTime() ? latest : now;
+  const windowEndExclusive = nextPeriod(startOfPeriod(windowEndAnchor, granularity), granularity);
 
   const counts = new Map<number, number>();
   for (const applied of sorted) {
