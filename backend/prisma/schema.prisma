@@ -39,6 +39,7 @@ enum JobSource {
 enum JobEventType {
   CREATED
   STATUS_CHANGE
+  INTERVIEW_ROUND_ADDED
 }
 
 enum EnrichmentStatus {

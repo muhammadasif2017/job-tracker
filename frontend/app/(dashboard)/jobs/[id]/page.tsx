@@ -51,13 +51,20 @@ function Timeline({ events }: { events: JobEvent[] }) {
                 <p className="text-sm">
                   Application created <StatusBadge status={event.toStatus} />
                 </p>
-              ) : (
+              ) : event.type === 'STATUS_CHANGE' ? (
                 <>
                   <p className="text-sm flex flex-wrap items-center gap-1">
                     Status changed from{' '}
                     <StatusBadge status={event.fromStatus!} /> to{' '}
                     <StatusBadge status={event.toStatus} />
                   </p>
+                  {event.note && (
+                    <p className="text-sm text-slate-500">→ {event.note}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">Interview round scheduled</p>
                   {event.note && (
                     <p className="text-sm text-slate-500">→ {event.note}</p>
                   )}

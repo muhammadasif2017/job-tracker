@@ -17,27 +17,39 @@ export class InterviewRoundsService {
     return job;
   }
 
-  // Scheduling an interview round is a real-world signal that the job has
-  // moved past "applied" — but only promote out of APPLIED specifically, so
-  // we never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST status.
-  private async promoteToInterviewing(
+  // Every round logs a Timeline entry. If the job is still APPLIED, scheduling
+  // a round is a real-world signal it's moved past "applied" — promote to
+  // INTERVIEWING (never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST
+  // status). Otherwise just log the round itself, since the job already
+  // reflects (or intentionally diverges from) the interviewing state.
+  private async logRoundEvent(
     jobId: string,
     currentStatus: JobStatus,
     stage: string,
   ) {
-    if (currentStatus !== JobStatus.APPLIED) return;
-    await this.prisma.job.update({
-      where: { id: jobId },
-      data: {
-        status: JobStatus.INTERVIEWING,
-        events: {
-          create: {
-            type: JobEventType.STATUS_CHANGE,
-            fromStatus: JobStatus.APPLIED,
-            toStatus: JobStatus.INTERVIEWING,
-            note: stage,
+    if (currentStatus === JobStatus.APPLIED) {
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: {
+          status: JobStatus.INTERVIEWING,
+          events: {
+            create: {
+              type: JobEventType.STATUS_CHANGE,
+              fromStatus: JobStatus.APPLIED,
+              toStatus: JobStatus.INTERVIEWING,
+              note: stage,
+            },
           },
         },
+      });
+      return;
+    }
+    await this.prisma.jobEvent.create({
+      data: {
+        jobId,
+        type: JobEventType.INTERVIEW_ROUND_ADDED,
+        toStatus: currentStatus,
+        note: stage,
       },
     });
   }
@@ -71,7 +83,7 @@ export class InterviewRoundsService {
         notes: dto.notes,
       },
     });
-    await this.promoteToInterviewing(jobId, job.status, dto.stage);
+    await this.logRoundEvent(jobId, job.status, dto.stage);
     await this.recomputeNextInterviewAt(jobId);
     return round;
   }

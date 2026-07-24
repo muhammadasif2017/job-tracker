@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "JobEventType" ADD VALUE 'INTERVIEW_ROUND_ADDED';
