@@ -244,6 +244,41 @@ describe('Job Tracker (e2e)', () => {
   // ── Interview Rounds ────────────────────────────────────────────────────────
 
   describe('POST /jobs/:jobId/interview-rounds', () => {
+    it('promotes an APPLIED job to INTERVIEWING with a STATUS_CHANGE event', async () => {
+      const created = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'Promotion Co', position: 'Engineer', status: 'APPLIED' })
+        .expect(201);
+      const promoJobId = created.body.id;
+
+      await agent
+        .post(`/jobs/${promoJobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Phone Screen', scheduledAt: '2026-08-01' })
+        .expect(201);
+
+      const job = await agent
+        .get(`/jobs/${promoJobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(job.body.status).toBe('INTERVIEWING');
+
+      const events = await agent
+        .get(`/jobs/${promoJobId}/events`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(events.body).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'STATUS_CHANGE',
+            fromStatus: 'APPLIED',
+            toStatus: 'INTERVIEWING',
+          }),
+        ]),
+      );
+    });
+
     it('creates a round and recomputes nextInterviewAt', async () => {
       const future = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
         .toISOString()
