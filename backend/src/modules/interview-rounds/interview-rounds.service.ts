@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InterviewOutcome } from '@prisma/client';
+import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
@@ -11,9 +11,30 @@ export class InterviewRoundsService {
   private async ensureJobOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      select: { id: true },
+      select: { id: true, status: true },
     });
     if (!job) throw new NotFoundException('Job not found');
+    return job;
+  }
+
+  // Scheduling an interview round is a real-world signal that the job has
+  // moved past "applied" — but only promote out of APPLIED specifically, so
+  // we never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST status.
+  private async promoteToInterviewing(jobId: string, currentStatus: JobStatus) {
+    if (currentStatus !== JobStatus.APPLIED) return;
+    await this.prisma.job.update({
+      where: { id: jobId },
+      data: {
+        status: JobStatus.INTERVIEWING,
+        events: {
+          create: {
+            type: JobEventType.STATUS_CHANGE,
+            fromStatus: JobStatus.APPLIED,
+            toStatus: JobStatus.INTERVIEWING,
+          },
+        },
+      },
+    });
   }
 
   // Recomputes Job.nextInterviewAt from the earliest future PENDING round.
@@ -36,7 +57,7 @@ export class InterviewRoundsService {
   }
 
   async create(userId: string, jobId: string, dto: CreateInterviewRoundDto) {
-    await this.ensureJobOwned(userId, jobId);
+    const job = await this.ensureJobOwned(userId, jobId);
     const round = await this.prisma.interviewRound.create({
       data: {
         jobId,
@@ -45,6 +66,7 @@ export class InterviewRoundsService {
         notes: dto.notes,
       },
     });
+    await this.promoteToInterviewing(jobId, job.status);
     await this.recomputeNextInterviewAt(jobId);
     return round;
   }
