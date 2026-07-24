@@ -97,11 +97,14 @@ describe('InterviewRoundsService', () => {
       });
     });
 
-    it('does not touch status when the job is already past APPLIED', async () => {
-      mockPrisma.job.findFirst.mockResolvedValue({
-        id: 'job-1',
-        status: JobStatus.INTERVIEWING,
-      });
+    it.each([
+      JobStatus.WISHLIST,
+      JobStatus.INTERVIEWING,
+      JobStatus.OFFER,
+      JobStatus.REJECTED,
+      JobStatus.GHOSTED,
+    ])('does not touch status when the job is already %s', async (status) => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1', status });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-2' });
       mockPrisma.interviewRound.findFirst.mockResolvedValue({
         scheduledAt: new Date('2026-08-05T00:00:00Z'),
@@ -111,6 +114,42 @@ describe('InterviewRoundsService', () => {
         stage: 'Onsite',
         scheduledAt: '2026-08-05',
       });
+
+      for (const call of mockPrisma.job.update.mock.calls) {
+        expect(call[0].data).not.toHaveProperty('status');
+      }
+    });
+
+    it('does not promote status on round update', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.interviewRound.update.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce({
+        id: 'round-1',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce(null);
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.PASSED,
+      });
+
+      for (const call of mockPrisma.job.update.mock.calls) {
+        expect(call[0].data).not.toHaveProperty('status');
+      }
+    });
+
+    it('does not promote status on round removal', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.interviewRound.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
+
+      await service.remove('user-1', 'job-1', 'round-1');
 
       for (const call of mockPrisma.job.update.mock.calls) {
         expect(call[0].data).not.toHaveProperty('status');
