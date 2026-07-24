@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
-import { InterviewOutcome } from '@prisma/client';
+import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -63,6 +63,98 @@ describe('InterviewRoundsService', () => {
         where: { id: 'job-1' },
         data: { nextInterviewAt: new Date('2026-08-01T00:00:00Z') },
       });
+    });
+  });
+
+  describe('status promotion on first round', () => {
+    it('promotes APPLIED to INTERVIEWING with a STATUS_CHANGE event', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        scheduledAt: new Date('2026-08-01T00:00:00Z'),
+      });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Phone Screen',
+        scheduledAt: '2026-08-01',
+      });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith({
+        where: { id: 'job-1' },
+        data: {
+          status: JobStatus.INTERVIEWING,
+          events: {
+            create: {
+              type: JobEventType.STATUS_CHANGE,
+              fromStatus: JobStatus.APPLIED,
+              toStatus: JobStatus.INTERVIEWING,
+              note: 'Phone Screen',
+            },
+          },
+        },
+      });
+    });
+
+    it.each([
+      JobStatus.WISHLIST,
+      JobStatus.INTERVIEWING,
+      JobStatus.OFFER,
+      JobStatus.REJECTED,
+      JobStatus.GHOSTED,
+    ])('does not touch status when the job is already %s', async (status) => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1', status });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-2' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        scheduledAt: new Date('2026-08-05T00:00:00Z'),
+      });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Onsite',
+        scheduledAt: '2026-08-05',
+      });
+
+      for (const call of mockPrisma.job.update.mock.calls) {
+        expect(call[0].data).not.toHaveProperty('status');
+      }
+    });
+
+    it('does not promote status on round update', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.interviewRound.update.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce({
+        id: 'round-1',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce(null);
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.PASSED,
+      });
+
+      for (const call of mockPrisma.job.update.mock.calls) {
+        expect(call[0].data).not.toHaveProperty('status');
+      }
+    });
+
+    it('does not promote status on round removal', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.interviewRound.deleteMany.mockResolvedValue({ count: 1 });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
+
+      await service.remove('user-1', 'job-1', 'round-1');
+
+      for (const call of mockPrisma.job.update.mock.calls) {
+        expect(call[0].data).not.toHaveProperty('status');
+      }
     });
   });
 
