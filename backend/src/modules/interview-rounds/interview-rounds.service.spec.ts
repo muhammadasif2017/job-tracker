@@ -16,6 +16,9 @@ const mockPrisma = {
     update: jest.fn(),
     deleteMany: jest.fn(),
   },
+  jobEvent: {
+    create: jest.fn(),
+  },
 };
 
 describe('InterviewRoundsService', () => {
@@ -66,7 +69,7 @@ describe('InterviewRoundsService', () => {
     });
   });
 
-  describe('status promotion on first round', () => {
+  describe('round event logging', () => {
     it('promotes APPLIED to INTERVIEWING with a STATUS_CHANGE event', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
@@ -96,6 +99,7 @@ describe('InterviewRoundsService', () => {
           },
         },
       });
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
     });
 
     it.each([
@@ -104,22 +108,33 @@ describe('InterviewRoundsService', () => {
       JobStatus.OFFER,
       JobStatus.REJECTED,
       JobStatus.GHOSTED,
-    ])('does not touch status when the job is already %s', async (status) => {
-      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1', status });
-      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-2' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue({
-        scheduledAt: new Date('2026-08-05T00:00:00Z'),
-      });
+    ])(
+      'logs an INTERVIEW_ROUND_ADDED event instead of promoting when the job is already %s',
+      async (status) => {
+        mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1', status });
+        mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-2' });
+        mockPrisma.interviewRound.findFirst.mockResolvedValue({
+          scheduledAt: new Date('2026-08-05T00:00:00Z'),
+        });
 
-      await service.create('user-1', 'job-1', {
-        stage: 'Onsite',
-        scheduledAt: '2026-08-05',
-      });
+        await service.create('user-1', 'job-1', {
+          stage: 'Onsite',
+          scheduledAt: '2026-08-05',
+        });
 
-      for (const call of mockPrisma.job.update.mock.calls) {
-        expect(call[0].data).not.toHaveProperty('status');
-      }
-    });
+        for (const call of mockPrisma.job.update.mock.calls) {
+          expect(call[0].data).not.toHaveProperty('status');
+        }
+        expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
+          data: {
+            jobId: 'job-1',
+            type: JobEventType.INTERVIEW_ROUND_ADDED,
+            toStatus: status,
+            note: 'Onsite',
+          },
+        });
+      },
+    );
 
     it('does not promote status on round update', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
@@ -140,6 +155,7 @@ describe('InterviewRoundsService', () => {
       for (const call of mockPrisma.job.update.mock.calls) {
         expect(call[0].data).not.toHaveProperty('status');
       }
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
     });
 
     it('does not promote status on round removal', async () => {
@@ -155,6 +171,7 @@ describe('InterviewRoundsService', () => {
       for (const call of mockPrisma.job.update.mock.calls) {
         expect(call[0].data).not.toHaveProperty('status');
       }
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
     });
   });
 

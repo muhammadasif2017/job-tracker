@@ -277,6 +277,26 @@ describe('Job Tracker (e2e)', () => {
           }),
         ]),
       );
+
+      await agent
+        .post(`/jobs/${promoJobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Technical Round', scheduledAt: '2026-08-10' })
+        .expect(201);
+
+      const eventsAfterSecondRound = await agent
+        .get(`/jobs/${promoJobId}/events`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(eventsAfterSecondRound.body).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'INTERVIEW_ROUND_ADDED',
+            toStatus: 'INTERVIEWING',
+            note: 'Technical Round',
+          }),
+        ]),
+      );
     });
 
     it('creates a round and recomputes nextInterviewAt', async () => {

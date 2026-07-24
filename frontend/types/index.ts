@@ -28,7 +28,10 @@ export const JOB_SOURCES = [
 
 export type JobSource = (typeof JOB_SOURCES)[number];
 
-export type JobEventType = 'CREATED' | 'STATUS_CHANGE';
+export type JobEventType =
+  | 'CREATED'
+  | 'STATUS_CHANGE'
+  | 'INTERVIEW_ROUND_ADDED';
 
 export interface JobEvent {
   id: string;
