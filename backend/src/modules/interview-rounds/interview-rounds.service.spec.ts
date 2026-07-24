@@ -91,6 +91,7 @@ describe('InterviewRoundsService', () => {
               type: JobEventType.STATUS_CHANGE,
               fromStatus: JobStatus.APPLIED,
               toStatus: JobStatus.INTERVIEWING,
+              note: 'Phone Screen',
             },
           },
         },

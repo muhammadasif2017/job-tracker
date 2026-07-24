@@ -20,7 +20,11 @@ export class InterviewRoundsService {
   // Scheduling an interview round is a real-world signal that the job has
   // moved past "applied" — but only promote out of APPLIED specifically, so
   // we never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST status.
-  private async promoteToInterviewing(jobId: string, currentStatus: JobStatus) {
+  private async promoteToInterviewing(
+    jobId: string,
+    currentStatus: JobStatus,
+    stage: string,
+  ) {
     if (currentStatus !== JobStatus.APPLIED) return;
     await this.prisma.job.update({
       where: { id: jobId },
@@ -31,6 +35,7 @@ export class InterviewRoundsService {
             type: JobEventType.STATUS_CHANGE,
             fromStatus: JobStatus.APPLIED,
             toStatus: JobStatus.INTERVIEWING,
+            note: stage,
           },
         },
       },
@@ -66,7 +71,7 @@ export class InterviewRoundsService {
         notes: dto.notes,
       },
     });
-    await this.promoteToInterviewing(jobId, job.status);
+    await this.promoteToInterviewing(jobId, job.status, dto.stage);
     await this.recomputeNextInterviewAt(jobId);
     return round;
   }

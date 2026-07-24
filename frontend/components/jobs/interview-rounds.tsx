@@ -33,6 +33,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['job', jobId] });
+    qc.invalidateQueries({ queryKey: ['job-events', jobId] });
     qc.invalidateQueries({ queryKey: ['attention'] });
   }
 
