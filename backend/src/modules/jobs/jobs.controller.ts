@@ -34,6 +34,8 @@ import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
 import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
+import { TrendStatsDto } from './dto/trend-stats.dto.js';
+import { StatsQueryDto } from './dto/stats-query.dto.js';
 import { AttentionItemDto } from './dto/attention-item.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -61,14 +63,17 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
-  // 'stats', 'stats/funnel', 'export', and 'attention' must remain above ':id'
-  // — fixed segments take priority over parameterized ones only when
-  // registered first in the same router.
+  // 'stats', 'stats/funnel', 'stats/trend', 'export', and 'attention' must
+  // remain above ':id' — fixed segments take priority over parameterized
+  // ones only when registered first in the same router.
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })
-  getStats(@CurrentUser() user: { id: string }) {
-    return this.jobsService.getStats(user.id);
+  getStats(
+    @CurrentUser() user: { id: string },
+    @Query() query: StatsQueryDto,
+  ) {
+    return this.jobsService.getStats(user.id, query.range ?? 'all');
   }
 
   @Get('stats/funnel')
@@ -77,8 +82,24 @@ export class JobsController {
       'Get funnel conversion, dropoff, avg time-in-stage, and response rate by source',
   })
   @ApiOkResponse({ type: FunnelStatsDto })
-  getFunnel(@CurrentUser() user: { id: string }) {
-    return this.jobsService.getFunnel(user.id);
+  getFunnel(
+    @CurrentUser() user: { id: string },
+    @Query() query: StatsQueryDto,
+  ) {
+    return this.jobsService.getFunnel(user.id, query.range ?? 'all');
+  }
+
+  @Get('stats/trend')
+  @ApiOperation({
+    summary:
+      'Get application volume over time (adaptive day/week/month buckets + cumulative total)',
+  })
+  @ApiOkResponse({ type: TrendStatsDto })
+  getTrend(
+    @CurrentUser() user: { id: string },
+    @Query() query: StatsQueryDto,
+  ) {
+    return this.jobsService.getTrend(user.id, query.range ?? 'all');
   }
 
   @Get('export')

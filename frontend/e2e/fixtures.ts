@@ -57,6 +57,7 @@ export async function createTestJob(
     position: string;
     status: string;
     location: string;
+    appliedAt: string;
   }> = {},
 ): Promise<TestJob> {
   const res = await fetch(`${API}/jobs`, {

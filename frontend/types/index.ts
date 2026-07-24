@@ -174,6 +174,26 @@ export interface FunnelStats {
   }[];
 }
 
+export type DashboardRange = '30d' | '90d' | 'all';
+
+export const DASHBOARD_RANGES: { value: DashboardRange; label: string }[] = [
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+  { value: 'all', label: 'All' },
+];
+
+export interface TrendBucket {
+  label: string;
+  periodStart: string;
+  count: number;
+  cumulative: number;
+}
+
+export interface TrendStats {
+  granularity: 'day' | 'week' | 'month';
+  buckets: TrendBucket[];
+}
+
 export interface PaginatedJobs {
   data: Job[];
   meta: {
