@@ -85,7 +85,7 @@ test.describe('Login', () => {
   test('valid credentials land on dashboard', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(user.email);
-    await page.getByLabel('Password').fill(user.password);
+    await page.getByLabel('Password', { exact: true }).fill(user.password);
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page).toHaveURL('/');
@@ -97,7 +97,7 @@ test.describe('Login', () => {
   test('wrong password shows error and stays on /login', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill(user.email);
-    await page.getByLabel('Password').fill('WrongPass999!');
+    await page.getByLabel('Password', { exact: true }).fill('WrongPass999!');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.getByText('Invalid credentials')).toBeVisible();
@@ -107,7 +107,7 @@ test.describe('Login', () => {
   test('unknown email shows error', async ({ page }) => {
     await page.goto('/login');
     await page.getByLabel('Email').fill('nobody@test.dev');
-    await page.getByLabel('Password').fill('E2ePass123!');
+    await page.getByLabel('Password', { exact: true }).fill('E2ePass123!');
     await page.getByRole('button', { name: 'Sign in' }).click();
 
     await expect(page.getByText('Invalid credentials')).toBeVisible();
