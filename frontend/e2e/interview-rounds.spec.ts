@@ -54,7 +54,7 @@ test.describe('Interview rounds', () => {
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page.getByText('Interview round added')).toBeVisible();
-    await expect(page.getByText('Phone Screen')).toBeVisible();
+    await expect(page.getByText('Phone Screen', { exact: true })).toBeVisible();
     await expect(page.getByText('Ask about on-call rotation')).toBeVisible();
   });
 
@@ -98,7 +98,7 @@ test.describe('Interview rounds', () => {
     await page.getByLabel('Stage').fill('Phone Screen');
     await page.getByLabel('Date').fill(futureDate(7));
     await page.getByRole('button', { name: 'Save' }).click();
-    await expect(page.getByText('Phone Screen')).toBeVisible();
+    await expect(page.getByText('Phone Screen', { exact: true })).toBeVisible();
 
     const roundRow = page.locator('li', { hasText: 'Phone Screen' });
     await roundRow.getByRole('button').click();
