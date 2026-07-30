@@ -1,4 +1,5 @@
 import { Test } from '@nestjs/testing';
+import { ConflictException } from '@nestjs/common';
 import { JobStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
@@ -17,11 +18,15 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
-  jobEvent: { findMany: jest.fn() },
+  jobEvent: { findMany: jest.fn(), create: jest.fn() },
   resume: { findFirst: jest.fn() },
+  // See interview-rounds.service.spec.ts for why this just replays the
+  // callback against the same mock instead of modeling a real transaction.
+  $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
 const mockEnrichment = { enqueueEnrichment: jest.fn() };
@@ -181,25 +186,41 @@ describe('JobsService', () => {
         id: 'job-1',
         status: JobStatus.APPLIED,
       });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
       await service.update('user-1', 'job-1', {
         status: JobStatus.INTERVIEWING,
       });
 
-      expect(mockPrisma.job.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({
-            events: {
-              create: {
-                type: 'STATUS_CHANGE',
-                fromStatus: JobStatus.APPLIED,
-                toStatus: JobStatus.INTERVIEWING,
-              },
-            },
-          }),
-        }),
-      );
+      expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
+        where: { id: 'job-1', status: JobStatus.APPLIED },
+        data: { status: JobStatus.INTERVIEWING },
+      });
+      expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
+        data: {
+          jobId: 'job-1',
+          type: 'STATUS_CHANGE',
+          fromStatus: JobStatus.APPLIED,
+          toStatus: JobStatus.INTERVIEWING,
+        },
+      });
+    });
+
+    it('throws ConflictException and does not write an event when the status changed concurrently', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      // Another request already moved the row off APPLIED — the CAS matches
+      // zero rows.
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.update('user-1', 'job-1', { status: JobStatus.OFFER }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).not.toHaveBeenCalled();
     });
 
     it('does not create an event when the new status equals the existing status', async () => {
@@ -211,6 +232,8 @@ describe('JobsService', () => {
 
       await service.update('user-1', 'job-1', { status: JobStatus.APPLIED });
 
+      expect(mockPrisma.job.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
       expect(mockPrisma.job.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.not.objectContaining({ events: expect.anything() }),
@@ -227,6 +250,8 @@ describe('JobsService', () => {
 
       await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
 
+      expect(mockPrisma.job.updateMany).not.toHaveBeenCalled();
+      expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
       expect(mockPrisma.job.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.not.objectContaining({ events: expect.anything() }),
