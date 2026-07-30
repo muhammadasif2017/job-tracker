@@ -89,15 +89,25 @@ export class InterviewRoundsService {
   // statement forces Postgres to serialize on the job row and re-evaluate the
   // subquery fresh for each writer, closing the window findFirst-then-update
   // left open (see ADR-018's "Known Remaining Gap").
+  //
+  // `scheduledAt` is TIMESTAMP(3) — no time zone (see the interview_rounds
+  // migration). SQL `now()` returns timestamptz, and comparing a naive
+  // timestamp column to it resolves against the session TimeZone setting —
+  // correct on this UTC dev container, silently wrong on any DB whose
+  // session timezone isn't UTC. Binding a JS Date as a parameter instead
+  // sidesteps that: Prisma serializes it the same way it did for the old
+  // `scheduledAt: { gte: new Date() }` query-builder call, so this restores
+  // the exact prior (timezone-independent) semantics.
   private async recomputeNextInterviewAt(
     tx: Prisma.TransactionClient,
     jobId: string,
   ) {
+    const now = new Date();
     await tx.$executeRaw`
       UPDATE "Job"
       SET "nextInterviewAt" = (
         SELECT MIN("scheduledAt") FROM "interview_rounds"
-        WHERE "jobId" = ${jobId} AND "outcome" = 'PENDING' AND "scheduledAt" >= now()
+        WHERE "jobId" = ${jobId} AND "outcome" = 'PENDING' AND "scheduledAt" >= ${now}
       )
       WHERE "id" = ${jobId}
     `;

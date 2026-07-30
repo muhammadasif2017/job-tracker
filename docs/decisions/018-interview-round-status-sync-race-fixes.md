@@ -120,6 +120,32 @@ existing e2e cases (`app.e2e-spec.ts`, "creates a round and recomputes
 nextInterviewAt" / "updates outcome and recomputes nextInterviewAt to null
 when none remain pending").
 
+**`scheduledAt` is `TIMESTAMP(3)` — no time zone** (see the
+`interview_rounds` migration). The subquery's "is this round still in the
+future" check must not use SQL `now()`: `now()` returns `timestamptz`, and
+comparing that to a timezone-naive column resolves against the DB session's
+`TimeZone` setting — correct by accident on this UTC dev container, silently
+wrong (shifted by the session's UTC offset) on any deployment where it
+isn't. `recomputeNextInterviewAt` instead binds a JS `Date` as a query
+parameter, which Prisma serializes the same way it did for the
+`scheduledAt: { gte: new Date() }` query-builder call this replaced —
+timezone-independent, matching the exact prior semantics.
+
+**This recompute no longer bumps `Job.updatedAt`.** `@updatedAt` is
+maintained by the Prisma client on `update()` calls, not the database — the
+old `tx.job.update({ data: { nextInterviewAt } })` bumped it as a side
+effect of every round create/update/delete, even though only a derived field
+changed. The new `$executeRaw` doesn't touch it. This is a deliberate,
+accepted behavior change, not an oversight: `JobsService.getAttention`'s
+`STALE_INTERVIEWING` staleness check already keys off the `JobEvent` table
+(`events: { none: { createdAt: { gt: fiveDaysAgo } } }`), not `updatedAt` —
+`updatedAt` was only ever a secondary sort key there
+(`orderBy: { updatedAt: 'asc' }`) and a rare fallback for `since` when a job
+somehow has zero events. Not bumping it for a pure derived-field recompute is
+the more correct signal (the job's real content didn't change), and it stops
+a round-outcome edit — which writes no `JobEvent` — from making a job look
+"recently touched" in that ordering when the event history shows no activity.
+
 ## Consequences
 - `InterviewRoundsService.create/update/remove` all take a `Prisma.TransactionClient`
   through `logRoundEvent`/`recomputeNextInterviewAt`, which are now private

@@ -434,6 +434,13 @@ describe('Job Tracker (e2e)', () => {
       expect(job.body.nextInterviewAt).toBeNull();
     });
 
+    it('rejects a scheduledAt more than 2 years out on PATCH too (PartialType carries the bound)', () =>
+      agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ scheduledAt: '2099-01-01' })
+        .expect(400));
+
     it('returns 404 for a round that does not belong to the job', () =>
       agent
         .patch(`/jobs/${jobId}/interview-rounds/nonexistent-id`)

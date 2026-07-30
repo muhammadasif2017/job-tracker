@@ -33,12 +33,15 @@ const mockPrisma = {
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
-// $executeRaw is called as a tagged template: (strings, jobId, jobId) —
-// the SQL interpolates the job id twice (subquery WHERE + outer WHERE).
+// $executeRaw is called as a tagged template: (strings, jobId, now, jobId) —
+// the SQL interpolates the job id twice (subquery WHERE + outer WHERE) with
+// a bound `now` Date in between (see interview-rounds.service.ts for why
+// it's a bound parameter rather than SQL now()).
 function expectRecomputeCalledFor(jobId: string) {
   expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(
     expect.anything(),
     jobId,
+    expect.any(Date),
     jobId,
   );
 }
