@@ -1,10 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import {
-  InterviewOutcome,
-  JobStatus,
-  JobEventType,
-  Prisma,
-} from '@prisma/client';
+import { JobStatus, JobEventType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
@@ -75,25 +70,27 @@ export class InterviewRoundsService {
   // Recomputes Job.nextInterviewAt from the earliest future PENDING round.
   // Called after every create/update/delete so it's always the single source
   // of truth — never set directly via CreateJobDto/UpdateJobDto. Always runs
-  // inside the same transaction as the round mutation that triggered it, so a
-  // concurrent request can't observe a half-committed round set.
+  // inside the same transaction as the round mutation that triggered it.
+  //
+  // This is a single UPDATE with the MIN(...) subquery inline, not a
+  // findFirst-then-update round trip — two concurrent round mutations on the
+  // same job would otherwise be a lost-update race (both read the pre-update
+  // round set, second write clobbers the first with a stale value). A single
+  // statement forces Postgres to serialize on the job row and re-evaluate the
+  // subquery fresh for each writer, closing the window findFirst-then-update
+  // left open (see ADR-018's "Known Remaining Gap").
   private async recomputeNextInterviewAt(
     tx: Prisma.TransactionClient,
     jobId: string,
   ) {
-    const next = await tx.interviewRound.findFirst({
-      where: {
-        jobId,
-        outcome: InterviewOutcome.PENDING,
-        scheduledAt: { gte: new Date() },
-      },
-      orderBy: { scheduledAt: 'asc' },
-      select: { scheduledAt: true },
-    });
-    await tx.job.update({
-      where: { id: jobId },
-      data: { nextInterviewAt: next?.scheduledAt ?? null },
-    });
+    await tx.$executeRaw`
+      UPDATE "Job"
+      SET "nextInterviewAt" = (
+        SELECT MIN("scheduledAt") FROM "interview_rounds"
+        WHERE "jobId" = ${jobId} AND "outcome" = 'PENDING' AND "scheduledAt" >= now()
+      )
+      WHERE "id" = ${jobId}
+    `;
   }
 
   async create(userId: string, jobId: string, dto: CreateInterviewRoundDto) {

@@ -7,7 +7,6 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 const mockPrisma = {
   job: {
     findFirst: jest.fn(),
-    update: jest.fn(),
     updateMany: jest.fn(),
     findUniqueOrThrow: jest.fn(),
   },
@@ -21,12 +20,27 @@ const mockPrisma = {
   jobEvent: {
     create: jest.fn(),
   },
+  // recomputeNextInterviewAt is a single raw UPDATE (see interview-rounds.service.ts)
+  // so there's nothing meaningful to assert about its *result* at the mock
+  // level — that's what the backend e2e suite verifies against real Postgres.
+  // The unit tests here only confirm it's invoked, with the job id bound in.
+  $executeRaw: jest.fn(),
   // Real $transaction opens a DB transaction and hands the callback a scoped
   // client; here it just replays the callback against the same mock so
-  // existing call assertions (mockPrisma.job.update, etc.) keep working
+  // existing call assertions (mockPrisma.jobEvent.create, etc.) keep working
   // unchanged — the transaction boundary itself isn't observable via mocks.
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
+
+// $executeRaw is called as a tagged template: (strings, jobId, jobId) —
+// the SQL interpolates the job id twice (subquery WHERE + outer WHERE).
+function expectRecomputeCalledFor(jobId: string) {
+  expect(mockPrisma.$executeRaw).toHaveBeenCalledWith(
+    expect.anything(),
+    jobId,
+    jobId,
+  );
+}
 
 describe('InterviewRoundsService', () => {
   let service: InterviewRoundsService;
@@ -66,25 +80,18 @@ describe('InterviewRoundsService', () => {
     it('creates the round and recomputes nextInterviewAt', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue({
-        scheduledAt: new Date('2026-08-01T00:00:00Z'),
-      });
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
         scheduledAt: '2026-08-01',
       });
 
-      expect(mockPrisma.job.update).toHaveBeenCalledWith({
-        where: { id: 'job-1' },
-        data: { nextInterviewAt: new Date('2026-08-01T00:00:00Z') },
-      });
+      expectRecomputeCalledFor('job-1');
     });
 
     it('performs the round create inside a single transaction', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
 
       await service.create('user-1', 'job-1', {
         stage: 'Onsite',
@@ -100,9 +107,6 @@ describe('InterviewRoundsService', () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue({
-        scheduledAt: new Date('2026-08-01T00:00:00Z'),
-      });
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
@@ -123,9 +127,6 @@ describe('InterviewRoundsService', () => {
         },
       });
       expect(mockPrisma.job.findUniqueOrThrow).not.toHaveBeenCalled();
-      for (const call of mockPrisma.job.update.mock.calls) {
-        expect(call[0].data).not.toHaveProperty('status');
-      }
     });
 
     it.each([
@@ -141,18 +142,16 @@ describe('InterviewRoundsService', () => {
         mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
         mockPrisma.job.findUniqueOrThrow.mockResolvedValue({ status });
         mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-2' });
-        mockPrisma.interviewRound.findFirst.mockResolvedValue({
-          scheduledAt: new Date('2026-08-05T00:00:00Z'),
-        });
 
         await service.create('user-1', 'job-1', {
           stage: 'Onsite',
           scheduledAt: '2026-08-05',
         });
 
-        for (const call of mockPrisma.job.update.mock.calls) {
-          expect(call[0].data).not.toHaveProperty('status');
-        }
+        expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
+          where: { id: 'job-1', status: JobStatus.APPLIED },
+          data: { status: JobStatus.INTERVIEWING },
+        });
         expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
           data: {
             jobId: 'job-1',
@@ -174,7 +173,6 @@ describe('InterviewRoundsService', () => {
         status: JobStatus.INTERVIEWING,
       });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-3' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
@@ -196,85 +194,60 @@ describe('InterviewRoundsService', () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.findFirst.mockResolvedValue({ id: 'round-1' });
       mockPrisma.interviewRound.update.mockResolvedValue({ id: 'round-1' });
-      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce({
-        id: 'round-1',
-      });
-      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce(null);
 
       await service.update('user-1', 'job-1', 'round-1', {
         outcome: InterviewOutcome.PASSED,
       });
 
-      for (const call of mockPrisma.job.update.mock.calls) {
-        expect(call[0].data).not.toHaveProperty('status');
-      }
+      expect(mockPrisma.job.updateMany).not.toHaveBeenCalled();
       expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
     });
 
     it('does not promote status on round removal', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.deleteMany.mockResolvedValue({ count: 1 });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
 
       await service.remove('user-1', 'job-1', 'round-1');
 
-      for (const call of mockPrisma.job.update.mock.calls) {
-        expect(call[0].data).not.toHaveProperty('status');
-      }
+      expect(mockPrisma.job.updateMany).not.toHaveBeenCalled();
       expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
     });
   });
 
-  describe('recomputeNextInterviewAt (via create)', () => {
-    it('sets nextInterviewAt to the earliest future PENDING round', async () => {
+  describe('recomputeNextInterviewAt', () => {
+    it('is invoked after a round create, scoped to the job id', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
-      const earliest = new Date('2026-08-05T00:00:00Z');
-      mockPrisma.interviewRound.findFirst.mockResolvedValue({
-        scheduledAt: earliest,
-      });
 
       await service.create('user-1', 'job-1', {
         stage: 'Technical',
         scheduledAt: '2026-08-05',
       });
 
-      expect(mockPrisma.interviewRound.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            jobId: 'job-1',
-            outcome: InterviewOutcome.PENDING,
-            scheduledAt: expect.objectContaining({ gte: expect.any(Date) }),
-          }),
-          orderBy: { scheduledAt: 'asc' },
-        }),
-      );
-      expect(mockPrisma.job.update).toHaveBeenCalledWith({
-        where: { id: 'job-1' },
-        data: { nextInterviewAt: earliest },
-      });
+      expectRecomputeCalledFor('job-1');
     });
 
-    it('sets nextInterviewAt to null when no PENDING round remains', async () => {
+    it('is invoked after a round outcome update, scoped to the job id', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.findFirst.mockResolvedValue({
         id: 'round-1',
       });
       mockPrisma.interviewRound.update.mockResolvedValue({ id: 'round-1' });
-      // No pending round left after this update (e.g. marked FAILED).
-      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce({
-        id: 'round-1',
-      });
-      mockPrisma.interviewRound.findFirst.mockResolvedValueOnce(null);
 
       await service.update('user-1', 'job-1', 'round-1', {
         outcome: InterviewOutcome.FAILED,
       });
 
-      expect(mockPrisma.job.update).toHaveBeenCalledWith({
-        where: { id: 'job-1' },
-        data: { nextInterviewAt: null },
-      });
+      expectRecomputeCalledFor('job-1');
+    });
+
+    it('is invoked after a round delete, scoped to the job id', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove('user-1', 'job-1', 'round-1');
+
+      expectRecomputeCalledFor('job-1');
     });
   });
 
@@ -300,21 +273,17 @@ describe('InterviewRoundsService', () => {
       await expect(
         service.remove('user-1', 'job-1', 'round-x'),
       ).rejects.toThrow(NotFoundException);
-      expect(mockPrisma.job.update).not.toHaveBeenCalled();
+      expect(mockPrisma.$executeRaw).not.toHaveBeenCalled();
     });
 
     it('recomputes nextInterviewAt after a successful delete', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.interviewRound.deleteMany.mockResolvedValue({ count: 1 });
-      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
 
       const result = await service.remove('user-1', 'job-1', 'round-1');
 
       expect(result).toEqual({ message: 'Interview round deleted' });
-      expect(mockPrisma.job.update).toHaveBeenCalledWith({
-        where: { id: 'job-1' },
-        data: { nextInterviewAt: null },
-      });
+      expectRecomputeCalledFor('job-1');
     });
   });
 
