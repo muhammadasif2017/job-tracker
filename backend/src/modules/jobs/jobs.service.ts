@@ -7,11 +7,20 @@ import {
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import { ParseJobDto } from './dto/parse-job.dto.js';
+import { ParsedJobDto } from './dto/parsed-job.dto.js';
 import { ATTENTION_TYPES } from './dto/attention-item.dto.js';
-import { JobStatus, JobEventType, JobPriority, JobSource } from '@prisma/client';
+import {
+  JobStatus,
+  JobEventType,
+  JobPriority,
+  JobSource,
+} from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
@@ -31,9 +40,55 @@ export class JobsService {
   constructor(
     private prisma: PrismaService,
     private enrichment: EnrichmentService,
+    private webFetch: WebFetchService,
+    private llm: LlmService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
+
+  private static readonly SOURCE_DOMAINS: Array<[string, JobSource]> = [
+    ['linkedin.com', JobSource.LINKEDIN],
+    ['indeed.com', JobSource.INDEED],
+    ['rozee.pk', JobSource.ROZEE],
+  ];
+
+  private guessSourceFromUrl(url: string): JobSource | undefined {
+    try {
+      const host = new URL(url).hostname.replace(/^www\./, '');
+      const matched = JobsService.SOURCE_DOMAINS.find(([domain]) =>
+        host.endsWith(domain),
+      );
+      return matched ? matched[1] : JobSource.OTHER;
+    } catch {
+      return undefined;
+    }
+  }
+
+  async parseJobPosting(dto: ParseJobDto): Promise<ParsedJobDto> {
+    const fetchedText = dto.url
+      ? await this.webFetch.fetchPageText(dto.url)
+      : '';
+    const content = fetchedText || dto.text || '';
+    if (!content) return {};
+
+    try {
+      const parsed = await this.llm.extractJobPosting(content);
+      return {
+        company: parsed.company,
+        position: parsed.position,
+        location: parsed.location,
+        jobType: parsed.jobType,
+        url: dto.url,
+        source:
+          dto.url && fetchedText ? this.guessSourceFromUrl(dto.url) : undefined,
+      };
+    } catch (err: unknown) {
+      this.logger.warn('parse_job_posting_failed', {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return { url: dto.url };
+    }
+  }
 
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;

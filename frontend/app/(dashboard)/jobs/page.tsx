@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
+  Sparkles,
   Search,
   ExternalLink,
   Pencil,
@@ -24,6 +25,7 @@ import {
 } from '../../../components/ui/badge';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
+import { QuickAdd } from '../../../components/jobs/quick-add';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
 import { formatDate } from '../../../lib/utils';
 import {
@@ -55,6 +57,7 @@ export default function JobsPage() {
   const [priorityFilter, setPriorityFilter] = useState<JobPriority | ''>('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [editJob, setEditJob] = useState<Job | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Job | undefined>();
 
@@ -135,6 +138,9 @@ export default function JobsPage() {
         <div className="flex gap-2">
           <Button variant="secondary" onClick={handleExport}>
             <Download className="h-4 w-4" /> Export CSV
+          </Button>
+          <Button variant="secondary" onClick={() => setQuickAddOpen(true)}>
+            <Sparkles className="h-4 w-4" /> Quick Add
           </Button>
           <Button onClick={() => setFormOpen(true)}>
             <Plus className="h-4 w-4" /> Add Job
@@ -356,6 +362,10 @@ export default function JobsPage() {
       )}
 
       <JobForm open={formOpen} onClose={closeForm} job={editJob} />
+      <QuickAdd
+        open={quickAddOpen}
+        onClose={() => setQuickAddOpen(false)}
+      />
 
       <Modal
         open={!!deleteTarget}

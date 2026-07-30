@@ -38,13 +38,18 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+type InitialValues = Partial<
+  Pick<FormData, 'company' | 'position' | 'location' | 'url' | 'jobType' | 'source'>
+>;
+
 interface JobFormProps {
   open: boolean;
   onClose: () => void;
   job?: Job;
+  initialValues?: InitialValues;
 }
 
-export function JobForm({ open, onClose, job }: JobFormProps) {
+export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;
   const [createdJobId, setCreatedJobId] = useState<string | null>(null);
@@ -90,10 +95,11 @@ export function JobForm({ open, onClose, job }: JobFormProps) {
               priority: 'MEDIUM',
               jobType: 'ONSITE',
               appliedAt: new Date().toISOString().split('T')[0],
+              ...initialValues,
             },
       );
     }
-  }, [open, job, reset]);
+  }, [open, job, initialValues, reset]);
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {

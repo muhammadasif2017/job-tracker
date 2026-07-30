@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,6 +27,8 @@ import { JobsService } from './jobs.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import { ParseJobDto } from './dto/parse-job.dto.js';
+import { ParsedJobDto } from './dto/parsed-job.dto.js';
 import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
@@ -50,6 +53,19 @@ export class JobsController {
   @ApiCreatedResponse({ type: JobResponseDto })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateJobDto) {
     return this.jobsService.create(user.id, dto);
+  }
+
+  @Post('parse')
+  @ApiOperation({
+    summary:
+      'Extract job fields from a posting URL or pasted text, for quick-add prefill',
+  })
+  @ApiOkResponse({ type: ParsedJobDto })
+  parseJobPosting(@Body() dto: ParseJobDto) {
+    if (!dto.url && !dto.text) {
+      throw new BadRequestException('Either url or text must be provided');
+    }
+    return this.jobsService.parseJobPosting(dto);
   }
 
   @Get()

@@ -74,8 +74,57 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
   },
 };
 
+export interface ParsedJobData {
+  company?: string;
+  position?: string;
+  location?: string;
+  jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
+}
+
+const JOB_POSTING_TOOL: Groq.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'extract_job_posting',
+    description:
+      'Extract structured job application data from a job posting or job description',
+    parameters: {
+      type: 'object',
+      properties: {
+        company: { type: 'string' },
+        position: { type: 'string', description: 'The job title' },
+        location: { type: 'string' },
+        jobType: {
+          type: 'string',
+          enum: ['ONSITE', 'HYBRID', 'REMOTE', 'Unknown'],
+        },
+      },
+      required: ['company', 'position', 'location', 'jobType'],
+    },
+  },
+};
+
 function str(val: unknown): string {
   return typeof val === 'string' && val.trim() ? val.trim() : 'Unknown';
+}
+
+function optStr(val: unknown): string | undefined {
+  const s = str(val);
+  return s === 'Unknown' ? undefined : s;
+}
+
+function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
+  const jobType =
+    raw.jobType === 'ONSITE' ||
+    raw.jobType === 'HYBRID' ||
+    raw.jobType === 'REMOTE'
+      ? raw.jobType
+      : undefined;
+  return {
+    company: optStr(raw.company),
+    position: optStr(raw.position),
+    location: optStr(raw.location),
+    jobType,
+  };
 }
 
 function sanitize(raw: Record<string, unknown>): CompanyData {
@@ -173,6 +222,41 @@ export class LlmService {
     } catch (err) {
       this.logger.warn('llm_extract_failed', {
         company: companyName,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  }
+
+  async extractJobPosting(content: string): Promise<ParsedJobData> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'llama-3.3-70b-versatile',
+        max_tokens: 1024,
+        tools: [JOB_POSTING_TOOL],
+        tool_choice: 'required',
+        messages: [
+          {
+            role: 'user',
+            content:
+              `Extract the company name, job title, location, and work arrangement type ` +
+              `(ONSITE, HYBRID, or REMOTE) from the following job posting content. If a ` +
+              `field is not present in the content, use "Unknown". Do not guess or ` +
+              `hallucinate data not present in the content.\n\nJob posting content:\n${content}`,
+          },
+        ],
+      });
+
+      const toolCall = response.choices[0]?.message?.tool_calls?.[0];
+      if (!toolCall) throw new Error('No tool call in Groq response');
+
+      const raw = JSON.parse(toolCall.function.arguments) as Record<
+        string,
+        unknown
+      >;
+      return sanitizeJobPosting(raw);
+    } catch (err) {
+      this.logger.warn('llm_extract_job_posting_failed', {
         error: err instanceof Error ? err.message : String(err),
       });
       throw err;

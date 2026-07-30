@@ -159,6 +159,18 @@ describe('Job Tracker (e2e)', () => {
       agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
   });
 
+  describe('POST /jobs/parse', () => {
+    it('rejects a request with neither url nor text with 400', () =>
+      agent
+        .post('/jobs/parse')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({})
+        .expect(400));
+
+    it('returns 401 without token', () =>
+      agent.post('/jobs/parse').send({ text: 'Senior Engineer' }).expect(401));
+  });
+
   describe('GET /jobs', () => {
     it('returns paginated job list', async () => {
       const res = await agent

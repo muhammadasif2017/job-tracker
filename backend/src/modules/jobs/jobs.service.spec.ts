@@ -5,6 +5,8 @@ import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -30,6 +32,8 @@ const mockPrisma = {
 };
 
 const mockEnrichment = { enqueueEnrichment: jest.fn() };
+const mockWebFetch = { fetchPageText: jest.fn() };
+const mockLlm = { extractJobPosting: jest.fn() };
 const mockStorage = {
   upload: jest.fn(),
   getPresignedUrl: jest.fn(),
@@ -47,6 +51,8 @@ describe('JobsService', () => {
         JobsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EnrichmentService, useValue: mockEnrichment },
+        { provide: WebFetchService, useValue: mockWebFetch },
+        { provide: LlmService, useValue: mockLlm },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
         { provide: Logger, useValue: mockLogger },
       ],
@@ -772,6 +778,87 @@ describe('JobsService', () => {
       const row = csv.split('\r\n')[1];
 
       expect(row).toContain(',"",');
+    });
+  });
+
+  describe('parseJobPosting', () => {
+    it('fetches the URL, extracts fields, and maps the domain to a JobSource', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue(
+        'Senior Engineer at Acme...',
+      );
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+        location: 'Remote',
+        jobType: 'REMOTE',
+      });
+
+      const result = await service.parseJobPosting({
+        url: 'https://www.linkedin.com/jobs/view/123',
+      });
+
+      expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+        'https://www.linkedin.com/jobs/view/123',
+      );
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
+        'Senior Engineer at Acme...',
+      );
+      expect(result).toEqual({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+        location: 'Remote',
+        jobType: 'REMOTE',
+        url: 'https://www.linkedin.com/jobs/view/123',
+        source: 'LINKEDIN',
+      });
+    });
+
+    it('falls back to text extraction when the URL fetch fails, and leaves source undefined', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+      });
+
+      const result = await service.parseJobPosting({
+        url: 'https://gated.example.com/job/1',
+        text: 'pasted job description text',
+      });
+
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
+        'pasted job description text',
+      );
+      expect(result.source).toBeUndefined();
+      expect(result.company).toBe('Acme Corp');
+    });
+
+    it('extracts from text-only input with no URL, leaving source and url undefined', async () => {
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+      });
+
+      const result = await service.parseJobPosting({
+        text: 'pasted job description text',
+      });
+
+      expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+      expect(result.url).toBeUndefined();
+      expect(result.source).toBeUndefined();
+      expect(result.company).toBe('Acme Corp');
+    });
+
+    it('returns a partial result instead of throwing when extraction fails', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.extractJobPosting.mockRejectedValue(
+        new Error('Groq unavailable'),
+      );
+
+      const result = await service.parseJobPosting({
+        text: 'pasted job description text',
+      });
+
+      expect(result).toEqual({ url: undefined });
     });
   });
 });

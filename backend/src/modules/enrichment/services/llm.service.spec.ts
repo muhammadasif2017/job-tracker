@@ -146,3 +146,88 @@ describe('LlmService', () => {
     expect(result.headquarters).toBe('Unknown');
   });
 });
+
+describe('LlmService.extractJobPosting', () => {
+  let service: LlmService;
+
+  const baseJobInput = {
+    company: 'Acme Corp',
+    position: 'Senior Engineer',
+    location: 'Remote',
+    jobType: 'REMOTE',
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('test-api-key');
+    const module = await Test.createTestingModule({
+      providers: [
+        LlmService,
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: Logger, useValue: mockLogger },
+      ],
+    }).compile();
+    service = module.get(LlmService);
+  });
+
+  it('returns ParsedJobData extracted from the tool_call response', async () => {
+    mockCreate.mockResolvedValue(groqResponse(baseJobInput));
+
+    const result = await service.extractJobPosting('Acme Corp is hiring...');
+
+    expect(result).toEqual({
+      company: 'Acme Corp',
+      position: 'Senior Engineer',
+      location: 'Remote',
+      jobType: 'REMOTE',
+    });
+  });
+
+  it('throws when response contains no tool call', async () => {
+    mockCreate.mockResolvedValue({ choices: [{ message: {} }] });
+
+    await expect(service.extractJobPosting('some content')).rejects.toThrow(
+      'No tool call in Groq response',
+    );
+  });
+
+  it('re-throws when Groq SDK throws', async () => {
+    mockCreate.mockRejectedValue(new Error('API unavailable'));
+
+    await expect(service.extractJobPosting('content')).rejects.toThrow(
+      'API unavailable',
+    );
+  });
+
+  it('converts "Unknown" string fields to undefined', async () => {
+    mockCreate.mockResolvedValue(
+      groqResponse({ ...baseJobInput, company: 'Unknown', location: '' }),
+    );
+
+    const result = await service.extractJobPosting('content');
+
+    expect(result.company).toBeUndefined();
+    expect(result.location).toBeUndefined();
+    expect(result.position).toBe('Senior Engineer');
+  });
+
+  it('drops jobType when it is not a valid enum value', async () => {
+    mockCreate.mockResolvedValue(
+      groqResponse({ ...baseJobInput, jobType: 'Unknown' }),
+    );
+
+    const result = await service.extractJobPosting('content');
+
+    expect(result.jobType).toBeUndefined();
+  });
+
+  it('drops jobType when malformed (not a known enum string)', async () => {
+    mockCreate.mockResolvedValue(
+      groqResponse({ ...baseJobInput, jobType: 'FULL_TIME' }),
+    );
+
+    const result = await service.extractJobPosting('content');
+
+    expect(result.jobType).toBeUndefined();
+  });
+});
