@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
@@ -70,7 +71,14 @@ export class JobsService {
       ? await this.webFetch.fetchPageText(dto.url)
       : '';
     const content = fetchedText || dto.text || '';
-    if (!content) return {};
+    if (!content) {
+      if (dto.url) {
+        throw new BadRequestException(
+          'Could not fetch that page — it may be blocking automated requests. Try pasting the job description text instead.',
+        );
+      }
+      return {};
+    }
 
     try {
       const parsed = await this.llm.extractJobPosting(content);

@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { JobStatus, JobType } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
@@ -882,6 +882,14 @@ describe('JobsService', () => {
       expect(result.url).toBeUndefined();
       expect(result.source).toBeUndefined();
       expect(result.company).toBe('Acme Corp');
+    });
+
+    it('throws instead of silently returning an empty result when the URL fetch yields no content and no text was pasted', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+
+      await expect(
+        service.parseJobPosting({ url: 'https://gated.example.com/job/1' }),
+      ).rejects.toThrow(BadRequestException);
     });
 
     it('returns a partial result instead of throwing when extraction fails', async () => {
