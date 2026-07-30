@@ -155,9 +155,14 @@ Single source of truth for all shared types and UI constants:
 - Props: `jobId: string`, `rounds: InterviewRound[]` — `rounds` comes straight from
   the parent's `['job', id]` query (`job.interviewRounds`), **not** a separate
   query key. The backend embeds rounds in `GET /jobs/:id`.
-- Create/update-outcome/delete mutations all `invalidateQueries(['job', jobId])`
-  and `invalidateQueries(['attention'])` — no optimistic updates (simpler than
+- Create/update-outcome/delete mutations all `invalidateQueries(['job', jobId])`,
+  `['job-events', jobId]`, `['attention']`, `['jobs']`, `['stats']`, and
+  `['analytics', 'funnel']` — no optimistic updates (simpler than
   `KanbanBoard`'s pattern; this isn't a drag interaction needing instant feedback).
+  The last three match the manual status-change mutation's invalidation set
+  (`jobs/[id]/page.tsx`) because creating a round can silently flip `Job.status`
+  (APPLIED -> INTERVIEWING auto-promotion) — without them the Kanban board and
+  dashboard stats show a stale status until the next unrelated refetch.
   Invalidating `['job', id]` also refreshes `job.nextInterviewAt`, which the
   backend recomputes server-side (see backend `CLAUDE.md`, "nextInterviewAt Is
   Derived") — the UI never sets that field directly.
