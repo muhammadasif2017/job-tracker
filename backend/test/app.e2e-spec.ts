@@ -383,6 +383,20 @@ describe('Job Tracker (e2e)', () => {
       expect(job.body.nextInterviewAt?.split('T')[0]).toBe(future);
     });
 
+    it('rejects a scheduledAt more than 2 years in the future with 400', () =>
+      agent
+        .post(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Onsite', scheduledAt: '2099-01-01' })
+        .expect(400));
+
+    it('rejects a scheduledAt more than 2 years in the past with 400', () =>
+      agent
+        .post(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Onsite', scheduledAt: '2001-01-01' })
+        .expect(400));
+
     it('returns 404 for a non-existent job', () =>
       agent
         .post('/jobs/nonexistent-id/interview-rounds')
