@@ -35,6 +35,13 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     qc.invalidateQueries({ queryKey: ['job', jobId] });
     qc.invalidateQueries({ queryKey: ['job-events', jobId] });
     qc.invalidateQueries({ queryKey: ['attention'] });
+    // Creating a round can silently flip Job.status (APPLIED -> INTERVIEWING
+    // auto-promotion, see interview-rounds.service.ts). Match the invalidation
+    // set the manual status-change mutation uses (jobs/[id]/page.tsx) so the
+    // Kanban board and dashboard stats don't show a stale status.
+    qc.invalidateQueries({ queryKey: ['jobs'] });
+    qc.invalidateQueries({ queryKey: ['stats'] });
+    qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
   }
 
   const createMutation = useMutation({

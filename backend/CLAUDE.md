@@ -96,15 +96,25 @@ async update(userId: string, jobId: string, dto: UpdateJobDto) {
 
 ## Jobs: Event Logging
 
-Events are written inside the same Prisma operation as the job mutation — never in a separate call:
+Events are written inside the same Prisma operation as the job mutation wherever possible — never in a needlessly separate call:
 
 ```ts
 // On create:
 events: { create: { type: JobEventType.CREATED, toStatus: initialStatus } }
-
-// On status change:
-events: { create: { type: JobEventType.STATUS_CHANGE, fromStatus: existing.status, toStatus: dto.status } }
 ```
+
+**Status-change events are the one documented exception.** Both `JobsService.update` (manual `PATCH /jobs/:id`) and `InterviewRoundsService.logRoundEvent` (auto-promotion) write the status transition as a conditional `updateMany` (compare-and-swap on the previously-read status) followed by a separate `jobEvent.create`, both inside one `prisma.$transaction`:
+
+```ts
+const { count } = await tx.job.updateMany({
+  where: { id: jobId, status: existing.status }, // or JobStatus.APPLIED for auto-promotion
+  data: { status: dto.status },
+});
+if (count === 0) throw new ConflictException(/* lost the race */);
+await tx.jobEvent.create({ data: { jobId, type: JobEventType.STATUS_CHANGE, fromStatus: existing.status, toStatus: dto.status } });
+```
+
+`updateMany` can't carry a nested `events: { create: ... } }`, so this can't be one Prisma call — the CAS is what closes the TOCTOU race where a concurrent status change (e.g. an interview-round auto-promotion racing a manual edit) would otherwise let a stale `existing.status` get written into `fromStatus`. See [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for the race this replaced and why single-statement writes weren't safe here.
 
 ---
 
@@ -140,12 +150,18 @@ import type { Request, Response } from 'express';
 ## Jobs: nextInterviewAt Is Derived, Not User-Settable
 
 `Job.nextInterviewAt` is **not** in `CreateJobDto`/`UpdateJobDto` — it's computed
-by `InterviewRoundsService.recomputeNextInterviewAt(jobId)` after every
+by `InterviewRoundsService.recomputeNextInterviewAt(tx, jobId)` after every
 create/update/delete of an `InterviewRound`, as the earliest future (`scheduledAt
->= now`) round still `PENDING`, or `null` if none. Never add it back to the job
+>= now`) round still `PENDING`, or `null` if none. It takes a `Prisma.TransactionClient`
+and always runs inside the same `$transaction` as the round mutation that
+triggered it — not as a standalone call. Never add it back to the job
 DTOs; the global `ValidationPipe` has `forbidNonWhitelisted: true`, so a client
 sending it gets a 400. See ADR-015 for the full rationale (why a separate 1:many
-model instead of embedding, why this field isn't user-writable).
+model instead of embedding, why this field isn't user-writable), and
+[ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for
+a known, unfixed lost-update window under concurrent round mutations (low
+impact — this field only drives a "needs attention" heuristic and
+self-corrects on the next mutation).
 
 `JobsService.findOne` includes `interviewRounds: { orderBy: { scheduledAt: 'asc'
 } }` alongside `companyProfile`/`resume` — the frontend gets round data for free

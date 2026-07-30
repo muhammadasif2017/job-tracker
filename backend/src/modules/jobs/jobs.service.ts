@@ -1,10 +1,16 @@
-import { Injectable, NotFoundException, Inject } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  Inject,
+} from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import { ATTENTION_TYPES } from './dto/attention-item.dto.js';
 import { JobStatus, JobEventType, JobPriority, JobSource } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -134,34 +140,68 @@ export class JobsService {
     return job;
   }
 
+  // Shared update fields — status is deliberately excluded. Status is either
+  // unchanged (nothing to write) or changing (handled by the CAS branch in
+  // `update`, below), so it never belongs in this plain field list.
+  private buildUpdateData(dto: UpdateJobDto) {
+    return {
+      company: dto.company,
+      position: dto.position,
+      location: dto.location,
+      url: dto.url,
+      priority: dto.priority,
+      source: dto.source,
+      notes: dto.notes,
+      appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+    };
+  }
+
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
-
     const statusChanged = dto.status && dto.status !== existing.status;
+    const data = this.buildUpdateData(dto);
 
-    return this.prisma.job.update({
-      where: { id: jobId },
-      include: { companyProfile: true, resume: true },
-      data: {
-        company: dto.company,
-        position: dto.position,
-        location: dto.location,
-        url: dto.url,
-        status: dto.status,
-        priority: dto.priority,
-        source: dto.source,
-        notes: dto.notes,
-        appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
-        ...(statusChanged && {
-          events: {
-            create: {
-              type: JobEventType.STATUS_CHANGE,
-              fromStatus: existing.status,
-              toStatus: dto.status!,
-            },
-          },
-        }),
-      },
+    if (!statusChanged) {
+      return this.prisma.job.update({
+        where: { id: jobId },
+        include: { companyProfile: true, resume: true },
+        data,
+      });
+    }
+
+    // Status is changing — CAS the transition on the status we just read
+    // (WHERE id AND status = existing.status) instead of writing
+    // unconditionally. If a concurrent mutation (e.g. an interview-round
+    // auto-promotion — see InterviewRoundsService.logRoundEvent) changed the
+    // status in between, `count` comes back 0 and we reject rather than
+    // record a `fromStatus` that's no longer true. This is why the event
+    // isn't nested inside the job update here, unlike the normal pattern
+    // (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't
+    // carry a nested create, so both statements run inside one transaction
+    // instead.
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.job.updateMany({
+        where: { id: jobId, status: existing.status },
+        data: { status: dto.status },
+      });
+      if (count === 0) {
+        throw new ConflictException(
+          'Job status changed concurrently — refresh and try again',
+        );
+      }
+      await tx.jobEvent.create({
+        data: {
+          jobId,
+          type: JobEventType.STATUS_CHANGE,
+          fromStatus: existing.status,
+          toStatus: dto.status!,
+        },
+      });
+      return tx.job.update({
+        where: { id: jobId },
+        include: { companyProfile: true, resume: true },
+        data,
+      });
     });
   }
 
@@ -343,6 +383,9 @@ export class JobsService {
   // interviews within 48h, INTERVIEWING jobs with no event for 5 days, and
   // APPLIED jobs with no movement for 7 days.
   async getAttention(userId: string) {
+    const [UPCOMING_INTERVIEW, STALE_INTERVIEWING, STALE_APPLIED] =
+      ATTENTION_TYPES;
+
     const now = new Date();
     const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
@@ -374,17 +417,17 @@ export class JobsService {
 
     const items = [
       ...upcoming.map((job) => ({
-        type: 'UPCOMING_INTERVIEW' as const,
+        type: UPCOMING_INTERVIEW,
         since: job.nextInterviewAt!,
         job,
       })),
       ...staleInterviewing.map(({ events, ...job }) => ({
-        type: 'STALE_INTERVIEWING' as const,
+        type: STALE_INTERVIEWING,
         since: events[0]?.createdAt ?? job.updatedAt,
         job,
       })),
       ...staleApplied.map((job) => ({
-        type: 'STALE_APPLIED' as const,
+        type: STALE_APPLIED,
         since: job.appliedAt,
         job,
       })),

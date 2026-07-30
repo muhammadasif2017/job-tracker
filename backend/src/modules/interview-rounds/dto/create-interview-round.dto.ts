@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
+import { IsPlausibleDate } from '../../../common/validators/is-plausible-date.validator.js';
 
 export class CreateInterviewRoundDto {
   @ApiProperty({ example: 'Phone Screen', maxLength: 200 })
@@ -16,6 +17,7 @@ export class CreateInterviewRoundDto {
 
   @ApiProperty({ example: '2024-03-22', format: 'date' })
   @IsDateString()
+  @IsPlausibleDate()
   scheduledAt: string;
 
   @ApiPropertyOptional({ example: 'Ask about on-call rotation', maxLength: 5000 })

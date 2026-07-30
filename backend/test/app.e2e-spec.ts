@@ -223,6 +223,56 @@ describe('Job Tracker (e2e)', () => {
 
       expect(res.body.status).toBe('INTERVIEWING');
     });
+
+    it('409s one of two simultaneous status changes and records exactly one STATUS_CHANGE event', async () => {
+      const created = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'Race Co', position: 'Engineer', status: 'APPLIED' })
+        .expect(201);
+      const raceJobId = created.body.id;
+
+      // Two requests fired together, both reading status: APPLIED and racing
+      // to CAS it to a different target. Real concurrency against real
+      // Postgres — this is what a mocked $transaction can't prove (see
+      // ADR-018).
+      const [a, b] = await Promise.all([
+        agent
+          .patch(`/jobs/${raceJobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ status: 'INTERVIEWING' }),
+        agent
+          .patch(`/jobs/${raceJobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ status: 'OFFER' }),
+      ]);
+
+      const statuses = [a.status, b.status].sort((x, y) => x - y);
+      expect(statuses).toEqual([200, 409]);
+
+      const winner = a.status === 200 ? a : b;
+      const loser = a.status === 200 ? b : a;
+      expect(loser.body.message).toMatch(/changed concurrently/i);
+
+      const finalJob = await agent
+        .get(`/jobs/${raceJobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(finalJob.body.status).toBe(winner.body.status);
+
+      // The loser's CAS must not have written an event for its own attempt —
+      // exactly one STATUS_CHANGE for this job, matching the winner.
+      const events = await agent
+        .get(`/jobs/${raceJobId}/events`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      const statusChangeEvents = events.body.filter(
+        (e: { type: string }) => e.type === 'STATUS_CHANGE',
+      );
+      expect(statusChangeEvents).toHaveLength(1);
+      expect(statusChangeEvents[0].fromStatus).toBe('APPLIED');
+      expect(statusChangeEvents[0].toStatus).toBe(winner.body.status);
+    });
   });
 
   describe('GET /jobs/:id/events', () => {
@@ -239,6 +289,18 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body[1].fromStatus).toBe('APPLIED');
       expect(res.body[1].toStatus).toBe('INTERVIEWING');
     });
+
+    it('rejects page=0 with 400 instead of a raw 500', () =>
+      agent
+        .get(`/jobs/${jobId}/events?page=0`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400));
+
+    it('rejects limit=500 with 400 (exceeds the max)', () =>
+      agent
+        .get(`/jobs/${jobId}/events?limit=500`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400));
   });
 
   // ── Interview Rounds ────────────────────────────────────────────────────────
@@ -321,6 +383,20 @@ describe('Job Tracker (e2e)', () => {
       expect(job.body.nextInterviewAt?.split('T')[0]).toBe(future);
     });
 
+    it('rejects a scheduledAt more than 2 years in the future with 400', () =>
+      agent
+        .post(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Onsite', scheduledAt: '2099-01-01' })
+        .expect(400));
+
+    it('rejects a scheduledAt more than 2 years in the past with 400', () =>
+      agent
+        .post(`/jobs/${jobId}/interview-rounds`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ stage: 'Onsite', scheduledAt: '2001-01-01' })
+        .expect(400));
+
     it('returns 404 for a non-existent job', () =>
       agent
         .post('/jobs/nonexistent-id/interview-rounds')
@@ -357,6 +433,13 @@ describe('Job Tracker (e2e)', () => {
         .expect(200);
       expect(job.body.nextInterviewAt).toBeNull();
     });
+
+    it('rejects a scheduledAt more than 2 years out on PATCH too (PartialType carries the bound)', () =>
+      agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ scheduledAt: '2099-01-01' })
+        .expect(400));
 
     it('returns 404 for a round that does not belong to the job', () =>
       agent

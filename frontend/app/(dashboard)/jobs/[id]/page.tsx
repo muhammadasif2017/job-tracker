@@ -11,6 +11,7 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
 import { SourceBadge, StatusBadge } from '../../../../components/ui/badge';
@@ -115,6 +116,18 @@ export default function JobDetailPage() {
       qc.invalidateQueries({ queryKey: ['stats'] });
       qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
       qc.invalidateQueries({ queryKey: ['attention'] });
+    },
+    // A 409 here means another request (e.g. an interview-round
+    // auto-promotion) changed the status concurrently — refetch so the
+    // select snaps to the true current status instead of the stale cached
+    // one the user tried to change it from.
+    onError: (err: unknown) => {
+      qc.invalidateQueries({ queryKey: ['job', id] });
+      toast.error(
+        isAxiosError(err)
+          ? (err.response?.data?.message ?? 'Failed to update status')
+          : 'Failed to update status',
+      );
     },
   });
 
