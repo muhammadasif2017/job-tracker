@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { JobStatus } from '@prisma/client';
+import { JobStatus, JobType } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -143,6 +143,42 @@ describe('JobsService', () => {
       const result = await service.create('user-1', dto);
 
       expect(result).toMatchObject({ id: 'job-new' });
+    });
+
+    it('persists the jobType from the DTO instead of relying on the Prisma default', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+
+      const dto: CreateJobDto = {
+        company: 'Acme',
+        position: 'Engineer',
+        jobType: JobType.REMOTE,
+      };
+      await service.create('user-1', dto);
+
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ jobType: JobType.REMOTE }),
+        }),
+      );
+    });
+
+    it('defaults jobType to ONSITE when not provided', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+
+      const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
+      await service.create('user-1', dto);
+
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ jobType: JobType.ONSITE }),
+        }),
+      );
     });
   });
 

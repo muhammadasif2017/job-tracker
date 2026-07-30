@@ -20,6 +20,7 @@ import {
   JobEventType,
   JobPriority,
   JobSource,
+  JobType,
 } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -100,6 +101,7 @@ export class JobsService {
         url: dto.url || undefined,
         status: initialStatus,
         priority: dto.priority ?? JobPriority.MEDIUM,
+        jobType: dto.jobType ?? JobType.ONSITE,
         source: dto.source,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
