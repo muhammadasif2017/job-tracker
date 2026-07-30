@@ -223,6 +223,56 @@ describe('Job Tracker (e2e)', () => {
 
       expect(res.body.status).toBe('INTERVIEWING');
     });
+
+    it('409s one of two simultaneous status changes and records exactly one STATUS_CHANGE event', async () => {
+      const created = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'Race Co', position: 'Engineer', status: 'APPLIED' })
+        .expect(201);
+      const raceJobId = created.body.id;
+
+      // Two requests fired together, both reading status: APPLIED and racing
+      // to CAS it to a different target. Real concurrency against real
+      // Postgres — this is what a mocked $transaction can't prove (see
+      // ADR-018).
+      const [a, b] = await Promise.all([
+        agent
+          .patch(`/jobs/${raceJobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ status: 'INTERVIEWING' }),
+        agent
+          .patch(`/jobs/${raceJobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .send({ status: 'OFFER' }),
+      ]);
+
+      const statuses = [a.status, b.status].sort((x, y) => x - y);
+      expect(statuses).toEqual([200, 409]);
+
+      const winner = a.status === 200 ? a : b;
+      const loser = a.status === 200 ? b : a;
+      expect(loser.body.message).toMatch(/changed concurrently/i);
+
+      const finalJob = await agent
+        .get(`/jobs/${raceJobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(finalJob.body.status).toBe(winner.body.status);
+
+      // The loser's CAS must not have written an event for its own attempt —
+      // exactly one STATUS_CHANGE for this job, matching the winner.
+      const events = await agent
+        .get(`/jobs/${raceJobId}/events`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      const statusChangeEvents = events.body.filter(
+        (e: { type: string }) => e.type === 'STATUS_CHANGE',
+      );
+      expect(statusChangeEvents).toHaveLength(1);
+      expect(statusChangeEvents[0].fromStatus).toBe('APPLIED');
+      expect(statusChangeEvents[0].toStatus).toBe(winner.body.status);
+    });
   });
 
   describe('GET /jobs/:id/events', () => {
