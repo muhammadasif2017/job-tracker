@@ -10,6 +10,7 @@ import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import { ATTENTION_TYPES } from './dto/attention-item.dto.js';
 import { JobStatus, JobEventType, JobPriority, JobSource } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -382,6 +383,9 @@ export class JobsService {
   // interviews within 48h, INTERVIEWING jobs with no event for 5 days, and
   // APPLIED jobs with no movement for 7 days.
   async getAttention(userId: string) {
+    const [UPCOMING_INTERVIEW, STALE_INTERVIEWING, STALE_APPLIED] =
+      ATTENTION_TYPES;
+
     const now = new Date();
     const in48h = new Date(now.getTime() + 48 * 60 * 60 * 1000);
     const fiveDaysAgo = new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000);
@@ -413,17 +417,17 @@ export class JobsService {
 
     const items = [
       ...upcoming.map((job) => ({
-        type: 'UPCOMING_INTERVIEW' as const,
+        type: UPCOMING_INTERVIEW,
         since: job.nextInterviewAt!,
         job,
       })),
       ...staleInterviewing.map(({ events, ...job }) => ({
-        type: 'STALE_INTERVIEWING' as const,
+        type: STALE_INTERVIEWING,
         since: events[0]?.createdAt ?? job.updatedAt,
         job,
       })),
       ...staleApplied.map((job) => ({
-        type: 'STALE_APPLIED' as const,
+        type: STALE_APPLIED,
         since: job.appliedAt,
         job,
       })),
