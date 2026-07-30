@@ -1,13 +1,11 @@
 import {
   Body,
   Controller,
-  DefaultValuePipe,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   Param,
-  ParseIntPipe,
   Patch,
   Post,
   Query,
@@ -19,7 +17,6 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
-  ApiQuery,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiNotFoundResponse,
@@ -32,6 +29,7 @@ import { JobQueryDto } from './dto/job-query.dto.js';
 import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { JobEventDto } from './dto/job-event.dto.js';
+import { JobEventsQueryDto } from './dto/job-events-query.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
 import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
 import { TrendStatsDto } from './dto/trend-stats.dto.js';
@@ -146,16 +144,13 @@ export class JobsController {
   @Get(':id/events')
   @ApiOperation({ summary: 'Get timeline events for a job' })
   @ApiParam({ name: 'id', description: 'Job ID' })
-  @ApiQuery({ name: 'page', required: false, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, example: 50 })
   @ApiOkResponse({ type: JobEventDto, isArray: true })
   getEvents(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(50), ParseIntPipe) limit: number,
+    @Query() query: JobEventsQueryDto,
   ) {
-    return this.jobsService.getEvents(user.id, id, page, limit);
+    return this.jobsService.getEvents(user.id, id, query.page, query.limit);
   }
 
   @Patch(':id')

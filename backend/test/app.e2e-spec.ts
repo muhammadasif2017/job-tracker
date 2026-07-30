@@ -289,6 +289,18 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body[1].fromStatus).toBe('APPLIED');
       expect(res.body[1].toStatus).toBe('INTERVIEWING');
     });
+
+    it('rejects page=0 with 400 instead of a raw 500', () =>
+      agent
+        .get(`/jobs/${jobId}/events?page=0`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400));
+
+    it('rejects limit=500 with 400 (exceeds the max)', () =>
+      agent
+        .get(`/jobs/${jobId}/events?limit=500`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400));
   });
 
   // ── Interview Rounds ────────────────────────────────────────────────────────
