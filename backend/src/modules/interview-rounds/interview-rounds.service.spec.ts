@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -12,6 +12,7 @@ const mockPrisma = {
   },
   interviewRound: {
     create: jest.fn(),
+    count: jest.fn(),
     findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
@@ -53,6 +54,7 @@ describe('InterviewRoundsService', () => {
     mockPrisma.job.findUniqueOrThrow.mockResolvedValue({
       status: JobStatus.APPLIED,
     });
+    mockPrisma.interviewRound.count.mockResolvedValue(0);
     const module = await Test.createTestingModule({
       providers: [
         InterviewRoundsService,
@@ -99,6 +101,20 @@ describe('InterviewRoundsService', () => {
       });
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects with BadRequestException once the job hits the round cap', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.count.mockResolvedValue(50);
+
+      await expect(
+        service.create('user-1', 'job-1', {
+          stage: 'One too many',
+          scheduledAt: '2026-08-05',
+        }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+      expect(mockPrisma.interviewRound.create).not.toHaveBeenCalled();
     });
   });
 

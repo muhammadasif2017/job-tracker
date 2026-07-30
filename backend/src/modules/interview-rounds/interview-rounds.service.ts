@@ -1,8 +1,18 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { JobStatus, JobEventType, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
+
+// Soft cap, not a real-world limit — a legitimate job search doesn't produce
+// hundreds of rounds for one job. Guards against unbounded InterviewRound/
+// JobEvent growth from a scripted client, not a security boundary (rounds
+// are already scoped to the owning user).
+const MAX_ROUNDS_PER_JOB = 50;
 
 @Injectable()
 export class InterviewRoundsService {
@@ -95,6 +105,14 @@ export class InterviewRoundsService {
 
   async create(userId: string, jobId: string, dto: CreateInterviewRoundDto) {
     await this.ensureJobOwned(userId, jobId);
+    const existingCount = await this.prisma.interviewRound.count({
+      where: { jobId },
+    });
+    if (existingCount >= MAX_ROUNDS_PER_JOB) {
+      throw new BadRequestException(
+        `A job can have at most ${MAX_ROUNDS_PER_JOB} interview rounds`,
+      );
+    }
     // The round insert, event log, and nextInterviewAt recompute share one
     // transaction — a mid-sequence failure must not leave an orphaned round
     // with no Timeline event, or a stale nextInterviewAt.
