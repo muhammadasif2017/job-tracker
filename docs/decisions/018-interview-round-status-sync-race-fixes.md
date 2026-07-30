@@ -99,29 +99,26 @@ explanation (previously `patchStatus` had no `onError` at all).
   query outside Prisma's typed client for a problem the conditional
   `updateMany` already solves without leaving the query builder.
 
-## Known Remaining Gap
+## Known Remaining Gap — Closed
 
-`recomputeNextInterviewAt` still reads (`findFirst`) and writes
-(`job.update`) without taking a row lock on the non-promoting path (CAS
-`count === 0` in `create`, and always in `update`/`remove`). Two concurrent
-round mutations on the same job can still interleave such that the last
-writer stores a `nextInterviewAt` computed from a stale round set — the
-transaction wrap fixed the *partial-failure* half of this (a round can't be
-committed with no corresponding recompute) and the CAS fixed
-double-promotion, but this specific lost-update window is not closed. Closing
-it fully would mean either taking a lock on the job row before the
-`findFirst` (e.g. a throwaway `SELECT ... FOR UPDATE`) or replacing the
-read-then-write with a single statement:
+Originally shipped with a documented gap: `recomputeNextInterviewAt` read
+(`findFirst`) and wrote (`job.update`) without a row lock on the
+non-promoting path, so two concurrent round mutations on the same job could
+interleave and leave a stale `nextInterviewAt`. This is now closed —
+`recomputeNextInterviewAt` is a single raw `UPDATE` with the `MIN(...)`
+subquery inline:
 ```sql
-UPDATE job SET "nextInterviewAt" = (
-  SELECT MIN("scheduledAt") FROM interview_rounds
-  WHERE "jobId" = $1 AND outcome = 'PENDING' AND "scheduledAt" >= now()
-) WHERE id = $1;
+UPDATE "Job" SET "nextInterviewAt" = (
+  SELECT MIN("scheduledAt") FROM "interview_rounds"
+  WHERE "jobId" = $1 AND "outcome" = 'PENDING' AND "scheduledAt" >= now()
+) WHERE "id" = $1;
 ```
-Not fixed here — `nextInterviewAt` only drives a "needs attention" heuristic
-(`JobsService.getAttention`), so a transiently stale value self-corrects on
-the next round mutation and has no audit-trail impact, unlike defects 2 and
-3 above.
+A single statement forces Postgres to serialize the two writers on the job
+row and re-evaluate the subquery fresh for each one — no read-then-write gap
+for a concurrent mutation to land in. Verified against real Postgres via the
+existing e2e cases (`app.e2e-spec.ts`, "creates a round and recomputes
+nextInterviewAt" / "updates outcome and recomputes nextInterviewAt to null
+when none remain pending").
 
 ## Consequences
 - `InterviewRoundsService.create/update/remove` all take a `Prisma.TransactionClient`
