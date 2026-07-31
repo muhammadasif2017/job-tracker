@@ -61,18 +61,26 @@ enum Role {
   ADMIN
 }
 
+enum DigestFrequency {
+  OFF
+  DAILY
+  WEEKLY
+}
+
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  password      String?
-  name          String
-  avatarUrl     String?
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  jobs          Job[]
-  accounts      Account[]
-  refreshTokens RefreshToken[]
+  id                         String          @id @default(cuid())
+  email                      String          @unique
+  password                   String?
+  name                       String
+  avatarUrl                  String?
+  role                       Role            @default(USER)
+  interviewRemindersEnabled  Boolean         @default(true)
+  digestFrequency            DigestFrequency @default(OFF)
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+  jobs                       Job[]
+  accounts                   Account[]
+  refreshTokens              RefreshToken[]
 }
 
 model RefreshToken {
@@ -165,6 +173,7 @@ model InterviewRound {
   scheduledAt DateTime
   outcome     InterviewOutcome @default(PENDING)
   notes       String?
+  reminderSentAt DateTime?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
