@@ -47,10 +47,16 @@ export class AuthController {
   // scoped to /auth so client-side JS (and any XSS) can't read or exfiltrate it.
   private setRefreshCookie(res: Response, refreshToken: string) {
     const expiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    const isProduction = this.config.get('NODE_ENV') === 'production';
     res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
       httpOnly: true,
-      secure: this.config.get('NODE_ENV') === 'production',
-      sameSite: 'lax',
+      secure: isProduction,
+      // Frontend (Vercel) and backend live on different domains in production,
+      // making every request cross-site. SameSite=Lax is only sent on top-level
+      // navigations for cross-site requests, so it never reaches /auth/refresh
+      // called via fetch/XHR - the refresh cookie would silently never arrive.
+      // None requires Secure, which only holds over HTTPS (production).
+      sameSite: isProduction ? 'none' : 'lax',
       path: '/auth',
       maxAge: ms(expiresIn as StringValue),
     });
