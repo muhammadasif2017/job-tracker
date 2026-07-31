@@ -69,8 +69,15 @@ api.interceptors.response.use(
       return api(original);
     } catch (err) {
       processQueue(err, null);
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
+      // Only a definitive rejection from the backend (refresh token missing,
+      // expired, or revoked) means the session is actually over. Anything
+      // else - network drop, backend restart, transient 5xx - is not proof
+      // the refresh token is invalid, so don't evict a valid session over it.
+      const status = axios.isAxiosError(err) ? err.response?.status : undefined;
+      if (status === 401 || status === 403) {
+        useAuthStore.getState().logout();
+        window.location.href = '/login';
+      }
       return Promise.reject(err);
     } finally {
       isRefreshing = false;
