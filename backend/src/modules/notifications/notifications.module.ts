@@ -4,11 +4,12 @@ import {
   NotificationsProcessor,
   NOTIFICATIONS_QUEUE,
 } from './notifications.processor.js';
+import { NotificationsScheduler } from './notifications.scheduler.js';
 import { EmailService } from './email.service.js';
 
 @Module({
   imports: [BullModule.registerQueue({ name: NOTIFICATIONS_QUEUE })],
-  providers: [NotificationsProcessor, EmailService],
+  providers: [NotificationsProcessor, NotificationsScheduler, EmailService],
   exports: [EmailService],
 })
 export class NotificationsModule {}
