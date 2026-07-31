@@ -3,7 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JobStatus, JobEventType, Prisma } from '@prisma/client';
+import { JobStatus, JobEventType, InterviewOutcome, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
@@ -159,9 +159,17 @@ export class InterviewRoundsService {
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.interviewRound.findFirst({
         where: { id: roundId, jobId },
-        select: { id: true },
+        select: { id: true, outcome: true },
       });
       if (!existing) throw new NotFoundException('Interview round not found');
+
+      // A reminder already sent is no longer valid once the round is moved
+      // (new time) or un-cancelled (e.g. CANCELLED -> PENDING) — clear the
+      // flag so the scheduler picks it up again instead of skipping it forever.
+      const reschedule = Boolean(dto.scheduledAt);
+      const uncancelled =
+        dto.outcome === InterviewOutcome.PENDING &&
+        existing.outcome !== InterviewOutcome.PENDING;
 
       const round = await tx.interviewRound.update({
         where: { id: roundId },
@@ -170,6 +178,7 @@ export class InterviewRoundsService {
           scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
           outcome: dto.outcome,
           notes: dto.notes,
+          ...(reschedule || uncancelled ? { reminderSentAt: null } : {}),
         },
       });
       await this.recomputeNextInterviewAt(tx, jobId);

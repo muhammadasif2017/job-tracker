@@ -61,18 +61,28 @@ enum Role {
   ADMIN
 }
 
+enum DigestFrequency {
+  OFF
+  DAILY
+  WEEKLY
+}
+
 model User {
-  id            String         @id @default(cuid())
-  email         String         @unique
-  password      String?
-  name          String
-  avatarUrl     String?
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  jobs          Job[]
-  accounts      Account[]
-  refreshTokens RefreshToken[]
+  id                        String          @id @default(cuid())
+  email                     String          @unique
+  password                  String?
+  name                      String
+  avatarUrl                 String?
+  role                      Role            @default(USER)
+  interviewRemindersEnabled Boolean         @default(true)
+  digestFrequency           DigestFrequency @default(OFF)
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  jobs                      Job[]
+  accounts                  Account[]
+  refreshTokens             RefreshToken[]
+
+  @@index([digestFrequency])
 }
 
 model RefreshToken {
@@ -98,26 +108,35 @@ model Account {
 }
 
 model Job {
-  id              String          @id @default(cuid())
-  company         String
-  position        String
-  location        String?
-  url             String?
-  status          JobStatus       @default(APPLIED)
-  priority        JobPriority     @default(MEDIUM)
-  jobType         JobType         @default(ONSITE)
-  source          JobSource?
-  notes           String?
-  appliedAt       DateTime        @default(now())
-  nextInterviewAt DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  events          JobEvent[]
-  companyProfile  CompanyProfile?
-  resume          Resume?
-  interviewRounds InterviewRound[]
+  id                          String           @id @default(cuid())
+  company                     String
+  position                    String
+  location                    String?
+  url                         String?
+  status                      JobStatus        @default(APPLIED)
+  priority                    JobPriority      @default(MEDIUM)
+  jobType                     JobType          @default(ONSITE)
+  source                      JobSource?
+  notes                       String?
+  appliedAt                   DateTime         @default(now())
+  nextInterviewAt             DateTime?
+  // Digest dedup for the two "stalled" attention types (STALE_APPLIED,
+  // STALE_INTERVIEWING): stamped to the send time once an occurrence has
+  // been reported. Compared against the item's `since` in getAttentionItems'
+  // callers — since stays fixed while an item remains stale, so
+  // digestedAt >= since means "already reported, still the same occurrence."
+  // UPCOMING_INTERVIEW isn't tracked here — its 48h window self-resolves
+  // in a couple of days and has its own dedicated reminder email already.
+  staleAppliedDigestedAt      DateTime?
+  staleInterviewingDigestedAt DateTime?
+  createdAt                   DateTime         @default(now())
+  updatedAt                   DateTime         @updatedAt
+  userId                      String
+  user                        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  events                      JobEvent[]
+  companyProfile              CompanyProfile?
+  resume                      Resume?
+  interviewRounds             InterviewRound[]
 
   @@index([userId])
   @@index([userId, status])
@@ -158,17 +177,19 @@ model Resume {
 }
 
 model InterviewRound {
-  id          String           @id @default(cuid())
-  jobId       String
-  job         Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  stage       String
-  scheduledAt DateTime
-  outcome     InterviewOutcome @default(PENDING)
-  notes       String?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id             String           @id @default(cuid())
+  jobId          String
+  job            Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage          String
+  scheduledAt    DateTime
+  outcome        InterviewOutcome @default(PENDING)
+  notes          String?
+  reminderSentAt DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([jobId])
+  @@index([outcome, scheduledAt, reminderSentAt])
   @@map("interview_rounds")
 }
 

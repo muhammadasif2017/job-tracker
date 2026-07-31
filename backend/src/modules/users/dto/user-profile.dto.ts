@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { DigestFrequency } from '@prisma/client';
 
 export class UserProfileDto {
   @ApiProperty({ format: 'cuid' })
@@ -21,4 +22,10 @@ export class UserProfileDto {
 
   @ApiProperty({ example: true })
   hasPassword: boolean;
+
+  @ApiProperty({ example: true })
+  interviewRemindersEnabled: boolean;
+
+  @ApiProperty({ enum: DigestFrequency, example: DigestFrequency.OFF })
+  digestFrequency: DigestFrequency;
 }

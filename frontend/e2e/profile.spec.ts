@@ -109,6 +109,30 @@ test.describe('Profile page', () => {
     await expect(page.getByText('Current password is incorrect')).toBeVisible();
   });
 
+  test('updates email notification preferences', async ({ page }) => {
+    await goToProfile(page, user);
+
+    await page.getByLabel(/email me a reminder/i).uncheck();
+    await page.getByLabel('Email digest').selectOption('WEEKLY');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+
+    await expect(
+      page.getByText('Notification preferences updated'),
+    ).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByLabel(/email me a reminder/i)).not.toBeChecked();
+    await expect(page.getByLabel('Email digest')).toHaveValue('WEEKLY');
+
+    // Restore defaults so subsequent tests see a clean state
+    await page.getByLabel(/email me a reminder/i).check();
+    await page.getByLabel('Email digest').selectOption('OFF');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await expect(
+      page.getByText('Notification preferences updated'),
+    ).toBeVisible();
+  });
+
   test('delete account redirects to /login and clears session', async ({
     page,
   }) => {

@@ -17,6 +17,7 @@ import {
 import { UsersService } from './users.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';
 import { UserProfileDto } from './dto/user-profile.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
@@ -43,6 +44,16 @@ export class UsersController {
     @Body() dto: UpdateUserDto,
   ) {
     return this.usersService.updateProfile(user.id, dto);
+  }
+
+  @Patch('me/notifications')
+  @ApiOperation({ summary: 'Update email notification preferences' })
+  @ApiOkResponse({ type: UserProfileDto })
+  updateNotificationPrefs(
+    @CurrentUser() user: { id: string },
+    @Body() dto: UpdateNotificationPrefsDto,
+  ) {
+    return this.usersService.updateNotificationPrefs(user.id, dto);
   }
 
   @Patch('me/password')

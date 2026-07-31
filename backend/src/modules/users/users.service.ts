@@ -14,6 +14,7 @@ import {
 } from '../../storage/storage.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';
 
 @Injectable()
 export class UsersService {
@@ -33,6 +34,8 @@ export class UsersService {
         avatarUrl: true,
         createdAt: true,
         password: true,
+        interviewRemindersEnabled: true,
+        digestFrequency: true,
         accounts: { select: { provider: true } },
       },
     });
@@ -61,6 +64,14 @@ export class UsersService {
       if (taken) throw new BadRequestException('Email already in use');
     }
 
+    await this.prisma.user.update({ where: { id: userId }, data: dto });
+    return await this.toProfile(userId);
+  }
+
+  async updateNotificationPrefs(
+    userId: string,
+    dto: UpdateNotificationPrefsDto,
+  ) {
     await this.prisma.user.update({ where: { id: userId }, data: dto });
     return await this.toProfile(userId);
   }

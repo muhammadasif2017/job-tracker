@@ -208,6 +208,20 @@ describe('Job Tracker (e2e)', () => {
     });
   });
 
+  describe('GET /jobs/attention', () => {
+    it('returns needs-attention items as an array', async () => {
+      const res = await agent
+        .get('/jobs/attention')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body).toBeInstanceOf(Array);
+    });
+
+    it('returns 401 without token', () =>
+      agent.get('/jobs/attention').expect(401));
+  });
+
   describe('GET /jobs/:id', () => {
     it('returns the job', async () => {
       const res = await agent
@@ -459,6 +473,42 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ outcome: 'PASSED' })
         .expect(404));
+
+    it('clears reminderSentAt when the round is rescheduled', async () => {
+      await prisma.interviewRound.update({
+        where: { id: roundId },
+        data: { reminderSentAt: new Date() },
+      });
+
+      await agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ scheduledAt: '2027-01-15T10:00:00.000Z' })
+        .expect(200);
+
+      const round = await prisma.interviewRound.findUniqueOrThrow({
+        where: { id: roundId },
+      });
+      expect(round.reminderSentAt).toBeNull();
+    });
+
+    it('clears reminderSentAt when a cancelled round is reverted to pending', async () => {
+      await prisma.interviewRound.update({
+        where: { id: roundId },
+        data: { outcome: 'CANCELLED', reminderSentAt: new Date() },
+      });
+
+      await agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ outcome: 'PENDING' })
+        .expect(200);
+
+      const round = await prisma.interviewRound.findUniqueOrThrow({
+        where: { id: roundId },
+      });
+      expect(round.reminderSentAt).toBeNull();
+    });
   });
 
   describe('DELETE /jobs/:jobId/interview-rounds/:roundId', () => {
@@ -486,6 +536,40 @@ describe('Job Tracker (e2e)', () => {
       expect(res.text).toContain('Company,Position,Status');
       expect(res.text).toContain('Stripe');
     });
+  });
+
+  describe('PATCH /users/me/notifications', () => {
+    it('updates and round-trips notification preferences', async () => {
+      const res = await agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ interviewRemindersEnabled: false, digestFrequency: 'WEEKLY' })
+        .expect(200);
+
+      expect(res.body.interviewRemindersEnabled).toBe(false);
+      expect(res.body.digestFrequency).toBe('WEEKLY');
+
+      const profile = await agent
+        .get('/users/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(profile.body.interviewRemindersEnabled).toBe(false);
+      expect(profile.body.digestFrequency).toBe('WEEKLY');
+    });
+
+    it('rejects an invalid digestFrequency with 400', () =>
+      agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ digestFrequency: 'HOURLY' })
+        .expect(400));
+
+    it('returns 401 without token', () =>
+      agent
+        .patch('/users/me/notifications')
+        .send({ digestFrequency: 'DAILY' })
+        .expect(401));
   });
 
   describe('DELETE /jobs/:id', () => {

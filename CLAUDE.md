@@ -26,7 +26,7 @@ npm run lint            # ESLint
 
 ### Backend (NestJS 11)
 
-**Module structure:** `AppModule` → `PrismaModule` (global), `StorageModule` (global), `AuthModule`, `UsersModule`, `JobsModule`, `ResumesModule`, `EnrichmentModule`, `HealthModule`. `StorageModule` selects a storage driver (`local` or `oracle`) at startup based on `STORAGE_DRIVER`. `EnrichmentModule` registers a BullMQ queue and processor for async company data enrichment. Each feature module owns its controller, service, and `dto/` folder. Feature modules live under `src/modules/` (`src/modules/auth`, `src/modules/jobs`, etc.); `prisma/`, `storage/`, and `common/` stay at `src/` root.
+**Module structure:** `AppModule` → `PrismaModule` (global), `StorageModule` (global), `AuthModule`, `UsersModule`, `JobsModule`, `ResumesModule`, `EnrichmentModule`, `NotificationsModule`, `HealthModule`. `StorageModule` selects a storage driver (`local` or `oracle`) at startup based on `STORAGE_DRIVER`. `EnrichmentModule` registers a BullMQ queue and processor for async company data enrichment. `NotificationsModule` registers a separate BullMQ queue (`notifications`) plus a scheduler: an hourly cron enqueues interview reminders (~24h lead, deduped via `InterviewRound.reminderSentAt`) and daily/weekly crons fan out digest emails built from the same "needs attention" heuristics as `GET /jobs/attention` (shared via `jobs/attention.helper.ts`). `EmailService` sends through Resend when `RESEND_API_KEY` is set, otherwise logs and no-ops. Each feature module owns its controller, service, and `dto/` folder. Feature modules live under `src/modules/` (`src/modules/auth`, `src/modules/jobs`, etc.); `prisma/`, `storage/`, and `common/` stay at `src/` root.
 
 **Prisma 7 quirks — critical:**
 - The datasource block has **no `url` field** (Prisma 7 removed it from schema). The connection is wired at runtime via `@prisma/adapter-pg`: `new PrismaPg({ connectionString: process.env.DATABASE_URL })` passed to `super({ adapter })` in `PrismaService`.
@@ -77,6 +77,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 - Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
+- Always run a deep adversarial review (`/code-review` or equivalent) before treating any change touching external I/O (email, payment, third-party APIs) or a field written by more than one module as done — passing tests alone is not sufficient sign-off. First-pass self-review reliably misses third-party SDK error contracts (e.g. an SDK that returns `{error}` instead of throwing) and cross-module state interactions (e.g. one module resetting a stateful field another module depends on).
 
 ## Patterns
 
