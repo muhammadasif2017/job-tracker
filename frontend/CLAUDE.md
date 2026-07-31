@@ -29,6 +29,8 @@ Tailwind v4 has no `tailwind.config.js` — dark mode is CSS-config only. Withou
 
 `app/globals.css` declares `@custom-variant dark (&:where(.dark, .dark *));` right after `@import 'tailwindcss';` to make `dark:` respond to the `.dark` class instead. Don't remove this line — the toggle button has no effect without it.
 
+**Theme init must be global, not component-local.** The `.dark` class on `<html>` is applied by an inline pre-hydration script in `app/layout.tsx`'s `<head>` (reads `localStorage['theme']`, falls back to `prefers-color-scheme`) — not by `ThemeToggle`. `ThemeToggle` only flips the class and persists the choice; on mount it just reads the class already on `<html>`. Previously the read-localStorage-and-apply logic lived inside `ThemeToggle`'s `useEffect`, and `ThemeToggle` is only rendered in the dashboard header — so `(auth)` routes (`/login`, `/register`, `/callback`) never got the `.dark` class applied and always rendered light regardless of stored preference. If you add a new top-level layout that doesn't render `ThemeToggle`, this is why its background may not match — the fix is keeping theme init in the root layout, not re-adding it per-component.
+
 ---
 
 ## Auth Guard (`proxy.ts`)

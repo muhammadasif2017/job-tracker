@@ -25,6 +25,11 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_API_URL && (
           <link rel="preconnect" href={process.env.NEXT_PUBLIC_API_URL} />
         )}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;document.documentElement.classList.toggle('dark',d);}catch(e){}})();`,
+          }}
+        />
       </head>
       <body
         className="h-full bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100"
