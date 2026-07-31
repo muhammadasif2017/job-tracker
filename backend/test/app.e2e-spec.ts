@@ -502,6 +502,40 @@ describe('Job Tracker (e2e)', () => {
     });
   });
 
+  describe('PATCH /users/me/notifications', () => {
+    it('updates and round-trips notification preferences', async () => {
+      const res = await agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ interviewRemindersEnabled: false, digestFrequency: 'WEEKLY' })
+        .expect(200);
+
+      expect(res.body.interviewRemindersEnabled).toBe(false);
+      expect(res.body.digestFrequency).toBe('WEEKLY');
+
+      const profile = await agent
+        .get('/users/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(profile.body.interviewRemindersEnabled).toBe(false);
+      expect(profile.body.digestFrequency).toBe('WEEKLY');
+    });
+
+    it('rejects an invalid digestFrequency with 400', () =>
+      agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ digestFrequency: 'HOURLY' })
+        .expect(400));
+
+    it('returns 401 without token', () =>
+      agent
+        .patch('/users/me/notifications')
+        .send({ digestFrequency: 'DAILY' })
+        .expect(401));
+  });
+
   describe('DELETE /jobs/:id', () => {
     it('deletes the job', () =>
       agent
