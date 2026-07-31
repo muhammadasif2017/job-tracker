@@ -68,19 +68,21 @@ enum DigestFrequency {
 }
 
 model User {
-  id                         String          @id @default(cuid())
-  email                      String          @unique
-  password                   String?
-  name                       String
-  avatarUrl                  String?
-  role                       Role            @default(USER)
-  interviewRemindersEnabled  Boolean         @default(true)
-  digestFrequency            DigestFrequency @default(OFF)
-  createdAt                  DateTime        @default(now())
-  updatedAt                  DateTime        @updatedAt
-  jobs                       Job[]
-  accounts                   Account[]
-  refreshTokens              RefreshToken[]
+  id                        String          @id @default(cuid())
+  email                     String          @unique
+  password                  String?
+  name                      String
+  avatarUrl                 String?
+  role                      Role            @default(USER)
+  interviewRemindersEnabled Boolean         @default(true)
+  digestFrequency           DigestFrequency @default(OFF)
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+  jobs                      Job[]
+  accounts                  Account[]
+  refreshTokens             RefreshToken[]
+
+  @@index([digestFrequency])
 }
 
 model RefreshToken {
@@ -106,22 +108,22 @@ model Account {
 }
 
 model Job {
-  id              String          @id @default(cuid())
+  id              String           @id @default(cuid())
   company         String
   position        String
   location        String?
   url             String?
-  status          JobStatus       @default(APPLIED)
-  priority        JobPriority     @default(MEDIUM)
-  jobType         JobType         @default(ONSITE)
+  status          JobStatus        @default(APPLIED)
+  priority        JobPriority      @default(MEDIUM)
+  jobType         JobType          @default(ONSITE)
   source          JobSource?
   notes           String?
-  appliedAt       DateTime        @default(now())
+  appliedAt       DateTime         @default(now())
   nextInterviewAt DateTime?
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
   userId          String
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   events          JobEvent[]
   companyProfile  CompanyProfile?
   resume          Resume?
@@ -166,18 +168,19 @@ model Resume {
 }
 
 model InterviewRound {
-  id          String           @id @default(cuid())
-  jobId       String
-  job         Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  stage       String
-  scheduledAt DateTime
-  outcome     InterviewOutcome @default(PENDING)
-  notes       String?
+  id             String           @id @default(cuid())
+  jobId          String
+  job            Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  stage          String
+  scheduledAt    DateTime
+  outcome        InterviewOutcome @default(PENDING)
+  notes          String?
   reminderSentAt DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@index([jobId])
+  @@index([outcome, scheduledAt, reminderSentAt])
   @@map("interview_rounds")
 }
 
