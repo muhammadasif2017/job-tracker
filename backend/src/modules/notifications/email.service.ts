@@ -29,6 +29,18 @@ export class EmailService {
       this.logger.warn('email_send_skipped_no_api_key', { to, subject });
       return;
     }
-    await this.resend.emails.send({ from: this.from, to, subject, html });
+    // The Resend SDK doesn't throw on an API-level failure — it resolves
+    // with { data: null, error }. Surface it as a thrown error so the caller
+    // (and the BullMQ job) sees a real failure instead of a false success.
+    const { error } = await this.resend.emails.send({
+      from: this.from,
+      to,
+      subject,
+      html,
+    });
+    if (error) {
+      this.logger.warn('email_send_failed', { to, subject, error });
+      throw new Error(`Failed to send email: ${error.message}`);
+    }
   }
 }

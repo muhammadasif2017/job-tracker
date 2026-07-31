@@ -473,6 +473,24 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ outcome: 'PASSED' })
         .expect(404));
+
+    it('clears reminderSentAt when the round is rescheduled', async () => {
+      await prisma.interviewRound.update({
+        where: { id: roundId },
+        data: { reminderSentAt: new Date() },
+      });
+
+      await agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ scheduledAt: '2027-01-15T10:00:00.000Z' })
+        .expect(200);
+
+      const round = await prisma.interviewRound.findUniqueOrThrow({
+        where: { id: roundId },
+      });
+      expect(round.reminderSentAt).toBeNull();
+    });
   });
 
   describe('DELETE /jobs/:jobId/interview-rounds/:roundId', () => {

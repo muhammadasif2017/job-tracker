@@ -170,6 +170,9 @@ export class InterviewRoundsService {
           scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
           outcome: dto.outcome,
           notes: dto.notes,
+          // A reminder already sent for the old time is no longer valid for
+          // the new one — let the scheduler pick this round up again.
+          ...(dto.scheduledAt ? { reminderSentAt: null } : {}),
         },
       });
       await this.recomputeNextInterviewAt(tx, jobId);

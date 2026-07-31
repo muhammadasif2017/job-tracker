@@ -56,4 +56,21 @@ describe('EmailService', () => {
       expect.objectContaining({ from: 'onboarding@resend.dev' }),
     );
   });
+
+  it('throws when Resend returns an API-level error instead of throwing itself', async () => {
+    sendMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: 'invalid from address', statusCode: 422, name: 'invalid_from_address' },
+    });
+    const service = build({ RESEND_API_KEY: 're_test' });
+
+    await expect(
+      service.send({ to: 'a@b.com', subject: 'Hi', html: '<p>hi</p>' }),
+    ).rejects.toThrow('invalid from address');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'email_send_failed',
+      expect.objectContaining({ to: 'a@b.com' }),
+    );
+  });
 });
