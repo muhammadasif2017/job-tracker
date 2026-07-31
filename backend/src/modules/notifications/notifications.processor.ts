@@ -158,15 +158,28 @@ export class NotificationsProcessor extends WorkerHost {
     // Stamp only after a successful send: a thrown/retried send leaves these
     // unstamped so the retry (or, if attempts run out, tomorrow's digest)
     // still includes them — no separate onFailed handling needed here.
+    // A stamp failure itself (e.g. the job was deleted between computing the
+    // digest and writing this) must NOT throw here — the email already went
+    // out, so throwing would fail this BullMQ job and cause a retry that
+    // re-sends the same email a second time. Worst case on a stamp failure:
+    // that one item repeats in the next digest, same as before this dedup
+    // existed — a real regression (duplicate email) would be worse.
     const now = new Date();
     await Promise.all(
       items
         .filter((item) => isDedupType(item.type))
         .map((item) =>
-          this.prisma.job.update({
-            where: { id: item.job.id },
-            data: { [dedupField(item.type as DedupAttentionType)]: now },
-          }),
+          this.prisma.job
+            .update({
+              where: { id: item.job.id },
+              data: { [dedupField(item.type as DedupAttentionType)]: now },
+            })
+            .catch((error) =>
+              this.logger.warn('digest_dedup_stamp_failed', {
+                jobId: item.job.id,
+                error,
+              }),
+            ),
         ),
     );
     this.logger.log('digest_sent', { userId, itemCount: items.length });

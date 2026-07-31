@@ -299,6 +299,52 @@ describe('NotificationsProcessor', () => {
       });
     });
 
+    it('does not fail the job (and re-send the email) when a dedup stamp write fails', async () => {
+      const prisma = {
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'u1',
+            email: 'u1@test.dev',
+            digestFrequency: DigestFrequency.DAILY,
+          }),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([]) // upcoming
+            .mockResolvedValueOnce([]) // stale interviewing
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                appliedAt: new Date('2026-07-20T00:00:00Z'),
+                staleAppliedDigestedAt: null,
+              },
+            ]),
+          // Simulates the job being deleted between digest computation and
+          // the stamp write (e.g. Prisma P2025).
+          update: jest.fn().mockRejectedValue(new Error('Record not found')),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await expect(
+        processor.process({ name: 'digest', data: { userId: 'u1' } } as any),
+      ).resolves.toBeUndefined();
+
+      expect(email.send).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'digest_dedup_stamp_failed',
+        expect.objectContaining({ jobId: 'j1' }),
+      );
+    });
+
     it('never stamps digestedAt for UPCOMING_INTERVIEW (self-resolves via its own 48h window)', async () => {
       const prisma = {
         user: {
