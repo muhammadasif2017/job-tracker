@@ -332,8 +332,9 @@ export class JobsService {
       0,
     );
     const responseRate = toPercent(responded, total);
+    const ghostRate = toPercent(byStatus[JobStatus.GHOSTED], total);
 
-    return { total, byStatus, thisMonth, responseRate };
+    return { total, byStatus, thisMonth, responseRate, ghostRate };
   }
 
   async getFunnel(userId: string, range: StatsRange) {

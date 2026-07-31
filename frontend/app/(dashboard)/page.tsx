@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
-import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays } from 'lucide-react';
+import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays, Ghost } from 'lucide-react';
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatsCard
           label="Total Applications"
           value={stats?.total ?? 0}
@@ -119,6 +119,13 @@ export default function DashboardPage() {
           value={stats ? `${stats.responseRate}%` : '—'}
           sub="Interviewing + offers + rejected"
           icon={<BarChart2 className="h-4 w-4" />}
+          loading={statsLoading}
+        />
+        <StatsCard
+          label="Ghost Rate"
+          value={stats ? `${stats.ghostRate}%` : '—'}
+          sub="Marked ghosted"
+          icon={<Ghost className="h-4 w-4" />}
           loading={statsLoading}
         />
       </div>
