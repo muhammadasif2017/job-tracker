@@ -16,6 +16,22 @@ describe('interviewReminderEmail', () => {
     expect(html).toContain('Technical Screen');
     expect(html).toContain('http://localhost:3000/profile');
   });
+
+  it('escapes HTML in company, position and stage', () => {
+    const { html } = interviewReminderEmail({
+      company: 'Acme<a href="http://evil.example">click</a>',
+      position: '<script>alert(1)</script>',
+      stage: 'Screen & Chat',
+      scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      frontendUrl: 'http://localhost:3000',
+    });
+
+    expect(html).not.toContain('<a href="http://evil.example">');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;a href=&quot;http://evil.example&quot;&gt;');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('Screen &amp; Chat');
+  });
 });
 
 describe('digestEmail', () => {
@@ -42,5 +58,23 @@ describe('digestEmail', () => {
     expect(html).toContain('Acme');
     expect(html).toContain('Globex');
     expect(html).toContain('http://localhost:3000/profile');
+  });
+
+  it('escapes HTML in item company and position', () => {
+    const { html } = digestEmail({
+      items: [
+        {
+          type: 'STALE_APPLIED',
+          company: '<img src=x onerror=alert(1)>',
+          position: 'Eng & Ops',
+          since: new Date('2026-07-01T00:00:00Z'),
+        },
+      ],
+      frontendUrl: 'http://localhost:3000',
+    });
+
+    expect(html).not.toContain('<img src=x onerror=alert(1)>');
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;');
+    expect(html).toContain('Eng &amp; Ops');
   });
 });

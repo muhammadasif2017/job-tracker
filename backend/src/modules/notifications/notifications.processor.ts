@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DigestFrequency } from '@prisma/client';
+import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -53,6 +53,9 @@ export class NotificationsProcessor extends WorkerHost {
       this.logger.warn('notification_round_not_found', { roundId });
       return;
     }
+    // Outcome may have changed (e.g. cancelled) between the hourly scan
+    // stamping reminderSentAt and this job being picked up off the queue.
+    if (round.outcome !== InterviewOutcome.PENDING) return;
 
     const { user } = round.job;
     if (!user.interviewRemindersEnabled) return;

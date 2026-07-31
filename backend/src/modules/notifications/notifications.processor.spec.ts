@@ -15,6 +15,7 @@ describe('NotificationsProcessor', () => {
           findFirst: jest.fn().mockResolvedValue({
             id: 'round1',
             stage: 'Technical',
+            outcome: 'PENDING',
             scheduledAt: new Date('2026-08-05T10:00:00Z'),
             job: {
               company: 'Acme',
@@ -59,6 +60,41 @@ describe('NotificationsProcessor', () => {
                 id: 'u1',
                 email: 'u1@test.dev',
                 interviewRemindersEnabled: false,
+              },
+            },
+          }),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.process({
+        name: 'interview-reminder',
+        data: { roundId: 'round1' },
+      } as any);
+
+      expect(email.send).not.toHaveBeenCalled();
+    });
+
+    it('skips sending when the round is no longer pending (e.g. cancelled)', async () => {
+      const prisma = {
+        interviewRound: {
+          findFirst: jest.fn().mockResolvedValue({
+            id: 'round1',
+            stage: 'Technical',
+            outcome: 'CANCELLED',
+            scheduledAt: new Date(),
+            job: {
+              company: 'Acme',
+              position: 'Engineer',
+              user: {
+                id: 'u1',
+                email: 'u1@test.dev',
+                interviewRemindersEnabled: true,
               },
             },
           }),

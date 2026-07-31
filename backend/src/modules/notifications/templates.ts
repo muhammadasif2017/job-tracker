@@ -5,6 +5,17 @@ interface EmailContent {
   html: string;
 }
 
+// company/position/stage come from free-text fields (including LLM extraction
+// of external job postings via POST /jobs/parse) — never trust them raw in HTML.
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 const settingsLink = (frontendUrl: string) =>
   `<p><a href="${frontendUrl}/profile">Manage notification settings</a></p>`;
 
@@ -19,12 +30,15 @@ export function interviewReminderEmail(input: {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+  const company = escapeHtml(input.company);
+  const position = escapeHtml(input.position);
+  const stage = escapeHtml(input.stage);
   return {
     subject: `Reminder: ${input.stage} interview at ${input.company} tomorrow`,
     html: `
       <p>Heads up — you have an interview coming up:</p>
-      <p><strong>${input.company}</strong> — ${input.position}<br/>
-      Round: ${input.stage}<br/>
+      <p><strong>${company}</strong> — ${position}<br/>
+      Round: ${stage}<br/>
       When: ${when}</p>
       ${settingsLink(input.frontendUrl)}
     `,
@@ -51,7 +65,7 @@ export function digestEmail(input: {
   const rows = input.items
     .map(
       (item) =>
-        `<li>${ATTENTION_LABELS[item.type]}: <strong>${item.company}</strong> — ${item.position}</li>`,
+        `<li>${ATTENTION_LABELS[item.type]}: <strong>${escapeHtml(item.company)}</strong> — ${escapeHtml(item.position)}</li>`,
     )
     .join('');
   const count = input.items.length;
