@@ -33,6 +33,21 @@ describe('interviewReminderEmail', () => {
     expect(html).toContain('Screen &amp; Chat');
   });
 
+  it('strips CR/LF from company and stage before building the subject (header injection)', () => {
+    // A literal CR/LF in the subject could inject extra email headers
+    // (e.g. an attacker-controlled company name ending in "\r\nBcc: ...")
+    // depending on how far upstream (Resend) sanitizes before sending.
+    const { subject } = interviewReminderEmail({
+      company: 'Acme\r\nBcc: attacker@evil.example',
+      position: 'Senior Engineer',
+      stage: 'Technical\r\nScreen',
+      scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      frontendUrl: 'http://localhost:3000',
+    });
+
+    expect(subject).not.toMatch(/[\r\n]/);
+  });
+
   it('renders the interview time in UTC, explicitly labelled, and does not claim it is tomorrow', () => {
     const { subject, html } = interviewReminderEmail({
       company: 'Acme',

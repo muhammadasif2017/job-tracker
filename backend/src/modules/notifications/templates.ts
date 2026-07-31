@@ -16,6 +16,13 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
+// Same untrusted fields also land in the email subject, which becomes a raw
+// header line — a CR/LF in there could inject extra headers depending on how
+// far upstream (Resend) sanitizes. Strip them; collapse the resulting gap.
+function sanitizeHeaderText(text: string): string {
+  return text.replace(/[\r\n]+/g, ' ').trim();
+}
+
 const settingsLink = (frontendUrl: string) =>
   `<p><a href="${frontendUrl}/profile">Manage notification settings</a></p>`;
 
@@ -38,8 +45,10 @@ export function interviewReminderEmail(input: {
   const company = escapeHtml(input.company);
   const position = escapeHtml(input.position);
   const stage = escapeHtml(input.stage);
+  const subjectStage = sanitizeHeaderText(input.stage);
+  const subjectCompany = sanitizeHeaderText(input.company);
   return {
-    subject: `Reminder: ${input.stage} interview at ${input.company} coming up`,
+    subject: `Reminder: ${subjectStage} interview at ${subjectCompany} coming up`,
     html: `
       <p>Heads up — you have an interview coming up:</p>
       <p><strong>${company}</strong> — ${position}<br/>
