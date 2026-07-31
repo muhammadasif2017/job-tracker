@@ -109,6 +109,16 @@ export interface Job {
 
 export type Role = 'USER' | 'ADMIN';
 
+export const DIGEST_FREQUENCIES = ['OFF', 'DAILY', 'WEEKLY'] as const;
+
+export type DigestFrequency = (typeof DIGEST_FREQUENCIES)[number];
+
+export const DIGEST_FREQUENCY_LABELS: Record<DigestFrequency, string> = {
+  OFF: 'Off',
+  DAILY: 'Daily',
+  WEEKLY: 'Weekly',
+};
+
 export interface User {
   id: string;
   email: string;
@@ -117,6 +127,8 @@ export interface User {
   role?: Role;
   hasPassword?: boolean;
   connectedProviders?: string[];
+  interviewRemindersEnabled?: boolean;
+  digestFrequency?: DigestFrequency;
 }
 
 export interface AdminUser {

@@ -13,8 +13,14 @@ import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
 import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
+import { DIGEST_FREQUENCIES, DIGEST_FREQUENCY_LABELS } from '../../../types';
 
 const profileSchema = z.object({ name: z.string().min(1, 'Name is required') });
+const notificationsSchema = z.object({
+  interviewRemindersEnabled: z.boolean(),
+  digestFrequency: z.enum(DIGEST_FREQUENCIES),
+});
+type NotificationsFormData = z.infer<typeof notificationsSchema>;
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Required'),
@@ -44,6 +50,14 @@ export default function ProfilePage() {
     resetOptions: { keepDirtyValues: true },
   });
   const passwordForm = useForm({ resolver: zodResolver(passwordSchema) });
+  const notificationsForm = useForm<NotificationsFormData>({
+    resolver: zodResolver(notificationsSchema),
+    values: {
+      interviewRemindersEnabled: profile?.interviewRemindersEnabled ?? true,
+      digestFrequency: profile?.digestFrequency ?? 'OFF',
+    },
+    resetOptions: { keepDirtyValues: true },
+  });
 
   const updateProfile = useMutation({
     mutationFn: (data: { name: string }) =>
@@ -59,6 +73,16 @@ export default function ProfilePage() {
           ? (err.response?.data?.message ?? 'Failed to update')
           : 'Failed to update',
       ),
+  });
+
+  const updateNotifications = useMutation({
+    mutationFn: (data: NotificationsFormData) =>
+      api.patch('/users/me/notifications', data).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Notification preferences updated');
+    },
+    onError: () => toast.error('Failed to update notification preferences'),
   });
 
   const changePassword = useMutation({
@@ -123,6 +147,57 @@ export default function ProfilePage() {
           />
           <Button type="submit" size="sm" loading={updateProfile.isPending}>
             Save changes
+          </Button>
+        </form>
+      </div>
+
+      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
+        <h2 className="font-medium">Email Notifications</h2>
+        <form
+          onSubmit={notificationsForm.handleSubmit((d) =>
+            updateNotifications.mutate(d),
+          )}
+          className="space-y-4"
+        >
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 dark:border-slate-700"
+              {...notificationsForm.register('interviewRemindersEnabled')}
+            />
+            Email me a reminder before scheduled interviews
+          </label>
+
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="digest-frequency"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Email digest
+            </label>
+            <select
+              id="digest-frequency"
+              className="h-9 w-full max-w-[200px] rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              {...notificationsForm.register('digestFrequency')}
+            >
+              {DIGEST_FREQUENCIES.map((f) => (
+                <option key={f} value={f}>
+                  {DIGEST_FREQUENCY_LABELS[f]}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500">
+              A summary of upcoming interviews and stalled applications that
+              need your attention.
+            </p>
+          </div>
+
+          <Button
+            type="submit"
+            size="sm"
+            loading={updateNotifications.isPending}
+          >
+            Save preferences
           </Button>
         </form>
       </div>
