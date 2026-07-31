@@ -12,6 +12,7 @@ import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './modules/resumes/resumes.module.js';
 import { InterviewRoundsModule } from './modules/interview-rounds/interview-rounds.module.js';
@@ -55,6 +56,8 @@ function parseRedisConnection() {
         GOOGLE_CLIENT_SECRET: Joi.string().optional(),
         GITHUB_CLIENT_ID: Joi.string().optional(),
         GITHUB_CLIENT_SECRET: Joi.string().optional(),
+        RESEND_API_KEY: Joi.string().optional(),
+        EMAIL_FROM: Joi.string().default('onboarding@resend.dev'),
         STORAGE_DRIVER: Joi.string().valid('local', 'oracle').default('local'),
         OCI_NAMESPACE: ociRequired,
         OCI_REGION: ociRequired,
@@ -94,6 +97,7 @@ function parseRedisConnection() {
     JobsModule,
     HealthModule,
     EnrichmentModule,
+    NotificationsModule,
     AdminModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
