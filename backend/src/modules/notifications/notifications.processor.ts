@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
@@ -38,6 +38,28 @@ export class NotificationsProcessor extends WorkerHost {
     }
   }
 
+  // Runs once BullMQ has exhausted all configured attempts (see JOB_OPTIONS
+  // in notifications.scheduler.ts). Without this, a permanently failed send
+  // (e.g. Resend outage) leaves reminderSentAt stamped forever, silently
+  // losing the reminder — the hourly scan's `reminderSentAt: null` filter
+  // would otherwise never pick the round up again.
+  @OnWorkerEvent('failed')
+  async onFailed(
+    job: Job<InterviewReminderJobData | DigestJobData> | undefined,
+  ): Promise<void> {
+    if (!job || job.name !== 'interview-reminder') return;
+    if (job.attemptsMade < (job.opts.attempts ?? 1)) return; // will retry itself
+
+    const { roundId } = job.data as InterviewReminderJobData;
+    await this.prisma.interviewRound.updateMany({
+      where: { id: roundId, reminderSentAt: { not: null } },
+      data: { reminderSentAt: null },
+    });
+    this.logger.warn('interview_reminder_permanently_failed_reset', {
+      roundId,
+    });
+  }
+
   private frontendUrl(): string {
     return this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
   }
@@ -66,7 +88,16 @@ export class NotificationsProcessor extends WorkerHost {
     if (round.outcome !== InterviewOutcome.PENDING) return;
 
     const { user } = round.job;
-    if (!user.interviewRemindersEnabled) return;
+    if (!user.interviewRemindersEnabled) {
+      // Don't leave reminderSentAt stamped: if the user re-enables reminders
+      // before the interview happens, the hourly scan should pick this round
+      // up again instead of treating it as already handled.
+      await this.prisma.interviewRound.updateMany({
+        where: { id: roundId, reminderSentAt: { not: null } },
+        data: { reminderSentAt: null },
+      });
+      return;
+    }
 
     const { subject, html } = interviewReminderEmail({
       company: round.job.company,

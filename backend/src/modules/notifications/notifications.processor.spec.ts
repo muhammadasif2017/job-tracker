@@ -46,12 +46,13 @@ describe('NotificationsProcessor', () => {
       expect(email.send.mock.calls[0][0].subject).toContain('Acme');
     });
 
-    it('skips sending when the user has reminders disabled', async () => {
+    it('skips sending when the user has reminders disabled, and un-stamps reminderSentAt', async () => {
       const prisma = {
         interviewRound: {
           findUnique: jest.fn().mockResolvedValue({
             id: 'round1',
             stage: 'Technical',
+            outcome: 'PENDING',
             scheduledAt: new Date(),
             job: {
               company: 'Acme',
@@ -63,6 +64,7 @@ describe('NotificationsProcessor', () => {
               },
             },
           }),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
       };
       const processor = new NotificationsProcessor(
@@ -78,6 +80,12 @@ describe('NotificationsProcessor', () => {
       } as any);
 
       expect(email.send).not.toHaveBeenCalled();
+      // Otherwise the round would never be reconsidered if the user
+      // re-enables reminders before the interview happens.
+      expect(prisma.interviewRound.updateMany).toHaveBeenCalledWith({
+        where: { id: 'round1', reminderSentAt: { not: null } },
+        data: { reminderSentAt: null },
+      });
     });
 
     it('skips sending when the round is no longer pending (e.g. cancelled)', async () => {
@@ -199,6 +207,74 @@ describe('NotificationsProcessor', () => {
       } as any);
 
       expect(email.send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onFailed', () => {
+    it('clears reminderSentAt once retries are exhausted for an interview-reminder job', async () => {
+      const prisma = {
+        interviewRound: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.onFailed({
+        name: 'interview-reminder',
+        data: { roundId: 'round1' },
+        attemptsMade: 2,
+        opts: { attempts: 2 },
+      } as any);
+
+      expect(prisma.interviewRound.updateMany).toHaveBeenCalledWith({
+        where: { id: 'round1', reminderSentAt: { not: null } },
+        data: { reminderSentAt: null },
+      });
+    });
+
+    it('does nothing while attempts remain (BullMQ will retry on its own)', async () => {
+      const prisma = {
+        interviewRound: { updateMany: jest.fn() },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.onFailed({
+        name: 'interview-reminder',
+        data: { roundId: 'round1' },
+        attemptsMade: 1,
+        opts: { attempts: 2 },
+      } as any);
+
+      expect(prisma.interviewRound.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('ignores failed digest jobs (day-keyed jobId already self-heals next cron run)', async () => {
+      const prisma = {
+        interviewRound: { updateMany: jest.fn() },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.onFailed({
+        name: 'digest',
+        data: { userId: 'u1' },
+        attemptsMade: 2,
+        opts: { attempts: 2 },
+      } as any);
+
+      expect(prisma.interviewRound.updateMany).not.toHaveBeenCalled();
     });
   });
 });

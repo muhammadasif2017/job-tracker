@@ -491,6 +491,24 @@ describe('Job Tracker (e2e)', () => {
       });
       expect(round.reminderSentAt).toBeNull();
     });
+
+    it('clears reminderSentAt when a cancelled round is reverted to pending', async () => {
+      await prisma.interviewRound.update({
+        where: { id: roundId },
+        data: { outcome: 'CANCELLED', reminderSentAt: new Date() },
+      });
+
+      await agent
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ outcome: 'PENDING' })
+        .expect(200);
+
+      const round = await prisma.interviewRound.findUniqueOrThrow({
+        where: { id: roundId },
+      });
+      expect(round.reminderSentAt).toBeNull();
+    });
   });
 
   describe('DELETE /jobs/:jobId/interview-rounds/:roundId', () => {
