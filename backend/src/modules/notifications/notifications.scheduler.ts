@@ -26,7 +26,12 @@ export class NotificationsScheduler {
     private readonly logger: Logger,
   ) {}
 
-  @Cron(CronExpression.EVERY_HOUR)
+  // Explicit UTC everywhere below: without it, node-cron runs on the host's
+  // local tz, which drifts from the UTC-labelled times in templates.ts and
+  // from the UTC calendar date used to build the digest dedup jobId — plus
+  // it's the only way to be safe from an hour being skipped/repeated across
+  // a host-local DST transition.
+  @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async scanInterviewReminders(): Promise<void> {
     const now = new Date();
     const in24h = new Date(now.getTime() + REMINDER_LEAD_MS);
@@ -57,12 +62,12 @@ export class NotificationsScheduler {
     }
   }
 
-  @Cron('0 8 * * *')
+  @Cron('0 8 * * *', { timeZone: 'UTC' })
   async sendDailyDigests(): Promise<void> {
     await this.fanOutDigest(DigestFrequency.DAILY);
   }
 
-  @Cron('0 8 * * 1')
+  @Cron('0 8 * * 1', { timeZone: 'UTC' })
   async sendWeeklyDigests(): Promise<void> {
     await this.fanOutDigest(DigestFrequency.WEEKLY);
   }
