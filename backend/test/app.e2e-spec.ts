@@ -208,6 +208,20 @@ describe('Job Tracker (e2e)', () => {
     });
   });
 
+  describe('GET /jobs/attention', () => {
+    it('returns needs-attention items as an array', async () => {
+      const res = await agent
+        .get('/jobs/attention')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body).toBeInstanceOf(Array);
+    });
+
+    it('returns 401 without token', () =>
+      agent.get('/jobs/attention').expect(401));
+  });
+
   describe('GET /jobs/:id', () => {
     it('returns the job', async () => {
       const res = await agent
