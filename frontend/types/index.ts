@@ -157,6 +157,7 @@ export interface JobStats {
   byStatus: Record<JobStatus, number>;
   thisMonth: number;
   responseRate: number;
+  ghostRate: number;
 }
 
 export const FUNNEL_STAGES = [

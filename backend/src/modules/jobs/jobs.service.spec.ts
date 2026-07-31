@@ -427,6 +427,7 @@ describe('JobsService', () => {
       expect(stats.total).toBe(0);
       expect(stats.thisMonth).toBe(0);
       expect(stats.responseRate).toBe(0);
+      expect(stats.ghostRate).toBe(0);
       for (const s of Object.values(JobStatus)) {
         expect(stats.byStatus[s]).toBe(0);
       }
@@ -444,10 +445,25 @@ describe('JobsService', () => {
       const stats = await service.getStats('u1', 'all');
 
       expect(stats.responseRate).toBe(50);
+      expect(stats.ghostRate).toBe(0);
       expect(stats.total).toBe(10);
       expect(stats.thisMonth).toBe(4);
       expect(stats.byStatus[JobStatus.APPLIED]).toBe(5);
       expect(stats.byStatus[JobStatus.WISHLIST]).toBe(0);
+    });
+
+    it('calculates ghostRate correctly from grouped counts', async () => {
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { status: JobStatus.APPLIED, _count: { _all: 6 } },
+        { status: JobStatus.GHOSTED, _count: { _all: 2 } },
+        { status: JobStatus.REJECTED, _count: { _all: 2 } },
+      ]);
+      mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(0);
+
+      const stats = await service.getStats('u1', 'all');
+
+      expect(stats.ghostRate).toBe(20);
+      expect(stats.byStatus[JobStatus.GHOSTED]).toBe(2);
     });
 
     it('omitting range (all) reproduces output identical to pre-range-filter behavior', async () => {

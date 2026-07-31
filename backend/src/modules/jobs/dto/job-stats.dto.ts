@@ -25,4 +25,10 @@ export class JobStatsDto {
     description: 'Percentage of apps that got a response',
   })
   responseRate: number;
+
+  @ApiProperty({
+    example: 12.9,
+    description: 'Percentage of apps that ended ghosted',
+  })
+  ghostRate: number;
 }
