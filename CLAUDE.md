@@ -77,6 +77,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 - Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
+- Always run a deep adversarial review (`/code-review` or equivalent) before treating any change touching external I/O (email, payment, third-party APIs) or a field written by more than one module as done — passing tests alone is not sufficient sign-off. First-pass self-review reliably misses third-party SDK error contracts (e.g. an SDK that returns `{error}` instead of throwing) and cross-module state interactions (e.g. one module resetting a stateful field another module depends on).
 
 ## Patterns
 
