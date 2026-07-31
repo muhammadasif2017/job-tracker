@@ -14,6 +14,20 @@ export const NOTIFICATIONS_QUEUE = 'notifications';
 export type InterviewReminderJobData = { roundId: string };
 export type DigestJobData = { userId: string };
 
+type DedupAttentionType = 'STALE_APPLIED' | 'STALE_INTERVIEWING';
+
+function isDedupType(type: string): type is DedupAttentionType {
+  return type === 'STALE_APPLIED' || type === 'STALE_INTERVIEWING';
+}
+
+function dedupField(
+  type: DedupAttentionType,
+): 'staleAppliedDigestedAt' | 'staleInterviewingDigestedAt' {
+  return type === 'STALE_APPLIED'
+    ? 'staleAppliedDigestedAt'
+    : 'staleInterviewingDigestedAt';
+}
+
 @Injectable()
 @Processor(NOTIFICATIONS_QUEUE)
 export class NotificationsProcessor extends WorkerHost {
@@ -117,7 +131,17 @@ export class NotificationsProcessor extends WorkerHost {
     });
     if (!user || user.digestFrequency === DigestFrequency.OFF) return;
 
-    const items = await getAttentionItems(this.prisma, userId);
+    const allItems = await getAttentionItems(this.prisma, userId);
+    // STALE_APPLIED/STALE_INTERVIEWING are "still unresolved" reasons that
+    // otherwise repeat in every digest forever — once reported, suppress
+    // until the underlying `since` moves (i.e. the occurrence actually
+    // changes). UPCOMING_INTERVIEW isn't deduped: its 48h window self-
+    // resolves in a couple of days on its own.
+    const items = allItems.filter((item) => {
+      if (!isDedupType(item.type)) return true;
+      const digestedAt = item.job[dedupField(item.type)];
+      return !digestedAt || digestedAt < item.since;
+    });
     if (!items.length) return;
 
     const { subject, html } = digestEmail({
@@ -130,6 +154,21 @@ export class NotificationsProcessor extends WorkerHost {
       frontendUrl: this.frontendUrl(),
     });
     await this.email.send({ to: user.email, subject, html });
+
+    // Stamp only after a successful send: a thrown/retried send leaves these
+    // unstamped so the retry (or, if attempts run out, tomorrow's digest)
+    // still includes them — no separate onFailed handling needed here.
+    const now = new Date();
+    await Promise.all(
+      items
+        .filter((item) => isDedupType(item.type))
+        .map((item) =>
+          this.prisma.job.update({
+            where: { id: item.job.id },
+            data: { [dedupField(item.type as DedupAttentionType)]: now },
+          }),
+        ),
+    );
     this.logger.log('digest_sent', { userId, itemCount: items.length });
   }
 }

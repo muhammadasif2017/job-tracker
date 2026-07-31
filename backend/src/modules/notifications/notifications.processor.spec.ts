@@ -208,6 +208,132 @@ describe('NotificationsProcessor', () => {
 
       expect(email.send).not.toHaveBeenCalled();
     });
+
+    it('suppresses a stale item already digested for the same occurrence', async () => {
+      const appliedAt = new Date('2026-07-01T00:00:00Z');
+      const prisma = {
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'u1',
+            email: 'u1@test.dev',
+            digestFrequency: DigestFrequency.DAILY,
+          }),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([]) // upcoming
+            .mockResolvedValueOnce([]) // stale interviewing
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                appliedAt,
+                // already digested at (after) the same appliedAt occurrence
+                staleAppliedDigestedAt: new Date('2026-07-09T00:00:00Z'),
+              },
+            ]),
+          update: jest.fn(),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.process({
+        name: 'digest',
+        data: { userId: 'u1' },
+      } as any);
+
+      expect(email.send).not.toHaveBeenCalled();
+      expect(prisma.job.update).not.toHaveBeenCalled();
+    });
+
+    it('re-includes and re-stamps a stale item once the occurrence changes', async () => {
+      const prisma = {
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'u1',
+            email: 'u1@test.dev',
+            digestFrequency: DigestFrequency.DAILY,
+          }),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([]) // upcoming
+            .mockResolvedValueOnce([]) // stale interviewing
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                // digested for an earlier occurrence than the current appliedAt
+                appliedAt: new Date('2026-07-20T00:00:00Z'),
+                staleAppliedDigestedAt: new Date('2026-07-01T00:00:00Z'),
+              },
+            ]),
+          update: jest.fn().mockResolvedValue(undefined),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.process({
+        name: 'digest',
+        data: { userId: 'u1' },
+      } as any);
+
+      expect(email.send).toHaveBeenCalledTimes(1);
+      expect(prisma.job.update).toHaveBeenCalledWith({
+        where: { id: 'j1' },
+        data: { staleAppliedDigestedAt: expect.any(Date) },
+      });
+    });
+
+    it('never stamps digestedAt for UPCOMING_INTERVIEW (self-resolves via its own 48h window)', async () => {
+      const prisma = {
+        user: {
+          findUnique: jest.fn().mockResolvedValue({
+            id: 'u1',
+            email: 'u1@test.dev',
+            digestFrequency: DigestFrequency.DAILY,
+          }),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([
+              { id: 'j1', company: 'Acme', position: 'Eng', nextInterviewAt: new Date() },
+            ])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([]),
+          update: jest.fn(),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.process({
+        name: 'digest',
+        data: { userId: 'u1' },
+      } as any);
+
+      expect(email.send).toHaveBeenCalledTimes(1);
+      expect(prisma.job.update).not.toHaveBeenCalled();
+    });
   });
 
   describe('onFailed', () => {
