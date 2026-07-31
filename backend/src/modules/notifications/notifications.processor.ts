@@ -45,9 +45,17 @@ export class NotificationsProcessor extends WorkerHost {
   private async processInterviewReminder({
     roundId,
   }: InterviewReminderJobData): Promise<void> {
-    const round = await this.prisma.interviewRound.findFirst({
+    const round = await this.prisma.interviewRound.findUnique({
       where: { id: roundId },
-      include: { job: { include: { user: true } } },
+      include: {
+        job: {
+          include: {
+            user: {
+              select: { id: true, email: true, interviewRemindersEnabled: true },
+            },
+          },
+        },
+      },
     });
     if (!round) {
       this.logger.warn('notification_round_not_found', { roundId });
@@ -72,7 +80,10 @@ export class NotificationsProcessor extends WorkerHost {
   }
 
   private async processDigest({ userId }: DigestJobData): Promise<void> {
-    const user = await this.prisma.user.findFirst({ where: { id: userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, digestFrequency: true },
+    });
     if (!user || user.digestFrequency === DigestFrequency.OFF) return;
 
     const items = await getAttentionItems(this.prisma, userId);

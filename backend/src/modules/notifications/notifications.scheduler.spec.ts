@@ -27,9 +27,11 @@ describe('NotificationsScheduler', () => {
         where: { id: 'round1', reminderSentAt: null },
         data: { reminderSentAt: expect.any(Date) },
       });
-      expect(queue.add).toHaveBeenCalledWith('interview-reminder', {
-        roundId: 'round1',
-      });
+      expect(queue.add).toHaveBeenCalledWith(
+        'interview-reminder',
+        { roundId: 'round1' },
+        expect.objectContaining({ attempts: 2 }),
+      );
     });
 
     it('skips enqueueing when the round was already claimed (dedup race)', async () => {
@@ -129,7 +131,50 @@ describe('NotificationsScheduler', () => {
         select: { id: true },
       });
       expect(queue.add).toHaveBeenCalledTimes(1);
-      expect(queue.add).toHaveBeenCalledWith('digest', { userId: 'u1' });
+      expect(queue.add).toHaveBeenCalledWith(
+        'digest',
+        { userId: 'u1' },
+        expect.objectContaining({
+          attempts: 2,
+          jobId: expect.stringMatching(/^digest-DAILY-u1-\d{4}-\d{2}-\d{2}$/),
+        }),
+      );
+    });
+
+    it('enqueues digests for two different users with distinct jobIds', async () => {
+      const upcomingJob = {
+        id: 'j1',
+        company: 'Acme',
+        position: 'Eng',
+        nextInterviewAt: new Date(),
+      };
+      // getAttentionItems does 3 findMany calls per user (upcoming, stale
+      // interviewing, stale applied) — only the first is non-empty here.
+      const perUserResponses = () => [
+        Promise.resolve([upcomingJob]),
+        Promise.resolve([]),
+        Promise.resolve([]),
+      ];
+      const responses = [...perUserResponses(), ...perUserResponses()];
+      const prisma = {
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]),
+        },
+        job: {
+          findMany: jest.fn(() => responses.shift()),
+        },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendDailyDigests();
+
+      expect(queue.add).toHaveBeenCalledTimes(2);
+      const jobIds = queue.add.mock.calls.map((call: any[]) => call[2].jobId);
+      expect(new Set(jobIds).size).toBe(2);
     });
 
     it('enqueues nothing when no users match the frequency', async () => {

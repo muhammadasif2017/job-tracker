@@ -14,6 +14,10 @@ import {
 
 const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
 
+// Matches EnrichmentModule's queue.add options (see enrichment.service.ts) —
+// a transient Redis/worker blip shouldn't permanently drop a reminder.
+const JOB_OPTIONS = { attempts: 2, backoff: { type: 'fixed' as const, delay: 10_000 } };
+
 @Injectable()
 export class NotificationsScheduler {
   constructor(
@@ -48,7 +52,7 @@ export class NotificationsScheduler {
       if (count === 0) continue;
 
       const data: InterviewReminderJobData = { roundId: id };
-      await this.queue.add('interview-reminder', data);
+      await this.queue.add('interview-reminder', data, JOB_OPTIONS);
       this.logger.log('interview_reminder_enqueued', { roundId: id });
     }
   }
@@ -74,7 +78,15 @@ export class NotificationsScheduler {
       if (!items.length) continue;
 
       const data: DigestJobData = { userId };
-      await this.queue.add('digest', data);
+      // Deterministic jobId keyed by user+frequency+day: BullMQ treats a
+      // second add() with the same jobId as a no-op rather than a duplicate
+      // job, guarding against a restart or multi-instance race re-firing the
+      // same cron window twice for the same user.
+      const dateKey = new Date().toISOString().slice(0, 10);
+      await this.queue.add('digest', data, {
+        ...JOB_OPTIONS,
+        jobId: `digest-${frequency}-${userId}-${dateKey}`,
+      });
       this.logger.log('digest_enqueued', { userId, itemCount: items.length });
     }
   }

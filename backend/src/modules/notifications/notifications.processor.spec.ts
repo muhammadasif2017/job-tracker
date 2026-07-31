@@ -12,7 +12,7 @@ describe('NotificationsProcessor', () => {
     it('sends when the user has reminders enabled', async () => {
       const prisma = {
         interviewRound: {
-          findFirst: jest.fn().mockResolvedValue({
+          findUnique: jest.fn().mockResolvedValue({
             id: 'round1',
             stage: 'Technical',
             outcome: 'PENDING',
@@ -49,7 +49,7 @@ describe('NotificationsProcessor', () => {
     it('skips sending when the user has reminders disabled', async () => {
       const prisma = {
         interviewRound: {
-          findFirst: jest.fn().mockResolvedValue({
+          findUnique: jest.fn().mockResolvedValue({
             id: 'round1',
             stage: 'Technical',
             scheduledAt: new Date(),
@@ -83,7 +83,7 @@ describe('NotificationsProcessor', () => {
     it('skips sending when the round is no longer pending (e.g. cancelled)', async () => {
       const prisma = {
         interviewRound: {
-          findFirst: jest.fn().mockResolvedValue({
+          findUnique: jest.fn().mockResolvedValue({
             id: 'round1',
             stage: 'Technical',
             outcome: 'CANCELLED',
@@ -117,7 +117,7 @@ describe('NotificationsProcessor', () => {
 
     it('skips silently when the round no longer exists', async () => {
       const prisma = {
-        interviewRound: { findFirst: jest.fn().mockResolvedValue(null) },
+        interviewRound: { findUnique: jest.fn().mockResolvedValue(null) },
       };
       const processor = new NotificationsProcessor(
         prisma as any,
@@ -139,7 +139,7 @@ describe('NotificationsProcessor', () => {
     it('sends when there are attention items', async () => {
       const prisma = {
         user: {
-          findFirst: jest.fn().mockResolvedValue({
+          findUnique: jest.fn().mockResolvedValue({
             id: 'u1',
             email: 'u1@test.dev',
             digestFrequency: DigestFrequency.DAILY,
@@ -178,7 +178,7 @@ describe('NotificationsProcessor', () => {
     it('skips when there are no attention items', async () => {
       const prisma = {
         user: {
-          findFirst: jest.fn().mockResolvedValue({
+          findUnique: jest.fn().mockResolvedValue({
             id: 'u1',
             email: 'u1@test.dev',
             digestFrequency: DigestFrequency.DAILY,

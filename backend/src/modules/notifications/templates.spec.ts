@@ -32,6 +32,19 @@ describe('interviewReminderEmail', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('Screen &amp; Chat');
   });
+
+  it('renders the interview time in UTC, explicitly labelled, and does not claim it is tomorrow', () => {
+    const { subject, html } = interviewReminderEmail({
+      company: 'Acme',
+      position: 'Senior Engineer',
+      stage: 'Technical Screen',
+      scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      frontendUrl: 'http://localhost:3000',
+    });
+
+    expect(html).toContain('UTC');
+    expect(subject).not.toContain('tomorrow');
+  });
 });
 
 describe('digestEmail', () => {
