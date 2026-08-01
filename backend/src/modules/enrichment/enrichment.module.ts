@@ -20,6 +20,6 @@ import { LlmService } from './services/llm.service.js';
     SearchService,
     LlmService,
   ],
-  exports: [EnrichmentService, WebFetchService, LlmService],
+  exports: [EnrichmentService, WebFetchService, SearchService, LlmService],
 })
 export class EnrichmentModule {}

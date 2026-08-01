@@ -6,6 +6,7 @@ import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
+import { SearchService } from '../enrichment/services/search.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -33,6 +34,7 @@ const mockPrisma = {
 
 const mockEnrichment = { enqueueEnrichment: jest.fn() };
 const mockWebFetch = { fetchPageText: jest.fn() };
+const mockSearch = { search: jest.fn() };
 const mockLlm = { extractJobPosting: jest.fn() };
 const mockStorage = {
   upload: jest.fn(),
@@ -52,6 +54,7 @@ describe('JobsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: EnrichmentService, useValue: mockEnrichment },
         { provide: WebFetchService, useValue: mockWebFetch },
+        { provide: SearchService, useValue: mockSearch },
         { provide: LlmService, useValue: mockLlm },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
         { provide: Logger, useValue: mockLogger },
@@ -919,6 +922,88 @@ describe('JobsService', () => {
       });
 
       expect(result).toEqual({ url: undefined });
+    });
+
+    it('falls back to a Tavily search when LLM extraction on fetched content fails, and retries extraction on the snippets', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue(
+        'Senior Engineer at Acme...',
+      );
+      mockLlm.extractJobPosting
+        .mockRejectedValueOnce(new Error('Groq unavailable'))
+        .mockResolvedValueOnce({
+          company: 'Acme Corp',
+          position: 'Senior Engineer',
+          location: 'Remote',
+          jobType: 'REMOTE',
+        });
+      mockSearch.search.mockResolvedValue([
+        '[Acme Careers | acme.com] Senior Engineer role at Acme Corp',
+      ]);
+
+      const result = await service.parseJobPosting({
+        url: 'https://www.linkedin.com/jobs/view/123',
+      });
+
+      expect(mockSearch.search).toHaveBeenCalledWith(
+        'https://www.linkedin.com/jobs/view/123',
+      );
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledTimes(2);
+      expect(mockLlm.extractJobPosting).toHaveBeenNthCalledWith(
+        2,
+        '[Acme Careers | acme.com] Senior Engineer role at Acme Corp',
+      );
+      expect(result).toEqual({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+        location: 'Remote',
+        jobType: 'REMOTE',
+        url: 'https://www.linkedin.com/jobs/view/123',
+        source: 'LINKEDIN',
+      });
+    });
+
+    it('returns a partial result when both the primary extraction and the Tavily fallback fail', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('some page content');
+      mockLlm.extractJobPosting.mockRejectedValue(
+        new Error('Groq unavailable'),
+      );
+      mockSearch.search.mockResolvedValue([]);
+
+      const result = await service.parseJobPosting({
+        url: 'https://www.linkedin.com/jobs/view/123',
+      });
+
+      expect(mockSearch.search).toHaveBeenCalledWith(
+        'https://www.linkedin.com/jobs/view/123',
+      );
+      // Only the primary content attempt should reach the LLM — an empty
+      // fallback snippet list must not trigger a second, pointless call.
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ url: 'https://www.linkedin.com/jobs/view/123' });
+    });
+
+    it('recovers via the Tavily fallback when the URL fetch itself yields no content', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockSearch.search.mockResolvedValue([
+        '[Example] Company info about Acme Corp',
+      ]);
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+      });
+
+      const result = await service.parseJobPosting({
+        url: 'https://gated.example.com/job/1',
+      });
+
+      expect(mockSearch.search).toHaveBeenCalledWith(
+        'https://gated.example.com/job/1',
+      );
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
+        '[Example] Company info about Acme Corp',
+      );
+      expect(result.company).toBe('Acme Corp');
+      expect(result.source).toBe('OTHER');
     });
   });
 });
