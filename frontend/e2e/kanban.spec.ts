@@ -211,7 +211,19 @@ test.describe('Kanban drag and drop', () => {
   }) => {
     await goToBoard(page);
 
-    await dragJobToColumn(page, job.id, 'APPLIED');
+    // The board updates optimistically on drag, so the UI reflects the new
+    // column before the PATCH has actually reached the backend — wait for
+    // that response before verifying server state directly, or the fetch
+    // below can race the mutation and read stale status.
+    const [patchResponse] = await Promise.all([
+      page.waitForResponse(
+        (r) =>
+          r.request().method() === 'PATCH' &&
+          r.url().includes(`/jobs/${job.id}`),
+      ),
+      dragJobToColumn(page, job.id, 'APPLIED'),
+    ]);
+    expect(patchResponse.ok()).toBe(true);
 
     await expect(
       page.locator('[data-rfd-droppable-id="APPLIED"]').getByText('Drag Co'),

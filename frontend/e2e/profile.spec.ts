@@ -112,15 +112,34 @@ test.describe('Profile page', () => {
   test('updates email notification preferences', async ({ page }) => {
     await goToProfile(page, user);
 
+    // The notifications form's RHF `values` option resets from the profile
+    // query the moment it resolves, which can race a rapid-fire uncheck +
+    // selectOption fired right after page load, submitting the query's
+    // still-default snapshot instead of these edits. Assert the fields
+    // reflect the (query-settled) starting state, then the edits, before
+    // submitting — matches how a real user's slower interaction naturally
+    // avoids the race.
+    await expect(page.getByLabel(/email me a reminder/i)).toBeChecked();
+    await expect(page.getByLabel('Email digest')).toHaveValue('OFF');
     await page.getByLabel(/email me a reminder/i).uncheck();
     await page.getByLabel('Email digest').selectOption('WEEKLY');
+    await expect(page.getByLabel(/email me a reminder/i)).not.toBeChecked();
+    await expect(page.getByLabel('Email digest')).toHaveValue('WEEKLY');
     await page.getByRole('button', { name: 'Save preferences' }).click();
 
     await expect(
       page.getByText('Notification preferences updated'),
     ).toBeVisible();
 
-    await page.reload();
+    // Wait for the reload's fresh GET before asserting on the form state,
+    // rather than relying on the default assertion poll window.
+    const [profileResponse] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.request().method() === 'GET' && r.url().includes('/users/me'),
+      ),
+      page.reload(),
+    ]);
+    expect(profileResponse.ok()).toBe(true);
     await expect(page.getByLabel(/email me a reminder/i)).not.toBeChecked();
     await expect(page.getByLabel('Email digest')).toHaveValue('WEEKLY');
 
