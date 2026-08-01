@@ -225,6 +225,12 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 
 ---
 
+## Database Schema
+
+Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`, `Job → Resume?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete. `Resume` is a 1:1 optional relation to `Job` — one PDF per job, stored by key in the configured storage driver; `storageKey` is never sent to the client.
+
+---
+
 ## Error Handling
 
 - Throw NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) — `GlobalExceptionFilter` passes them through unchanged.
