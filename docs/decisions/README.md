@@ -30,6 +30,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [021](./021-interview-round-ics-export.md) | ICS export for interview rounds — server-generated, no library | Accepted |
 | [022](./022-contact-tracking-model.md) | Per-job contact/recruiter tracking as a single Contact model | Accepted |
 | [023](./023-admin-rbac.md) | Role-based admin panel — global RolesGuard, self-delete block, shared deletion path | Accepted |
+| [024](./024-per-user-timezone.md) | Per-user timezone for reminder/digest emails — supersedes SPEC.md's "out of scope v1" | Accepted |
 
 ## How to read an ADR
 
