@@ -63,14 +63,18 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     setFormOpen(true);
   }
 
+  // `null` (not `undefined`) for a blank optional field: JSON.stringify
+  // drops `undefined` keys entirely, so an omitted field means "leave the
+  // existing value alone" on the backend (see create-contact.dto.ts) —
+  // `null` is required to actually clear a field the user has emptied out.
   function buildPayload() {
     return {
       name: form.name,
-      role: form.role || undefined,
-      email: form.email || undefined,
-      phone: form.phone || undefined,
-      linkedinUrl: form.linkedinUrl || undefined,
-      notes: form.notes || undefined,
+      role: form.role || null,
+      email: form.email || null,
+      phone: form.phone || null,
+      linkedinUrl: form.linkedinUrl || null,
+      notes: form.notes || null,
     };
   }
 
@@ -194,6 +198,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
             />
           </div>
           <Input
+            id="contact-notes"
             label="Notes (optional)"
             placeholder="Met at the referral call"
             value={form.notes}

@@ -129,6 +129,29 @@ describe('ContactsService', () => {
       });
       expect(result).toEqual({ id: 'contact-1', role: 'Hiring Manager' });
     });
+
+    it('passes an explicit null through to clear a previously-set field', async () => {
+      // Prisma treats an omitted/undefined field as "leave it alone" and
+      // only an explicit null as "clear it" — the frontend relies on this
+      // to let a user blank out an optional field they'd set earlier.
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.contact.findFirst.mockResolvedValue({ id: 'contact-1' });
+      mockPrisma.contact.update.mockResolvedValue({ id: 'contact-1', email: null });
+
+      await service.update('user-1', 'job-1', 'contact-1', { email: null });
+
+      expect(mockPrisma.contact.update).toHaveBeenCalledWith({
+        where: { id: 'contact-1' },
+        data: {
+          name: undefined,
+          role: undefined,
+          email: null,
+          phone: undefined,
+          linkedinUrl: undefined,
+          notes: undefined,
+        },
+      });
+    });
   });
 
   describe('remove', () => {
