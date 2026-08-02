@@ -269,6 +269,12 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 
 ---
 
+## Rate Limiting
+
+Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route with no per-route override anywhere in the codebase. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
+
+---
+
 ## Logging
 
 `nestjs-pino` is wired globally. Use the injected `Logger` in services if you need explicit log lines:
