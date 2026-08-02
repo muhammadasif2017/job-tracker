@@ -81,7 +81,9 @@ describe('FunnelChart', () => {
       />,
     );
     expect(screen.getByText('Avg. time in stage')).toBeInTheDocument();
-    expect(screen.getByText('Response rate by source')).toBeInTheDocument();
+    expect(
+      screen.getByText('Response rate by application channel'),
+    ).toBeInTheDocument();
     expect(screen.queryByText('—')).not.toBeInTheDocument();
     // main funnel bar + dropoff + avg-time + response-rate = 4 mini-charts
     expect(chartCount(container)).toBe(4);

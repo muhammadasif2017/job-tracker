@@ -555,10 +555,11 @@ describe('JobsService', () => {
         { jobId: 'jD', toStatus: JobStatus.WISHLIST, createdAt: at(0) },
       ]);
       mockPrisma.job.groupBy.mockResolvedValue([
-        { source: 'LINKEDIN', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
-        { source: 'LINKEDIN', status: JobStatus.REJECTED, _count: { _all: 1 } },
-        { source: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
-        { source: 'CAREER_EMAIL', status: JobStatus.APPLIED, _count: { _all: 1 } },
+        { applicationChannel: 'LINKEDIN', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
+        { applicationChannel: 'LINKEDIN', status: JobStatus.REJECTED, _count: { _all: 1 } },
+        { applicationChannel: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
+        { applicationChannel: 'CAREER_EMAIL', status: JobStatus.APPLIED, _count: { _all: 1 } },
+        { applicationChannel: 'ATS', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
       ]);
 
       const result = await service.getFunnel('u1', 'all');
@@ -588,9 +589,10 @@ describe('JobsService', () => {
           { source: 'LINKEDIN', total: 2, responseRate: 100 },
           { source: 'REFERRAL', total: 1, responseRate: 100 },
           { source: 'CAREER_EMAIL', total: 1, responseRate: 0 },
+          { source: 'ATS', total: 1, responseRate: 100 },
         ]),
       );
-      expect(result.responseRateBySource).toHaveLength(3);
+      expect(result.responseRateBySource).toHaveLength(4);
     });
 
     it('excludes WISHLIST jobs from the responseRateBySource query', async () => {
@@ -618,7 +620,7 @@ describe('JobsService', () => {
         { jobId: 'jE', toStatus: JobStatus.APPLIED, createdAt: at(5 * day) },
       ]);
       mockPrisma.job.groupBy.mockResolvedValue([
-        { source: 'OTHER', status: JobStatus.APPLIED, _count: { _all: 1 } },
+        { applicationChannel: 'OTHER', status: JobStatus.APPLIED, _count: { _all: 1 } },
       ]);
 
       const result = await service.getFunnel('u1', 'all');
@@ -793,7 +795,7 @@ describe('JobsService', () => {
       const { csv } = await service.exportCsv('u1', new JobQueryDto());
 
       expect(csv.split('\r\n')[0]).toBe(
-        'Company,Position,Status,Source,Location,Applied Date,Next Interview,URL,Notes',
+        'Company,Position,Status,Discovery Source,Application Channel,Location,Applied Date,Next Interview,URL,Notes',
       );
     });
 
@@ -839,7 +841,7 @@ describe('JobsService', () => {
   });
 
   describe('parseJobPosting', () => {
-    it('fetches the URL, extracts fields, and maps the domain to a JobSource', async () => {
+    it('fetches the URL, extracts fields, and maps the domain to an ApplicationChannel', async () => {
       mockWebFetch.fetchPageText.mockResolvedValue(
         'Senior Engineer at Acme...',
       );
@@ -866,11 +868,11 @@ describe('JobsService', () => {
         location: 'Remote',
         jobType: 'REMOTE',
         url: 'https://www.linkedin.com/jobs/view/123',
-        source: 'LINKEDIN',
+        applicationChannel: 'LINKEDIN',
       });
     });
 
-    it('falls back to text extraction when the URL fetch fails, and leaves source undefined', async () => {
+    it('falls back to text extraction when the URL fetch fails, and leaves applicationChannel undefined', async () => {
       mockWebFetch.fetchPageText.mockResolvedValue('');
       mockLlm.extractJobPosting.mockResolvedValue({
         company: 'Acme Corp',
@@ -885,11 +887,11 @@ describe('JobsService', () => {
       expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
         'pasted job description text',
       );
-      expect(result.source).toBeUndefined();
+      expect(result.applicationChannel).toBeUndefined();
       expect(result.company).toBe('Acme Corp');
     });
 
-    it('extracts from text-only input with no URL, leaving source and url undefined', async () => {
+    it('extracts from text-only input with no URL, leaving applicationChannel and url undefined', async () => {
       mockLlm.extractJobPosting.mockResolvedValue({
         company: 'Acme Corp',
         position: 'Senior Engineer',
@@ -901,7 +903,7 @@ describe('JobsService', () => {
 
       expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
       expect(result.url).toBeUndefined();
-      expect(result.source).toBeUndefined();
+      expect(result.applicationChannel).toBeUndefined();
       expect(result.company).toBe('Acme Corp');
     });
 
@@ -960,7 +962,7 @@ describe('JobsService', () => {
         location: 'Remote',
         jobType: 'REMOTE',
         url: 'https://www.linkedin.com/jobs/view/123',
-        source: 'LINKEDIN',
+        applicationChannel: 'LINKEDIN',
       });
     });
 
@@ -1005,7 +1007,7 @@ describe('JobsService', () => {
         '[Example] Company info about Acme Corp',
       );
       expect(result.company).toBe('Acme Corp');
-      expect(result.source).toBe('OTHER');
+      expect(result.applicationChannel).toBe('OTHER');
     });
   });
 });

@@ -27,11 +27,23 @@ enum JobType {
   REMOTE
 }
 
-enum JobSource {
+enum DiscoverySource {
+  LINKEDIN
+  LINKEDIN_JOBS
+  GOOGLE_SEARCH
+  INDEED
+  ROZEE
+  REFERRAL
+  CAREER_EMAIL
+  OTHER
+}
+
+enum ApplicationChannel {
+  COMPANY_WEBSITE
+  ATS
   LINKEDIN
   INDEED
   ROZEE
-  COMPANY_WEBSITE
   REFERRAL
   CAREER_EMAIL
   OTHER
@@ -117,7 +129,8 @@ model Job {
   status                      JobStatus        @default(APPLIED)
   priority                    JobPriority      @default(MEDIUM)
   jobType                     JobType          @default(ONSITE)
-  source                      JobSource?
+  discoverySource             DiscoverySource?
+  applicationChannel          ApplicationChannel?
   notes                       String?
   appliedAt                   DateTime         @default(now())
   nextInterviewAt             DateTime?

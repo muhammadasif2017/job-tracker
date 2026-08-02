@@ -225,7 +225,7 @@ export default function JobsPage() {
                   'Status',
                   'Priority',
                   'Job Type',
-                  'Source',
+                  'Channel',
                   'Applied',
                   'Location',
                   '',
@@ -286,8 +286,11 @@ export default function JobsPage() {
                       <JobTypeBadge jobType={job.jobType} />
                     </td>
                     <td className="px-4 py-3">
-                      {job.source ? (
-                        <SourceBadge source={job.source} />
+                      {job.applicationChannel ? (
+                        <SourceBadge
+                          kind="channel"
+                          source={job.applicationChannel}
+                        />
                       ) : (
                         <span className="text-slate-500">—</span>
                       )}

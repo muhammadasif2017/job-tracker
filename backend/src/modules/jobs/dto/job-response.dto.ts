@@ -1,5 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { JobStatus, JobPriority, JobType, JobSource } from '@prisma/client';
+import {
+  JobStatus,
+  JobPriority,
+  JobType,
+  DiscoverySource,
+  ApplicationChannel,
+} from '@prisma/client';
 import { CompanyProfileResponseDto } from './company-profile-response.dto.js';
 import { ResumeResponseDto } from '../../resumes/dto/resume-response.dto.js';
 import { InterviewRoundResponseDto } from '../../interview-rounds/dto/interview-round-response.dto.js';
@@ -29,8 +35,11 @@ export class JobResponseDto {
   @ApiProperty({ enum: JobType })
   jobType: JobType;
 
-  @ApiPropertyOptional({ enum: JobSource })
-  source: JobSource | null;
+  @ApiPropertyOptional({ enum: DiscoverySource })
+  discoverySource: DiscoverySource | null;
+
+  @ApiPropertyOptional({ enum: ApplicationChannel })
+  applicationChannel: ApplicationChannel | null;
 
   @ApiPropertyOptional({ example: 'Referral from John' })
   notes: string | null;
