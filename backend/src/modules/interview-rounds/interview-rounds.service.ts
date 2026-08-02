@@ -3,7 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JobStatus, JobEventType, InterviewOutcome, Prisma } from '@prisma/client';
+import {
+  JobStatus,
+  JobEventType,
+  InterviewOutcome,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
@@ -197,5 +202,79 @@ export class InterviewRoundsService {
       await this.recomputeNextInterviewAt(tx, jobId);
       return { message: 'Interview round deleted' };
     });
+  }
+
+  // RFC 5545 §3.3.11 TEXT escaping — backslash first so it doesn't double-escape
+  // the characters escaped after it.
+  private escapeIcsText(value: string): string {
+    return value
+      .replace(/\\/g, '\\\\')
+      .replace(/;/g, '\\;')
+      .replace(/,/g, '\\,')
+      .replace(/\r?\n/g, '\\n');
+  }
+
+  // scheduledAt is TIMESTAMP(3) with no time zone, always written/compared as
+  // UTC elsewhere (see recomputeNextInterviewAt) — format with a Z suffix to
+  // match that assumption rather than the server's local time zone.
+  private formatIcsDate(date: Date): string {
+    return date
+      .toISOString()
+      .replace(/[-:]/g, '')
+      .replace(/\.\d{3}Z$/, 'Z');
+  }
+
+  // No duration field on InterviewRound — default every event to 1 hour,
+  // matching the placeholder every calendar app shows for a bare start time.
+  private static readonly DEFAULT_DURATION_MS = 60 * 60 * 1000;
+
+  async exportIcs(
+    userId: string,
+    jobId: string,
+    roundId: string,
+  ): Promise<{ filename: string; content: string }> {
+    const job = await this.prisma.job.findFirst({
+      where: { id: jobId, userId },
+      select: { company: true, position: true },
+    });
+    if (!job) throw new NotFoundException('Job not found');
+
+    const round = await this.prisma.interviewRound.findFirst({
+      where: { id: roundId, jobId },
+    });
+    if (!round) throw new NotFoundException('Interview round not found');
+
+    const start = round.scheduledAt;
+    const end = new Date(
+      start.getTime() + InterviewRoundsService.DEFAULT_DURATION_MS,
+    );
+    const summary = this.escapeIcsText(
+      `${round.stage} — ${job.company} (${job.position})`,
+    );
+    const descriptionParts = [`Position: ${job.position}`];
+    if (round.notes) descriptionParts.push(`Notes: ${round.notes}`);
+    const description = this.escapeIcsText(descriptionParts.join('\n'));
+
+    const lines = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//job-tracker//interview-rounds//EN',
+      'CALSCALE:GREGORIAN',
+      'BEGIN:VEVENT',
+      `UID:${round.id}@job-tracker`,
+      `DTSTAMP:${this.formatIcsDate(new Date())}`,
+      `DTSTART:${this.formatIcsDate(start)}`,
+      `DTEND:${this.formatIcsDate(end)}`,
+      `SUMMARY:${summary}`,
+      `DESCRIPTION:${description}`,
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ];
+
+    return {
+      filename: `interview-${round.stage.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`,
+      // ICS requires CRLF line endings.
+      content: lines.join('\r\n'),
+    };
   }
 }

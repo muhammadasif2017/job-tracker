@@ -8,7 +8,9 @@ import {
   Param,
   Patch,
   Post,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -18,6 +20,7 @@ import {
   ApiOkResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiProduces,
 } from '@nestjs/swagger';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
@@ -51,10 +54,7 @@ export class InterviewRoundsController {
   @ApiParam({ name: 'jobId', description: 'Job ID' })
   @ApiOkResponse({ type: InterviewRoundResponseDto, isArray: true })
   @ApiNotFoundResponse({ description: 'Job not found' })
-  findAll(
-    @CurrentUser() user: { id: string },
-    @Param('jobId') jobId: string,
-  ) {
+  findAll(@CurrentUser() user: { id: string }, @Param('jobId') jobId: string) {
     return this.interviewRoundsService.findAllForJob(user.id, jobId);
   }
 
@@ -71,6 +71,30 @@ export class InterviewRoundsController {
     @Body() dto: UpdateInterviewRoundDto,
   ) {
     return this.interviewRoundsService.update(user.id, jobId, roundId, dto);
+  }
+
+  @Get(':jobId/interview-rounds/:roundId/ics')
+  @ApiOperation({
+    summary: 'Download an interview round as a calendar (.ics) file',
+  })
+  @ApiParam({ name: 'jobId', description: 'Job ID' })
+  @ApiParam({ name: 'roundId', description: 'Interview round ID' })
+  @ApiProduces('text/calendar')
+  @ApiNotFoundResponse({ description: 'Job or interview round not found' })
+  async exportIcs(
+    @CurrentUser() user: { id: string },
+    @Param('jobId') jobId: string,
+    @Param('roundId') roundId: string,
+    @Res() res: Response,
+  ) {
+    const { filename, content } = await this.interviewRoundsService.exportIcs(
+      user.id,
+      jobId,
+      roundId,
+    );
+    res.setHeader('Content-Type', 'text/calendar; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(content);
   }
 
   @Delete(':jobId/interview-rounds/:roundId')

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
-import { Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { formatDate } from '../../lib/utils';
@@ -116,6 +116,30 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     e.preventDefault();
     if (!stage.trim() || !scheduledAt) return;
     createMutation.mutate();
+  }
+
+  async function handleDownloadIcs(roundId: string) {
+    try {
+      const response = await api.get(
+        `/jobs/${jobId}/interview-rounds/${roundId}/ics`,
+        { responseType: 'blob' },
+      );
+      const objectUrl = URL.createObjectURL(response.data as Blob);
+      const disposition = response.headers['content-disposition'] as
+        | string
+        | undefined;
+      const filename =
+        disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'interview.ics';
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      toast.error('Failed to download calendar file');
+    }
   }
 
   return (
@@ -240,6 +264,15 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                       </option>
                     ))}
                   </select>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    title="Add to calendar"
+                    onClick={() => handleDownloadIcs(round.id)}
+                  >
+                    <CalendarPlus className="h-4 w-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"

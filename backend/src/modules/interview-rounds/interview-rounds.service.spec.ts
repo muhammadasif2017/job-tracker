@@ -306,6 +306,61 @@ describe('InterviewRoundsService', () => {
     });
   });
 
+  describe('exportIcs', () => {
+    it('throws NotFoundException when the job does not belong to the user', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.exportIcs('user-1', 'job-1', 'round-1'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.interviewRound.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when the round does not belong to the job', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        company: 'Acme',
+        position: 'Engineer',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.exportIcs('user-1', 'job-1', 'round-x'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('builds a VEVENT with a 1 hour default duration, UTC dates, and escaped text', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        company: 'Acme, Inc.',
+        position: 'Senior Engineer',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        scheduledAt: new Date('2026-08-10T14:00:00.000Z'),
+        notes: 'Ask about; on-call, rotation\nand pay',
+      });
+
+      const { filename, content } = await service.exportIcs(
+        'user-1',
+        'job-1',
+        'round-1',
+      );
+
+      expect(filename).toBe('interview-phone-screen.ics');
+      expect(content).toContain('BEGIN:VCALENDAR');
+      expect(content).toContain('UID:round-1@job-tracker');
+      expect(content).toContain('DTSTART:20260810T140000Z');
+      expect(content).toContain('DTEND:20260810T150000Z');
+      expect(content).toContain(
+        'SUMMARY:Phone Screen — Acme\\, Inc. (Senior Engineer)',
+      );
+      expect(content).toContain(
+        'Notes: Ask about\\; on-call\\, rotation\\nand pay',
+      );
+      expect(content).toContain('\r\n');
+    });
+  });
+
   describe('findAllForJob', () => {
     it('returns rounds ordered by scheduledAt', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
