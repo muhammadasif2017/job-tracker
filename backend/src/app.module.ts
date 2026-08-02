@@ -16,6 +16,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './modules/resumes/resumes.module.js';
 import { InterviewRoundsModule } from './modules/interview-rounds/interview-rounds.module.js';
+import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 
 const ociRequired = Joi.when('STORAGE_DRIVER', {
@@ -93,6 +94,7 @@ function parseRedisConnection() {
     AuthModule,
     ResumesModule,
     InterviewRoundsModule,
+    ContactsModule,
     UsersModule,
     JobsModule,
     HealthModule,

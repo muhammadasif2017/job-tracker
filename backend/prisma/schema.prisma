@@ -151,6 +151,7 @@ model Job {
   companyProfile              CompanyProfile?
   resume                      Resume?
   interviewRounds             InterviewRound[]
+  contacts                    Contact[]
 
   @@index([userId])
   @@index([userId, status])
@@ -205,6 +206,23 @@ model InterviewRound {
   @@index([jobId])
   @@index([outcome, scheduledAt, reminderSentAt])
   @@map("interview_rounds")
+}
+
+model Contact {
+  id          String   @id @default(cuid())
+  jobId       String
+  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  name        String
+  role        String?
+  email       String?
+  phone       String?
+  linkedinUrl String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([jobId])
+  @@map("contacts")
 }
 
 model JobEvent {

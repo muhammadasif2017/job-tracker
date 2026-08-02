@@ -101,6 +101,19 @@ export interface InterviewRound {
   updatedAt: string;
 }
 
+export interface Contact {
+  id: string;
+  jobId: string;
+  name: string;
+  role?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  linkedinUrl?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Job {
   id: string;
   company: string;
@@ -121,6 +134,7 @@ export interface Job {
   companyProfile?: CompanyProfile;
   resume?: Resume | null;
   interviewRounds?: InterviewRound[];
+  contacts?: Contact[];
 }
 
 export type Role = 'USER' | 'ADMIN';
