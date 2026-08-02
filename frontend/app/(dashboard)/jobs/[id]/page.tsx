@@ -231,12 +231,20 @@ export default function JobDetailPage() {
                   <p className="break-words">{job.location}</p>
                 </div>
               )}
-              {job.source && (
+              {job.discoverySource && (
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Source
+                    Discovery Source
                   </p>
-                  <SourceBadge source={job.source} />
+                  <SourceBadge kind="discovery" source={job.discoverySource} />
+                </div>
+              )}
+              {job.applicationChannel && (
+                <div>
+                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                    Application Channel
+                  </p>
+                  <SourceBadge kind="channel" source={job.applicationChannel} />
                 </div>
               )}
               {job.url && (

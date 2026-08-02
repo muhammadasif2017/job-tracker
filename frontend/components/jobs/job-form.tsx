@@ -13,12 +13,14 @@ import { Modal } from '../ui/modal';
 import { ResumeUpload } from './resume-upload';
 import {
   JOB_PRIORITIES,
-  JOB_SOURCES,
+  DISCOVERY_SOURCES,
+  APPLICATION_CHANNELS,
   JOB_STATUSES,
   JOB_TYPES,
   JOB_TYPE_LABELS,
   PRIORITY_LABELS,
-  SOURCE_LABELS,
+  DISCOVERY_SOURCE_LABELS,
+  APPLICATION_CHANNEL_LABELS,
   STATUS_LABELS,
   type Job,
 } from '../../types';
@@ -32,14 +34,24 @@ const schema = z.object({
   status: z.enum(JOB_STATUSES),
   priority: z.enum(JOB_PRIORITIES),
   jobType: z.enum(JOB_TYPES),
-  source: z.enum(JOB_SOURCES).or(z.literal('')).optional(),
+  discoverySource: z.enum(DISCOVERY_SOURCES).or(z.literal('')).optional(),
+  applicationChannel: z.enum(APPLICATION_CHANNELS).or(z.literal('')).optional(),
   appliedAt: z.string().optional(),
   notes: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
 type InitialValues = Partial<
-  Pick<FormData, 'company' | 'position' | 'location' | 'url' | 'jobType' | 'source'>
+  Pick<
+    FormData,
+    | 'company'
+    | 'position'
+    | 'location'
+    | 'url'
+    | 'jobType'
+    | 'discoverySource'
+    | 'applicationChannel'
+  >
 >;
 
 interface JobFormProps {
@@ -85,7 +97,8 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
               status: job.status,
               priority: job.priority,
               jobType: job.jobType,
-              source: job.source ?? '',
+              discoverySource: job.discoverySource ?? '',
+              applicationChannel: job.applicationChannel ?? '',
               url: job.url ?? '',
               appliedAt: job.appliedAt?.split('T')[0],
               notes: job.notes ?? '',
@@ -106,7 +119,8 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       const payload = {
         ...data,
         url: data.url || undefined,
-        source: data.source || undefined,
+        discoverySource: data.discoverySource || undefined,
+        applicationChannel: data.applicationChannel || undefined,
       };
       return isEdit
         ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
@@ -247,20 +261,40 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           </div>
           <div className="flex flex-col gap-1">
             <label
-              htmlFor="job-source"
+              htmlFor="job-discovery-source"
               className="text-sm font-medium text-slate-700 dark:text-slate-300"
             >
-              Source
+              Discovery Source
             </label>
             <select
-              id="job-source"
+              id="job-discovery-source"
               className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
-              {...register('source')}
+              {...register('discoverySource')}
             >
               <option value="">—</option>
-              {JOB_SOURCES.map((s) => (
+              {DISCOVERY_SOURCES.map((s) => (
                 <option key={s} value={s}>
-                  {SOURCE_LABELS[s]}
+                  {DISCOVERY_SOURCE_LABELS[s]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label
+              htmlFor="job-application-channel"
+              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            >
+              Application Channel
+            </label>
+            <select
+              id="job-application-channel"
+              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              {...register('applicationChannel')}
+            >
+              <option value="">—</option>
+              {APPLICATION_CHANNELS.map((c) => (
+                <option key={c} value={c}>
+                  {APPLICATION_CHANNEL_LABELS[c]}
                 </option>
               ))}
             </select>

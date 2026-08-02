@@ -15,7 +15,7 @@ import {
   type FunnelStats,
   STATUS_LABELS,
   STATUS_DOT_COLORS,
-  SOURCE_LABELS,
+  APPLICATION_CHANNEL_LABELS,
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 
@@ -125,7 +125,9 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
     () =>
       data.responseRateBySource.map((s) => ({
         name:
-          s.source === 'UNSPECIFIED' ? 'Unspecified' : SOURCE_LABELS[s.source],
+          s.source === 'UNSPECIFIED'
+            ? 'Unspecified'
+            : APPLICATION_CHANNEL_LABELS[s.source],
         value: s.responseRate,
         color: '#6366f1',
       })),
@@ -163,7 +165,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
 
         <div>
           <p className="mb-1 font-medium text-slate-500">
-            Response rate by source
+            Response rate by application channel
           </p>
           {responseRateData.length === 0 ? (
             <p className="text-slate-400">—</p>

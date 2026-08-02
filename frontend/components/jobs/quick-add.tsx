@@ -8,7 +8,7 @@ import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
 import { JobForm } from './job-form';
 import api from '../../lib/api';
-import type { JobType, JobSource } from '../../types';
+import type { JobType, ApplicationChannel } from '../../types';
 
 interface ParsedJob {
   company?: string;
@@ -16,7 +16,7 @@ interface ParsedJob {
   location?: string;
   url?: string;
   jobType?: JobType;
-  source?: JobSource;
+  applicationChannel?: ApplicationChannel;
 }
 
 interface QuickAddProps {
