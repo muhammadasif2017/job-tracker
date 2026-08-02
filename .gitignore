@@ -44,4 +44,6 @@ tasks/
 
 graphify-out/
 
+.code-review-graph/
+
 .playwright-mcp/
