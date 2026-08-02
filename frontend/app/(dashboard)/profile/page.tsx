@@ -7,18 +7,30 @@ import { z } from 'zod';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
+import { Skeleton } from '../../../components/ui/skeleton';
 import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 import { DIGEST_FREQUENCIES, DIGEST_FREQUENCY_LABELS } from '../../../types';
+
+// Reads Intl.supportedValuesOf('timeZone'), which depends on the runtime's
+// ICU data — SSR (Node) and hydration (browser) can disagree, which produced
+// a real hydration mismatch on the <option> list. ssr: false keeps it out of
+// the server-rendered HTML entirely so there's nothing to mismatch.
+const TimezoneField = dynamic(
+  () => import('../../../components/profile/timezone-field').then((m) => m.TimezoneField),
+  { ssr: false, loading: () => <Skeleton className="h-9 w-full max-w-xs" /> },
+);
 
 const profileSchema = z.object({ name: z.string().min(1, 'Name is required') });
 const notificationsSchema = z.object({
   interviewRemindersEnabled: z.boolean(),
   digestFrequency: z.enum(DIGEST_FREQUENCIES),
+  timezone: z.string().min(1, 'Required'),
 });
 type NotificationsFormData = z.infer<typeof notificationsSchema>;
 const passwordSchema = z
@@ -55,6 +67,7 @@ export default function ProfilePage() {
     values: {
       interviewRemindersEnabled: profile?.interviewRemindersEnabled ?? true,
       digestFrequency: profile?.digestFrequency ?? 'OFF',
+      timezone: profile?.timezone ?? 'UTC',
     },
     resetOptions: { keepDirtyValues: true },
   });
@@ -191,6 +204,13 @@ export default function ProfilePage() {
               need your attention.
             </p>
           </div>
+
+          <TimezoneField
+            registerProps={notificationsForm.register('timezone')}
+            onUseBrowserTimezone={(tz) =>
+              notificationsForm.setValue('timezone', tz, { shouldDirty: true })
+            }
+          />
 
           <Button
             type="submit"

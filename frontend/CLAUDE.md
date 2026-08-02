@@ -33,6 +33,31 @@ Tailwind v4 has no `tailwind.config.js` — dark mode is CSS-config only. Withou
 
 ---
 
+## Browser-only `Intl` Data in Client Components
+
+`Intl.supportedValuesOf('timeZone')` (and similar enumeration/`resolvedOptions()`
+calls) depends on the runtime's bundled ICU data. A `'use client'` component is
+still server-rendered for the initial HTML in the App Router — so calling
+this at module scope or during render computes the list **twice**, once on
+Node (SSR) and once in the browser (hydration), against two different ICU
+versions. The two lists can disagree on content or order, producing a real
+hydration mismatch (React discards the whole subtree and re-renders it
+client-side — this can cascade into unrelated-looking console errors further
+up the tree, since anything re-rendered as a fresh client-only pass behaves
+differently than its hydrated original, e.g. `app/layout.tsx`'s inline theme
+script logging a "script tag" warning on the tree's own regeneration).
+
+Fix by keeping the browser-only computation out of SSR entirely, not by
+guarding it with a `mounted` state flag set inside `useEffect` — that pattern
+already trips `react-hooks/set-state-in-effect` elsewhere in this repo
+(`theme-toggle.tsx`) and just adds a second occurrence. Instead load the
+component via `next/dynamic(() => import(...), { ssr: false })`, as
+`components/profile/timezone-field.tsx` does — nothing renders server-side,
+so there's nothing to mismatch. See ADR-024 for the incident this pattern
+came from.
+
+---
+
 ## Auth Guard (`proxy.ts`)
 
 Runs on every request except static assets (see `matcher`). Reads the `jt_authed` cookie:

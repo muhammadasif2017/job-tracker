@@ -87,7 +87,12 @@ export class NotificationsProcessor extends WorkerHost {
         job: {
           include: {
             user: {
-              select: { id: true, email: true, interviewRemindersEnabled: true },
+              select: {
+                id: true,
+                email: true,
+                interviewRemindersEnabled: true,
+                timezone: true,
+              },
             },
           },
         },
@@ -118,6 +123,7 @@ export class NotificationsProcessor extends WorkerHost {
       position: round.job.position,
       stage: round.stage,
       scheduledAt: round.scheduledAt,
+      timezone: user.timezone,
       frontendUrl: this.frontendUrl(),
     });
     await this.email.send({ to: user.email, subject, html });

@@ -159,6 +159,7 @@ export interface User {
   connectedProviders?: string[];
   interviewRemindersEnabled?: boolean;
   digestFrequency?: DigestFrequency;
+  timezone?: string;
 }
 
 export interface AdminUser {

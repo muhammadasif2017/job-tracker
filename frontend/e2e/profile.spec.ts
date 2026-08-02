@@ -152,6 +152,34 @@ test.describe('Profile page', () => {
     ).toBeVisible();
   });
 
+  test('updates timezone and persists across reload', async ({ page }) => {
+    await goToProfile(page, user);
+
+    await expect(page.getByLabel('Timezone')).toHaveValue('UTC');
+    await page.getByLabel('Timezone').selectOption('Asia/Karachi');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+
+    await expect(
+      page.getByText('Notification preferences updated'),
+    ).toBeVisible();
+
+    const [profileResponse] = await Promise.all([
+      page.waitForResponse(
+        (r) => r.request().method() === 'GET' && r.url().includes('/users/me'),
+      ),
+      page.reload(),
+    ]);
+    expect(profileResponse.ok()).toBe(true);
+    await expect(page.getByLabel('Timezone')).toHaveValue('Asia/Karachi');
+
+    // Restore default so subsequent tests see a clean state
+    await page.getByLabel('Timezone').selectOption('UTC');
+    await page.getByRole('button', { name: 'Save preferences' }).click();
+    await expect(
+      page.getByText('Notification preferences updated'),
+    ).toBeVisible();
+  });
+
   test('delete account redirects to /login and clears session', async ({
     page,
   }) => {

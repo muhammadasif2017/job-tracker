@@ -5,7 +5,16 @@ describe('NotificationsScheduler', () => {
   const logger = { log: jest.fn(), warn: jest.fn() };
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
 
-  afterEach(() => jest.clearAllMocks());
+  // 08:00 UTC on a Monday — matches DIGEST_SEND_HOUR for a UTC user and
+  // satisfies the weekly local-Monday check, so digest fan-out tests don't
+  // depend on the real wall clock.
+  beforeEach(() => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-08-03T08:00:00Z'));
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.clearAllMocks();
+  });
 
   describe('scanInterviewReminders', () => {
     it('enqueues a reminder and stamps reminderSentAt for an eligible round', async () => {
@@ -93,12 +102,15 @@ describe('NotificationsScheduler', () => {
   });
 
   describe('digest fan-out', () => {
-    it('enqueues a digest only for users with non-empty attention items', async () => {
+    it('enqueues a digest only for users with non-empty attention items, at their local send hour', async () => {
       const prisma = {
         user: {
           findMany: jest
             .fn()
-            .mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]),
+            .mockResolvedValue([
+              { id: 'u1', timezone: 'UTC' },
+              { id: 'u2', timezone: 'UTC' },
+            ]),
         },
         job: {
           findMany: jest
@@ -128,7 +140,7 @@ describe('NotificationsScheduler', () => {
 
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: { digestFrequency: DigestFrequency.DAILY },
-        select: { id: true },
+        select: { id: true, timezone: true },
       });
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(
@@ -136,7 +148,7 @@ describe('NotificationsScheduler', () => {
         { userId: 'u1' },
         expect.objectContaining({
           attempts: 2,
-          jobId: expect.stringMatching(/^digest-DAILY-u1-\d{4}-\d{2}-\d{2}$/),
+          jobId: 'digest-DAILY-u1-2026-08-03',
         }),
       );
     });
@@ -158,7 +170,10 @@ describe('NotificationsScheduler', () => {
       const responses = [...perUserResponses(), ...perUserResponses()];
       const prisma = {
         user: {
-          findMany: jest.fn().mockResolvedValue([{ id: 'u1' }, { id: 'u2' }]),
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'u1', timezone: 'UTC' },
+            { id: 'u2', timezone: 'UTC' },
+          ]),
         },
         job: {
           findMany: jest.fn(() => responses.shift()),
@@ -192,9 +207,169 @@ describe('NotificationsScheduler', () => {
 
       expect(prisma.user.findMany).toHaveBeenCalledWith({
         where: { digestFrequency: DigestFrequency.WEEKLY },
-        select: { id: true },
+        select: { id: true, timezone: true },
       });
       expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('skips a user whose local hour is not the digest send hour', async () => {
+      // System time is 08:00 UTC. Asia/Karachi (UTC+5) is 13:00 local —
+      // this run must not fire for them; a later hourly tick will.
+      const prisma = {
+        user: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'u1', timezone: 'Asia/Karachi' }]),
+        },
+        job: { findMany: jest.fn() },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendDailyDigests();
+
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('fires for a non-UTC user once the scan lands on their local send hour', async () => {
+      // 03:00 UTC = 08:00 in Asia/Karachi (UTC+5).
+      jest.setSystemTime(new Date('2026-08-03T03:00:00Z'));
+      const prisma = {
+        user: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'u1', timezone: 'Asia/Karachi' }]),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                nextInterviewAt: new Date(),
+              },
+            ])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([]),
+        },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendDailyDigests();
+
+      expect(queue.add).toHaveBeenCalledWith(
+        'digest',
+        { userId: 'u1' },
+        expect.objectContaining({ jobId: 'digest-DAILY-u1-2026-08-03' }),
+      );
+    });
+
+    it('only fires the weekly digest on the user\'s local Monday, even at their local send hour', async () => {
+      // 08:00 UTC on Tuesday Aug 4 — right hour, wrong weekday.
+      jest.setSystemTime(new Date('2026-08-04T08:00:00Z'));
+      const prisma = {
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
+        },
+        job: { findMany: jest.fn() },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendWeeklyDigests();
+
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('fires the weekly digest on the user\'s local Monday at their local send hour', async () => {
+      // beforeEach system time is 08:00 UTC on Monday Aug 3 — right hour and weekday for a UTC user.
+      const prisma = {
+        user: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                nextInterviewAt: new Date(),
+              },
+            ])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([]),
+        },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendWeeklyDigests();
+
+      expect(queue.add).toHaveBeenCalledWith(
+        'digest',
+        { userId: 'u1' },
+        expect.objectContaining({ jobId: 'digest-WEEKLY-u1-2026-08-03' }),
+      );
+    });
+
+    it('a malformed timezone on one user does not block the digest for other users in the same tick', async () => {
+      const prisma = {
+        user: {
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'bad-user', timezone: 'Not/A_Real_Zone' },
+            { id: 'u2', timezone: 'UTC' },
+          ]),
+        },
+        job: {
+          findMany: jest
+            .fn()
+            .mockResolvedValueOnce([
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                nextInterviewAt: new Date(),
+              },
+            ])
+            .mockResolvedValueOnce([])
+            .mockResolvedValueOnce([]),
+        },
+      };
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.sendDailyDigests();
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        'digest_invalid_timezone',
+        expect.objectContaining({ userId: 'bad-user' }),
+      );
+      expect(queue.add).toHaveBeenCalledTimes(1);
+      expect(queue.add).toHaveBeenCalledWith(
+        'digest',
+        { userId: 'u2' },
+        expect.objectContaining({ jobId: 'digest-DAILY-u2-2026-08-03' }),
+      );
     });
   });
 });

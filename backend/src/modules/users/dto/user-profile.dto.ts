@@ -28,4 +28,7 @@ export class UserProfileDto {
 
   @ApiProperty({ enum: DigestFrequency, example: DigestFrequency.OFF })
   digestFrequency: DigestFrequency;
+
+  @ApiProperty({ example: 'Asia/Karachi' })
+  timezone: string;
 }

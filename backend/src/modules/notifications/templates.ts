@@ -31,17 +31,23 @@ export function interviewReminderEmail(input: {
   position: string;
   stage: string;
   scheduledAt: Date;
+  timezone: string;
   frontendUrl: string;
 }): EmailContent {
-  // We don't store a per-user timezone, so render in UTC and say so
-  // explicitly — an unlabelled server-local time would silently disagree
-  // with whatever timezone the frontend renders scheduledAt in.
-  const when =
-    input.scheduledAt.toLocaleString('en-US', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZone: 'UTC',
-    }) + ' UTC';
+  // Intl doesn't allow combining dateStyle/timeStyle with timeZoneName
+  // (throws "Invalid option"), so the equivalent components are spelled out
+  // manually — timeZoneName renders an explicit label (e.g. "GMT+5" or
+  // "UTC") so this never silently disagrees with whatever timezone the
+  // frontend uses.
+  const when = input.scheduledAt.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: input.timezone,
+    timeZoneName: 'short',
+  });
   const company = escapeHtml(input.company);
   const position = escapeHtml(input.position);
   const stage = escapeHtml(input.stage);

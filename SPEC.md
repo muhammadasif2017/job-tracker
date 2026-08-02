@@ -22,7 +22,7 @@ Close the "silent app" gap: job-tracker only helps when the user opens it. Misse
 | Delivery | BullMQ queue (`notifications`), mirrors `EnrichmentModule` pattern. Cron enqueues, processor sends. |
 | Reminder dedup | `reminderSentAt DateTime?` on `InterviewRound`, stamped in same transaction as enqueue. Crash → at most one missed email, never a double send. |
 | Prefs storage | Two new columns on `User` (no new model): `interviewRemindersEnabled Boolean @default(true)`, `digestFrequency DigestFrequency @default(OFF)`. |
-| Timezones | Out of scope v1. Digest fires at fixed UTC hour (08:00 UTC daily; Mondays 08:00 UTC weekly). |
+| Timezones | `User.timezone` (IANA name, default `UTC`). Reminders and digests render/fire in the user's local time — hourly scan gates on local 08:00 (+ local Monday for weekly). See ADR-024. |
 | Unsubscribe | Email footer links to `${FRONTEND_URL}/profile`. No signed tokens in v1. |
 
 ## Tech Stack

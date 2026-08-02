@@ -36,6 +36,7 @@ export class UsersService {
         password: true,
         interviewRemindersEnabled: true,
         digestFrequency: true,
+        timezone: true,
         accounts: { select: { provider: true } },
       },
     });

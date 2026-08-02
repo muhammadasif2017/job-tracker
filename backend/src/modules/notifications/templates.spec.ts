@@ -7,6 +7,7 @@ describe('interviewReminderEmail', () => {
       position: 'Senior Engineer',
       stage: 'Technical Screen',
       scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      timezone: 'UTC',
       frontendUrl: 'http://localhost:3000',
     });
 
@@ -23,6 +24,7 @@ describe('interviewReminderEmail', () => {
       position: '<script>alert(1)</script>',
       stage: 'Screen & Chat',
       scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      timezone: 'UTC',
       frontendUrl: 'http://localhost:3000',
     });
 
@@ -42,23 +44,39 @@ describe('interviewReminderEmail', () => {
       position: 'Senior Engineer',
       stage: 'Technical\r\nScreen',
       scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      timezone: 'UTC',
       frontendUrl: 'http://localhost:3000',
     });
 
     expect(subject).not.toMatch(/[\r\n]/);
   });
 
-  it('renders the interview time in UTC, explicitly labelled, and does not claim it is tomorrow', () => {
+  it('renders the interview time in the user timezone, explicitly labelled, and does not claim it is tomorrow', () => {
     const { subject, html } = interviewReminderEmail({
       company: 'Acme',
       position: 'Senior Engineer',
       stage: 'Technical Screen',
       scheduledAt: new Date('2026-08-05T10:00:00Z'),
+      timezone: 'UTC',
       frontendUrl: 'http://localhost:3000',
     });
 
     expect(html).toContain('UTC');
     expect(subject).not.toContain('tomorrow');
+  });
+
+  it('renders the interview time in a non-UTC user timezone', () => {
+    const { html } = interviewReminderEmail({
+      company: 'Acme',
+      position: 'Senior Engineer',
+      stage: 'Technical Screen',
+      scheduledAt: new Date('2026-08-05T10:00:00Z'), // 3:00 PM in Asia/Karachi (UTC+5)
+      timezone: 'Asia/Karachi',
+      frontendUrl: 'http://localhost:3000',
+    });
+
+    expect(html).toContain('3:00');
+    expect(html).not.toContain('10:00');
   });
 });
 

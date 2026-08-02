@@ -565,6 +565,41 @@ describe('Job Tracker (e2e)', () => {
         .send({ digestFrequency: 'HOURLY' })
         .expect(400));
 
+    it('updates and round-trips timezone', async () => {
+      const res = await agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ timezone: 'Asia/Karachi' })
+        .expect(200);
+
+      expect(res.body.timezone).toBe('Asia/Karachi');
+
+      const profile = await agent
+        .get('/users/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(profile.body.timezone).toBe('Asia/Karachi');
+    });
+
+    // 'UTC' is the User.timezone column default but Intl.supportedValuesOf
+    // doesn't list it (legacy alias, not a canonical IANA zone name) — the
+    // validator must special-case it back in, or the DB default itself would
+    // fail validation on any round-trip through this endpoint.
+    it('accepts UTC even though Intl.supportedValuesOf omits it', () =>
+      agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ timezone: 'UTC' })
+        .expect(200));
+
+    it('rejects a non-IANA timezone string with 400', () =>
+      agent
+        .patch('/users/me/notifications')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ timezone: 'Not/A_Real_Zone' })
+        .expect(400));
+
     it('returns 401 without token', () =>
       agent
         .patch('/users/me/notifications')
