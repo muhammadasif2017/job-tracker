@@ -19,6 +19,7 @@ import { Skeleton } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
 import { ResumeUpload } from '../../../../components/jobs/resume-upload';
 import { InterviewRounds } from '../../../../components/jobs/interview-rounds';
+import { Contacts } from '../../../../components/jobs/contacts';
 import { CompanyProfileCard } from '../../../../components/company-profile-card';
 import { formatDate } from '../../../../lib/utils';
 import {
@@ -280,6 +281,7 @@ export default function JobDetailPage() {
 
           <Timeline events={events} />
           <InterviewRounds jobId={id} rounds={job.interviewRounds ?? []} />
+          <Contacts jobId={id} contacts={job.contacts ?? []} />
           <CompanyProfileCard profile={job.companyProfile} jobId={id} />
           <JobForm
             open={editOpen}

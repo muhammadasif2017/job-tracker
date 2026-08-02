@@ -201,6 +201,7 @@ describe('JobsService', () => {
           companyProfile: true,
           resume: true,
           interviewRounds: { orderBy: { scheduledAt: 'asc' } },
+          contacts: { orderBy: { createdAt: 'asc' } },
         },
       });
     });

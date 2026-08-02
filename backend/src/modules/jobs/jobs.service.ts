@@ -222,6 +222,7 @@ export class JobsService {
         companyProfile: true,
         resume: true,
         interviewRounds: { orderBy: { scheduledAt: 'asc' } },
+        contacts: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!job) throw new NotFoundException('Job not found');
