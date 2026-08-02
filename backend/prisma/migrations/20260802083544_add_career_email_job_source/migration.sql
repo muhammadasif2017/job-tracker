@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "JobSource" ADD VALUE 'CAREER_EMAIL';

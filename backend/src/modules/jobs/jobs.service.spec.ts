@@ -558,6 +558,7 @@ describe('JobsService', () => {
         { source: 'LINKEDIN', status: JobStatus.INTERVIEWING, _count: { _all: 1 } },
         { source: 'LINKEDIN', status: JobStatus.REJECTED, _count: { _all: 1 } },
         { source: 'REFERRAL', status: JobStatus.OFFER, _count: { _all: 1 } },
+        { source: 'CAREER_EMAIL', status: JobStatus.APPLIED, _count: { _all: 1 } },
       ]);
 
       const result = await service.getFunnel('u1', 'all');
@@ -586,9 +587,10 @@ describe('JobsService', () => {
         expect.arrayContaining([
           { source: 'LINKEDIN', total: 2, responseRate: 100 },
           { source: 'REFERRAL', total: 1, responseRate: 100 },
+          { source: 'CAREER_EMAIL', total: 1, responseRate: 0 },
         ]),
       );
-      expect(result.responseRateBySource).toHaveLength(2);
+      expect(result.responseRateBySource).toHaveLength(3);
     });
 
     it('excludes WISHLIST jobs from the responseRateBySource query', async () => {

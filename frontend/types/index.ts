@@ -23,6 +23,7 @@ export const JOB_SOURCES = [
   'ROZEE',
   'COMPANY_WEBSITE',
   'REFERRAL',
+  'CAREER_EMAIL',
   'OTHER',
 ] as const;
 
@@ -251,6 +252,7 @@ export const SOURCE_LABELS: Record<JobSource, string> = {
   ROZEE: 'Rozee.pk',
   COMPANY_WEBSITE: 'Company Website',
   REFERRAL: 'Referral',
+  CAREER_EMAIL: 'Career Email',
   OTHER: 'Other',
 };
 
@@ -262,6 +264,8 @@ export const SOURCE_COLORS: Record<JobSource, string> = {
   COMPANY_WEBSITE:
     'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
   REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  CAREER_EMAIL:
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
