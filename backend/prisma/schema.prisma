@@ -33,6 +33,7 @@ enum JobSource {
   ROZEE
   COMPANY_WEBSITE
   REFERRAL
+  CAREER_EMAIL
   OTHER
 }
 
