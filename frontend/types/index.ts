@@ -17,17 +17,31 @@ export const JOB_TYPES = ['ONSITE', 'HYBRID', 'REMOTE'] as const;
 
 export type JobType = (typeof JOB_TYPES)[number];
 
-export const JOB_SOURCES = [
+export const DISCOVERY_SOURCES = [
   'LINKEDIN',
+  'LINKEDIN_JOBS',
+  'GOOGLE_SEARCH',
   'INDEED',
   'ROZEE',
-  'COMPANY_WEBSITE',
   'REFERRAL',
   'CAREER_EMAIL',
   'OTHER',
 ] as const;
 
-export type JobSource = (typeof JOB_SOURCES)[number];
+export type DiscoverySource = (typeof DISCOVERY_SOURCES)[number];
+
+export const APPLICATION_CHANNELS = [
+  'COMPANY_WEBSITE',
+  'ATS',
+  'LINKEDIN',
+  'INDEED',
+  'ROZEE',
+  'REFERRAL',
+  'CAREER_EMAIL',
+  'OTHER',
+] as const;
+
+export type ApplicationChannel = (typeof APPLICATION_CHANNELS)[number];
 
 export type JobEventType =
   | 'CREATED'
@@ -96,7 +110,8 @@ export interface Job {
   status: JobStatus;
   priority: JobPriority;
   jobType: JobType;
-  source?: JobSource | null;
+  discoverySource?: DiscoverySource | null;
+  applicationChannel?: ApplicationChannel | null;
   notes?: string;
   appliedAt: string;
   nextInterviewAt?: string;
@@ -185,7 +200,7 @@ export interface FunnelStats {
   dropoff: { status: 'REJECTED' | 'GHOSTED'; count: number }[];
   avgTimeInStageDays: Partial<Record<JobStatus, number>>;
   responseRateBySource: {
-    source: JobSource | 'UNSPECIFIED';
+    source: ApplicationChannel | 'UNSPECIFIED';
     total: number;
     responseRate: number;
   }[];
@@ -246,23 +261,49 @@ export const PRIORITY_COLORS: Record<JobPriority, string> = {
   HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
 
-export const SOURCE_LABELS: Record<JobSource, string> = {
-  LINKEDIN: 'LinkedIn',
+export const DISCOVERY_SOURCE_LABELS: Record<DiscoverySource, string> = {
+  LINKEDIN: 'LinkedIn Post',
+  LINKEDIN_JOBS: 'LinkedIn Jobs',
+  GOOGLE_SEARCH: 'Google Search',
   INDEED: 'Indeed',
   ROZEE: 'Rozee.pk',
-  COMPANY_WEBSITE: 'Company Website',
   REFERRAL: 'Referral',
   CAREER_EMAIL: 'Career Email',
   OTHER: 'Other',
 };
 
-export const SOURCE_COLORS: Record<JobSource, string> = {
+export const DISCOVERY_SOURCE_COLORS: Record<DiscoverySource, string> = {
   LINKEDIN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  INDEED:
+  LINKEDIN_JOBS:
     'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  GOOGLE_SEARCH:
+    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
+  INDEED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   ROZEE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
+  REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  CAREER_EMAIL:
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+};
+
+export const APPLICATION_CHANNEL_LABELS: Record<ApplicationChannel, string> = {
+  COMPANY_WEBSITE: 'Company Website',
+  ATS: 'ATS (Greenhouse, etc.)',
+  LINKEDIN: 'LinkedIn',
+  INDEED: 'Indeed',
+  ROZEE: 'Rozee.pk',
+  REFERRAL: 'Referral',
+  CAREER_EMAIL: 'Career Email',
+  OTHER: 'Other',
+};
+
+export const APPLICATION_CHANNEL_COLORS: Record<ApplicationChannel, string> = {
   COMPANY_WEBSITE:
     'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  ATS: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  LINKEDIN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  INDEED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  ROZEE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
   REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   CAREER_EMAIL:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',

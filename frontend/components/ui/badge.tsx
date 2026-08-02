@@ -5,11 +5,14 @@ import {
   JOB_TYPE_LABELS,
   PRIORITY_COLORS,
   PRIORITY_LABELS,
-  SOURCE_COLORS,
-  SOURCE_LABELS,
+  DISCOVERY_SOURCE_COLORS,
+  DISCOVERY_SOURCE_LABELS,
+  APPLICATION_CHANNEL_COLORS,
+  APPLICATION_CHANNEL_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
-  type JobSource,
+  type ApplicationChannel,
+  type DiscoverySource,
   type JobStatus,
   type JobType,
 } from '../../types';
@@ -71,21 +74,24 @@ export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
   );
 }
 
-interface SourceBadgeProps {
-  source: JobSource;
-  className?: string;
-}
+type SourceBadgeProps =
+  | { kind: 'discovery'; source: DiscoverySource; className?: string }
+  | { kind: 'channel'; source: ApplicationChannel; className?: string };
 
-export function SourceBadge({ source, className }: SourceBadgeProps) {
+export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
+  const colors =
+    kind === 'discovery' ? DISCOVERY_SOURCE_COLORS : APPLICATION_CHANNEL_COLORS;
+  const labels =
+    kind === 'discovery' ? DISCOVERY_SOURCE_LABELS : APPLICATION_CHANNEL_LABELS;
   return (
     <span
       className={cn(
         'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-        SOURCE_COLORS[source],
+        colors[source as keyof typeof colors],
         className,
       )}
     >
-      {SOURCE_LABELS[source]}
+      {labels[source as keyof typeof labels]}
     </span>
   );
 }
