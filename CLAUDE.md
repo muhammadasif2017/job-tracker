@@ -12,9 +12,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
 - Always run a deep adversarial review (`/code-review` or equivalent) before treating any change touching external I/O (email, payment, third-party APIs) or a field written by more than one module as done — passing tests alone is not sufficient sign-off. First-pass self-review reliably misses third-party SDK error contracts (e.g. an SDK that returns `{error}` instead of throwing) and cross-module state interactions (e.g. one module resetting a stateful field another module depends on).
+- Optional fields on a PATCH/update DTO must be typed `T | null`, not just `T | undefined`, and the frontend must send an explicit `null` (not `undefined`) to clear a field the user emptied out. `JSON.stringify` drops `undefined` keys entirely, and Prisma treats an omitted key as "leave the column alone" — only an explicit `null` clears it. See ADR-022 (`contacts.service.ts` / `contacts.tsx`) for the bug this caused and the fix.
 
 ## Patterns
 
-- **Backend feature module:** `backend/src/modules/jobs/` — controller + service + `dto/` folder, one DTO file per shape. Copy this structure for new modules.
+- **Backend feature module:** `backend/src/modules/jobs/` — controller + service + `dto/` folder, one DTO file per shape. `backend/src/modules/contacts/` is a smaller, more recent example of the same shape. Copy this structure for new modules.
+- **Child-of-job module ownership:** modules whose records belong to a `Job` (e.g. `contacts`, `interview-rounds`) scope every access through `ensureJobOwned(userId, jobId)` — an owner check on the parent `Job` — rather than adding a `userId` column to the child model. See ADR-015 and ADR-022.
 - **Frontend form (RHF + Zod):** `frontend/components/jobs/job-form.tsx` — inline Zod schema, handles both create and edit paths in one component.
 - **Frontend data-fetching page:** `frontend/app/(dashboard)/jobs/page.tsx` — TanStack Query with the `['jobs', filters]` key convention described above.

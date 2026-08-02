@@ -27,6 +27,8 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [018](./018-interview-round-status-sync-race-fixes.md) | Race-condition fixes for interview-round status sync (transactional writes, CAS promotion, CAS on manual status update) | Accepted |
 | [019](./019-notifications-module-design.md) | Notifications module — separate BullMQ queue, cron-driven reminders/digests, dedup via stamped timestamps | Accepted |
 | [020](./020-split-job-source-discovery-channel.md) | Split JobSource into DiscoverySource and ApplicationChannel enums | Accepted |
+| [021](./021-interview-round-ics-export.md) | ICS export for interview rounds — server-generated, no library | Accepted |
+| [022](./022-contact-tracking-model.md) | Per-job contact/recruiter tracking as a single Contact model | Accepted |
 
 ## How to read an ADR
 
