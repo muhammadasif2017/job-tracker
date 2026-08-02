@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { JobStatus, JobSource } from '@prisma/client';
+import { JobStatus, ApplicationChannel } from '@prisma/client';
 import { FUNNEL_STAGES, DROPOFF_STAGES } from '../jobs.constants.js';
 
 export class FunnelStageDto {
@@ -19,8 +19,11 @@ export class DropoffStageDto {
 }
 
 export class SourceResponseRateDto {
-  @ApiProperty({ enum: [...Object.values(JobSource), 'UNSPECIFIED'], example: JobSource.LINKEDIN })
-  source: JobSource | 'UNSPECIFIED';
+  @ApiProperty({
+    enum: [...Object.values(ApplicationChannel), 'UNSPECIFIED'],
+    example: ApplicationChannel.LINKEDIN,
+  })
+  source: ApplicationChannel | 'UNSPECIFIED';
 
   @ApiProperty({ example: 20 })
   total: number;

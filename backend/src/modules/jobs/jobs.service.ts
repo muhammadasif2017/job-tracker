@@ -24,7 +24,7 @@ import {
   JobStatus,
   JobEventType,
   JobPriority,
-  JobSource,
+  ApplicationChannel,
   JobType,
 } from '@prisma/client';
 import {
@@ -53,19 +53,19 @@ export class JobsService {
     private logger: Logger,
   ) {}
 
-  private static readonly SOURCE_DOMAINS: Array<[string, JobSource]> = [
-    ['linkedin.com', JobSource.LINKEDIN],
-    ['indeed.com', JobSource.INDEED],
-    ['rozee.pk', JobSource.ROZEE],
+  private static readonly SOURCE_DOMAINS: Array<[string, ApplicationChannel]> = [
+    ['linkedin.com', ApplicationChannel.LINKEDIN],
+    ['indeed.com', ApplicationChannel.INDEED],
+    ['rozee.pk', ApplicationChannel.ROZEE],
   ];
 
-  private guessSourceFromUrl(url: string): JobSource | undefined {
+  private guessSourceFromUrl(url: string): ApplicationChannel | undefined {
     try {
       const host = new URL(url).hostname.replace(/^www\./, '');
       const matched = JobsService.SOURCE_DOMAINS.find(([domain]) =>
         host.endsWith(domain),
       );
-      return matched ? matched[1] : JobSource.OTHER;
+      return matched ? matched[1] : ApplicationChannel.OTHER;
     } catch {
       return undefined;
     }
@@ -92,7 +92,7 @@ export class JobsService {
     const content = fetchedText || dto.text || '';
 
     let parsed = await this.tryExtractJobPosting(content);
-    let source =
+    let applicationChannel =
       parsed && dto.url && fetchedText
         ? this.guessSourceFromUrl(dto.url)
         : undefined;
@@ -105,7 +105,7 @@ export class JobsService {
       const searchContent = snippets.filter(Boolean).join('\n\n');
       parsed = await this.tryExtractJobPosting(searchContent);
       if (parsed) {
-        source = this.guessSourceFromUrl(dto.url);
+        applicationChannel = this.guessSourceFromUrl(dto.url);
       } else if (searchContent) {
         this.logger.warn('parse_job_posting_fallback_failed', {
           url: dto.url,
@@ -128,7 +128,7 @@ export class JobsService {
       location: parsed.location,
       jobType: parsed.jobType,
       url: dto.url,
-      source,
+      applicationChannel,
     };
   }
 
@@ -143,7 +143,8 @@ export class JobsService {
         status: initialStatus,
         priority: dto.priority ?? JobPriority.MEDIUM,
         jobType: dto.jobType ?? JobType.ONSITE,
-        source: dto.source,
+        discoverySource: dto.discoverySource,
+        applicationChannel: dto.applicationChannel,
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         userId,
@@ -248,7 +249,8 @@ export class JobsService {
       location: dto.location,
       url: dto.url,
       priority: dto.priority,
-      source: dto.source,
+      discoverySource: dto.discoverySource,
+      applicationChannel: dto.applicationChannel,
       notes: dto.notes,
       appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
     };
@@ -376,7 +378,7 @@ export class JobsService {
     // belongs to the range or it doesn't; its full event history still counts.
     const jobRangeFilter = appliedAtRangeFilter(range);
 
-    const [events, sourceStatusCounts] = await Promise.all([
+    const [events, channelStatusCounts] = await Promise.all([
       // No upper bound on event history — acceptable at this app's scale
       // (one user's own job search), but this becomes the slowest query on
       // the page if event volume per user ever grows much larger.
@@ -386,9 +388,11 @@ export class JobsService {
         orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
       }),
       // Excludes WISHLIST: responseRateBySource is a rate over applications
-      // sent, not jobs merely saved for later.
+      // sent, not jobs merely saved for later. Grouped by applicationChannel
+      // (not discoverySource) — response rate is about the actual application
+      // path, not where the job was first seen.
       this.prisma.job.groupBy({
-        by: ['source', 'status'],
+        by: ['applicationChannel', 'status'],
         where: { userId, status: { not: JobStatus.WISHLIST }, ...jobRangeFilter },
         _count: { _all: true },
       }),
@@ -446,8 +450,8 @@ export class JobsService {
     }));
 
     const bySource = new Map<string, { total: number; responded: number }>();
-    for (const row of sourceStatusCounts) {
-      const key = row.source ?? 'UNSPECIFIED';
+    for (const row of channelStatusCounts) {
+      const key = row.applicationChannel ?? 'UNSPECIFIED';
       const entry = bySource.get(key) ?? { total: 0, responded: 0 };
       entry.total += row._count._all;
       if ((RESPONDED_STATUSES as readonly JobStatus[]).includes(row.status)) {
@@ -457,7 +461,7 @@ export class JobsService {
     }
     const responseRateBySource = Array.from(bySource.entries()).map(
       ([source, { total, responded }]) => ({
-        source: source as JobSource | 'UNSPECIFIED',
+        source: source as ApplicationChannel | 'UNSPECIFIED',
         total,
         responseRate: toPercent(responded, total),
       }),
@@ -506,7 +510,8 @@ export class JobsService {
       'Company',
       'Position',
       'Status',
-      'Source',
+      'Discovery Source',
+      'Application Channel',
       'Location',
       'Applied Date',
       'Next Interview',
@@ -519,7 +524,8 @@ export class JobsService {
         escape(j.company),
         escape(j.position),
         escape(j.status),
-        escape(j.source),
+        escape(j.discoverySource),
+        escape(j.applicationChannel),
         escape(j.location),
         escape(j.appliedAt.toISOString().split('T')[0]),
         escape(j.nextInterviewAt?.toISOString().split('T')[0]),

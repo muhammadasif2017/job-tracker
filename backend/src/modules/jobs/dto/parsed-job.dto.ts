@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { JobType, JobSource } from '@prisma/client';
+import { JobType, ApplicationChannel } from '@prisma/client';
 
 export class ParsedJobDto {
   @ApiPropertyOptional({ example: 'Acme Corp' })
@@ -17,6 +17,6 @@ export class ParsedJobDto {
   @ApiPropertyOptional({ enum: JobType })
   jobType?: JobType;
 
-  @ApiPropertyOptional({ enum: JobSource })
-  source?: JobSource;
+  @ApiPropertyOptional({ enum: ApplicationChannel })
+  applicationChannel?: ApplicationChannel;
 }

@@ -93,7 +93,7 @@ export class JobsController {
   @Get('stats/funnel')
   @ApiOperation({
     summary:
-      'Get funnel conversion, dropoff, avg time-in-stage, and response rate by source',
+      'Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel',
   })
   @ApiOkResponse({ type: FunnelStatsDto })
   getFunnel(
