@@ -7,6 +7,7 @@ const mockService = {
   findAllForJob: jest.fn(),
   update: jest.fn(),
   remove: jest.fn(),
+  exportIcs: jest.fn(),
 };
 
 const user = { id: 'u-1' };
@@ -72,12 +73,38 @@ describe('InterviewRoundsController', () => {
 
       await controller.update(user, 'j-1', 'r-1', dto);
 
-      expect(mockService.update).toHaveBeenCalledWith(
-        'u-1',
+      expect(mockService.update).toHaveBeenCalledWith('u-1', 'j-1', 'r-1', dto);
+    });
+  });
+
+  describe('exportIcs', () => {
+    it('delegates to service and writes calendar headers + body', async () => {
+      mockService.exportIcs.mockResolvedValue({
+        filename: 'interview-phone-screen.ics',
+        content: 'BEGIN:VCALENDAR\r\nEND:VCALENDAR',
+      });
+      const res = {
+        setHeader: jest.fn(),
+        send: jest.fn(),
+      };
+
+      await controller.exportIcs(
+        user,
         'j-1',
         'r-1',
-        dto,
+        res as unknown as import('express').Response,
       );
+
+      expect(mockService.exportIcs).toHaveBeenCalledWith('u-1', 'j-1', 'r-1');
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Type',
+        'text/calendar; charset=utf-8',
+      );
+      expect(res.setHeader).toHaveBeenCalledWith(
+        'Content-Disposition',
+        'attachment; filename="interview-phone-screen.ics"',
+      );
+      expect(res.send).toHaveBeenCalledWith('BEGIN:VCALENDAR\r\nEND:VCALENDAR');
     });
   });
 
