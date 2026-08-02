@@ -83,6 +83,35 @@ GET /auth/google
 
 ---
 
+## Admin Architecture
+
+`User.role` (`Role` enum: `USER` | `ADMIN`, default `USER`) gates the `admin/users` routes (list/search/view/delete). Enforced by `RolesGuard`, a **second** global guard registered in `main.ts` right after `JwtAuthGuard` — order matters, `RolesGuard` reads `req.user`, which only exists once `JwtAuthGuard` has run:
+
+```ts
+app.useGlobalGuards(
+  new JwtAuthGuard(app.get(Reflector)),
+  new RolesGuard(app.get(Reflector)),
+);
+```
+
+Mark a route privileged with `@Roles(Role.ADMIN)`. `RolesGuard` no-ops (`return true`) when a route carries no `@Roles()` metadata — same opt-in-by-annotation shape as `@Public()` for `JwtAuthGuard`, just inverted (unannotated = open to any authenticated user, not blocked).
+
+Unlike every other module, `AdminService` does **not** scope by the requesting user's own ID — the entire point is one privileged user acting on arbitrary other users' rows. The only identity checks are the `@Roles(Role.ADMIN)` guard and an explicit self-delete block in `deleteUser`:
+
+```ts
+if (requestingUserId === targetUserId) {
+  throw new ForbiddenException('Cannot delete your own account from the admin panel');
+}
+```
+
+Admin-initiated deletion calls the same `UsersService.deleteById` used by self-service account deletion — one deletion routine, two callers, so both get identical cleanup semantics. `User.jobs` cascades (`onDelete: Cascade`), and every `Job` child cascades from `Job` in turn, so the DB handles the row tree in one `user.delete` call; storage files are outside that cascade, so `storageKey`s are collected **before** the delete and cleaned up **after** it commits.
+
+The "Admin" nav link is role-gated client-side (`sidebar.tsx`, `user?.role === 'ADMIN'`), but `/admin/users` itself has no client-side guard — a non-admin who navigates there directly gets a page shell whose queries 403 from the backend. `RolesGuard` is the actual boundary; the nav check only avoids showing the link to people who'd bounce off it.
+
+No in-app flow promotes a user to `ADMIN` — direct DB/Prisma Studio operation only. See [ADR-023](../docs/decisions/023-admin-rbac.md) for the full design rationale and rejected alternatives.
+
+---
+
 ## Jobs: Authorization Pattern
 
 Every service method that operates on a specific job calls `findOne(userId, jobId)` first. This throws `ForbiddenException` if the job belongs to a different user. Never skip this check:
