@@ -351,13 +351,70 @@ describe('InterviewRoundsService', () => {
       expect(content).toContain('UID:round-1@job-tracker');
       expect(content).toContain('DTSTART:20260810T140000Z');
       expect(content).toContain('DTEND:20260810T150000Z');
+      // This line is short enough to stay unfolded — assert the raw form.
       expect(content).toContain(
         'SUMMARY:Phone Screen — Acme\\, Inc. (Senior Engineer)',
       );
-      expect(content).toContain(
+      // The DESCRIPTION line is long enough to fold (see the dedicated
+      // folding tests below) — unfold before asserting on its content.
+      const unfolded = content.replace(/\r\n /g, '');
+      expect(unfolded).toContain(
         'Notes: Ask about\\; on-call\\, rotation\\nand pay',
       );
       expect(content).toContain('\r\n');
+    });
+
+    it('folds SUMMARY/DESCRIPTION lines longer than 75 octets per RFC 5545', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        company: 'A Very Long Company Name That Definitely Exceeds Limits Inc',
+        position: 'Extremely Senior Staff Principal Distinguished Engineer',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        stage: 'Onsite',
+        scheduledAt: new Date('2026-08-10T14:00:00.000Z'),
+        notes: null,
+      });
+
+      const { content } = await service.exportIcs('user-1', 'job-1', 'round-1');
+
+      const rawLines = content.split('\r\n');
+      // No content line (fold continuations start with a space and are
+      // exempt) exceeds 75 octets.
+      for (const line of rawLines) {
+        if (line.startsWith(' ')) continue;
+        expect(Buffer.byteLength(line, 'utf8')).toBeLessThanOrEqual(75);
+      }
+      // The fold must be resumable: a continuation line starts with exactly
+      // one leading space, then real content.
+      expect(content).toMatch(/\r\n [^\r\n ]/);
+      // Unfolding (strip CRLF + single leading space) must reconstruct the
+      // original, unfolded SUMMARY value with no lost or duplicated bytes.
+      const unfolded = content.replace(/\r\n /g, '');
+      expect(unfolded).toContain(
+        'SUMMARY:Onsite — A Very Long Company Name That Definitely Exceeds Limits Inc (Extremely Senior Staff Principal Distinguished Engineer)',
+      );
+    });
+
+    it('does not split a multi-byte UTF-8 character across a fold boundary', async () => {
+      // 80 consecutive 3-byte UTF-8 characters (240 octets) forces at least
+      // one fold to land mid-run — this catches an off-by-one in the
+      // continuation-byte back-off loop that would corrupt a character.
+      mockPrisma.job.findFirst.mockResolvedValue({
+        company: '日'.repeat(80),
+        position: 'Engineer',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        stage: 'Onsite',
+        scheduledAt: new Date('2026-08-10T14:00:00.000Z'),
+        notes: null,
+      });
+
+      const { content } = await service.exportIcs('user-1', 'job-1', 'round-1');
+
+      const unfolded = content.replace(/\r\n /g, '');
+      expect(unfolded).toContain(`SUMMARY:Onsite — ${'日'.repeat(80)}`);
     });
   });
 

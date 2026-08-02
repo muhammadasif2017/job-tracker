@@ -224,6 +224,30 @@ export class InterviewRoundsService {
       .replace(/\.\d{3}Z$/, 'Z');
   }
 
+  // RFC 5545 §3.1: content lines must be folded at 75 octets (excluding the
+  // CRLF). company/position/notes are user text up to 5000 chars, so SUMMARY
+  // and DESCRIPTION routinely blow past that — an unfolded line risks
+  // rejection or truncation in strict .ics parsers. Folds on UTF-8 octet
+  // boundaries (never splitting a multi-byte character) since the limit is
+  // defined in octets, not characters; each continuation line loses 1 octet
+  // of budget to the mandatory leading space.
+  private foldIcsLine(line: string): string {
+    const bytes = Buffer.from(line, 'utf8');
+    if (bytes.length <= 75) return line;
+
+    const chunks: string[] = [];
+    let start = 0;
+    let limit = 75;
+    while (start < bytes.length) {
+      let end = Math.min(start + limit, bytes.length);
+      while (end < bytes.length && (bytes[end] & 0xc0) === 0x80) end--;
+      chunks.push(bytes.subarray(start, end).toString('utf8'));
+      start = end;
+      limit = 74;
+    }
+    return chunks.join('\r\n ');
+  }
+
   // No duration field on InterviewRound — default every event to 1 hour,
   // matching the placeholder every calendar app shows for a bare start time.
   private static readonly DEFAULT_DURATION_MS = 60 * 60 * 1000;
@@ -274,7 +298,7 @@ export class InterviewRoundsService {
     return {
       filename: `interview-${round.stage.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.ics`,
       // ICS requires CRLF line endings.
-      content: lines.join('\r\n'),
+      content: lines.map((l) => this.foldIcsLine(l)).join('\r\n'),
     };
   }
 }
