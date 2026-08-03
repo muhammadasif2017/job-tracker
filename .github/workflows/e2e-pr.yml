@@ -3,13 +3,27 @@ name: Frontend E2E (PR)
 on:
   pull_request:
     branches: [main]
-    paths:
-      - 'frontend/**'
-      - 'backend/**'
-      - '.github/workflows/e2e-pr.yml'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            relevant:
+              - 'frontend/**'
+              - 'backend/**'
+              - '.github/workflows/e2e-pr.yml'
+
   e2e:
+    name: E2E
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
     runs-on: ubuntu-latest
 
     services:
