@@ -24,6 +24,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JobsService } from './jobs.service.js';
+import { JobsStatsService } from './jobs-stats.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -46,7 +47,10 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @Controller('jobs')
 export class JobsController {
-  constructor(private jobsService: JobsService) {}
+  constructor(
+    private jobsService: JobsService,
+    private jobsStats: JobsStatsService,
+  ) {}
 
   @Post()
   @ApiOperation({ summary: 'Create a job application' })
@@ -83,11 +87,8 @@ export class JobsController {
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })
-  getStats(
-    @CurrentUser() user: { id: string },
-    @Query() query: StatsQueryDto,
-  ) {
-    return this.jobsService.getStats(user.id, query.range ?? 'all');
+  getStats(@CurrentUser() user: { id: string }, @Query() query: StatsQueryDto) {
+    return this.jobsStats.getStats(user.id, query.range ?? 'all');
   }
 
   @Get('stats/funnel')
@@ -100,7 +101,7 @@ export class JobsController {
     @CurrentUser() user: { id: string },
     @Query() query: StatsQueryDto,
   ) {
-    return this.jobsService.getFunnel(user.id, query.range ?? 'all');
+    return this.jobsStats.getFunnel(user.id, query.range ?? 'all');
   }
 
   @Get('stats/trend')
@@ -109,11 +110,8 @@ export class JobsController {
       'Get application volume over time (adaptive day/week/month buckets + cumulative total)',
   })
   @ApiOkResponse({ type: TrendStatsDto })
-  getTrend(
-    @CurrentUser() user: { id: string },
-    @Query() query: StatsQueryDto,
-  ) {
-    return this.jobsService.getTrend(user.id, query.range ?? 'all');
+  getTrend(@CurrentUser() user: { id: string }, @Query() query: StatsQueryDto) {
+    return this.jobsStats.getTrend(user.id, query.range ?? 'all');
   }
 
   @Get('export')
@@ -127,7 +125,7 @@ export class JobsController {
     @Query() query: JobQueryDto,
     @Res() res: Response,
   ) {
-    const { csv, truncated } = await this.jobsService.exportCsv(user.id, query);
+    const { csv, truncated } = await this.jobsStats.exportCsv(user.id, query);
     const suffix = query.status ? `-${query.status.toLowerCase()}` : '';
     res.setHeader('Content-Type', 'text/csv');
     res.setHeader(
@@ -145,7 +143,7 @@ export class JobsController {
   })
   @ApiOkResponse({ type: AttentionItemDto, isArray: true })
   getAttention(@CurrentUser() user: { id: string }) {
-    return this.jobsService.getAttention(user.id);
+    return this.jobsStats.getAttention(user.id);
   }
 
   @Get(':id')
