@@ -107,10 +107,6 @@ describe('JobForm', () => {
     });
 
     it('shows an error for an invalid URL', async () => {
-      // fireEvent.submit (not a button click) bypasses the browser's native
-      // type="url" constraint validation, which would otherwise block the
-      // submit event before RHF/Zod ever runs for a syntactically-invalid
-      // absolute URL like this one.
       renderForm();
       await fillRequired();
       fireEvent.change(screen.getByLabelText(/job url/i), {
@@ -125,19 +121,22 @@ describe('JobForm', () => {
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
 
-    it('never posts when a real user clicks submit with an invalid URL', async () => {
-      // The real interaction path (button click, not synthetic submit): the
-      // browser's native type="url" constraint blocks the submit event
-      // before Zod ever runs, so the "Enter a valid URL" message never
-      // renders for this value — this only pins that api.post still isn't
-      // reached, guarding against e.g. a stray `noValidate` on the form.
+    it('shows the same error via a real button click, not just synthetic submit', async () => {
+      // The form has `noValidate` specifically so a real click also reaches
+      // Zod instead of being silently swallowed by the browser's native
+      // type="url" constraint validation before RHF ever runs — this is
+      // the actual regression guard for that: without `noValidate`, this
+      // click would be blocked pre-React and the message below would never
+      // appear.
       renderForm();
       await fillRequired();
       fireEvent.change(screen.getByLabelText(/job url/i), {
         target: { value: 'not-a-url' },
       });
       fireEvent.click(screen.getByRole('button', { name: /add job/i }));
-      await new Promise((r) => setTimeout(r, 50));
+      expect(
+        await screen.findByText('Enter a valid URL'),
+      ).toBeInTheDocument();
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
   });

@@ -181,6 +181,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       <form
         onSubmit={handleSubmit((d) => mutation.mutate(d))}
         className="space-y-4"
+        noValidate
       >
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
