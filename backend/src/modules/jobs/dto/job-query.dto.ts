@@ -12,8 +12,9 @@ import {
   Min,
 } from 'class-validator';
 import { JobPriority, JobStatus } from '@prisma/client';
+import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
-export class JobQueryDto {
+export class JobQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ enum: JobStatus })
   @IsOptional()
   @IsEnum(JobStatus)
@@ -29,13 +30,6 @@ export class JobQueryDto {
   @IsString()
   @MaxLength(200)
   search?: string;
-
-  @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
 
   @ApiPropertyOptional({ example: 10, minimum: 1, maximum: 100, default: 10 })
   @IsOptional()

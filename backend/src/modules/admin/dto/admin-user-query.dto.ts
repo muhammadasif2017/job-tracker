@@ -8,8 +8,9 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
+import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
-export class AdminUserQueryDto {
+export class AdminUserQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     example: 'jane',
     description: 'Matches name or email',
@@ -18,13 +19,6 @@ export class AdminUserQueryDto {
   @IsString()
   @MaxLength(200)
   search?: string;
-
-  @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
 
   @ApiPropertyOptional({ example: 10, minimum: 1, maximum: 100, default: 10 })
   @IsOptional()
