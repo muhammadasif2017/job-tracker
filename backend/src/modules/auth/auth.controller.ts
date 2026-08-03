@@ -126,13 +126,11 @@ export class AuthController {
   ) {
     const user = req.user as {
       sub: string;
-      email: string;
       jti: string;
       refreshToken: string;
     };
     const { accessToken, refreshToken } = await this.authService.refresh(
       user.sub,
-      user.email,
       user.refreshToken,
       user.jti,
     );

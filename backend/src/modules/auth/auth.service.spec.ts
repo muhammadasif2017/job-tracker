@@ -172,9 +172,9 @@ describe('AuthService', () => {
   describe('refresh', () => {
     it('throws ForbiddenException when no token row exists', async () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue(null);
-      await expect(
-        service.refresh('1', 'a@b.com', 'raw', 'jti-1'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refresh('1', 'raw', 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('throws ForbiddenException on token mismatch', async () => {
@@ -185,9 +185,9 @@ describe('AuthService', () => {
         expiresAt: new Date(Date.now() + 10_000),
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(false);
-      await expect(
-        service.refresh('1', 'a@b.com', 'wrong', 'jti-1'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refresh('1', 'wrong', 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('throws ForbiddenException for an expired token row', async () => {
@@ -197,9 +197,9 @@ describe('AuthService', () => {
         tokenHash: 'oldhash',
         expiresAt: new Date(Date.now() - 1),
       });
-      await expect(
-        service.refresh('1', 'a@b.com', 'raw', 'jti-1'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refresh('1', 'raw', 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
     });
 
     it('marks the old row revoked, creates a new one, and returns a fresh token pair', async () => {
@@ -212,8 +212,12 @@ describe('AuthService', () => {
       });
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+      // DB-fresh email, deliberately different from whatever the refresh
+      // token's own (potentially stale) payload might have carried — the
+      // reissued pair must reflect this, not a stale claim.
+      mockPrisma.user.findUnique.mockResolvedValue({ email: 'fresh@b.com' });
 
-      const result = await service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1');
+      const result = await service.refresh('1', 'rawtoken', 'jti-1');
 
       expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
         where: { id: 'jti-1', revokedAt: null },
@@ -222,6 +226,10 @@ describe('AuthService', () => {
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
       expect(mockPrisma.refreshToken.deleteMany).not.toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
+      expect(mockJwt.signAsync).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: '1', email: 'fresh@b.com' }),
+        expect.anything(),
+      );
     });
 
     it('revokes every session for the user when a rotated (already-used) token is replayed', async () => {
@@ -236,9 +244,9 @@ describe('AuthService', () => {
       // Already revoked, so the conditional update matches nothing.
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
 
-      await expect(
-        service.refresh('1', 'a@b.com', 'rawtoken', 'jti-1'),
-      ).rejects.toThrow(ForbiddenException);
+      await expect(service.refresh('1', 'rawtoken', 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
 
       expect(mockPrisma.refreshToken.deleteMany).toHaveBeenCalledWith({
         where: { userId: '1' },
