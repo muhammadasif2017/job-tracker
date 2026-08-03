@@ -27,7 +27,7 @@ import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
 import { QuickAdd } from '../../../components/jobs/quick-add';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
-import { formatDate } from '../../../lib/utils';
+import { formatDateOnly } from '../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
@@ -296,7 +296,7 @@ export default function JobsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                      {formatDate(job.appliedAt)}
+                      {formatDateOnly(job.appliedAt)}
                     </td>
                     <td className="px-4 py-3 text-slate-500">
                       {job.location ?? '—'}

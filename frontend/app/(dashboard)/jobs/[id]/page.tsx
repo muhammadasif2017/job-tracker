@@ -21,7 +21,7 @@ import { ResumeUpload } from '../../../../components/jobs/resume-upload';
 import { InterviewRounds } from '../../../../components/jobs/interview-rounds';
 import { Contacts } from '../../../../components/jobs/contacts';
 import { CompanyProfileCard } from '../../../../components/company-profile-card';
-import { formatDate } from '../../../../lib/utils';
+import { formatDate, formatDateOnly } from '../../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
@@ -211,7 +211,7 @@ export default function JobDetailPage() {
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
                   Applied
                 </p>
-                <p>{formatDate(job.appliedAt)}</p>
+                <p>{formatDateOnly(job.appliedAt)}</p>
               </div>
               {job.nextInterviewAt && (
                 <div>
@@ -220,7 +220,7 @@ export default function JobDetailPage() {
                   </p>
                   <p className="inline-flex items-center gap-1.5 text-violet-600 dark:text-violet-400 font-medium">
                     <CalendarDays className="h-3.5 w-3.5" />
-                    {formatDate(job.nextInterviewAt)}
+                    {formatDateOnly(job.nextInterviewAt)}
                   </p>
                 </div>
               )}

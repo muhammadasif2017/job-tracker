@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InterviewRounds } from './interview-rounds';
-import { formatDate } from '../../lib/utils';
+import { formatDateOnly } from '../../lib/utils';
 import type { InterviewRound } from '../../types';
 
 vi.mock('sonner', () => ({
@@ -55,7 +55,7 @@ describe('InterviewRounds', () => {
       renderRounds([round]);
       expect(screen.getByText('Phone Screen')).toBeInTheDocument();
       expect(
-        screen.getByText(formatDate('2026-06-10T14:00:00Z')),
+        screen.getByText(formatDateOnly('2026-06-10T14:00:00Z')),
       ).toBeInTheDocument();
       expect(
         screen.getByText('Ask about on-call rotation'),

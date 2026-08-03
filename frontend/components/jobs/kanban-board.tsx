@@ -11,7 +11,7 @@ import {
 import { Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
-import { formatDate } from '../../lib/utils';
+import { formatDateOnly } from '../../lib/utils';
 import {
   STATUS_LABELS,
   STATUS_DOT_COLORS,
@@ -144,7 +144,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                           </p>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="text-xs text-slate-400">
-                              {formatDate(job.appliedAt)}
+                              {formatDateOnly(job.appliedAt)}
                             </span>
                             <div className="flex gap-1">
                               {job.url && (
