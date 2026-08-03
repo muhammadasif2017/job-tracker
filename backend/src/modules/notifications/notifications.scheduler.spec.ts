@@ -105,12 +105,10 @@ describe('NotificationsScheduler', () => {
     it('enqueues a digest only for users with non-empty attention items, at their local send hour', async () => {
       const prisma = {
         user: {
-          findMany: jest
-            .fn()
-            .mockResolvedValue([
-              { id: 'u1', timezone: 'UTC' },
-              { id: 'u2', timezone: 'UTC' },
-            ]),
+          findMany: jest.fn().mockResolvedValue([
+            { id: 'u1', timezone: 'UTC' },
+            { id: 'u2', timezone: 'UTC' },
+          ]),
         },
         job: {
           findMany: jest
@@ -273,12 +271,14 @@ describe('NotificationsScheduler', () => {
       );
     });
 
-    it('only fires the weekly digest on the user\'s local Monday, even at their local send hour', async () => {
+    it("only fires the weekly digest on the user's local Monday, even at their local send hour", async () => {
       // 08:00 UTC on Tuesday Aug 4 — right hour, wrong weekday.
       jest.setSystemTime(new Date('2026-08-04T08:00:00Z'));
       const prisma = {
         user: {
-          findMany: jest.fn().mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
         },
         job: { findMany: jest.fn() },
       };
@@ -293,11 +293,13 @@ describe('NotificationsScheduler', () => {
       expect(queue.add).not.toHaveBeenCalled();
     });
 
-    it('fires the weekly digest on the user\'s local Monday at their local send hour', async () => {
+    it("fires the weekly digest on the user's local Monday at their local send hour", async () => {
       // beforeEach system time is 08:00 UTC on Monday Aug 3 — right hour and weekday for a UTC user.
       const prisma = {
         user: {
-          findMany: jest.fn().mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'u1', timezone: 'UTC' }]),
         },
         job: {
           findMany: jest

@@ -1,7 +1,4 @@
-import {
-  registerDecorator,
-  ValidationOptions,
-} from 'class-validator';
+import { registerDecorator, ValidationOptions } from 'class-validator';
 
 const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 

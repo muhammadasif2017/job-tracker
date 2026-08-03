@@ -9,9 +9,7 @@ describe('LocalStrategy', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    strategy = new LocalStrategy(
-      mockAuthService as unknown as AuthService,
-    );
+    strategy = new LocalStrategy(mockAuthService as unknown as AuthService);
   });
 
   it('returns the user when credentials are valid', async () => {

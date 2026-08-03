@@ -4,10 +4,7 @@ import { registerDecorator, ValidationOptions } from 'class-validator';
 // doesn't list it (it's a legacy alias, not a canonical IANA zone name) —
 // without adding it back explicitly, the DB default itself fails this
 // validator the moment a user round-trips it through PATCH /users/me/notifications.
-const VALID_TIMEZONES = new Set([
-  ...Intl.supportedValuesOf('timeZone'),
-  'UTC',
-]);
+const VALID_TIMEZONES = new Set([...Intl.supportedValuesOf('timeZone'), 'UTC']);
 
 // A bad IANA name doesn't fail loudly at write time — it throws inside
 // Intl.DateTimeFormat the next time the notifications scheduler/templates

@@ -17,19 +17,30 @@ const DIGEST_SEND_HOUR = 8;
 
 // Matches EnrichmentModule's queue.add options (see enrichment.service.ts) —
 // a transient Redis/worker blip shouldn't permanently drop a reminder.
-const JOB_OPTIONS = { attempts: 2, backoff: { type: 'fixed' as const, delay: 10_000 } };
+const JOB_OPTIONS = {
+  attempts: 2,
+  backoff: { type: 'fixed' as const, delay: 10_000 },
+};
 
 // hourCycle: 'h23' avoids an ICU quirk where hour12: false formats midnight
 // as "24" instead of "0" — that would silently make DIGEST_SEND_HOUR
 // unreachable for a user in a zone where 08:00 UTC lands on their midnight.
 function localHour(date: Date, timeZone: string): number {
   return Number(
-    new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', hourCycle: 'h23' }).format(date),
+    new Intl.DateTimeFormat('en-US', {
+      timeZone,
+      hour: 'numeric',
+      hourCycle: 'h23',
+    }).format(date),
   );
 }
 
 function isLocalMonday(date: Date, timeZone: string): boolean {
-  return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(date) === 'Mon';
+  return (
+    new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(
+      date,
+    ) === 'Mon'
+  );
 }
 
 // en-CA formats as YYYY-MM-DD directly, giving the user's local calendar
@@ -106,14 +117,22 @@ export class NotificationsScheduler {
     for (const { id: userId, timezone } of users) {
       try {
         if (localHour(now, timezone) !== DIGEST_SEND_HOUR) continue;
-        if (frequency === DigestFrequency.WEEKLY && !isLocalMonday(now, timezone)) continue;
+        if (
+          frequency === DigestFrequency.WEEKLY &&
+          !isLocalMonday(now, timezone)
+        )
+          continue;
       } catch (error) {
         // A malformed timezone (e.g. hand-edited via Prisma Studio — see
         // backend CLAUDE.md's admin/role note that direct DB edits are a
         // normal ops path here) would otherwise throw out of the `for`
         // loop entirely, silently skipping the digest for every other user
         // this tick. Contain the blast radius to just this one user.
-        this.logger.warn('digest_invalid_timezone', { userId, timezone, error });
+        this.logger.warn('digest_invalid_timezone', {
+          userId,
+          timezone,
+          error,
+        });
         continue;
       }
 

@@ -20,7 +20,10 @@ export class CreateInterviewRoundDto {
   @IsPlausibleDate()
   scheduledAt: string;
 
-  @ApiPropertyOptional({ example: 'Ask about on-call rotation', maxLength: 5000 })
+  @ApiPropertyOptional({
+    example: 'Ask about on-call rotation',
+    maxLength: 5000,
+  })
   @IsOptional()
   @IsString()
   @MaxLength(5000)

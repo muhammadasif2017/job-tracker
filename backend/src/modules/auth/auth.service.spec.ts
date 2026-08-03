@@ -105,13 +105,14 @@ describe('AuthService', () => {
     });
 
     it('signs the access and refresh tokens with their own secret and expiry', async () => {
-      mockConfig.get.mockImplementation((key: string) =>
-        ({
-          JWT_SECRET: 'access-secret',
-          JWT_EXPIRES_IN: '15m',
-          JWT_REFRESH_SECRET: 'refresh-secret',
-          JWT_REFRESH_EXPIRES_IN: '7d',
-        })[key],
+      mockConfig.get.mockImplementation(
+        (key: string) =>
+          ({
+            JWT_SECRET: 'access-secret',
+            JWT_EXPIRES_IN: '15m',
+            JWT_REFRESH_SECRET: 'refresh-secret',
+            JWT_REFRESH_EXPIRES_IN: '7d',
+          })[key],
       );
 
       await service.login('u-1', 'a@b.com');
