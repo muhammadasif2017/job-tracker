@@ -328,7 +328,7 @@ describe('InterviewRoundsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('builds a VEVENT with a 1 hour default duration, UTC dates, and escaped text', async () => {
+    it('builds an all-day VEVENT (no time-of-day component), UTC calendar date, and escaped text', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         company: 'Acme, Inc.',
         position: 'Senior Engineer',
@@ -349,8 +349,10 @@ describe('InterviewRoundsService', () => {
       expect(filename).toBe('interview-phone-screen.ics');
       expect(content).toContain('BEGIN:VCALENDAR');
       expect(content).toContain('UID:round-1@job-tracker');
-      expect(content).toContain('DTSTART:20260810T140000Z');
-      expect(content).toContain('DTEND:20260810T150000Z');
+      // All-day VALUE=DATE, not a timed UTC instant — a calendar app must
+      // not be able to shift this to the viewer's local day.
+      expect(content).toContain('DTSTART;VALUE=DATE:20260810');
+      expect(content).toContain('DTEND;VALUE=DATE:20260811');
       // This line is short enough to stay unfolded — assert the raw form.
       expect(content).toContain(
         'SUMMARY:Phone Screen — Acme\\, Inc. (Senior Engineer)',

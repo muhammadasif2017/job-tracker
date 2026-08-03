@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import JobDetailPage from './page';
-import { formatDate } from '../../../../lib/utils';
+import { formatDateOnly } from '../../../../lib/utils';
 import type { Job, JobEvent } from '../../../../types';
 
 const replace = vi.fn();
@@ -130,8 +130,8 @@ describe('JobDetailPage', () => {
       expect(await screen.findByText('Acme')).toBeInTheDocument();
       expect(screen.getByText('Senior Engineer')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Interviewing')).toBeInTheDocument();
-      expect(screen.getByText(formatDate('2026-06-01T00:00:00Z'))).toBeInTheDocument();
-      expect(screen.getByText(formatDate('2026-06-15T00:00:00Z'))).toBeInTheDocument();
+      expect(screen.getByText(formatDateOnly('2026-06-01T00:00:00Z'))).toBeInTheDocument();
+      expect(screen.getByText(formatDateOnly('2026-06-15T00:00:00Z'))).toBeInTheDocument();
       expect(screen.getByText('Austin, TX')).toBeInTheDocument();
       expect(screen.getByText('Great referral from Bob')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /open link/i })).toHaveAttribute(

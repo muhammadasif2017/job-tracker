@@ -7,7 +7,7 @@ import { isAxiosError } from 'axios';
 import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { formatDate } from '../../lib/utils';
+import { formatDateOnly } from '../../lib/utils';
 import api from '../../lib/api';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
@@ -216,7 +216,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{round.stage}</p>
                 <p className="text-xs text-slate-500">
-                  {formatDate(round.scheduledAt)}
+                  {formatDateOnly(round.scheduledAt)}
                 </p>
                 {round.notes && (
                   <p className="mt-1 text-xs text-slate-500">{round.notes}</p>

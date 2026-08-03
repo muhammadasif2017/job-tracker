@@ -72,15 +72,33 @@ test.describe('Company enrichment card', () => {
     await expect(page.getByText(/Queued…|Researching…/)).not.toBeVisible();
   });
 
-  test('a second enrichment request while one is in progress is rejected', async ({
-    page,
-  }) => {
-    // The job was just created, so its auto-queued run is still PENDING/PROCESSING.
-    const res = await fetch(`${API}/jobs/${job.id}/enrichment`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    });
-    expect(res.status).toBe(409);
+  test('a second enrichment request while one is in progress is rejected', async () => {
+    // The job was just created, so its auto-queued run should still be
+    // PENDING/PROCESSING. In CI there's no real GROQ_API_KEY/TAVILY_API_KEY,
+    // so the worker's search+LLM calls fail fast (Tavily returns [] with no
+    // network call at all when unset; Groq rejects the placeholder key
+    // quickly) — the whole run can resolve to FAILED in well under 150ms,
+    // occasionally racing ahead of this request and leaving nothing to
+    // reject. That's a CI-environment timing artifact, not a bug in the
+    // guard being tested (in production, real extraction takes real
+    // seconds) — retry with a fresh job on a miss instead of asserting on
+    // wall-clock luck.
+    let res: Response | undefined;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const target =
+        attempt === 0
+          ? job
+          : await createTestJob(user.accessToken, { company: 'Enrich Co' });
+      res = await fetch(`${API}/jobs/${target.id}/enrichment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      });
+      if (target.id !== job.id) {
+        await deleteTestJob(user.accessToken, target.id).catch(() => {});
+      }
+      if (res.status === 409) break;
+    }
+    expect(res?.status).toBe(409);
   });
 
   test('Refresh re-queues enrichment and returns to a queued state', async ({

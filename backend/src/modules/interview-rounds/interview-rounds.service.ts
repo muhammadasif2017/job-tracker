@@ -216,12 +216,29 @@ export class InterviewRoundsService {
 
   // scheduledAt is TIMESTAMP(3) with no time zone, always written/compared as
   // UTC elsewhere (see recomputeNextInterviewAt) — format with a Z suffix to
-  // match that assumption rather than the server's local time zone.
+  // match that assumption rather than the server's local time zone. Only
+  // used for DTSTAMP now (when this file was generated) — DTSTART/DTEND use
+  // formatIcsDateOnly below.
   private formatIcsDate(date: Date): string {
     return date
       .toISOString()
       .replace(/[-:]/g, '')
       .replace(/\.\d{3}Z$/, 'Z');
+  }
+
+  // scheduledAt is date-only in intent (the form only ever offers a bare
+  // date picker, no time-of-day input) but stored as a UTC-midnight
+  // instant. Reading it back as a timed UTC instant — as formatIcsDate does
+  // — makes calendar apps convert it to the viewer's local time, shifting
+  // the event to the wrong day for anyone outside UTC. Reading the UTC
+  // calendar-date components instead and emitting an RFC 5545 all-day date
+  // value (VALUE=DATE, no time/zone) keeps the calendar day the user picked
+  // regardless of the viewer's time zone.
+  private formatIcsDateOnly(date: Date): string {
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}${m}${d}`;
   }
 
   // RFC 5545 §3.1: content lines must be folded at 75 octets (excluding the
@@ -248,10 +265,6 @@ export class InterviewRoundsService {
     return chunks.join('\r\n ');
   }
 
-  // No duration field on InterviewRound — default every event to 1 hour,
-  // matching the placeholder every calendar app shows for a bare start time.
-  private static readonly DEFAULT_DURATION_MS = 60 * 60 * 1000;
-
   async exportIcs(
     userId: string,
     jobId: string,
@@ -269,9 +282,9 @@ export class InterviewRoundsService {
     if (!round) throw new NotFoundException('Interview round not found');
 
     const start = round.scheduledAt;
-    const end = new Date(
-      start.getTime() + InterviewRoundsService.DEFAULT_DURATION_MS,
-    );
+    // All-day event: RFC 5545 DTEND is exclusive, so a single calendar day
+    // ends the day after it starts.
+    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
     const summary = this.escapeIcsText(
       `${round.stage} — ${job.company} (${job.position})`,
     );
@@ -287,8 +300,8 @@ export class InterviewRoundsService {
       'BEGIN:VEVENT',
       `UID:${round.id}@job-tracker`,
       `DTSTAMP:${this.formatIcsDate(new Date())}`,
-      `DTSTART:${this.formatIcsDate(start)}`,
-      `DTEND:${this.formatIcsDate(end)}`,
+      `DTSTART;VALUE=DATE:${this.formatIcsDateOnly(start)}`,
+      `DTEND;VALUE=DATE:${this.formatIcsDateOnly(end)}`,
       `SUMMARY:${summary}`,
       `DESCRIPTION:${description}`,
       'END:VEVENT',
