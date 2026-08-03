@@ -277,6 +277,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    title="Remove round"
                     className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
                     onClick={() => setConfirmingId(round.id)}
                   >

@@ -101,7 +101,7 @@ test.describe('Interview rounds', () => {
     await expect(page.getByText('Phone Screen', { exact: true })).toBeVisible();
 
     const roundRow = page.locator('li', { hasText: 'Phone Screen' });
-    await roundRow.getByRole('button').click();
+    await roundRow.getByRole('button', { name: 'Remove round' }).click();
     await page.getByRole('button', { name: 'Yes' }).click();
 
     await expect(page.getByText('Interview round removed')).toBeVisible();
