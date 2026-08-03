@@ -39,7 +39,9 @@ describe('AuthController', () => {
         accessToken: 'at',
         refreshToken: 'rt',
       });
-      const req = { user: { id: 'u-1', email: 'a@b.com' } } as unknown as Request;
+      const req = {
+        user: { id: 'u-1', email: 'a@b.com' },
+      } as unknown as Request;
 
       await controller.login(req, mockRes());
 
@@ -51,7 +53,9 @@ describe('AuthController', () => {
         accessToken: 'at',
         refreshToken: 'rt',
       });
-      const req = { user: { id: 'u-1', email: 'a@b.com' } } as unknown as Request;
+      const req = {
+        user: { id: 'u-1', email: 'a@b.com' },
+      } as unknown as Request;
 
       const result = await controller.login(req, mockRes());
 
@@ -63,7 +67,9 @@ describe('AuthController', () => {
         accessToken: 'at',
         refreshToken: 'rt',
       });
-      const req = { user: { id: 'u-1', email: 'a@b.com' } } as unknown as Request;
+      const req = {
+        user: { id: 'u-1', email: 'a@b.com' },
+      } as unknown as Request;
       const res = mockRes();
 
       await controller.login(req, res);

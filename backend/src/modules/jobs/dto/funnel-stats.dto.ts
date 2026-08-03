@@ -6,7 +6,10 @@ export class FunnelStageDto {
   @ApiProperty({ enum: FUNNEL_STAGES, example: JobStatus.APPLIED })
   status: (typeof FUNNEL_STAGES)[number];
 
-  @ApiProperty({ example: 12, description: 'Distinct jobs that ever reached this stage' })
+  @ApiProperty({
+    example: 12,
+    description: 'Distinct jobs that ever reached this stage',
+  })
   reached: number;
 }
 
@@ -28,7 +31,11 @@ export class SourceResponseRateDto {
   @ApiProperty({ example: 20 })
   total: number;
 
-  @ApiProperty({ example: 45.2, description: 'Percentage of applications from this source that got a response' })
+  @ApiProperty({
+    example: 45.2,
+    description:
+      'Percentage of applications from this source that got a response',
+  })
   responseRate: number;
 }
 

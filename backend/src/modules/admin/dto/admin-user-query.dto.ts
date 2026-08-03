@@ -1,9 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
 export class AdminUserQueryDto {
-  @ApiPropertyOptional({ example: 'jane', description: 'Matches name or email' })
+  @ApiPropertyOptional({
+    example: 'jane',
+    description: 'Matches name or email',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(200)

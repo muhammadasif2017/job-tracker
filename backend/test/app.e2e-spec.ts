@@ -336,7 +336,11 @@ describe('Job Tracker (e2e)', () => {
       const created = await agent
         .post('/jobs')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ company: 'Promotion Co', position: 'Engineer', status: 'APPLIED' })
+        .send({
+          company: 'Promotion Co',
+          position: 'Engineer',
+          status: 'APPLIED',
+        })
         .expect(201);
       const promoJobId = created.body.id;
 

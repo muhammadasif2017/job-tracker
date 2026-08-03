@@ -358,7 +358,12 @@ describe('NotificationsProcessor', () => {
           findMany: jest
             .fn()
             .mockResolvedValueOnce([
-              { id: 'j1', company: 'Acme', position: 'Eng', nextInterviewAt: new Date() },
+              {
+                id: 'j1',
+                company: 'Acme',
+                position: 'Eng',
+                nextInterviewAt: new Date(),
+              },
             ])
             .mockResolvedValueOnce([])
             .mockResolvedValueOnce([]),
@@ -385,7 +390,9 @@ describe('NotificationsProcessor', () => {
   describe('onFailed', () => {
     it('clears reminderSentAt once retries are exhausted for an interview-reminder job', async () => {
       const prisma = {
-        interviewRound: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        interviewRound: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
       };
       const processor = new NotificationsProcessor(
         prisma as any,

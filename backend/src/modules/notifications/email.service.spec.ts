@@ -60,7 +60,11 @@ describe('EmailService', () => {
   it('throws when Resend returns an API-level error instead of throwing itself', async () => {
     sendMock.mockResolvedValueOnce({
       data: null,
-      error: { message: 'invalid from address', statusCode: 422, name: 'invalid_from_address' },
+      error: {
+        message: 'invalid from address',
+        statusCode: 422,
+        name: 'invalid_from_address',
+      },
     });
     const service = build({ RESEND_API_KEY: 're_test' });
 

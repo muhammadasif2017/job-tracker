@@ -136,7 +136,10 @@ describe('ContactsService', () => {
       // to let a user blank out an optional field they'd set earlier.
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.contact.findFirst.mockResolvedValue({ id: 'contact-1' });
-      mockPrisma.contact.update.mockResolvedValue({ id: 'contact-1', email: null });
+      mockPrisma.contact.update.mockResolvedValue({
+        id: 'contact-1',
+        email: null,
+      });
 
       await service.update('user-1', 'job-1', 'contact-1', { email: null });
 

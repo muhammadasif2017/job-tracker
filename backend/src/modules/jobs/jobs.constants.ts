@@ -1,4 +1,5 @@
 import { JobStatus } from '@prisma/client';
+import { JobQueryDto } from './dto/job-query.dto.js';
 
 export const FUNNEL_STAGES = [
   JobStatus.WISHLIST,
@@ -43,7 +44,10 @@ const RANGE_TO_DAYS: Partial<Record<StatsRange, number>> = {
 };
 
 // undefined cutoff = no lower bound (range: 'all')
-export function rangeToCutoff(range: StatsRange, now: Date = new Date()): Date | undefined {
+export function rangeToCutoff(
+  range: StatsRange,
+  now: Date = new Date(),
+): Date | undefined {
   const days = RANGE_TO_DAYS[range];
   if (days === undefined) return undefined;
   return new Date(now.getTime() - days * 86_400_000);
@@ -58,6 +62,31 @@ export function appliedAtRangeFilter(
 ): { appliedAt?: { gte: Date } } {
   const cutoff = rangeToCutoff(range, now);
   return cutoff ? { appliedAt: { gte: cutoff } } : {};
+}
+
+// Shared filter builder for the list and CSV export — both expose the same
+// status/priority/search/date filters scoped to the owner.
+export function buildJobWhere(userId: string, query: JobQueryDto) {
+  const { status, priority, search, dateFrom, dateTo } = query;
+  return {
+    userId,
+    ...(status && { status }),
+    ...(priority && { priority }),
+    ...(search && {
+      OR: [
+        { company: { contains: search, mode: 'insensitive' as const } },
+        { position: { contains: search, mode: 'insensitive' as const } },
+      ],
+    }),
+    ...(dateFrom || dateTo
+      ? {
+          appliedAt: {
+            ...(dateFrom && { gte: new Date(dateFrom) }),
+            ...(dateTo && { lte: new Date(dateTo) }),
+          },
+        }
+      : {}),
+  };
 }
 
 export type TrendGranularity = 'day' | 'week' | 'month';
@@ -130,7 +159,10 @@ export function computeTrendBuckets(
   // date — so a future-dated appliedAt still gets its own bucket instead of
   // silently falling outside [windowStart, windowEndExclusive) and vanishing.
   const windowEndAnchor = latest.getTime() > now.getTime() ? latest : now;
-  const windowEndExclusive = nextPeriod(startOfPeriod(windowEndAnchor, granularity), granularity);
+  const windowEndExclusive = nextPeriod(
+    startOfPeriod(windowEndAnchor, granularity),
+    granularity,
+  );
 
   const counts = new Map<number, number>();
   for (const applied of sorted) {

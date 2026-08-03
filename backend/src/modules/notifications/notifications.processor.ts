@@ -44,9 +44,7 @@ export class NotificationsProcessor extends WorkerHost {
     job: Job<InterviewReminderJobData | DigestJobData>,
   ): Promise<void> {
     if (job.name === 'interview-reminder') {
-      await this.processInterviewReminder(
-        job.data as InterviewReminderJobData,
-      );
+      await this.processInterviewReminder(job.data as InterviewReminderJobData);
     } else if (job.name === 'digest') {
       await this.processDigest(job.data as DigestJobData);
     }
