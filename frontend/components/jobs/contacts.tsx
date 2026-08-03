@@ -273,6 +273,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                     variant="danger"
                     size="sm"
                     loading={removeMutation.isPending}
+                    aria-label={`Confirm remove ${contact.name}`}
                     onClick={() => removeMutation.mutate(contact.id)}
                   >
                     Yes
@@ -281,6 +282,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    aria-label="Cancel remove"
                     onClick={() => setConfirmingId(null)}
                   >
                     No
@@ -292,6 +294,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
+                    aria-label={`Edit ${contact.name}`}
                     onClick={() => startEdit(contact)}
                   >
                     <Pencil className="h-4 w-4" />
@@ -301,6 +304,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                     variant="ghost"
                     size="sm"
                     className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                    aria-label={`Remove ${contact.name}`}
                     onClick={() => setConfirmingId(contact.id)}
                   >
                     <Trash2 className="h-4 w-4" />
