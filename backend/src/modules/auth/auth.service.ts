@@ -76,12 +76,7 @@ export class AuthService implements OnModuleDestroy {
     return this.issueTokens(userId, email);
   }
 
-  async refresh(
-    userId: string,
-    email: string,
-    rawRefreshToken: string,
-    jti: string,
-  ) {
+  async refresh(userId: string, rawRefreshToken: string, jti: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { id: jti },
     });
@@ -113,7 +108,19 @@ export class AuthService implements OnModuleDestroy {
       await this.prisma.refreshToken.deleteMany({ where: { userId } });
       throw new ForbiddenException('Refresh token invalid or expired');
     }
-    return this.issueTokens(userId, email);
+
+    // Look up the current email rather than trusting the refresh token's
+    // payload — that payload is only re-signed from itself on each rotation,
+    // so a stale email would otherwise propagate indefinitely across
+    // refreshes instead of self-correcting on the user's next login.
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!user) {
+      throw new ForbiddenException('Refresh token invalid or expired');
+    }
+    return this.issueTokens(userId, user.email);
   }
 
   async logout(userId: string): Promise<{ message: string }> {
