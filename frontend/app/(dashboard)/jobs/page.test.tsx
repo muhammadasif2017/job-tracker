@@ -11,6 +11,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../../lib/api', () => ({
   default: { get: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 vi.mock('../../../components/jobs/job-form', () => ({
@@ -116,6 +126,18 @@ describe('JobsPage', () => {
       vi.mocked(api.get).mockResolvedValue({ data: page({ data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } }) });
       renderPage();
       expect(await screen.findByText('No jobs found')).toBeInTheDocument();
+    });
+  });
+
+  describe('error state', () => {
+    it('shows a failed-to-load message instead of an empty table when the query errors', async () => {
+      vi.mocked(api.get).mockRejectedValue(new Error('network down'));
+      renderPage();
+      expect(await screen.findByText('Failed to load jobs')).toBeInTheDocument();
+      expect(screen.queryByText('No jobs found')).not.toBeInTheDocument();
+      expect(
+        screen.getByText((_, el) => el?.textContent === 'Failed to load'),
+      ).toBeInTheDocument();
     });
   });
 
@@ -260,6 +282,25 @@ describe('JobsPage', () => {
         expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/jobs/j-1'),
       );
       expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Job deleted');
+    });
+
+    it('shows an error toast and keeps the modal open when delete fails', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      vi.mocked(api.delete).mockRejectedValue({
+        isAxiosError: true,
+        response: { data: { message: 'Job has linked interview rounds' } },
+      });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.click(screen.getByRole('button', { name: 'Delete Acme' }));
+      await screen.findByText('Delete job?');
+      fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
+      await waitFor(() =>
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'Job has linked interview rounds',
+        ),
+      );
+      expect(screen.getByText('Delete job?')).toBeInTheDocument();
     });
   });
 

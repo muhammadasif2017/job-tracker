@@ -6,7 +6,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
@@ -24,7 +23,7 @@ import {
   STATUS_LABELS,
   type Job,
 } from '../../types';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 
 const schema = z.object({
   company: z.string().min(1, 'Company is required'),
@@ -142,11 +141,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       }
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Something went wrong')
-          : 'Something went wrong',
-      ),
+      toast.error(getErrorMessage(err, 'Something went wrong')),
   });
 
   if (createdJobId) {

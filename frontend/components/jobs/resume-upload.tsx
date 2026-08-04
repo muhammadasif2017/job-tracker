@@ -5,8 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileText, Eye, Download, Trash2, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
-import { isAxiosError } from 'axios';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import type { Resume } from '../../types';
 
 const MAX_SIZE = 8 * 1024 * 1024;
@@ -46,6 +45,10 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
       return api
         .post(`/jobs/${jobId}/resumes`, form, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          // 8 MB cap (MAX_SIZE below) — 120s is generous even on a slow
+          // mobile upload, and still lets a truly stalled connection surface
+          // instead of spinning forever.
+          timeout: 120_000,
         })
         .then((r) => r.data);
     },
@@ -54,11 +57,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
       toast.success('Resume uploaded');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Upload failed')
-          : 'Upload failed',
-      ),
+      toast.error(getErrorMessage(err, 'Upload failed')),
   });
 
   const removeMutation = useMutation({
@@ -70,11 +69,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
     },
     onError: (err: unknown) => {
       setConfirming(false);
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Remove failed')
-          : 'Remove failed',
-      );
+      toast.error(getErrorMessage(err, 'Remove failed'));
     },
   });
 

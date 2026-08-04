@@ -11,6 +11,7 @@ import {
 import { Pencil, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
+import { Button } from '../ui/button';
 import { formatDateOnly } from '../../lib/utils';
 import {
   STATUS_LABELS,
@@ -19,7 +20,7 @@ import {
   type JobStatus,
   type PaginatedJobs,
 } from '../../types';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 
 const KANBAN_COLS: JobStatus[] = [
   'WISHLIST',
@@ -35,7 +36,7 @@ interface KanbanBoardProps {
 export function KanbanBoard({ onEdit }: KanbanBoardProps) {
   const qc = useQueryClient();
 
-  const { data, isLoading } = useQuery<PaginatedJobs>({
+  const { data, isLoading, isError, refetch } = useQuery<PaginatedJobs>({
     queryKey: ['jobs', { limit: 100 }],
     queryFn: () => api.get('/jobs?limit=100').then((r) => r.data),
   });
@@ -56,9 +57,9 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       );
       return { prev };
     },
-    onError: (_e, _v, ctx) => {
+    onError: (err, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(['jobs', { limit: 100 }], ctx.prev);
-      toast.error('Failed to update status');
+      toast.error(getErrorMessage(err, 'Failed to update status'));
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
@@ -101,6 +102,22 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
             ))}
           </div>
         ))}
+      </div>
+    );
+  }
+
+  if (isError && !data) {
+    return (
+      <div className="flex flex-col items-center gap-3 rounded-xl border bg-white py-16 text-center dark:bg-slate-900">
+        <p className="text-base font-medium text-red-500">
+          Failed to load board
+        </p>
+        <p className="text-sm text-slate-400">
+          Check your connection and try again.
+        </p>
+        <Button variant="secondary" size="sm" onClick={() => refetch()}>
+          Retry
+        </Button>
       </div>
     );
   }

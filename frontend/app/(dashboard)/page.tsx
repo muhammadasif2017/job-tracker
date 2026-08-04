@@ -92,25 +92,25 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatsCard
           label="Total Applications"
-          value={stats?.total ?? 0}
+          value={stats?.total ?? '—'}
           icon={<Briefcase className="h-4 w-4" />}
           loading={statsLoading}
         />
         <StatsCard
           label="This Month"
-          value={stats?.thisMonth ?? 0}
+          value={stats?.thisMonth ?? '—'}
           icon={<CalendarDays className="h-4 w-4" />}
           loading={statsLoading}
         />
         <StatsCard
           label="Interviewing"
-          value={stats?.byStatus.INTERVIEWING ?? 0}
+          value={stats?.byStatus.INTERVIEWING ?? '—'}
           icon={<TrendingUp className="h-4 w-4" />}
           loading={statsLoading}
         />
         <StatsCard
           label="Offers"
-          value={stats?.byStatus.OFFER ?? 0}
+          value={stats?.byStatus.OFFER ?? '—'}
           icon={<Award className="h-4 w-4" />}
           loading={statsLoading}
         />
@@ -136,7 +136,7 @@ export default function DashboardPage() {
         <ChartCard
           title="Applications by Status"
           loading={statsLoading}
-          error={statsError}
+          error={statsError && !stats}
           errorMessage="Failed to load chart."
         >
           {stats && <StatusChart stats={stats} />}
@@ -150,7 +150,7 @@ export default function DashboardPage() {
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
             </div>
-          ) : recentError ? (
+          ) : recentError && !recent ? (
             <p className="text-sm text-red-500">Failed to load recent jobs.</p>
           ) : recent?.data.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-center">
@@ -193,7 +193,7 @@ export default function DashboardPage() {
       <ChartCard
         title="Application Funnel"
         loading={funnelLoading}
-        error={funnelError}
+        error={funnelError && !funnel}
         errorMessage="Failed to load funnel."
         skeletonClassName="h-[420px] w-full"
       >
@@ -203,7 +203,7 @@ export default function DashboardPage() {
       <ChartCard
         title="Applications Over Time"
         loading={trendLoading}
-        error={trendError}
+        error={trendError && !trend}
         errorMessage="Failed to load trend."
       >
         {trend && <TrendChart data={trend} />}

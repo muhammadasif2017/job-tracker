@@ -10,6 +10,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../lib/api', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 import api from '../../lib/api';
@@ -92,6 +102,31 @@ describe('Contacts', () => {
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await new Promise((r) => setTimeout(r, 50));
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('shows an inline error and never submits when name is whitespace-only', async () => {
+      renderContacts([]);
+      fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
+      fireEvent.change(screen.getByLabelText(/^name$/i), {
+        target: { value: '   ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(await screen.findByText('Name is required')).toBeInTheDocument();
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('clears the inline name error once the user starts typing again', async () => {
+      renderContacts([]);
+      fireEvent.click(screen.getByRole('button', { name: /add contact/i }));
+      fireEvent.change(screen.getByLabelText(/^name$/i), {
+        target: { value: '   ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(await screen.findByText('Name is required')).toBeInTheDocument();
+      fireEvent.change(screen.getByLabelText(/^name$/i), {
+        target: { value: 'J' },
+      });
+      expect(screen.queryByText('Name is required')).not.toBeInTheDocument();
     });
 
     it('posts blank optional fields as null, not undefined', async () => {

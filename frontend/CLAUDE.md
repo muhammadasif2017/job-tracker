@@ -97,7 +97,11 @@ Base URL from `NEXT_PUBLIC_API_URL`.
 
 The instance is created with `withCredentials: true` — required both to let the browser store the `jt_refresh` httpOnly cookie from login/register/refresh responses, and to resend it on later requests.
 
+Default `timeout: 15_000` (`DEFAULT_TIMEOUT_MS` in `lib/api.ts`) so a hung backend doesn't spin forever. Any call expected to legitimately run long must override it per-request with a bounded explicit value — don't raise the global default, and avoid `timeout: 0` (uncapped) even for large payloads; pick a generous-but-finite cap instead so a stalled connection still eventually surfaces. Current overrides: resume upload (`components/jobs/resume-upload.tsx`, `timeout: 120_000`, bounded by the 8 MB size cap) and Quick Add's `/jobs/parse` (`components/jobs/quick-add.tsx`, `timeout: 60_000`, synchronous page-fetch + LLM extraction with a fallback search+retry pass).
+
 Also used by `app/(auth)/callback/page.tsx` to POST `/auth/exchange-code` with the OAuth code — same instance, so the refresh/queue interceptor applies to that call too.
+
+`getErrorMessage(err, fallback)` (exported alongside the default instance) normalizes NestJS's `ValidationPipe` error shape — `message` is a `string[]` for DTO validation failures, a plain `string` otherwise — into one readable string. Use it in every mutation's `onError` instead of reading `err.response?.data?.message` directly; the raw array renders as concatenated text with no separator.
 
 ### Request Interceptor
 

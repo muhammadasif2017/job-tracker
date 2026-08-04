@@ -11,6 +11,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../../../lib/api', () => ({
   default: { get: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 import api from '../../../../lib/api';
@@ -81,6 +91,15 @@ describe('AdminUsersPage', () => {
       });
       renderPage();
       expect(await screen.findByText('No users found')).toBeInTheDocument();
+    });
+  });
+
+  describe('error state', () => {
+    it('shows a failed-to-load message instead of an empty table when the query errors', async () => {
+      vi.mocked(api.get).mockRejectedValue(new Error('network down'));
+      renderPage();
+      expect(await screen.findByText('Failed to load users')).toBeInTheDocument();
+      expect(screen.queryByText('No users found')).not.toBeInTheDocument();
     });
   });
 

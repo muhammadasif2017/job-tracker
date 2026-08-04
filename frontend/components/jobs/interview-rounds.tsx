@@ -3,12 +3,11 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { formatDateOnly } from '../../lib/utils';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
 const OUTCOMES: InterviewOutcome[] = [
@@ -30,6 +29,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [scheduledAt, setScheduledAt] = useState('');
   const [notes, setNotes] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [stageError, setStageError] = useState<string | undefined>();
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: ['job', jobId] });
@@ -48,7 +48,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     mutationFn: () =>
       api
         .post(`/jobs/${jobId}/interview-rounds`, {
-          stage,
+          stage: stage.trim(),
           scheduledAt,
           notes: notes || undefined,
         })
@@ -59,14 +59,11 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       setScheduledAt('');
       setNotes('');
       setAdding(false);
+      setStageError(undefined);
       toast.success('Interview round added');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to add round')
-          : 'Failed to add round',
-      ),
+      toast.error(getErrorMessage(err, 'Failed to add round')),
   });
 
   const outcomeMutation = useMutation({
@@ -85,11 +82,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       toast.success('Outcome updated');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to update outcome')
-          : 'Failed to update outcome',
-      ),
+      toast.error(getErrorMessage(err, 'Failed to update outcome')),
   });
 
   const removeMutation = useMutation({
@@ -104,17 +97,18 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     },
     onError: (err: unknown) => {
       setConfirmingId(null);
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to remove round')
-          : 'Failed to remove round',
-      );
+      toast.error(getErrorMessage(err, 'Failed to remove round'));
     },
   });
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
-    if (!stage.trim() || !scheduledAt) return;
+    if (!stage.trim()) {
+      setStageError('Stage is required');
+      return;
+    }
+    if (!scheduledAt) return;
+    setStageError(undefined);
     createMutation.mutate();
   }
 
@@ -151,7 +145,10 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => setAdding(true)}
+            onClick={() => {
+              setAdding(true);
+              setStageError(undefined);
+            }}
           >
             <Plus className="h-4 w-4" />
             Add Round
@@ -169,7 +166,11 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
               label="Stage"
               placeholder="Phone Screen"
               value={stage}
-              onChange={(e) => setStage(e.target.value)}
+              onChange={(e) => {
+                setStage(e.target.value);
+                if (stageError) setStageError(undefined);
+              }}
+              error={stageError}
               required
             />
             <Input
@@ -194,7 +195,10 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
               type="button"
               variant="ghost"
               size="sm"
-              onClick={() => setAdding(false)}
+              onClick={() => {
+                setAdding(false);
+                setStageError(undefined);
+              }}
             >
               Cancel
             </Button>

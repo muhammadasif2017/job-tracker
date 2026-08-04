@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
 import { JobForm } from './job-form';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import type { JobType, ApplicationChannel } from '../../types';
 
 interface ParsedJob {
@@ -43,7 +42,7 @@ export function QuickAdd({ open, onClose }: QuickAddProps) {
         ? { url: value.trim() }
         : { text: value };
       return api
-        .post<ParsedJob>('/jobs/parse', payload)
+        .post<ParsedJob>('/jobs/parse', payload, { timeout: 60_000 })
         .then((r) => r.data);
     },
     onSuccess: (data) => {
@@ -51,11 +50,7 @@ export function QuickAdd({ open, onClose }: QuickAddProps) {
       setInput('');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Could not parse that posting')
-          : 'Could not parse that posting',
-      ),
+      toast.error(getErrorMessage(err, 'Could not parse that posting')),
   });
 
   const handleClose = () => {

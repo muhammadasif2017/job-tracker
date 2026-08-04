@@ -23,6 +23,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../../lib/api', () => ({
   default: { get: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 vi.mock('../../../components/profile/timezone-field', () => ({

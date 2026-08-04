@@ -17,6 +17,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../lib/api', () => ({
   default: { get: vi.fn(), patch: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 let capturedOnDragEnd: ((result: DropResult) => void) | undefined;
@@ -111,6 +121,19 @@ describe('KanbanBoard', () => {
     );
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
     expect(screen.queryByText('Acme')).not.toBeInTheDocument();
+  });
+
+  it('shows a failed-to-load message with a retry button when the query errors', async () => {
+    vi.mocked(api.get).mockRejectedValue(new Error('network down'));
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <KanbanBoard onEdit={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('Failed to load board')).toBeInTheDocument();
+    expect(screen.queryByText('Wishlist')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('shows only the four active-pipeline columns', async () => {
