@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { isAxiosError } from 'axios';
 import { Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
@@ -10,7 +9,7 @@ import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { formatDate, cn } from '../../../../lib/utils';
 import type { AdminUser, PaginatedAdminUsers } from '../../../../types';
-import api from '../../../../lib/api';
+import api, { getErrorMessage } from '../../../../lib/api';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -35,7 +34,7 @@ export default function AdminUsersPage() {
     ...(debouncedSearch && { search: debouncedSearch }),
   });
 
-  const { data, isLoading } = useQuery<PaginatedAdminUsers>({
+  const { data, isLoading, isError, refetch } = useQuery<PaginatedAdminUsers>({
     queryKey: ['admin-users', { page, search: debouncedSearch }],
     queryFn: () => api.get(`/admin/users?${params}`).then((r) => r.data),
   });
@@ -48,11 +47,7 @@ export default function AdminUsersPage() {
       toast.success('User deleted');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to delete user')
-          : 'Failed to delete user',
-      ),
+      toast.error(getErrorMessage(err, 'Failed to delete user')),
   });
 
   return (
@@ -60,7 +55,9 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-xl font-semibold">Admin — Users</h1>
         <p className="text-sm text-slate-500">
-          {data?.meta.total ?? 0} registered users
+          {isError && !data
+            ? 'Failed to load'
+            : `${data?.meta.total ?? 0} registered users`}
         </p>
       </div>
 
@@ -103,6 +100,25 @@ export default function AdminUsersPage() {
                   ))}
                 </tr>
               ))
+            ) : isError && !data ? (
+              <tr>
+                <td colSpan={6} className="py-16 text-center">
+                  <p className="text-base font-medium text-red-500">
+                    Failed to load users
+                  </p>
+                  <p className="mt-1 text-sm text-slate-400">
+                    Check your connection and try again.
+                  </p>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => refetch()}
+                  >
+                    Retry
+                  </Button>
+                </td>
+              </tr>
             ) : data?.data.length === 0 ? (
               <tr>
                 <td colSpan={6} className="py-16 text-center text-slate-400">

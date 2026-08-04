@@ -3,11 +3,10 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { Mail, Phone, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import api from '../../lib/api';
+import api, { getErrorMessage } from '../../lib/api';
 import type { Contact } from '../../types';
 
 interface ContactsProps {
@@ -30,6 +29,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | undefined>();
 
   function invalidate() {
     // Contacts never touch Job.status/nextInterviewAt, so the job detail
@@ -42,11 +42,13 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     setForm(EMPTY_FORM);
     setFormOpen(false);
     setEditingId(null);
+    setNameError(undefined);
   }
 
   function startAdd() {
     setForm(EMPTY_FORM);
     setEditingId(null);
+    setNameError(undefined);
     setFormOpen(true);
   }
 
@@ -60,6 +62,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       notes: contact.notes ?? '',
     });
     setEditingId(contact.id);
+    setNameError(undefined);
     setFormOpen(true);
   }
 
@@ -69,7 +72,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
   // `null` is required to actually clear a field the user has emptied out.
   function buildPayload() {
     return {
-      name: form.name,
+      name: form.name.trim(),
       role: form.role || null,
       email: form.email || null,
       phone: form.phone || null,
@@ -87,11 +90,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       toast.success('Contact added');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to add contact')
-          : 'Failed to add contact',
-      ),
+      toast.error(getErrorMessage(err, 'Failed to add contact')),
   });
 
   const updateMutation = useMutation({
@@ -105,11 +104,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       toast.success('Contact updated');
     },
     onError: (err: unknown) =>
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to update contact')
-          : 'Failed to update contact',
-      ),
+      toast.error(getErrorMessage(err, 'Failed to update contact')),
   });
 
   const removeMutation = useMutation({
@@ -122,17 +117,17 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     },
     onError: (err: unknown) => {
       setConfirmingId(null);
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to remove contact')
-          : 'Failed to remove contact',
-      );
+      toast.error(getErrorMessage(err, 'Failed to remove contact'));
     },
   });
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    if (!form.name.trim()) {
+      setNameError('Name is required');
+      return;
+    }
+    setNameError(undefined);
     if (editingId) {
       updateMutation.mutate(editingId);
     } else {
@@ -164,7 +159,11 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
               label="Name"
               placeholder="Jane Doe"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, name: e.target.value });
+                if (nameError) setNameError(undefined);
+              }}
+              error={nameError}
               required
             />
             <Input

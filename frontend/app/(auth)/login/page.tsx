@@ -6,12 +6,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { isAxiosError } from 'axios';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { OAuthButton } from '../../../components/auth/oauth-button';
 import { useAuthStore } from '../../../store/auth.store';
-import api from '../../../lib/api';
+import api, { getErrorMessage } from '../../../lib/api';
 
 const schema = z.object({
   email: z.email('Enter a valid email'),
@@ -39,11 +38,7 @@ export default function LoginPage() {
       setAuth(user, tokens.accessToken);
       router.replace('/');
     } catch (err) {
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Login failed')
-          : 'Login failed',
-      );
+      toast.error(getErrorMessage(err, 'Login failed'));
     }
   };
 

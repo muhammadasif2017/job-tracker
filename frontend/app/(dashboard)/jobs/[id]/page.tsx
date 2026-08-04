@@ -29,7 +29,7 @@ import {
   type JobEvent,
   type JobStatus,
 } from '../../../../types';
-import api from '../../../../lib/api';
+import api, { getErrorMessage } from '../../../../lib/api';
 
 function Timeline({ events }: { events: JobEvent[] }) {
   if (events.length === 0) return null;
@@ -89,7 +89,13 @@ export default function JobDetailPage() {
   const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
-  const { data: job, isLoading } = useQuery<Job>({
+  const {
+    data: job,
+    isLoading,
+    isError,
+    error,
+    refetch,
+  } = useQuery<Job>({
     queryKey: ['job', id],
     queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
     refetchInterval: (query) => {
@@ -97,6 +103,9 @@ export default function JobDetailPage() {
       return status === 'PENDING' || status === 'PROCESSING' ? 3000 : false;
     },
   });
+
+  const isNotFound =
+    isAxiosError(error) && error.response?.status === 404;
 
   const { data: events = [] } = useQuery<JobEvent[]>({
     queryKey: ['job-events', id],
@@ -124,11 +133,7 @@ export default function JobDetailPage() {
     // one the user tried to change it from.
     onError: (err: unknown) => {
       qc.invalidateQueries({ queryKey: ['job', id] });
-      toast.error(
-        isAxiosError(err)
-          ? (err.response?.data?.message ?? 'Failed to update status')
-          : 'Failed to update status',
-      );
+      toast.error(getErrorMessage(err, 'Failed to update status'));
     },
   });
 
@@ -141,6 +146,9 @@ export default function JobDetailPage() {
       qc.invalidateQueries({ queryKey: ['attention'] });
       toast.success('Job deleted');
       router.replace('/jobs');
+    },
+    onError: (err: unknown) => {
+      toast.error(getErrorMessage(err, 'Failed to delete job'));
     },
   });
 
@@ -289,6 +297,24 @@ export default function JobDetailPage() {
             job={job}
           />
         </>
+      ) : isError && !job && !isNotFound ? (
+        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
+          <p className="text-red-500">Failed to load job.</p>
+          <p className="text-sm text-slate-400">
+            Check your connection and try again.
+          </p>
+          <div className="flex items-center gap-3">
+            <Button variant="secondary" size="sm" onClick={() => refetch()}>
+              Retry
+            </Button>
+            <Link
+              href="/jobs"
+              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back to Jobs
+            </Link>
+          </div>
+        </div>
       ) : (
         <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
           <p className="text-slate-500">Job not found.</p>

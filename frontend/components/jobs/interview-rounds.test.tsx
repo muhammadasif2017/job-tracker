@@ -11,6 +11,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../lib/api', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 import api from '../../lib/api';
@@ -92,6 +102,36 @@ describe('InterviewRounds', () => {
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await new Promise((r) => setTimeout(r, 50));
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('shows an inline error and never submits when stage is whitespace-only', async () => {
+      renderRounds([]);
+      fireEvent.click(screen.getByRole('button', { name: /add round/i }));
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: '   ' },
+      });
+      fireEvent.change(screen.getByLabelText(/^date$/i), {
+        target: { value: '2026-06-01' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(await screen.findByText('Stage is required')).toBeInTheDocument();
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('clears the inline stage error on Cancel and does not resurface on reopen', async () => {
+      renderRounds([]);
+      fireEvent.click(screen.getByRole('button', { name: /add round/i }));
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: '   ' },
+      });
+      fireEvent.change(screen.getByLabelText(/^date$/i), {
+        target: { value: '2026-06-01' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(await screen.findByText('Stage is required')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      fireEvent.click(screen.getByRole('button', { name: /add round/i }));
+      expect(screen.queryByText('Stage is required')).not.toBeInTheDocument();
     });
 
     it('posts stage/scheduledAt and coerces blank notes to undefined', async () => {

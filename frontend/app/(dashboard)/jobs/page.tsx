@@ -38,7 +38,7 @@ import {
   type JobStatus,
   type JobPriority,
 } from '../../../types';
-import api from '../../../lib/api';
+import api, { getErrorMessage } from '../../../lib/api';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -73,7 +73,7 @@ export default function JobsPage() {
     ...(priorityFilter && { priority: priorityFilter }),
   });
 
-  const { data, isLoading } = useQuery<PaginatedJobs>({
+  const { data, isLoading, isError, refetch } = useQuery<PaginatedJobs>({
     queryKey: [
       'jobs',
       {
@@ -94,6 +94,9 @@ export default function JobsPage() {
       qc.invalidateQueries({ queryKey: ['attention'] });
       setDeleteTarget(undefined);
       toast.success('Job deleted');
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err, 'Failed to delete job'));
     },
   });
 
@@ -132,7 +135,9 @@ export default function JobsPage() {
         <div>
           <h1 className="text-xl font-semibold">Jobs</h1>
           <p className="text-sm text-slate-500">
-            {data?.meta.total ?? 0} applications tracked
+            {isError && !data
+              ? 'Failed to load'
+              : `${data?.meta.total ?? 0} applications tracked`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -250,6 +255,25 @@ export default function JobsPage() {
                     ))}
                   </tr>
                 ))
+              ) : isError && !data ? (
+                <tr>
+                  <td colSpan={9} className="py-16 text-center">
+                    <p className="text-base font-medium text-red-500">
+                      Failed to load jobs
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400">
+                      Check your connection and try again.
+                    </p>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      className="mt-3"
+                      onClick={() => refetch()}
+                    >
+                      Retry
+                    </Button>
+                  </td>
+                </tr>
               ) : data?.data.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="py-16 text-center text-slate-400">

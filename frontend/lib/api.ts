@@ -2,11 +2,21 @@ import axios from 'axios';
 import { tokenStorage } from './auth';
 import { useAuthStore } from '../store/auth.store';
 
+// Default request timeout so a hung backend doesn't spin forever. Also used
+// for the refresh-token POST below, which bypasses the `api` instance (plain
+// `axios.post`) and so doesn't inherit it automatically. Per-call overrides:
+// resume upload (`components/jobs/resume-upload.tsx`, 120s — bounded by the
+// 8 MB size cap) and Quick Add's `/jobs/parse` (`components/jobs/quick-add.tsx`,
+// 60s — synchronous page-fetch + LLM extraction with a fallback search+retry
+// pass). Don't raise this default — override per-call instead.
+const DEFAULT_TIMEOUT_MS = 15_000;
+
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   // Required both ways: lets the browser store the httpOnly refresh cookie
   // from login/register/refresh responses, and resend it on later requests.
   withCredentials: true,
+  timeout: DEFAULT_TIMEOUT_MS,
 });
 
 api.interceptors.request.use((config) => {
@@ -61,7 +71,7 @@ api.interceptors.response.use(
       const { data } = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
         {},
-        { withCredentials: true },
+        { withCredentials: true, timeout: DEFAULT_TIMEOUT_MS },
       );
       tokenStorage.setAccess(data.accessToken);
       processQueue(null, data.accessToken);
@@ -84,5 +94,19 @@ api.interceptors.response.use(
     }
   },
 );
+
+// NestJS's default ValidationPipe returns `message` as a string[] for DTO
+// validation failures (one entry per failed constraint) and a string for
+// everything else (NotFoundException, ForbiddenException, etc.) — React
+// renders a string[] as concatenated children with no separator, so this
+// normalizes both shapes into one readable string.
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (!axios.isAxiosError(err)) return fallback;
+  const message = err.response?.data?.message;
+  if (Array.isArray(message)) {
+    return message.length > 0 ? message.join('. ') : fallback;
+  }
+  return typeof message === 'string' ? message : fallback;
+}
 
 export default api;

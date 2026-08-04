@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
-import api from '../lib/api';
+import api, { getErrorMessage } from '../lib/api';
 import type { CompanyProfile } from '../types';
 
 interface Props {
@@ -70,7 +70,8 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Enrichment queued');
     },
-    onError: () => toast.error('Failed to queue enrichment'),
+    onError: (err) =>
+      toast.error(getErrorMessage(err, 'Failed to queue enrichment')),
   });
 
   if (!profile) return null;

@@ -19,6 +19,16 @@ vi.mock('sonner', () => ({
 
 vi.mock('../../../../lib/api', () => ({
   default: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
+  getErrorMessage: (err: unknown, fallback: string) => {
+    const axiosErr = err as {
+      isAxiosError?: boolean;
+      response?: { data?: { message?: unknown } };
+    };
+    if (!axiosErr?.isAxiosError) return fallback;
+    const message = axiosErr.response?.data?.message;
+    if (Array.isArray(message)) return message.join('. ');
+    return typeof message === 'string' ? message : fallback;
+  },
 }));
 
 vi.mock('../../../../components/jobs/job-form', () => ({
@@ -116,10 +126,23 @@ describe('JobDetailPage', () => {
   });
 
   describe('not found', () => {
-    it('shows "Job not found." when the job fails to load', async () => {
+    it('shows "Job not found." on a 404', async () => {
       mockJobAndEvents(undefined);
       renderPage();
       expect(await screen.findByText('Job not found.')).toBeInTheDocument();
+    });
+  });
+
+  describe('error state', () => {
+    it('shows "Failed to load job." (not "Job not found.") on a non-404 failure', async () => {
+      vi.mocked(api.get).mockImplementation((url: string) => {
+        if (url === '/jobs/j-1') return Promise.reject(new Error('network down'));
+        if (url === '/jobs/j-1/events') return Promise.resolve({ data: [] });
+        return Promise.reject(new Error(`unexpected GET ${url}`));
+      });
+      renderPage();
+      expect(await screen.findByText('Failed to load job.')).toBeInTheDocument();
+      expect(screen.queryByText('Job not found.')).not.toBeInTheDocument();
     });
   });
 
@@ -296,6 +319,23 @@ describe('JobDetailPage', () => {
       );
       expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Job deleted');
       expect(replace).toHaveBeenCalledWith('/jobs');
+    });
+
+    it('shows an error toast and does not redirect when delete fails', async () => {
+      mockJobAndEvents(job);
+      vi.mocked(api.delete).mockRejectedValue({
+        isAxiosError: true,
+        response: { data: { message: 'Job has linked interview rounds' } },
+      });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+      await waitFor(() =>
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'Job has linked interview rounds',
+        ),
+      );
+      expect(replace).not.toHaveBeenCalled();
     });
   });
 
