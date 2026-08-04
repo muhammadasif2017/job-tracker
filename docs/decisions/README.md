@@ -32,6 +32,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [023](./023-admin-rbac.md) | Role-based admin panel — global RolesGuard, self-delete block, shared deletion path | Accepted |
 | [024](./024-per-user-timezone.md) | Per-user timezone for reminder/digest emails — supersedes SPEC.md's "out of scope v1" | Accepted |
 | [025](./025-e2e-gates-pr-merges.md) | Run Playwright e2e on PRs (path-filtered), not just nightly | Accepted |
+| [026](./026-e2e-locator-disambiguation.md) | Disambiguate Playwright locators with exact text and accessible names | Accepted |
 
 ## How to read an ADR
 
