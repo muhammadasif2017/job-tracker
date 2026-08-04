@@ -49,3 +49,5 @@ graphify-out/
 .code-review-graph/
 
 .playwright-mcp/
+
+.serena/
