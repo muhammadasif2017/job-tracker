@@ -38,7 +38,10 @@ docs/*
 # Next.js cache
 .next/cache/
 
-.claude/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+!.claude/hooks/**
 
 tasks/
 
