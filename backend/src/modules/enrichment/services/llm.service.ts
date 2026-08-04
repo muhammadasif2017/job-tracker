@@ -127,6 +127,17 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
   };
 }
 
+// Groq's structured-output generation occasionally produces a tool call that
+// fails its own schema validation (400, code "tool_use_failed") — a
+// generation-time glitch, not a bad request. Duck-typed rather than
+// `instanceof Groq.APIError` so it works whether the SDK's real error class
+// or a test double is thrown.
+function isToolUseFailedError(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const e = err as { status?: number; error?: { error?: { code?: string } } };
+  return e.status === 400 && e.error?.error?.code === 'tool_use_failed';
+}
+
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
     industry: str(raw.industry),
@@ -158,6 +169,23 @@ export class LlmService {
     });
   }
 
+  // One immediate retry on a tool_use_failed generation glitch, before
+  // falling through to the caller's own retry (a full queue re-attempt,
+  // which re-runs search/fetch too — expensive for what's often just a
+  // one-off malformed generation).
+  private async createWithRetry<T>(
+    call: () => Promise<T>,
+    model: string,
+  ): Promise<T> {
+    try {
+      return await call();
+    } catch (err) {
+      if (!isToolUseFailedError(err)) throw err;
+      this.logger.warn('llm_tool_use_failed_retry', { model });
+      return await call();
+    }
+  }
+
   async extract(
     companyName: string,
     context: string,
@@ -183,33 +211,37 @@ export class LlmService {
       }
       const disambiguationBlock = hints.length ? `\n\n${hints.join('\n')}` : '';
 
-      const response = await this.client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 2048,
-        tools: [EXTRACT_TOOL],
-        tool_choice: 'required',
-        messages: [
-          {
-            role: 'user',
-            content:
-              `You are helping a job applicant evaluate a company. Extract structured data ` +
-              `from the following web content about "${companyName}".\n\n` +
-              `The web content is split into sections. Content under "OFFICIAL COMPANY ` +
-              `WEBSITE" comes from the company's own domain and is authoritative. Content ` +
-              `under "WEB SEARCH RESULTS" may describe different companies with similar ` +
-              `names — each snippet there begins with its source title and domain in ` +
-              `brackets; use these to judge whether it is really about "${companyName}". ` +
-              `A snippet describing a different kind of business is about a different ` +
-              `company even if the name or city matches, so ignore it.\n\n` +
-              `If information is not available in the provided content, use "Unknown" for ` +
-              `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
-              `in the content. If the content describes a different company that merely ` +
-              `shares the name "${companyName}", return "Unknown" for all string fields ` +
-              `and [] for arrays rather than extracting from it.` +
-              `${disambiguationBlock}\n\nWeb content:\n${context}`,
-          },
-        ],
-      });
+      const response = await this.createWithRetry(
+        () =>
+          this.client.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            max_tokens: 2048,
+            tools: [EXTRACT_TOOL],
+            tool_choice: 'required',
+            messages: [
+              {
+                role: 'user',
+                content:
+                  `You are helping a job applicant evaluate a company. Extract structured data ` +
+                  `from the following web content about "${companyName}".\n\n` +
+                  `The web content is split into sections. Content under "OFFICIAL COMPANY ` +
+                  `WEBSITE" comes from the company's own domain and is authoritative. Content ` +
+                  `under "WEB SEARCH RESULTS" may describe different companies with similar ` +
+                  `names — each snippet there begins with its source title and domain in ` +
+                  `brackets; use these to judge whether it is really about "${companyName}". ` +
+                  `A snippet describing a different kind of business is about a different ` +
+                  `company even if the name or city matches, so ignore it.\n\n` +
+                  `If information is not available in the provided content, use "Unknown" for ` +
+                  `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
+                  `in the content. If the content describes a different company that merely ` +
+                  `shares the name "${companyName}", return "Unknown" for all string fields ` +
+                  `and [] for arrays rather than extracting from it.` +
+                  `${disambiguationBlock}\n\nWeb content:\n${context}`,
+              },
+            ],
+          }),
+        'llama-3.3-70b-versatile',
+      );
 
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
       if (!toolCall) throw new Error('No tool call in Groq response');
@@ -230,22 +262,26 @@ export class LlmService {
 
   async extractJobPosting(content: string): Promise<ParsedJobData> {
     try {
-      const response = await this.client.chat.completions.create({
-        model: 'llama-3.3-70b-versatile',
-        max_tokens: 1024,
-        tools: [JOB_POSTING_TOOL],
-        tool_choice: 'required',
-        messages: [
-          {
-            role: 'user',
-            content:
-              `Extract the company name, job title, location, and work arrangement type ` +
-              `(ONSITE, HYBRID, or REMOTE) from the following job posting content. If a ` +
-              `field is not present in the content, use "Unknown". Do not guess or ` +
-              `hallucinate data not present in the content.\n\nJob posting content:\n${content}`,
-          },
-        ],
-      });
+      const response = await this.createWithRetry(
+        () =>
+          this.client.chat.completions.create({
+            model: 'llama-3.3-70b-versatile',
+            max_tokens: 1024,
+            tools: [JOB_POSTING_TOOL],
+            tool_choice: 'required',
+            messages: [
+              {
+                role: 'user',
+                content:
+                  `Extract the company name, job title, location, and work arrangement type ` +
+                  `(ONSITE, HYBRID, or REMOTE) from the following job posting content. If a ` +
+                  `field is not present in the content, use "Unknown". Do not guess or ` +
+                  `hallucinate data not present in the content.\n\nJob posting content:\n${content}`,
+              },
+            ],
+          }),
+        'llama-3.3-70b-versatile',
+      );
 
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
       if (!toolCall) throw new Error('No tool call in Groq response');
