@@ -102,6 +102,47 @@ describe('LlmService', () => {
     );
   });
 
+  it('retries once on a tool_use_failed generation glitch and succeeds', async () => {
+    const toolUseFailedError = Object.assign(new Error('400 tool_use_failed'), {
+      status: 400,
+      error: { error: { code: 'tool_use_failed' } },
+    });
+    mockCreate
+      .mockRejectedValueOnce(toolUseFailedError)
+      .mockResolvedValueOnce(toolCallResponse);
+
+    const result = await service.extract('Acme', 'context');
+
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+    expect(result.industry).toBe('FinTech');
+  });
+
+  it('re-throws after a second tool_use_failed (no infinite retry)', async () => {
+    const toolUseFailedError = Object.assign(new Error('400 tool_use_failed'), {
+      status: 400,
+      error: { error: { code: 'tool_use_failed' } },
+    });
+    mockCreate.mockRejectedValue(toolUseFailedError);
+
+    await expect(service.extract('Acme', 'context')).rejects.toThrow(
+      'tool_use_failed',
+    );
+    expect(mockCreate).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not retry a non-tool_use_failed 400 error', async () => {
+    const otherError = Object.assign(new Error('400 invalid_request'), {
+      status: 400,
+      error: { error: { code: 'invalid_request_error' } },
+    });
+    mockCreate.mockRejectedValue(otherError);
+
+    await expect(service.extract('Acme', 'context')).rejects.toThrow(
+      'invalid_request',
+    );
+    expect(mockCreate).toHaveBeenCalledTimes(1);
+  });
+
   it('uses tool_choice required to force tool use', async () => {
     mockCreate.mockResolvedValue(toolCallResponse);
 
