@@ -5,14 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Boundaries
 
 - Never commit `.env` files or secrets — `.gitignore` covers `.env*`, but double-check diffs before pushing.
-- Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it.
-- After every `prisma migrate dev`, run `prisma generate` — forgetting this leaves the TS client out of sync (see `backend/CLAUDE.md`, "Prisma 7 Quirks").
+- Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it. See `backend/CLAUDE.md` ("Prisma 7 Quirks") for the post-migration `prisma generate` step.
 - Don't skip lint/type-check/tests before committing — both `backend` and `frontend` are gated by CI (`.github/workflows/deploy.yml`, `frontend-ci.yml`) on every PR and push to `main`.
 - Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
-- Always run a deep adversarial review (`/code-review` or equivalent) before treating any change touching external I/O (email, payment, third-party APIs) or a field written by more than one module as done — passing tests alone is not sufficient sign-off. First-pass self-review reliably misses third-party SDK error contracts (e.g. an SDK that returns `{error}` instead of throwing) and cross-module state interactions (e.g. one module resetting a stateful field another module depends on).
+- Default to a lighter review pass (token budget is limited) — see "Personal preferences". Reserve a full deep adversarial `/code-review` for high-stakes changes (payments, auth, migrations) or when asked.
 - Optional fields on a PATCH/update DTO must be typed `T | null`, not just `T | undefined`, and the frontend must send an explicit `null` (not `undefined`) to clear a field the user emptied out. `JSON.stringify` drops `undefined` keys entirely, and Prisma treats an omitted key as "leave the column alone" — only an explicit `null` clears it. See ADR-022 (`contacts.service.ts` / `contacts.tsx`) for the bug this caused and the fix.
+
+## Personal preferences
+
+- Commit messages: short single-line, no body unless why isn't obvious. Never mention Claude/Claude Code/Anthropic, no `Co-Authored-By` trailer.
+- Solo user of this app right now — `EMAIL_FROM=onboarding@resend.dev` is fine, don't suggest custom domain/DNS verification unless multi-user comes up.
+- User has limited tokens — okay with a lighter review pass by default. Still flag SDK error contracts (e.g. Resend returns `{error}` instead of throwing) and cross-module shared-field writes if spotted, but don't force a full `/code-review` pass unless asked or the change is high-stakes (payments, auth, migrations).
+- PRs touching `frontend/**` or `backend/**` now run Playwright e2e as a merge-blocking check (`e2e-pr.yml`, since ADR-025), not just nightly — factor into CI-wait expectations.
 
 ## Patterns
 
