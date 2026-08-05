@@ -158,6 +158,7 @@ model Job {
   @@index([userId, status])
   @@index([userId, appliedAt])
   @@index([userId, createdAt])
+  @@index([userId, nextInterviewAt])
 }
 
 model CompanyProfile {
