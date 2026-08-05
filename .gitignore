@@ -30,11 +30,6 @@ Thumbs.db
 # Test coverage
 coverage/
 
-# Local documentation / notes (not for the repo) — ADRs are the exception,
-# tracked normally like any other source file.
-docs/*
-!docs/decisions/
-
 # Next.js cache
 .next/cache/
 
