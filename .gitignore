@@ -30,9 +30,11 @@ Thumbs.db
 # Test coverage
 coverage/
 
-# Personal study notes / raw ideas, not for the repo
+# Personal study notes / raw ideas / stale or interview-prep review content, not for the repo
 docs/backend-learning-guide.md
 docs/ideas/
+docs/review/02-code-review.md
+docs/review/03-interview-guide.md
 
 # Next.js cache
 .next/cache/
