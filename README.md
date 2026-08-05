@@ -69,6 +69,10 @@ sequenceDiagram
     API-->>C: job with companyProfile
 ```
 
+## Database Schema
+
+See [docs/database-schema.md](docs/database-schema.md) for the entity-relationship diagram.
+
 ## Local Development
 
 ### Prerequisites
