@@ -260,6 +260,13 @@ export class EnrichmentProcessor extends WorkerHost {
         where: { id: jobId },
       });
       if (stillExists) {
+        // Distinguishes the two failure modes below in
+        // `enrichment_profile_update_failed` — "salvage" (already-extracted
+        // data lost on a double DB failure, the worse outcome) vs
+        // "mark_failed" (couldn't even record that the run failed).
+        const phase: 'salvage' | 'mark_failed' = extraction
+          ? 'salvage'
+          : 'mark_failed';
         try {
           if (extraction) {
             // Extraction (and the guard) already succeeded — whatever threw
@@ -295,6 +302,7 @@ export class EnrichmentProcessor extends WorkerHost {
         } catch (updateErr) {
           this.logger.warn('enrichment_profile_update_failed', {
             jobId,
+            phase,
             error:
               updateErr instanceof Error
                 ? updateErr.message

@@ -10,6 +10,12 @@ const mockPrisma = {
 const mockWebFetch = { fetchPageText: jest.fn() };
 const mockSearch = { search: jest.fn() };
 const mockLlm = { extract: jest.fn() };
+const mockLogger = {
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
 
 const dbJob = { id: 'job-123', company: 'Acme Corp', url: 'https://acme.com' };
 const extracted = {
@@ -43,12 +49,7 @@ describe('EnrichmentProcessor', () => {
       mockWebFetch as never,
       mockSearch as never,
       mockLlm as never,
-      {
-        log: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
-        debug: jest.fn(),
-      } as never,
+      mockLogger as never,
     );
   });
 
@@ -598,6 +599,10 @@ describe('EnrichmentProcessor', () => {
     );
 
     await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'enrichment_profile_update_failed',
+      expect.objectContaining({ phase: 'mark_failed' }),
+    );
   });
 
   describe('salvaging already-extracted data on a late failure', () => {
@@ -644,6 +649,13 @@ describe('EnrichmentProcessor', () => {
       );
       // Called twice: the original COMPLETED write, then the salvage retry
       expect(mockPrisma.companyProfile.update).toHaveBeenCalledTimes(2);
+      // Logged as a "salvage" failure, not a "mark_failed" one — this is the
+      // worse outcome (already-extracted data actually lost), so it must be
+      // distinguishable in the logs from a plain FAILED-write failure
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'enrichment_profile_update_failed',
+        expect.objectContaining({ phase: 'salvage' }),
+      );
     });
 
     it('does not attempt a salvage write when extraction itself never succeeded', async () => {
