@@ -6,9 +6,14 @@ import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
-import { LlmService } from './services/llm.service.js';
+import { LlmService, type CompanyData } from './services/llm.service.js';
 
 export const ENRICHMENT_QUEUE = 'company-enrichment';
+
+type ExtractionResult = {
+  data: CompanyData;
+  lowConfidence: { address: boolean; headquarters: boolean };
+};
 
 // Hosts that are job boards, not the company's own site — their domain must not
 // be used as a trust hint or for contact-page fetching
@@ -24,7 +29,12 @@ const JOB_BOARD_DOMAINS = [
 ];
 
 @Injectable()
-@Processor(ENRICHMENT_QUEUE)
+// lockDuration is stall-detection margin (crashed worker / blocked event
+// loop failing to renew the lock), not a runtime ceiling — BullMQ renews the
+// lock at lockDuration/2 while the job is actively processing. 90s comfortably
+// exceeds that ~45s renewal cadence without being so tight that a transient
+// GC pause causes a false stall detection.
+@Processor(ENRICHMENT_QUEUE, { lockDuration: 90_000 })
 export class EnrichmentProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
@@ -51,6 +61,12 @@ export class EnrichmentProcessor extends WorkerHost {
     const domain = this.extractDomain(dbJob.url);
     this.logger.log('enrichment_started', { jobId, company });
 
+    // Set once extraction + the guard both succeed. If a later step then
+    // throws (e.g. the final DB write itself hiccups), the catch block below
+    // uses this to salvage the already-extracted data as a COMPLETED write
+    // instead of discarding it in favor of a bare FAILED status.
+    let extraction: ExtractionResult | undefined;
+
     try {
       await this.prisma.companyProfile.upsert({
         where: { jobId },
@@ -59,31 +75,67 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const snippets = await this.search.search(
-        `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`,
-      );
+      const generalQuery = `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`;
+      const snippets = await this.search.search(generalQuery);
 
-      // With a real company domain, also fetch its contact page — the only
-      // reliable source for the street address (same-name companies in the same
-      // city poison search results). Try /contact first; only hit /contact-us
-      // (a second network call) if the first one came back empty.
-      const [pageText, primaryContactText] = await Promise.all([
-        this.webFetch.fetchPageText(dbJob.url ?? ''),
-        domain
-          ? this.webFetch.fetchPageText(`https://${domain}/contact`)
-          : Promise.resolve(''),
-      ]);
+      // With a real company domain, also fetch its homepage, /about, and
+      // /contact page — the only reliable sources for facts like industry,
+      // founded year, headquarters, and street address (same-name companies
+      // in the same city poison search results). Try /contact first; only hit
+      // /contact-us (a second network call) if the first one came back empty.
+      const [pageText, homepageText, aboutText, primaryContactText] =
+        await Promise.all([
+          this.webFetch.fetchPageText(dbJob.url ?? ''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}`)
+            : Promise.resolve(''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}/about`)
+            : Promise.resolve(''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}/contact`)
+            : Promise.resolve(''),
+        ]);
       const contactTexts = primaryContactText
         ? [primaryContactText]
         : domain
           ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
           : [];
 
-      // Contact pages first — they carry the address and are short; the homepage
-      // is marketing text that would otherwise fill the section cap alone
-      const officialParts = [...new Set([...contactTexts, pageText])].filter(
-        Boolean,
+      // Conditional fallback: only when the company's own pages came back
+      // thin (fetch failure / thin site), not routinely — an always-on second
+      // Tavily call would double quota usage for the common case, since a
+      // domain is known for most real (non-job-board) postings. `pageText`
+      // (the job-posting page) is deliberately excluded from this check — it's
+      // unrelated to whether the new official fetches succeeded and routinely
+      // exceeds the threshold on its own, which would otherwise mask a thin
+      // official fetch and make the fallback almost never fire.
+      const newOfficialText = [...contactTexts, aboutText, homepageText].join(
+        '',
       );
+      const shouldFallbackSearch =
+        domain !== undefined && newOfficialText.length < 300;
+      const domainSnippets = shouldFallbackSearch
+        ? await this.search.search(generalQuery, {
+            includeDomains: [domain],
+          })
+        : [];
+
+      // Contact text first — it's most likely to carry the address, and is
+      // short; then /about (likely to carry founding/HQ prose); then the
+      // homepage (marketing-heavy, least structured); job-posting page last
+      // (lowest-priority, most marketing-heavy source). This order matters
+      // under truncation below — otherwise homepage/marketing text could
+      // crowd out the address-bearing contact text.
+      const officialParts = [
+        ...new Set([
+          ...contactTexts,
+          aboutText,
+          homepageText,
+          ...domainSnippets,
+          pageText,
+        ]),
+      ].filter(Boolean);
       const searchParts = [...new Set(snippets)].filter(Boolean);
 
       const sections: string[] = [];
@@ -91,7 +143,7 @@ export class EnrichmentProcessor extends WorkerHost {
         const label = domain
           ? `=== OFFICIAL COMPANY WEBSITE (${domain}) ===`
           : '=== JOB POSTING PAGE ===';
-        sections.push(`${label}\n${officialParts.join('\n\n').slice(0, 4500)}`);
+        sections.push(`${label}\n${officialParts.join('\n\n').slice(0, 6000)}`);
       }
       if (searchParts.length) {
         sections.push(
@@ -117,22 +169,50 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       // Deterministic guard: prompt instructions alone don't stop the LLM from
-      // taking a street address from a same-name company in search results.
-      // Accept an address only if most of its tokens appear in content from the
-      // company's own pages (official site / contact page / job posting).
-      if (data.address && data.address !== 'Unknown') {
-        const officialNorm = this.normalize(officialParts.join(' '));
-        const tokens = this.normalize(data.address).split(' ').filter(Boolean);
-        const hits = tokens.filter((t) => officialNorm.includes(t)).length;
-        if (!tokens.length || hits / tokens.length < 0.7) {
-          this.logger.log('enrichment_address_rejected', {
+      // taking an address/headquarters from a same-name company in search
+      // results. Accept a value at full confidence only if enough of its
+      // tokens appear as exact tokens (not substrings — "inc" must not match
+      // inside "increasing") in content from the company's own pages.
+      // `address` keeps a strict 0.7 bar (its extraction prompt already
+      // restricts sourcing to official pages); `headquarters` uses a looser
+      // 0.25 bar since its prompt has no such restriction and short
+      // city/region facts legitimately show up in search-sourced content too.
+      //
+      // Below the bar, the value is kept (not wiped to "Unknown") but flagged
+      // low-confidence — the product preference here is "some information,
+      // possibly wrong" over "no information" for these two fields, same as
+      // every other unguarded field already gets. The frontend surfaces the
+      // flag so the user can judge for themselves rather than being misled by
+      // an unqualified value. See docs/company-profile-enrichment.md §6/§10
+      // for the full threshold-tuning history and rationale.
+      const officialTokens = new Set(
+        this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
+      );
+      const guardThresholds: Record<'address' | 'headquarters', number> = {
+        address: 0.7,
+        headquarters: 0.25,
+      };
+      const lowConfidence: Record<'address' | 'headquarters', boolean> = {
+        address: false,
+        headquarters: false,
+      };
+      for (const field of ['address', 'headquarters'] as const) {
+        const value = data[field];
+        if (!value || value === 'Unknown') continue;
+        const tokens = this.normalize(value).split(' ').filter(Boolean);
+        const hits = tokens.filter((t) => officialTokens.has(t)).length;
+        if (!tokens.length || hits / tokens.length < guardThresholds[field]) {
+          this.logger.log('enrichment_field_low_confidence', {
             jobId,
             company,
-            address: data.address,
+            field,
+            value,
           });
-          data.address = 'Unknown';
+          lowConfidence[field] = true;
         }
       }
+
+      extraction = { data, lowConfidence };
 
       const stillExists = await this.prisma.job.findFirst({
         where: { id: jobId },
@@ -146,11 +226,7 @@ export class EnrichmentProcessor extends WorkerHost {
 
       await this.prisma.companyProfile.update({
         where: { jobId },
-        data: {
-          status: EnrichmentStatus.COMPLETED,
-          ...data,
-          enrichedAt: new Date(),
-        },
+        data: this.buildCompletedProfileData(extraction),
       });
 
       this.logger.log('enrichment_completed', {
@@ -175,27 +251,84 @@ export class EnrichmentProcessor extends WorkerHost {
         where: { id: jobId },
       });
       if (stillExists) {
-        try {
-          await this.prisma.companyProfile.update({
-            where: { jobId },
-            data: {
-              status: EnrichmentStatus.FAILED,
-              errorMessage,
-            },
-          });
-        } catch (updateErr) {
-          this.logger.warn('enrichment_profile_update_failed', {
-            jobId,
-            error:
-              updateErr instanceof Error
-                ? updateErr.message
-                : String(updateErr),
-          });
-        }
+        const salvaged = await this.recordFailureOutcome(
+          jobId,
+          company,
+          extraction,
+          errorMessage,
+          startedAt,
+        );
+        if (salvaged) return;
       }
 
       throw error;
     }
+  }
+
+  // Extraction (and the guard) already succeeded — whatever threw was a
+  // late step (the stillExists re-check or the COMPLETED write itself).
+  // Salvage the already-extracted data as a COMPLETED write rather than
+  // discarding it in favor of an empty FAILED profile. Returns true only
+  // when the salvage write itself succeeds, telling the caller not to
+  // rethrow (retrying a pipeline that already produced good data is
+  // pointless). Falls back to a plain FAILED write when there's nothing to
+  // salvage, or when the salvage write also fails.
+  private async recordFailureOutcome(
+    jobId: string,
+    company: string,
+    extraction: ExtractionResult | undefined,
+    errorMessage: string,
+    startedAt: number,
+  ): Promise<boolean> {
+    // Distinguishes the two failure modes below in
+    // `enrichment_profile_update_failed` — "salvage" (already-extracted data
+    // lost on a double DB failure, the worse outcome) vs "mark_failed"
+    // (couldn't even record that the run failed).
+    const phase: 'salvage' | 'mark_failed' = extraction
+      ? 'salvage'
+      : 'mark_failed';
+    try {
+      if (extraction) {
+        await this.prisma.companyProfile.update({
+          where: { jobId },
+          data: this.buildCompletedProfileData(extraction),
+        });
+        this.logger.log('enrichment_completed_after_late_failure', {
+          jobId,
+          company,
+          error: errorMessage,
+          durationMs: Date.now() - startedAt,
+        });
+        return true;
+      }
+
+      await this.prisma.companyProfile.update({
+        where: { jobId },
+        data: {
+          status: EnrichmentStatus.FAILED,
+          errorMessage,
+        },
+      });
+      return false;
+    } catch (updateErr) {
+      this.logger.warn('enrichment_profile_update_failed', {
+        jobId,
+        phase,
+        error:
+          updateErr instanceof Error ? updateErr.message : String(updateErr),
+      });
+      return false;
+    }
+  }
+
+  private buildCompletedProfileData(extraction: ExtractionResult) {
+    return {
+      status: EnrichmentStatus.COMPLETED,
+      ...extraction.data,
+      addressLowConfidence: extraction.lowConfidence.address,
+      headquartersLowConfidence: extraction.lowConfidence.headquarters,
+      enrichedAt: new Date(),
+    };
   }
 
   private normalize(text: string): string {

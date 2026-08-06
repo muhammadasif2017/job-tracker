@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq';
 import { EnrichmentStatus } from '@prisma/client';
+import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { EnrichmentProcessor } from './enrichment.processor.js';
 
 const mockPrisma = {
@@ -9,6 +10,12 @@ const mockPrisma = {
 const mockWebFetch = { fetchPageText: jest.fn() };
 const mockSearch = { search: jest.fn() };
 const mockLlm = { extract: jest.fn() };
+const mockLogger = {
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
+  debug: jest.fn(),
+};
 
 const dbJob = { id: 'job-123', company: 'Acme Corp', url: 'https://acme.com' };
 const extracted = {
@@ -24,6 +31,15 @@ const extracted = {
 const bullJob = { data: { jobId: 'job-123' } } as Job<{ jobId: string }>;
 
 describe('EnrichmentProcessor', () => {
+  it('sets a 90s lockDuration as stall-detection margin on the @Processor() worker options', () => {
+    const workerOptions = Reflect.getMetadata(
+      WORKER_METADATA,
+      EnrichmentProcessor,
+    ) as { lockDuration?: number } | undefined;
+
+    expect(workerOptions).toEqual({ lockDuration: 90_000 });
+  });
+
   let processor: EnrichmentProcessor;
 
   beforeEach(() => {
@@ -33,12 +49,7 @@ describe('EnrichmentProcessor', () => {
       mockWebFetch as never,
       mockSearch as never,
       mockLlm as never,
-      {
-        log: jest.fn(),
-        warn: jest.fn(),
-        error: jest.fn(),
-        debug: jest.fn(),
-      } as never,
+      mockLogger as never,
     );
   });
 
@@ -158,6 +169,138 @@ describe('EnrichmentProcessor', () => {
     expect(context).toContain('=== OFFICIAL COMPANY WEBSITE (acme.com) ===');
   });
 
+  it('fetches the company homepage and about page when a real domain is known', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith('https://acme.com');
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/about',
+    );
+  });
+
+  it('does not fetch homepage/about without a real company domain', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      url: 'https://pk.linkedin.com/jobs/view/12345',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(1);
+  });
+
+  it('places contact text ahead of homepage text when combined official content exceeds the section cap', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    const contactText = 'CONTACT_MARKER ' + 'x'.repeat(4000);
+    const homepageText = 'HOMEPAGE_MARKER ' + 'y'.repeat(4000);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) => {
+      if (url === 'https://acme.com/contact')
+        return Promise.resolve(contactText);
+      if (url === 'https://acme.com') return Promise.resolve(homepageText);
+      return Promise.resolve('');
+    });
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('CONTACT_MARKER');
+    expect(context.indexOf('CONTACT_MARKER')).toBeLessThan(
+      context.indexOf('HOMEPAGE_MARKER'),
+    );
+  });
+
+  it('fires a domain-scoped fallback search when official content is thin', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['[acme.com] Domain-scoped snippet.']);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(2);
+    const [, secondCallOptions] = mockSearch.search.mock.calls[1] as [
+      string,
+      { includeDomains?: string[] },
+    ];
+    expect(secondCallOptions).toEqual({ includeDomains: ['acme.com'] });
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('Domain-scoped snippet.');
+  });
+
+  it('does not fire the fallback search when official content is already substantial', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('x'.repeat(400));
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(1);
+  });
+
+  it('excludes the job-posting page text from the fallback-search thinness check', async () => {
+    const dbJobWithSeparatePosting = {
+      ...dbJob,
+      url: 'https://acme.com/careers/123',
+    };
+    mockPrisma.job.findFirst.mockResolvedValue(dbJobWithSeparatePosting);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['[acme.com] Domain-scoped snippet.']);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) =>
+      Promise.resolve(
+        url === 'https://acme.com/careers/123' ? 'y'.repeat(1000) : '',
+      ),
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // pageText alone is 1000 chars, well over the 300-char threshold — proves
+    // the fallback still fires because pageText is excluded from the check
+    expect(mockSearch.search).toHaveBeenCalledTimes(2);
+  });
+
+  it('never fires the fallback search without a known company domain', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      url: 'https://pk.linkedin.com/jobs/view/12345',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to /contact-us when /contact is empty', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
@@ -199,17 +342,23 @@ describe('EnrichmentProcessor', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           address: 'Plot 5 Main Street Austin TX',
+          addressLowConfidence: false,
         }),
       }),
     );
   });
 
-  it('rejects an address that only appears in search results', async () => {
+  it('keeps a low-overlap address but flags it low-confidence instead of wiping it', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([
-      '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
-    ]);
+    // General search returns a same-name collision company's address; the
+    // domain-scoped fallback (fired since official content below is thin)
+    // returns nothing, so the address never enters trusted official content
+    mockSearch.search
+      .mockResolvedValueOnce([
+        '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
+      ])
+      .mockResolvedValueOnce([]);
     mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
     mockLlm.extract.mockResolvedValue({
       ...extracted,
@@ -219,9 +368,175 @@ describe('EnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
+    // Kept, not wiped to "Unknown" — the guard now flags a low-confidence
+    // value instead of discarding it, so the field still shows something
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ address: 'Unknown' }),
+        data: expect.objectContaining({
+          address: 'Plot 10 Block BB Canal Road Lahore',
+          addressLowConfidence: true,
+        }),
+      }),
+    );
+  });
+
+  it('keeps a headquarters value with under 25% official-page token overlap but flags it low-confidence', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Springfield Illinois USA',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Springfield Illinois USA',
+          headquartersLowConfidence: true,
+        }),
+      }),
+    );
+  });
+
+  it('accepts a headquarters value in the loosened 0.25-0.7 band that the stricter address threshold would reject', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Our office is located in Austin, TX.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin TX USA HQ',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // "austin" and "tx" hit (2/4 = 0.5): >= headquarters' 0.25 bar, but below
+    // address's 0.7 bar — proves the loosened threshold is doing real work
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin TX USA HQ',
+          headquartersLowConfidence: false,
+        }),
+      }),
+    );
+  });
+
+  it('accepts a headquarters value exactly at the 0.25 threshold boundary (not just above it)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Located in Austin only.');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin Nomatch Words Here',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // "austin" hits, the other 3 tokens don't: 1/4 = exactly 0.25. The guard
+    // check is `< threshold`, so a value exactly at the bar must be accepted,
+    // not flagged — pins the boundary against an accidental `<=` flip.
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin Nomatch Words Here',
+          headquartersLowConfidence: false,
+        }),
+      }),
+    );
+  });
+
+  it('does not let a token match inside an unrelated word pass the guard', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    // "increasing" contains the substring "inc" — the old `.includes(t)`
+    // matcher would have wrongly counted "inc" as a hit here; exact
+    // token-Set matching requires "inc" as its own standalone token
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'We are increasing headcount rapidly.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Springfield Inc',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Springfield Inc',
+          headquartersLowConfidence: true,
+        }),
+      }),
+    );
+  });
+
+  it('accepts a correct headquarters value on a state-abbreviation-vs-spelled-out-name mismatch now that the bar is lowered to 0.25', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Located in Austin, Texas since 2015.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin, TX, USA',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // Only "austin" matches (1/3 ≈ 0.33) since the official text spells out
+    // "Texas" rather than "TX" — below the old 0.4 bar (would have been
+    // flagged) but at/above the loosened 0.25 bar, so this specific
+    // abbreviation mismatch is no longer a false-positive
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin, TX, USA',
+          headquartersLowConfidence: false,
+        }),
+      }),
+    );
+  });
+
+  it('still flags a correct headquarters value low-confidence when overlap falls below the lowered 0.25 bar (known, accepted limitation)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Located in Austin, Texas since 2015.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin, TX, USA Headquarters Office',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // Only "austin" matches out of 5 tokens (1/5 = 0.2, below the 0.25 bar) —
+    // lowering the threshold narrows this limitation, it doesn't eliminate
+    // it. The value is still kept and shown, just flagged, not hidden.
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin, TX, USA Headquarters Office',
+          headquartersLowConfidence: true,
+        }),
       }),
     );
   });
@@ -310,5 +625,83 @@ describe('EnrichmentProcessor', () => {
     );
 
     await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'enrichment_profile_update_failed',
+      expect.objectContaining({ phase: 'mark_failed' }),
+    );
+  });
+
+  describe('salvaging already-extracted data on a late failure', () => {
+    it('saves the extracted data as COMPLETED (and resolves, no rethrow) when the final write fails once but a salvage retry succeeds', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+      mockLlm.extract.mockResolvedValue(extracted);
+
+      let updateCalls = 0;
+      mockPrisma.companyProfile.update.mockImplementation(() => {
+        updateCalls += 1;
+        return updateCalls === 1
+          ? Promise.reject(new Error('DB connection reset'))
+          : Promise.resolve({});
+      });
+
+      await expect(processor.process(bullJob)).resolves.toBeUndefined();
+
+      expect(mockPrisma.companyProfile.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: EnrichmentStatus.COMPLETED,
+            industry: extracted.industry,
+            headquarters: extracted.headquarters,
+          }),
+        }),
+      );
+    });
+
+    it('rethrows the original error (not the salvage error) when both the write and the salvage retry fail', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+      mockLlm.extract.mockResolvedValue(extracted);
+      mockPrisma.companyProfile.update.mockRejectedValue(
+        new Error('DB connection reset'),
+      );
+
+      await expect(processor.process(bullJob)).rejects.toThrow(
+        'DB connection reset',
+      );
+      // Called twice: the original COMPLETED write, then the salvage retry
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledTimes(2);
+      // Logged as a "salvage" failure, not a "mark_failed" one — this is the
+      // worse outcome (already-extracted data actually lost), so it must be
+      // distinguishable in the logs from a plain FAILED-write failure
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'enrichment_profile_update_failed',
+        expect.objectContaining({ phase: 'salvage' }),
+      );
+    });
+
+    it('does not attempt a salvage write when extraction itself never succeeded', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.extract.mockRejectedValue(new Error('LLM timeout'));
+      mockPrisma.companyProfile.update.mockResolvedValue({});
+
+      await expect(processor.process(bullJob)).rejects.toThrow('LLM timeout');
+
+      // Only the FAILED write — no COMPLETED salvage attempt, since there
+      // was never any extracted data to salvage
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: EnrichmentStatus.FAILED }),
+        }),
+      );
+    });
   });
 });

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
+import Groq from 'groq-sdk';
 import { LlmService } from './llm.service.js';
 
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
@@ -12,6 +13,8 @@ jest.mock('groq-sdk', () => ({
     chat: { completions: { create: mockCreate } },
   })),
 }));
+
+const mockGroqConstructor = Groq as unknown as jest.Mock;
 
 const mockConfigService = { get: jest.fn().mockReturnValue('test-api-key') };
 
@@ -54,6 +57,12 @@ describe('LlmService', () => {
       ],
     }).compile();
     service = module.get(LlmService);
+  });
+
+  it('constructs the Groq client with a 45s request timeout and a pinned maxRetries of 1', () => {
+    expect(mockGroqConstructor).toHaveBeenCalledWith(
+      expect.objectContaining({ timeout: 45_000, maxRetries: 1 }),
+    );
   });
 
   it('returns CompanyData extracted from the tool_call response', async () => {

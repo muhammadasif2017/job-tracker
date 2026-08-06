@@ -184,6 +184,80 @@ describe('CompanyProfileCard', () => {
     });
   });
 
+  describe('when re-running with last-known-good data (enrichedAt present)', () => {
+    it('shows prior fields instead of a skeleton while PROCESSING', () => {
+      renderCard(
+        makeProfile({
+          status: 'PROCESSING',
+          industry: 'Fintech',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText('Refreshing…')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /refresh/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows prior fields instead of a skeleton while PENDING', () => {
+      renderCard(
+        makeProfile({
+          status: 'PENDING',
+          industry: 'Fintech',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText('Queued…')).toBeInTheDocument();
+    });
+
+    it('shows prior fields plus an inline failure banner (raw message) instead of the bare error card on FAILED', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          industry: 'Fintech',
+          errorMessage: 'Unexpected tool-call shape from LLM',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText(/Last refresh failed/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Unexpected tool-call shape from LLM/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/showing the last successful result/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /refresh/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('classifies the inline failure banner the same way as the no-data FAILED card, instead of always showing a raw message', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          industry: 'Fintech',
+          errorMessage: 'API timeout',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      // "API timeout" classifies as UNAVAILABLE — the friendly message
+      // should be shown, not the raw string, same as the !hasData FAILED card
+      expect(
+        screen.getByText(/temporarily unreachable/),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/API timeout/)).not.toBeInTheDocument();
+    });
+
+    it('still shows the loading skeleton when PROCESSING with no prior data', () => {
+      renderCard(makeProfile({ status: 'PROCESSING' }));
+      expect(screen.getByText('Researching…')).toBeInTheDocument();
+      expect(screen.queryByText('Fintech')).not.toBeInTheDocument();
+    });
+  });
+
   describe('when status is COMPLETED', () => {
     it('shows industry when present', () => {
       renderCard(makeProfile({ industry: 'Fintech' }));
@@ -198,6 +272,39 @@ describe('CompanyProfileCard', () => {
     it('shows headquarters when present', () => {
       renderCard(makeProfile({ headquarters: 'San Francisco, CA' }));
       expect(screen.getByText('San Francisco, CA')).toBeInTheDocument();
+    });
+
+    it('does not show an unverified badge for a normal-confidence headquarters', () => {
+      renderCard(makeProfile({ headquarters: 'San Francisco, CA' }));
+      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+    });
+
+    it('shows an unverified badge when headquartersLowConfidence is true', () => {
+      renderCard(
+        makeProfile({
+          headquarters: 'Springfield, IL',
+          headquartersLowConfidence: true,
+        }),
+      );
+      expect(screen.getByText('Springfield, IL')).toBeInTheDocument();
+      expect(screen.getByText('unverified')).toBeInTheDocument();
+    });
+
+    it('shows address without a badge when addressLowConfidence is false', () => {
+      renderCard(makeProfile({ address: '123 Main St, Austin, TX' }));
+      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
+      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+    });
+
+    it('shows an unverified badge on the address when addressLowConfidence is true', () => {
+      renderCard(
+        makeProfile({
+          address: '123 Main St, Austin, TX',
+          addressLowConfidence: true,
+        }),
+      );
+      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
+      expect(screen.getByText('unverified')).toBeInTheDocument();
     });
 
     it('shows founded year when present', () => {

@@ -13,21 +13,19 @@ export class EnrichmentService {
   ) {}
 
   async enqueueEnrichment(jobId: string): Promise<void> {
+    // On re-run (including a manual "Refresh" of a COMPLETED profile), the
+    // previously extracted fields are deliberately left untouched — only
+    // status/errorMessage reset. Wiping them here would blank out working
+    // data for the entire in-flight window, and leave the user with nothing
+    // if the new run then fails; keeping them lets the frontend show
+    // last-known-good data (flagged as refreshing) until a new COMPLETED
+    // write actually replaces it. See docs/company-profile-enrichment.md §2.
     await this.prisma.companyProfile.upsert({
       where: { jobId },
       create: { jobId, status: EnrichmentStatus.PENDING },
       update: {
         status: EnrichmentStatus.PENDING,
-        industry: null,
-        companySize: null,
-        techStack: [],
-        cultureSummary: null,
-        workPolicy: null,
-        workLifeBalance: null,
-        headquarters: null,
-        founded: null,
         errorMessage: null,
-        enrichedAt: null,
       },
     });
     await this.queue.add(
