@@ -65,4 +65,18 @@ describe('EnrichmentService', () => {
     const queueOrder = mockQueue.add.mock.invocationCallOrder[0];
     expect(upsertOrder).toBeLessThan(queueOrder);
   });
+
+  it('does not null out previously extracted fields on re-run — only resets status and errorMessage', async () => {
+    mockQueue.add.mockResolvedValue({});
+
+    await service.enqueueEnrichment('job-abc');
+
+    const { update } = mockPrisma.companyProfile.upsert.mock.calls[0][0] as {
+      update: Record<string, unknown>;
+    };
+    expect(update).toEqual({
+      status: EnrichmentStatus.PENDING,
+      errorMessage: null,
+    });
+  });
 });

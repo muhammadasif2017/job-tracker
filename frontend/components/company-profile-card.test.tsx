@@ -184,6 +184,58 @@ describe('CompanyProfileCard', () => {
     });
   });
 
+  describe('when re-running with last-known-good data (enrichedAt present)', () => {
+    it('shows prior fields instead of a skeleton while PROCESSING', () => {
+      renderCard(
+        makeProfile({
+          status: 'PROCESSING',
+          industry: 'Fintech',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText('Refreshing…')).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /refresh/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows prior fields instead of a skeleton while PENDING', () => {
+      renderCard(
+        makeProfile({
+          status: 'PENDING',
+          industry: 'Fintech',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText('Queued…')).toBeInTheDocument();
+    });
+
+    it('shows prior fields plus an inline failure banner instead of the bare error card on FAILED', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          industry: 'Fintech',
+          errorMessage: 'API timeout',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText(/Last refresh failed/)).toBeInTheDocument();
+      expect(screen.getByText(/API timeout/)).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /refresh/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('still shows the loading skeleton when PROCESSING with no prior data', () => {
+      renderCard(makeProfile({ status: 'PROCESSING' }));
+      expect(screen.getByText('Researching…')).toBeInTheDocument();
+      expect(screen.queryByText('Fintech')).not.toBeInTheDocument();
+    });
+  });
+
   describe('when status is COMPLETED', () => {
     it('shows industry when present', () => {
       renderCard(makeProfile({ industry: 'Fintech' }));

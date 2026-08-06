@@ -73,112 +73,9 @@ function classifyFailure(message: string | null | undefined): FailureKind | null
   return null;
 }
 
-export function CompanyProfileCard({ profile, jobId }: Props) {
-  const qc = useQueryClient();
-
-  const refresh = useMutation({
-    mutationFn: () => api.post(`/jobs/${jobId}/enrichment`).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['job', jobId] });
-      toast.success('Enrichment queued');
-    },
-    onError: (err) =>
-      toast.error(getErrorMessage(err, 'Failed to queue enrichment')),
-  });
-
-  if (!profile) return null;
-
-  if (profile.status === 'PENDING' || profile.status === 'PROCESSING') {
-    return (
-      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
-            Company Profile
-          </h2>
-          <span className="text-xs text-slate-400 animate-pulse">
-            {profile.status === 'PROCESSING' ? 'Researching…' : 'Queued…'}
-          </span>
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-4 w-1/2" />
-          <Skeleton className="h-4 w-3/4" />
-          <Skeleton className="h-4 w-2/3" />
-          <Skeleton className="h-16 w-full" />
-        </div>
-      </div>
-    );
-  }
-
-  if (profile.status === 'FAILED') {
-    const kind = classifyFailure(profile.errorMessage);
-    const copy = kind ? FAILURE_COPY[kind] : null;
-    const Icon = copy?.icon;
-
-    return (
-      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
-            Company Profile
-          </h2>
-          <Button
-            variant="secondary"
-            size="sm"
-            loading={refresh.isPending}
-            onClick={() => refresh.mutate()}
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Refresh
-          </Button>
-        </div>
-        {copy && Icon ? (
-          <div
-            className={
-              copy.tone === 'amber'
-                ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
-                : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
-            }
-          >
-            <Icon
-              className={
-                copy.tone === 'amber'
-                  ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
-                  : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
-              }
-            />
-            <p
-              className={
-                copy.tone === 'amber'
-                  ? 'text-sm text-amber-700 dark:text-amber-400'
-                  : 'text-sm text-red-700 dark:text-red-400'
-              }
-            >
-              {copy.message}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-red-600 dark:text-red-400 break-words">
-            {profile.errorMessage ?? 'Enrichment failed. Try again.'}
-          </p>
-        )}
-      </div>
-    );
-  }
-
+function ProfileFields({ profile }: { profile: CompanyProfile }) {
   return (
-    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
-          Company Profile
-        </h2>
-        <Button
-          variant="secondary"
-          size="sm"
-          loading={refresh.isPending}
-          onClick={() => refresh.mutate()}
-        >
-          <RefreshCw className="h-3.5 w-3.5" /> Refresh
-        </Button>
-      </div>
-
+    <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
         {profile.industry && (
           <div>
@@ -275,6 +172,143 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           </p>
         </div>
       )}
+    </>
+  );
+}
+
+export function CompanyProfileCard({ profile, jobId }: Props) {
+  const qc = useQueryClient();
+
+  const refresh = useMutation({
+    mutationFn: () => api.post(`/jobs/${jobId}/enrichment`).then((r) => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['job', jobId] });
+      toast.success('Enrichment queued');
+    },
+    onError: (err) =>
+      toast.error(getErrorMessage(err, 'Failed to queue enrichment')),
+  });
+
+  if (!profile) return null;
+
+  // A profile carries `enrichedAt` only after at least one COMPLETED run.
+  // Since a re-run no longer wipes the previous fields (see
+  // EnrichmentService.enqueueEnrichment), a PENDING/PROCESSING/FAILED status
+  // can still have real, last-known-good data attached — show that instead
+  // of hiding it behind a loading skeleton or a bare error card.
+  const hasData = Boolean(profile.enrichedAt);
+  const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
+
+  if (inFlight && !hasData) {
+    return (
+      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+            Company Profile
+          </h2>
+          <span className="text-xs text-slate-400 animate-pulse">
+            {profile.status === 'PROCESSING' ? 'Researching…' : 'Queued…'}
+          </span>
+        </div>
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-1/2" />
+          <Skeleton className="h-4 w-3/4" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-16 w-full" />
+        </div>
+      </div>
+    );
+  }
+
+  if (profile.status === 'FAILED' && !hasData) {
+    const kind = classifyFailure(profile.errorMessage);
+    const copy = kind ? FAILURE_COPY[kind] : null;
+    const Icon = copy?.icon;
+
+    return (
+      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+            Company Profile
+          </h2>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={refresh.isPending}
+            onClick={() => refresh.mutate()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        </div>
+        {copy && Icon ? (
+          <div
+            className={
+              copy.tone === 'amber'
+                ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
+                : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
+            }
+          >
+            <Icon
+              className={
+                copy.tone === 'amber'
+                  ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
+                  : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
+              }
+            />
+            <p
+              className={
+                copy.tone === 'amber'
+                  ? 'text-sm text-amber-700 dark:text-amber-400'
+                  : 'text-sm text-red-700 dark:text-red-400'
+              }
+            >
+              {copy.message}
+            </p>
+          </div>
+        ) : (
+          <p className="text-sm text-red-600 dark:text-red-400 break-words">
+            {profile.errorMessage ?? 'Enrichment failed. Try again.'}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // COMPLETED, or PENDING/PROCESSING/FAILED with last-known-good data to show.
+  return (
+    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+          Company Profile
+        </h2>
+        {inFlight ? (
+          <span className="text-xs text-slate-400 animate-pulse">
+            {profile.status === 'PROCESSING' ? 'Refreshing…' : 'Queued…'}
+          </span>
+        ) : (
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={refresh.isPending}
+            onClick={() => refresh.mutate()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Refresh
+          </Button>
+        )}
+      </div>
+
+      {profile.status === 'FAILED' && (
+        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
+          <WifiOff className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+          <p className="text-sm text-amber-700 dark:text-amber-400">
+            Last refresh failed
+            {profile.errorMessage ? `: ${profile.errorMessage}` : ''} — showing
+            the last successful result.
+          </p>
+        </div>
+      )}
+
+      <ProfileFields profile={profile} />
     </div>
   );
 }

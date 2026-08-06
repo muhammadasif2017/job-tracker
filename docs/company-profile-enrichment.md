@@ -46,7 +46,7 @@ Two ways enrichment gets queued — both funnel into the same `EnrichmentService
 | **Manual re-run** | `POST /jobs/:id/enrichment` → `EnrichmentController` → same `enqueueEnrichment` | Used by the frontend's "Refresh" button (§7) — after a `FAILED` run, or to re-research a `COMPLETED` profile on demand |
 
 `EnrichmentService.enqueueEnrichment` (`enrichment.service.ts`):
-1. `companyProfile.upsert` — resets to `status: PENDING`, nulls out all descriptive fields and `errorMessage`/`enrichedAt` (so a re-run doesn't show stale data while the new run is in flight).
+1. `companyProfile.upsert` — resets `status: PENDING` and clears `errorMessage`. **Does not** touch the previously extracted descriptive fields or `enrichedAt` — a re-run (including manual Refresh on an already-`COMPLETED` profile) keeps last-known-good data in place while the new run is in flight, rather than blanking it. See §7 for how the frontend surfaces this.
 2. Adds a BullMQ job (`{ jobId }`) to the `company-enrichment` queue: `attempts: 2`, `backoff: { type: 'fixed', delay: 10_000 }`.
 
 **Duplicate-run guard**: `EnrichmentController.triggerEnrichment` (the manual-POST path only) checks the existing profile's status first — if `PENDING` or `PROCESSING`, throws `ConflictException` (409) rather than enqueuing a second run. The automatic on-create path doesn't need this check since a profile can't already exist for a job that's still being created.
@@ -174,7 +174,7 @@ await this.prisma.companyProfile.update({
 
 Every other field (`industry`, `companySize`, `techStack`, `cultureSummary`, `workPolicy`, `workLifeBalance`, `founded`) has **no** deterministic guard — only the prompt-level "don't guess" instruction, and no low-confidence flag either. The user has explicitly accepted some wrong fields as the cost of genuine same-name/different-location company collisions; only the two highest-consequence fields (a literal street address, and to a lesser degree HQ) get the hard check, and both now degrade to "shown but flagged" rather than "hidden."
 
-**Re-run reset** (`EnrichmentService.enqueueEnrichment`): every re-run (including a manual "Refresh" click) nulls all descriptive fields back to `PENDING`, including the two low-confidence flags — a stale `true` flag must not survive onto a `null` field from a fresh run.
+**Re-run behavior** (`EnrichmentService.enqueueEnrichment`): a re-run (including a manual "Refresh" click) resets only `status`/`errorMessage` — it deliberately does **not** null the descriptive fields or the two low-confidence flags (see §2). A stale `true` flag from the previous run stays attached to its (still-displayed) old value until the new run's `COMPLETED` write overwrites both together.
 
 ## 7. Frontend
 
@@ -210,16 +210,22 @@ Polls the whole job every 3s while enrichment is in flight; stops once `COMPLETE
 
 **Display** (`frontend/components/company-profile-card.tsx`):
 
-| Status | Shown |
-|---|---|
-| `profile == null` | Nothing (card doesn't render) |
-| `PENDING` / `PROCESSING` | Skeleton card, "Queued…" / "Researching…" — no Refresh button |
-| `FAILED` | Header + Refresh button + `classifyFailure(errorMessage)` — pattern-matches into `RATE_LIMITED` / `UNAVAILABLE` / `CONFIG` with tailored copy+icon, falling back to the raw `errorMessage` (or a generic message) if unrecognized |
-| `COMPLETED` | Header + Refresh button + all present fields (industry/size/HQ/founded in a grid, deduped tech-stack pills, address, work policy, work-life balance, culture summary) — falsy fields are simply omitted, no "N/A" placeholders |
+A profile only ever carries `enrichedAt` after at least one `COMPLETED` run, and — since a re-run no longer nulls the descriptive fields (§2) — that prior data can still be present during a later `PENDING`/`PROCESSING`/`FAILED` state. The card branches on `hasData = Boolean(profile.enrichedAt)` to decide whether to show a bare loading/error state or the real fields with an in-progress/failure indicator layered on top:
 
-**Low-confidence badge**: when `headquartersLowConfidence` / `addressLowConfidence` is `true`, the value still renders and gets a small amber "unverified" badge (`AlertTriangle` icon, `title` tooltip explaining it couldn't be confirmed against the company's own site) inline next to it — see `UnverifiedBadge` in `company-profile-card.tsx`. No badge when the flag is `false`/absent, same as any other field.
+| Status | `hasData` | Shown |
+|---|---|---|
+| `profile == null` | — | Nothing (card doesn't render) |
+| `PENDING` / `PROCESSING` | false (first-ever run) | Skeleton card, "Queued…" / "Researching…" — no Refresh button |
+| `PENDING` / `PROCESSING` | true (re-run) | Full fields view (`ProfileFields`) + "Queued…" / "Refreshing…" pulse in the header — no Refresh button (a second concurrent trigger would just 409) |
+| `FAILED` | false (never succeeded) | Header + Refresh button + `classifyFailure(errorMessage)` — pattern-matches into `RATE_LIMITED` / `UNAVAILABLE` / `CONFIG` with tailored copy+icon, falling back to the raw `errorMessage` (or a generic message) if unrecognized |
+| `FAILED` | true (re-run failed) | Full fields view + Refresh button + an inline amber "Last refresh failed: …" banner above the fields — the last successful data stays visible instead of being replaced by the error |
+| `COMPLETED` | true | Header + Refresh button + all present fields (industry/size/HQ/founded in a grid, deduped tech-stack pills, address, work policy, work-life balance, culture summary) — falsy fields are simply omitted, no "N/A" placeholders |
 
-**Manual retry**: the "Refresh" button (shown on both `FAILED` and `COMPLETED`) calls `POST /jobs/${jobId}/enrichment` and invalidates the `['job', id]` query on success — which both refetches immediately and re-arms the 3s polling interval above (since the profile just flipped back to `PENDING`). A 409 from the backend (already in progress) surfaces as a toast via `getErrorMessage`.
+The field-rendering JSX itself is factored into a shared `ProfileFields` component so the `COMPLETED` case and the `hasData` branches of `PENDING`/`PROCESSING`/`FAILED` render identically rather than duplicating the grid/pills/address/etc markup three times.
+
+**Low-confidence badge**: when `headquartersLowConfidence` / `addressLowConfidence` is `true`, the value still renders (inside `ProfileFields`) and gets a small amber "unverified" badge (`AlertTriangle` icon, `title` tooltip explaining it couldn't be confirmed against the company's own site) inline next to it — see `UnverifiedBadge` in `company-profile-card.tsx`. No badge when the flag is `false`/absent, same as any other field.
+
+**Manual retry**: the "Refresh" button (shown whenever the card isn't mid-run) calls `POST /jobs/${jobId}/enrichment` and invalidates the `['job', id]` query on success — which both refetches immediately and re-arms the 3s polling interval above (since the profile just flipped back to `PENDING`, with its prior fields intentionally intact — see §2). A 409 from the backend (already in progress) surfaces as a toast via `getErrorMessage`.
 
 ## 8. Full request lifecycle (happy path)
 
@@ -244,7 +250,7 @@ Meanwhile, in the BullMQ worker:
     → parallel fetch: job page, homepage, about, contact  (+ /contact-us fallback if needed)
     → conditional domain-scoped fallback search (only if official content thin)
     → assemble two-section context (official, capped 6000 / search, capped 3500)
-    → LlmService.extract()  →  Groq tool-call, 30s timeout, one retry on tool_use_failed
+    → LlmService.extract()  →  Groq tool-call, 45s timeout (maxRetries: 1), one retry on tool_use_failed
     → deterministic guard on address (0.7) and headquarters (0.4) — flags low-confidence, doesn't discard
     → CompanyProfile updated: status COMPLETED, all fields, enrichedAt
 
@@ -295,3 +301,8 @@ Per-commit rationale for the hardening changes in this PR — decision, problem 
 - Decision: raise the per-request timeout from 30s to 45s, and explicitly pin `maxRetries: 1` instead of leaving `groq-sdk`'s own default (`2`) in place.
 - Problem solved: two-part. (1) The product goal is "show some information, possibly wrong" over "no information" (this is the same priority behind §6's low-confidence-flag change) — 45s gives a legitimately slow-but-healthy Groq response more room to land before the pipeline gives up on it and falls back to a full, costlier BullMQ retry. (2) Discovered while sizing the new number: `groq-sdk` retries a client-side timeout internally (`client.js:226-246`) up to `maxRetries` *before* throwing to application code, and the client was never given an explicit `maxRetries` — meaning the true worst-case Groq time under the original `30_000`/default-`2` config was already 30s × 3 = 90s, not the flat 30s §5 previously assumed. Pinning `maxRetries: 1` alongside the new 45s timeout keeps the worst case closed-form (45s × 2 = 90s) instead of leaving it as an unstated multiple of whatever the SDK's default happens to be.
 - Side effects: same category as the original entry — a slow call now gets more time to succeed before the whole pipeline retries, at the cost of a slightly higher per-attempt worst-case latency (45s vs 30s per try). `attempts` was deliberately left at BullMQ's existing `2` rather than raised to `3` — a BullMQ-level retry re-runs the entire pipeline (Tavily search + fetches), which would multiply Tavily's free-tier quota usage for a problem this timeout/retry change already addresses more cheaply.
+
+**Follow-up — stop nulling `CompanyProfile` fields on re-run** (`enrichment.service.ts`, `company-profile-card.tsx`)
+- Decision: `EnrichmentService.enqueueEnrichment` no longer nulls the descriptive fields/`enrichedAt`/low-confidence flags on re-run — only `status` and `errorMessage` reset. `CompanyProfileCard` now branches on `hasData = Boolean(profile.enrichedAt)`: with prior data, `PENDING`/`PROCESSING`/`FAILED` render the real fields (via a new shared `ProfileFields` component) with an in-progress indicator or inline failure banner layered on top, instead of a bare skeleton or error-only card.
+- Problem solved: this was identified as the single biggest gap against the stated product priority ("some information, possibly wrong, beats no information") — every other change in this PR (the low-confidence flag, the wider timeout) only softens *how* a run can end up with less data; this was the one path that guaranteed a user briefly (or, on a failed re-run, indefinitely) saw *nothing* even though good data already existed one click earlier. Clicking "Refresh" on a `COMPLETED` profile used to blank it immediately, before the new run even started.
+- Side effects: a `PENDING`/`PROCESSING`/`FAILED` profile can now display data that's stale relative to the in-flight run (expected — it's explicitly last-known-good, not live). A low-confidence flag from a prior run stays attached to its (still-shown) old value until the new run's `COMPLETED` write replaces both together — no dangling `true` flag on a blank field, since the field never went blank. No backend schema change needed; this only changes which keys `enqueueEnrichment`'s Prisma `update` touches.
