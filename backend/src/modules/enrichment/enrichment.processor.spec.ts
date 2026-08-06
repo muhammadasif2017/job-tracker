@@ -214,6 +214,82 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
+  it('fires a domain-scoped fallback search when official content is thin', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['[acme.com] Domain-scoped snippet.']);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(2);
+    const [, secondCallOptions] = mockSearch.search.mock.calls[1] as [
+      string,
+      { includeDomains?: string[] },
+    ];
+    expect(secondCallOptions).toEqual({ includeDomains: ['acme.com'] });
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('Domain-scoped snippet.');
+  });
+
+  it('does not fire the fallback search when official content is already substantial', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('x'.repeat(400));
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(1);
+  });
+
+  it('excludes the job-posting page text from the fallback-search thinness check', async () => {
+    const dbJobWithSeparatePosting = {
+      ...dbJob,
+      url: 'https://acme.com/careers/123',
+    };
+    mockPrisma.job.findFirst.mockResolvedValue(dbJobWithSeparatePosting);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(['[acme.com] Domain-scoped snippet.']);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) =>
+      Promise.resolve(
+        url === 'https://acme.com/careers/123' ? 'y'.repeat(1000) : '',
+      ),
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // pageText alone is 1000 chars, well over the 300-char threshold — proves
+    // the fallback still fires because pageText is excluded from the check
+    expect(mockSearch.search).toHaveBeenCalledTimes(2);
+  });
+
+  it('never fires the fallback search without a known company domain', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      url: 'https://pk.linkedin.com/jobs/view/12345',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(1);
+  });
+
   it('falls back to /contact-us when /contact is empty', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
@@ -263,9 +339,14 @@ describe('EnrichmentProcessor', () => {
   it('rejects an address that only appears in search results', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([
-      '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
-    ]);
+    // General search returns a same-name collision company's address; the
+    // domain-scoped fallback (fired since official content below is thin)
+    // returns nothing, so the address never enters trusted official content
+    mockSearch.search
+      .mockResolvedValueOnce([
+        '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
+      ])
+      .mockResolvedValueOnce([]);
     mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
     mockLlm.extract.mockResolvedValue({
       ...extracted,

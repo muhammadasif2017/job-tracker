@@ -59,9 +59,8 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const snippets = await this.search.search(
-        `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`,
-      );
+      const generalQuery = `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`;
+      const snippets = await this.search.search(generalQuery);
 
       // With a real company domain, also fetch its homepage, /about, and
       // /contact page — the only reliable sources for facts like industry,
@@ -87,6 +86,25 @@ export class EnrichmentProcessor extends WorkerHost {
           ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
           : [];
 
+      // Conditional fallback: only when the company's own pages came back
+      // thin (fetch failure / thin site), not routinely — an always-on second
+      // Tavily call would double quota usage for the common case, since a
+      // domain is known for most real (non-job-board) postings. `pageText`
+      // (the job-posting page) is deliberately excluded from this check — it's
+      // unrelated to whether the new official fetches succeeded and routinely
+      // exceeds the threshold on its own, which would otherwise mask a thin
+      // official fetch and make the fallback almost never fire.
+      const newOfficialText = [...contactTexts, aboutText, homepageText].join(
+        '',
+      );
+      const shouldFallbackSearch =
+        domain !== undefined && newOfficialText.length < 300;
+      const domainSnippets = shouldFallbackSearch
+        ? await this.search.search(generalQuery, {
+            includeDomains: [domain],
+          })
+        : [];
+
       // Contact text first — it's most likely to carry the address, and is
       // short; then /about (likely to carry founding/HQ prose); then the
       // homepage (marketing-heavy, least structured); job-posting page last
@@ -94,7 +112,13 @@ export class EnrichmentProcessor extends WorkerHost {
       // under truncation below — otherwise homepage/marketing text could
       // crowd out the address-bearing contact text.
       const officialParts = [
-        ...new Set([...contactTexts, aboutText, homepageText, pageText]),
+        ...new Set([
+          ...contactTexts,
+          aboutText,
+          homepageText,
+          ...domainSnippets,
+          pageText,
+        ]),
       ].filter(Boolean);
       const searchParts = [...new Set(snippets)].filter(Boolean);
 
