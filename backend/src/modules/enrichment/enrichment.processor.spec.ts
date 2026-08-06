@@ -379,7 +379,7 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
-  it('keeps a headquarters value with under 40% official-page token overlap but flags it low-confidence', async () => {
+  it('keeps a headquarters value with under 25% official-page token overlap but flags it low-confidence', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -402,7 +402,7 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
-  it('accepts a headquarters value in the loosened 0.4-0.7 band that the stricter address threshold would reject', async () => {
+  it('accepts a headquarters value in the loosened 0.25-0.7 band that the stricter address threshold would reject', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -417,7 +417,7 @@ describe('EnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    // "austin" and "tx" hit (2/4 = 0.5): >= headquarters' 0.4 bar, but below
+    // "austin" and "tx" hit (2/4 = 0.5): >= headquarters' 0.25 bar, but below
     // address's 0.7 bar — proves the loosened threshold is doing real work
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -457,7 +457,7 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
-  it('flags a correct headquarters value low-confidence on state-abbreviation-vs-spelled-out-name mismatch (known, accepted limitation)', async () => {
+  it('accepts a correct headquarters value on a state-abbreviation-vs-spelled-out-name mismatch now that the bar is lowered to 0.25', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -472,15 +472,42 @@ describe('EnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    // Only "austin" matches (1/3 ≈ 0.33, below the 0.4 threshold) since the
-    // official text spells out "Texas" rather than "TX" — documented known
-    // limitation, not a bug to fix in this pass. The value is still kept
-    // and shown, just flagged, so this limitation now costs a spurious
-    // "unverified" badge rather than hiding a correct value outright.
+    // Only "austin" matches (1/3 ≈ 0.33) since the official text spells out
+    // "Texas" rather than "TX" — below the old 0.4 bar (would have been
+    // flagged) but at/above the loosened 0.25 bar, so this specific
+    // abbreviation mismatch is no longer a false-positive
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           headquarters: 'Austin, TX, USA',
+          headquartersLowConfidence: false,
+        }),
+      }),
+    );
+  });
+
+  it('still flags a correct headquarters value low-confidence when overlap falls below the lowered 0.25 bar (known, accepted limitation)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Located in Austin, Texas since 2015.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin, TX, USA Headquarters Office',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // Only "austin" matches out of 5 tokens (1/5 = 0.2, below the 0.25 bar) —
+    // lowering the threshold narrows this limitation, it doesn't eliminate
+    // it. The value is still kept and shown, just flagged, not hidden.
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin, TX, USA Headquarters Office',
           headquartersLowConfidence: true,
         }),
       }),

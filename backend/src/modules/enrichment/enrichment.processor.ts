@@ -164,7 +164,7 @@ export class EnrichmentProcessor extends WorkerHost {
       // inside "increasing") in content from the company's own pages.
       // `address` keeps a strict 0.7 bar (its extraction prompt already
       // restricts sourcing to official pages); `headquarters` uses a looser
-      // 0.4 bar since its prompt has no such restriction and short
+      // 0.25 bar since its prompt has no such restriction and short
       // city/region facts legitimately show up in search-sourced content too.
       //
       // Below the bar, the value is kept (not wiped to "Unknown") but flagged
@@ -172,13 +172,17 @@ export class EnrichmentProcessor extends WorkerHost {
       // possibly wrong" over "no information" for these two fields, same as
       // every other unguarded field already gets. The frontend surfaces the
       // flag so the user can judge for themselves rather than being misled by
-      // an unqualified value.
+      // an unqualified value. Because a below-bar value is now shown (just
+      // flagged) rather than hidden, the cost of a false-reject is lower than
+      // it was when this guard wiped to "Unknown" — headquarters was loosened
+      // from 0.4 to 0.25 on that basis (address stays at 0.7: a wrong street
+      // address is still the single worst failure mode, ADR-013).
       const officialTokens = new Set(
         this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
       );
       const guardThresholds: Record<'address' | 'headquarters', number> = {
         address: 0.7,
-        headquarters: 0.4,
+        headquarters: 0.25,
       };
       const lowConfidence: Record<'address' | 'headquarters', boolean> = {
         address: false,
