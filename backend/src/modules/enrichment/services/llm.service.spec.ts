@@ -59,9 +59,9 @@ describe('LlmService', () => {
     service = module.get(LlmService);
   });
 
-  it('constructs the Groq client with a 30s request timeout', () => {
+  it('constructs the Groq client with a 45s request timeout and a pinned maxRetries of 1', () => {
     expect(mockGroqConstructor).toHaveBeenCalledWith(
-      expect.objectContaining({ timeout: 30_000 }),
+      expect.objectContaining({ timeout: 45_000, maxRetries: 1 }),
     );
   });
 
