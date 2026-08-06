@@ -1,5 +1,6 @@
 import type { Job } from 'bullmq';
 import { EnrichmentStatus } from '@prisma/client';
+import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { EnrichmentProcessor } from './enrichment.processor.js';
 
 const mockPrisma = {
@@ -24,6 +25,15 @@ const extracted = {
 const bullJob = { data: { jobId: 'job-123' } } as Job<{ jobId: string }>;
 
 describe('EnrichmentProcessor', () => {
+  it('sets a 90s lockDuration as stall-detection margin on the @Processor() worker options', () => {
+    const workerOptions = Reflect.getMetadata(
+      WORKER_METADATA,
+      EnrichmentProcessor,
+    ) as { lockDuration?: number } | undefined;
+
+    expect(workerOptions).toEqual({ lockDuration: 90_000 });
+  });
+
   let processor: EnrichmentProcessor;
 
   beforeEach(() => {

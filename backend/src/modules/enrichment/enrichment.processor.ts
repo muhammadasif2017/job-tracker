@@ -24,7 +24,12 @@ const JOB_BOARD_DOMAINS = [
 ];
 
 @Injectable()
-@Processor(ENRICHMENT_QUEUE)
+// lockDuration is stall-detection margin (crashed worker / blocked event
+// loop failing to renew the lock), not a runtime ceiling — BullMQ renews the
+// lock at lockDuration/2 while the job is actively processing. 90s comfortably
+// exceeds that ~45s renewal cadence without being so tight that a transient
+// GC pause causes a false stall detection.
+@Processor(ENRICHMENT_QUEUE, { lockDuration: 90_000 })
 export class EnrichmentProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
