@@ -63,27 +63,39 @@ export class EnrichmentProcessor extends WorkerHost {
         `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`,
       );
 
-      // With a real company domain, also fetch its contact page — the only
-      // reliable source for the street address (same-name companies in the same
-      // city poison search results). Try /contact first; only hit /contact-us
-      // (a second network call) if the first one came back empty.
-      const [pageText, primaryContactText] = await Promise.all([
-        this.webFetch.fetchPageText(dbJob.url ?? ''),
-        domain
-          ? this.webFetch.fetchPageText(`https://${domain}/contact`)
-          : Promise.resolve(''),
-      ]);
+      // With a real company domain, also fetch its homepage, /about, and
+      // /contact page — the only reliable sources for facts like industry,
+      // founded year, headquarters, and street address (same-name companies
+      // in the same city poison search results). Try /contact first; only hit
+      // /contact-us (a second network call) if the first one came back empty.
+      const [pageText, homepageText, aboutText, primaryContactText] =
+        await Promise.all([
+          this.webFetch.fetchPageText(dbJob.url ?? ''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}`)
+            : Promise.resolve(''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}/about`)
+            : Promise.resolve(''),
+          domain
+            ? this.webFetch.fetchPageText(`https://${domain}/contact`)
+            : Promise.resolve(''),
+        ]);
       const contactTexts = primaryContactText
         ? [primaryContactText]
         : domain
           ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
           : [];
 
-      // Contact pages first — they carry the address and are short; the homepage
-      // is marketing text that would otherwise fill the section cap alone
-      const officialParts = [...new Set([...contactTexts, pageText])].filter(
-        Boolean,
-      );
+      // Contact text first — it's most likely to carry the address, and is
+      // short; then /about (likely to carry founding/HQ prose); then the
+      // homepage (marketing-heavy, least structured); job-posting page last
+      // (lowest-priority, most marketing-heavy source). This order matters
+      // under truncation below — otherwise homepage/marketing text could
+      // crowd out the address-bearing contact text.
+      const officialParts = [
+        ...new Set([...contactTexts, aboutText, homepageText, pageText]),
+      ].filter(Boolean);
       const searchParts = [...new Set(snippets)].filter(Boolean);
 
       const sections: string[] = [];
@@ -91,7 +103,7 @@ export class EnrichmentProcessor extends WorkerHost {
         const label = domain
           ? `=== OFFICIAL COMPANY WEBSITE (${domain}) ===`
           : '=== JOB POSTING PAGE ===';
-        sections.push(`${label}\n${officialParts.join('\n\n').slice(0, 4500)}`);
+        sections.push(`${label}\n${officialParts.join('\n\n').slice(0, 6000)}`);
       }
       if (searchParts.length) {
         sections.push(

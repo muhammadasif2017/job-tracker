@@ -158,6 +158,62 @@ describe('EnrichmentProcessor', () => {
     expect(context).toContain('=== OFFICIAL COMPANY WEBSITE (acme.com) ===');
   });
 
+  it('fetches the company homepage and about page when a real domain is known', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith('https://acme.com');
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+      'https://acme.com/about',
+    );
+  });
+
+  it('does not fetch homepage/about without a real company domain', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue({
+      ...dbJob,
+      url: 'https://pk.linkedin.com/jobs/view/12345',
+    });
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(1);
+  });
+
+  it('places contact text ahead of homepage text when combined official content exceeds the section cap', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    const contactText = 'CONTACT_MARKER ' + 'x'.repeat(4000);
+    const homepageText = 'HOMEPAGE_MARKER ' + 'y'.repeat(4000);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) => {
+      if (url === 'https://acme.com/contact')
+        return Promise.resolve(contactText);
+      if (url === 'https://acme.com') return Promise.resolve(homepageText);
+      return Promise.resolve('');
+    });
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('CONTACT_MARKER');
+    expect(context.indexOf('CONTACT_MARKER')).toBeLessThan(
+      context.indexOf('HOMEPAGE_MARKER'),
+    );
+  });
+
   it('falls back to /contact-us when /contact is empty', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
