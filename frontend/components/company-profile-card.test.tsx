@@ -212,7 +212,29 @@ describe('CompanyProfileCard', () => {
       expect(screen.getByText('Queued…')).toBeInTheDocument();
     });
 
-    it('shows prior fields plus an inline failure banner instead of the bare error card on FAILED', () => {
+    it('shows prior fields plus an inline failure banner (raw message) instead of the bare error card on FAILED', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          industry: 'Fintech',
+          errorMessage: 'Unexpected tool-call shape from LLM',
+          enrichedAt: '2026-01-01T00:00:00Z',
+        }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+      expect(screen.getByText(/Last refresh failed/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Unexpected tool-call shape from LLM/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/showing the last successful result/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /refresh/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('classifies the inline failure banner the same way as the no-data FAILED card, instead of always showing a raw message', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
@@ -221,12 +243,12 @@ describe('CompanyProfileCard', () => {
           enrichedAt: '2026-01-01T00:00:00Z',
         }),
       );
-      expect(screen.getByText('Fintech')).toBeInTheDocument();
-      expect(screen.getByText(/Last refresh failed/)).toBeInTheDocument();
-      expect(screen.getByText(/API timeout/)).toBeInTheDocument();
+      // "API timeout" classifies as UNAVAILABLE — the friendly message
+      // should be shown, not the raw string, same as the !hasData FAILED card
       expect(
-        screen.getByRole('button', { name: /refresh/i }),
+        screen.getByText(/temporarily unreachable/),
       ).toBeInTheDocument();
+      expect(screen.queryByText(/API timeout/)).not.toBeInTheDocument();
     });
 
     it('still shows the loading skeleton when PROCESSING with no prior data', () => {

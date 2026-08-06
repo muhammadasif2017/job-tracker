@@ -73,6 +73,59 @@ function classifyFailure(message: string | null | undefined): FailureKind | null
   return null;
 }
 
+function FailureBanner({
+  errorMessage,
+  prefix,
+  suffix,
+}: {
+  errorMessage: string | null | undefined;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const kind = classifyFailure(errorMessage);
+  const copy = kind ? FAILURE_COPY[kind] : null;
+
+  if (!copy) {
+    return (
+      <p className="text-sm text-red-600 dark:text-red-400 break-words">
+        {prefix}
+        {errorMessage ?? 'Enrichment failed. Try again.'}
+        {suffix}
+      </p>
+    );
+  }
+
+  const Icon = copy.icon;
+  return (
+    <div
+      className={
+        copy.tone === 'amber'
+          ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
+          : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
+      }
+    >
+      <Icon
+        className={
+          copy.tone === 'amber'
+            ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
+            : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
+        }
+      />
+      <p
+        className={
+          copy.tone === 'amber'
+            ? 'text-sm text-amber-700 dark:text-amber-400'
+            : 'text-sm text-red-700 dark:text-red-400'
+        }
+      >
+        {prefix}
+        {copy.message}
+        {suffix}
+      </p>
+    </div>
+  );
+}
+
 function ProfileFields({ profile }: { profile: CompanyProfile }) {
   return (
     <>
@@ -221,10 +274,6 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
   }
 
   if (profile.status === 'FAILED' && !hasData) {
-    const kind = classifyFailure(profile.errorMessage);
-    const copy = kind ? FAILURE_COPY[kind] : null;
-    const Icon = copy?.icon;
-
     return (
       <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-3">
         <div className="flex items-center justify-between">
@@ -240,36 +289,7 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <RefreshCw className="h-3.5 w-3.5" /> Refresh
           </Button>
         </div>
-        {copy && Icon ? (
-          <div
-            className={
-              copy.tone === 'amber'
-                ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
-                : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
-            }
-          >
-            <Icon
-              className={
-                copy.tone === 'amber'
-                  ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
-                  : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
-              }
-            />
-            <p
-              className={
-                copy.tone === 'amber'
-                  ? 'text-sm text-amber-700 dark:text-amber-400'
-                  : 'text-sm text-red-700 dark:text-red-400'
-              }
-            >
-              {copy.message}
-            </p>
-          </div>
-        ) : (
-          <p className="text-sm text-red-600 dark:text-red-400 break-words">
-            {profile.errorMessage ?? 'Enrichment failed. Try again.'}
-          </p>
-        )}
+        <FailureBanner errorMessage={profile.errorMessage} />
       </div>
     );
   }
@@ -298,14 +318,11 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
       </div>
 
       {profile.status === 'FAILED' && (
-        <div className="flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30">
-          <WifiOff className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-          <p className="text-sm text-amber-700 dark:text-amber-400">
-            Last refresh failed
-            {profile.errorMessage ? `: ${profile.errorMessage}` : ''} — showing
-            the last successful result.
-          </p>
-        </div>
+        <FailureBanner
+          errorMessage={profile.errorMessage}
+          prefix="Last refresh failed: "
+          suffix=" — showing the last successful result."
+        />
       )}
 
       <ProfileFields profile={profile} />

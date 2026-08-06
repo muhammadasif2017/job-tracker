@@ -10,6 +10,11 @@ import { LlmService, type CompanyData } from './services/llm.service.js';
 
 export const ENRICHMENT_QUEUE = 'company-enrichment';
 
+type ExtractionResult = {
+  data: CompanyData;
+  lowConfidence: { address: boolean; headquarters: boolean };
+};
+
 // Hosts that are job boards, not the company's own site — their domain must not
 // be used as a trust hint or for contact-page fetching
 const JOB_BOARD_DOMAINS = [
@@ -60,12 +65,7 @@ export class EnrichmentProcessor extends WorkerHost {
     // throws (e.g. the final DB write itself hiccups), the catch block below
     // uses this to salvage the already-extracted data as a COMPLETED write
     // instead of discarding it in favor of a bare FAILED status.
-    let extraction:
-      | {
-          data: CompanyData;
-          lowConfidence: { address: boolean; headquarters: boolean };
-        }
-      | undefined;
+    let extraction: ExtractionResult | undefined;
 
     try {
       await this.prisma.companyProfile.upsert({
@@ -183,11 +183,8 @@ export class EnrichmentProcessor extends WorkerHost {
       // possibly wrong" over "no information" for these two fields, same as
       // every other unguarded field already gets. The frontend surfaces the
       // flag so the user can judge for themselves rather than being misled by
-      // an unqualified value. Because a below-bar value is now shown (just
-      // flagged) rather than hidden, the cost of a false-reject is lower than
-      // it was when this guard wiped to "Unknown" — headquarters was loosened
-      // from 0.4 to 0.25 on that basis (address stays at 0.7: a wrong street
-      // address is still the single worst failure mode, ADR-013).
+      // an unqualified value. See docs/company-profile-enrichment.md §6/§10
+      // for the full threshold-tuning history and rationale.
       const officialTokens = new Set(
         this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
       );
@@ -229,13 +226,7 @@ export class EnrichmentProcessor extends WorkerHost {
 
       await this.prisma.companyProfile.update({
         where: { jobId },
-        data: {
-          status: EnrichmentStatus.COMPLETED,
-          ...data,
-          addressLowConfidence: lowConfidence.address,
-          headquartersLowConfidence: lowConfidence.headquarters,
-          enrichedAt: new Date(),
-        },
+        data: this.buildCompletedProfileData(extraction),
       });
 
       this.logger.log('enrichment_completed', {
@@ -260,59 +251,84 @@ export class EnrichmentProcessor extends WorkerHost {
         where: { id: jobId },
       });
       if (stillExists) {
-        // Distinguishes the two failure modes below in
-        // `enrichment_profile_update_failed` — "salvage" (already-extracted
-        // data lost on a double DB failure, the worse outcome) vs
-        // "mark_failed" (couldn't even record that the run failed).
-        const phase: 'salvage' | 'mark_failed' = extraction
-          ? 'salvage'
-          : 'mark_failed';
-        try {
-          if (extraction) {
-            // Extraction (and the guard) already succeeded — whatever threw
-            // was a late step (the stillExists re-check or the COMPLETED
-            // write itself). Salvage the already-extracted data rather than
-            // discarding it in favor of an empty FAILED profile.
-            await this.prisma.companyProfile.update({
-              where: { jobId },
-              data: {
-                status: EnrichmentStatus.COMPLETED,
-                ...extraction.data,
-                addressLowConfidence: extraction.lowConfidence.address,
-                headquartersLowConfidence: extraction.lowConfidence.headquarters,
-                enrichedAt: new Date(),
-              },
-            });
-            this.logger.log('enrichment_completed_after_late_failure', {
-              jobId,
-              company,
-              error: errorMessage,
-              durationMs: Date.now() - startedAt,
-            });
-            return;
-          }
-
-          await this.prisma.companyProfile.update({
-            where: { jobId },
-            data: {
-              status: EnrichmentStatus.FAILED,
-              errorMessage,
-            },
-          });
-        } catch (updateErr) {
-          this.logger.warn('enrichment_profile_update_failed', {
-            jobId,
-            phase,
-            error:
-              updateErr instanceof Error
-                ? updateErr.message
-                : String(updateErr),
-          });
-        }
+        const salvaged = await this.recordFailureOutcome(
+          jobId,
+          company,
+          extraction,
+          errorMessage,
+          startedAt,
+        );
+        if (salvaged) return;
       }
 
       throw error;
     }
+  }
+
+  // Extraction (and the guard) already succeeded — whatever threw was a
+  // late step (the stillExists re-check or the COMPLETED write itself).
+  // Salvage the already-extracted data as a COMPLETED write rather than
+  // discarding it in favor of an empty FAILED profile. Returns true only
+  // when the salvage write itself succeeds, telling the caller not to
+  // rethrow (retrying a pipeline that already produced good data is
+  // pointless). Falls back to a plain FAILED write when there's nothing to
+  // salvage, or when the salvage write also fails.
+  private async recordFailureOutcome(
+    jobId: string,
+    company: string,
+    extraction: ExtractionResult | undefined,
+    errorMessage: string,
+    startedAt: number,
+  ): Promise<boolean> {
+    // Distinguishes the two failure modes below in
+    // `enrichment_profile_update_failed` — "salvage" (already-extracted data
+    // lost on a double DB failure, the worse outcome) vs "mark_failed"
+    // (couldn't even record that the run failed).
+    const phase: 'salvage' | 'mark_failed' = extraction
+      ? 'salvage'
+      : 'mark_failed';
+    try {
+      if (extraction) {
+        await this.prisma.companyProfile.update({
+          where: { jobId },
+          data: this.buildCompletedProfileData(extraction),
+        });
+        this.logger.log('enrichment_completed_after_late_failure', {
+          jobId,
+          company,
+          error: errorMessage,
+          durationMs: Date.now() - startedAt,
+        });
+        return true;
+      }
+
+      await this.prisma.companyProfile.update({
+        where: { jobId },
+        data: {
+          status: EnrichmentStatus.FAILED,
+          errorMessage,
+        },
+      });
+      return false;
+    } catch (updateErr) {
+      this.logger.warn('enrichment_profile_update_failed', {
+        jobId,
+        phase,
+        error:
+          updateErr instanceof Error ? updateErr.message : String(updateErr),
+      });
+      return false;
+    }
+  }
+
+  private buildCompletedProfileData(extraction: ExtractionResult) {
+    return {
+      status: EnrichmentStatus.COMPLETED,
+      ...extraction.data,
+      addressLowConfidence: extraction.lowConfidence.address,
+      headquartersLowConfidence: extraction.lowConfidence.headquarters,
+      enrichedAt: new Date(),
+    };
   }
 
   private normalize(text: string): string {

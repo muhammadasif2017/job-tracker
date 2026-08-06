@@ -430,6 +430,32 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
+  it('accepts a headquarters value exactly at the 0.25 threshold boundary (not just above it)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Located in Austin only.');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin Nomatch Words Here',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // "austin" hits, the other 3 tokens don't: 1/4 = exactly 0.25. The guard
+    // check is `< threshold`, so a value exactly at the bar must be accepted,
+    // not flagged — pins the boundary against an accidental `<=` flip.
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          headquarters: 'Austin Nomatch Words Here',
+          headquartersLowConfidence: false,
+        }),
+      }),
+    );
+  });
+
   it('does not let a token match inside an unrelated word pass the guard', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
