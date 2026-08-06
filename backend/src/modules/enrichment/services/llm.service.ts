@@ -166,6 +166,10 @@ export class LlmService {
   ) {
     this.client = new Groq({
       apiKey: this.config.get('GROQ_API_KEY') ?? 'placeholder',
+      // Hard upper bound on each call so a hung request can't keep the
+      // BullMQ job running indefinitely (feeds the enrichment worker's
+      // lockDuration margin — see enrichment.processor.ts)
+      timeout: 30_000,
     });
   }
 
