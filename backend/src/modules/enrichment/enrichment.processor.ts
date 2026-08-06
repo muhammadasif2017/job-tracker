@@ -153,20 +153,34 @@ export class EnrichmentProcessor extends WorkerHost {
       });
 
       // Deterministic guard: prompt instructions alone don't stop the LLM from
-      // taking a street address from a same-name company in search results.
-      // Accept an address only if most of its tokens appear in content from the
-      // company's own pages (official site / contact page / job posting).
-      if (data.address && data.address !== 'Unknown') {
-        const officialNorm = this.normalize(officialParts.join(' '));
-        const tokens = this.normalize(data.address).split(' ').filter(Boolean);
-        const hits = tokens.filter((t) => officialNorm.includes(t)).length;
-        if (!tokens.length || hits / tokens.length < 0.7) {
-          this.logger.log('enrichment_address_rejected', {
+      // taking an address/headquarters from a same-name company in search
+      // results. Accept a value only if enough of its tokens appear as exact
+      // tokens (not substrings — "inc" must not match inside "increasing") in
+      // content from the company's own pages. `address` keeps a strict 0.7
+      // bar (its extraction prompt already restricts sourcing to official
+      // pages); `headquarters` uses a looser 0.4 bar since its prompt has no
+      // such restriction and short city/region facts legitimately show up in
+      // search-sourced content too.
+      const officialTokens = new Set(
+        this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
+      );
+      const guardThresholds: Record<'address' | 'headquarters', number> = {
+        address: 0.7,
+        headquarters: 0.4,
+      };
+      for (const field of ['address', 'headquarters'] as const) {
+        const value = data[field];
+        if (!value || value === 'Unknown') continue;
+        const tokens = this.normalize(value).split(' ').filter(Boolean);
+        const hits = tokens.filter((t) => officialTokens.has(t)).length;
+        if (!tokens.length || hits / tokens.length < guardThresholds[field]) {
+          this.logger.log('enrichment_field_rejected', {
             jobId,
             company,
-            address: data.address,
+            field,
+            value,
           });
-          data.address = 'Unknown';
+          data[field] = 'Unknown';
         }
       }
 

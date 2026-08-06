@@ -363,6 +363,100 @@ describe('EnrichmentProcessor', () => {
     );
   });
 
+  it('rejects a headquarters value with under 40% official-page token overlap', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Springfield Illinois USA',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ headquarters: 'Unknown' }),
+      }),
+    );
+  });
+
+  it('accepts a headquarters value in the loosened 0.4-0.7 band that the stricter address threshold would reject', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Our office is located in Austin, TX.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin TX USA HQ',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // "austin" and "tx" hit (2/4 = 0.5): >= headquarters' 0.4 bar, but below
+    // address's 0.7 bar — proves the loosened threshold is doing real work
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ headquarters: 'Austin TX USA HQ' }),
+      }),
+    );
+  });
+
+  it('does not let a token match inside an unrelated word pass the guard', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    // "increasing" contains the substring "inc" — the old `.includes(t)`
+    // matcher would have wrongly counted "inc" as a hit here; exact
+    // token-Set matching requires "inc" as its own standalone token
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'We are increasing headcount rapidly.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Springfield Inc',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ headquarters: 'Unknown' }),
+      }),
+    );
+  });
+
+  it('rejects a correct headquarters value on state-abbreviation-vs-spelled-out-name mismatch (known, accepted limitation)', async () => {
+    mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+    mockPrisma.companyProfile.upsert.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'Located in Austin, Texas since 2015.',
+    );
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      headquarters: 'Austin, TX, USA',
+    });
+    mockPrisma.companyProfile.update.mockResolvedValue({});
+
+    await processor.process(bullJob);
+
+    // Only "austin" matches (1/3 ≈ 0.33, below the 0.4 threshold) since the
+    // official text spells out "Texas" rather than "TX" — documented known
+    // limitation, not a bug to fix in this pass
+    expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ headquarters: 'Unknown' }),
+      }),
+    );
+  });
+
   it('returns early without touching the profile when job is not found', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(null);
 
