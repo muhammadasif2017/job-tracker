@@ -599,4 +599,71 @@ describe('EnrichmentProcessor', () => {
 
     await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
   });
+
+  describe('salvaging already-extracted data on a late failure', () => {
+    it('saves the extracted data as COMPLETED (and resolves, no rethrow) when the final write fails once but a salvage retry succeeds', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+      mockLlm.extract.mockResolvedValue(extracted);
+
+      let updateCalls = 0;
+      mockPrisma.companyProfile.update.mockImplementation(() => {
+        updateCalls += 1;
+        return updateCalls === 1
+          ? Promise.reject(new Error('DB connection reset'))
+          : Promise.resolve({});
+      });
+
+      await expect(processor.process(bullJob)).resolves.toBeUndefined();
+
+      expect(mockPrisma.companyProfile.update).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            status: EnrichmentStatus.COMPLETED,
+            industry: extracted.industry,
+            headquarters: extracted.headquarters,
+          }),
+        }),
+      );
+    });
+
+    it('rethrows the original error (not the salvage error) when both the write and the salvage retry fail', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
+      mockLlm.extract.mockResolvedValue(extracted);
+      mockPrisma.companyProfile.update.mockRejectedValue(
+        new Error('DB connection reset'),
+      );
+
+      await expect(processor.process(bullJob)).rejects.toThrow(
+        'DB connection reset',
+      );
+      // Called twice: the original COMPLETED write, then the salvage retry
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not attempt a salvage write when extraction itself never succeeded', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue(dbJob);
+      mockPrisma.companyProfile.upsert.mockResolvedValue({});
+      mockSearch.search.mockResolvedValue([]);
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.extract.mockRejectedValue(new Error('LLM timeout'));
+      mockPrisma.companyProfile.update.mockResolvedValue({});
+
+      await expect(processor.process(bullJob)).rejects.toThrow('LLM timeout');
+
+      // Only the FAILED write — no COMPLETED salvage attempt, since there
+      // was never any extracted data to salvage
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ status: EnrichmentStatus.FAILED }),
+        }),
+      );
+    });
+  });
 });

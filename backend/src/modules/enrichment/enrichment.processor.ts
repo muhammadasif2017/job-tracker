@@ -6,7 +6,7 @@ import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
-import { LlmService } from './services/llm.service.js';
+import { LlmService, type CompanyData } from './services/llm.service.js';
 
 export const ENRICHMENT_QUEUE = 'company-enrichment';
 
@@ -55,6 +55,17 @@ export class EnrichmentProcessor extends WorkerHost {
     const location = dbJob.location ?? undefined;
     const domain = this.extractDomain(dbJob.url);
     this.logger.log('enrichment_started', { jobId, company });
+
+    // Set once extraction + the guard both succeed. If a later step then
+    // throws (e.g. the final DB write itself hiccups), the catch block below
+    // uses this to salvage the already-extracted data as a COMPLETED write
+    // instead of discarding it in favor of a bare FAILED status.
+    let extraction:
+      | {
+          data: CompanyData;
+          lowConfidence: { address: boolean; headquarters: boolean };
+        }
+      | undefined;
 
     try {
       await this.prisma.companyProfile.upsert({
@@ -204,6 +215,8 @@ export class EnrichmentProcessor extends WorkerHost {
         }
       }
 
+      extraction = { data, lowConfidence };
+
       const stillExists = await this.prisma.job.findFirst({
         where: { id: jobId },
       });
@@ -248,6 +261,30 @@ export class EnrichmentProcessor extends WorkerHost {
       });
       if (stillExists) {
         try {
+          if (extraction) {
+            // Extraction (and the guard) already succeeded — whatever threw
+            // was a late step (the stillExists re-check or the COMPLETED
+            // write itself). Salvage the already-extracted data rather than
+            // discarding it in favor of an empty FAILED profile.
+            await this.prisma.companyProfile.update({
+              where: { jobId },
+              data: {
+                status: EnrichmentStatus.COMPLETED,
+                ...extraction.data,
+                addressLowConfidence: extraction.lowConfidence.address,
+                headquartersLowConfidence: extraction.lowConfidence.headquarters,
+                enrichedAt: new Date(),
+              },
+            });
+            this.logger.log('enrichment_completed_after_late_failure', {
+              jobId,
+              company,
+              error: errorMessage,
+              durationMs: Date.now() - startedAt,
+            });
+            return;
+          }
+
           await this.prisma.companyProfile.update({
             where: { jobId },
             data: {
