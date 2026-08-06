@@ -173,6 +173,34 @@ describe('SearchService', () => {
     expect(snippets[0]).toBe('Has content.');
   });
 
+  it('includes include_domains in the request body when includeDomains is passed', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(tavilyResponse),
+    });
+
+    await service.search('Acme Corp', { includeDomains: ['acme.com'] });
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.include_domains).toEqual(['acme.com']);
+  });
+
+  it('omits include_domains from the request body when not passed', async () => {
+    mockConfigService.get.mockReturnValue('test-key');
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(tavilyResponse),
+    });
+
+    await service.search('Acme Corp');
+
+    const [, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.include_domains).toBeUndefined();
+  });
+
   it('filters out results with no content', async () => {
     mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({

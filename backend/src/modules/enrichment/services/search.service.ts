@@ -22,7 +22,10 @@ export class SearchService {
     private readonly logger: Logger,
   ) {}
 
-  async search(query: string): Promise<string[]> {
+  async search(
+    query: string,
+    options?: { includeDomains?: string[] },
+  ): Promise<string[]> {
     const apiKey = this.config.get<string>('TAVILY_API_KEY');
     if (!apiKey) return [];
 
@@ -33,7 +36,14 @@ export class SearchService {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({ query, max_results: 5, include_answer: true }),
+        body: JSON.stringify({
+          query,
+          max_results: 5,
+          include_answer: true,
+          ...(options?.includeDomains
+            ? { include_domains: options.includeDomains }
+            : {}),
+        }),
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
