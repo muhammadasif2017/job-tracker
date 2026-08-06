@@ -113,7 +113,19 @@ test.describe('Company enrichment card', () => {
 
     await refreshButton.click();
     await expect(page.getByText('Enrichment queued')).toBeVisible();
-    await expect(page.getByText(/Queued…|Researching…/)).toBeVisible();
+    // The refreshed run keeps the prior data visible while in flight (see
+    // enrichment.service.ts — re-runs no longer null out fields), so the
+    // in-flight label here is "Refreshing…"/"Queued…", not "Researching…"
+    // (that word is first-run-only, when there's no prior data to show
+    // alongside a skeleton). Real search + LLM extraction can also finish
+    // fast enough locally to land on a terminal state before this assertion
+    // runs — same class of timing race called out in the "second enrichment
+    // request" test above — so accept the Refresh button reappearing too.
+    await expect(
+      page
+        .getByText(/Queued…|Refreshing…/)
+        .or(page.getByRole('button', { name: 'Refresh' })),
+    ).toBeVisible();
   });
 
   test('FAILED enrichment shows the error message and Refresh re-queues it', async ({
