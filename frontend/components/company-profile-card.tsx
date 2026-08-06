@@ -1,6 +1,6 @@
 'use client';
 
-import { RefreshCw, Clock, WifiOff, KeyRound } from 'lucide-react';
+import { RefreshCw, Clock, WifiOff, KeyRound, AlertTriangle } from 'lucide-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -38,6 +38,18 @@ const FAILURE_COPY: Record<
       "Company research isn't configured correctly (API key issue). Check GROQ_API_KEY on the backend.",
   },
 };
+
+function UnverifiedBadge() {
+  return (
+    <span
+      title="Couldn't confirm this against the company's own site — may belong to a different company with the same name."
+      className="ml-1.5 inline-flex items-center gap-0.5 align-middle text-xs font-normal text-amber-600 dark:text-amber-400"
+    >
+      <AlertTriangle className="h-3 w-3" />
+      unverified
+    </span>
+  );
+}
 
 function classifyFailure(message: string | null | undefined): FailureKind | null {
   if (!message) return null;
@@ -189,7 +201,10 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
               HQ
             </p>
-            <p className="break-words">{profile.headquarters}</p>
+            <p className="break-words">
+              {profile.headquarters}
+              {profile.headquartersLowConfidence && <UnverifiedBadge />}
+            </p>
           </div>
         )}
         {profile.founded && (
@@ -225,7 +240,10 @@ export function CompanyProfileCard({ profile, jobId }: Props) {
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
             Address
           </p>
-          <p className="text-sm break-words">{profile.address}</p>
+          <p className="text-sm break-words">
+            {profile.address}
+            {profile.addressLowConfidence && <UnverifiedBadge />}
+          </p>
         </div>
       )}
 

@@ -159,13 +159,20 @@ export class EnrichmentProcessor extends WorkerHost {
 
       // Deterministic guard: prompt instructions alone don't stop the LLM from
       // taking an address/headquarters from a same-name company in search
-      // results. Accept a value only if enough of its tokens appear as exact
-      // tokens (not substrings — "inc" must not match inside "increasing") in
-      // content from the company's own pages. `address` keeps a strict 0.7
-      // bar (its extraction prompt already restricts sourcing to official
-      // pages); `headquarters` uses a looser 0.4 bar since its prompt has no
-      // such restriction and short city/region facts legitimately show up in
-      // search-sourced content too.
+      // results. Accept a value at full confidence only if enough of its
+      // tokens appear as exact tokens (not substrings — "inc" must not match
+      // inside "increasing") in content from the company's own pages.
+      // `address` keeps a strict 0.7 bar (its extraction prompt already
+      // restricts sourcing to official pages); `headquarters` uses a looser
+      // 0.4 bar since its prompt has no such restriction and short
+      // city/region facts legitimately show up in search-sourced content too.
+      //
+      // Below the bar, the value is kept (not wiped to "Unknown") but flagged
+      // low-confidence — the product preference here is "some information,
+      // possibly wrong" over "no information" for these two fields, same as
+      // every other unguarded field already gets. The frontend surfaces the
+      // flag so the user can judge for themselves rather than being misled by
+      // an unqualified value.
       const officialTokens = new Set(
         this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
       );
@@ -173,19 +180,23 @@ export class EnrichmentProcessor extends WorkerHost {
         address: 0.7,
         headquarters: 0.4,
       };
+      const lowConfidence: Record<'address' | 'headquarters', boolean> = {
+        address: false,
+        headquarters: false,
+      };
       for (const field of ['address', 'headquarters'] as const) {
         const value = data[field];
         if (!value || value === 'Unknown') continue;
         const tokens = this.normalize(value).split(' ').filter(Boolean);
         const hits = tokens.filter((t) => officialTokens.has(t)).length;
         if (!tokens.length || hits / tokens.length < guardThresholds[field]) {
-          this.logger.log('enrichment_field_rejected', {
+          this.logger.log('enrichment_field_low_confidence', {
             jobId,
             company,
             field,
             value,
           });
-          data[field] = 'Unknown';
+          lowConfidence[field] = true;
         }
       }
 
@@ -204,6 +215,8 @@ export class EnrichmentProcessor extends WorkerHost {
         data: {
           status: EnrichmentStatus.COMPLETED,
           ...data,
+          addressLowConfidence: lowConfidence.address,
+          headquartersLowConfidence: lowConfidence.headquarters,
           enrichedAt: new Date(),
         },
       });

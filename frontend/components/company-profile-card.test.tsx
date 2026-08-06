@@ -200,6 +200,39 @@ describe('CompanyProfileCard', () => {
       expect(screen.getByText('San Francisco, CA')).toBeInTheDocument();
     });
 
+    it('does not show an unverified badge for a normal-confidence headquarters', () => {
+      renderCard(makeProfile({ headquarters: 'San Francisco, CA' }));
+      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+    });
+
+    it('shows an unverified badge when headquartersLowConfidence is true', () => {
+      renderCard(
+        makeProfile({
+          headquarters: 'Springfield, IL',
+          headquartersLowConfidence: true,
+        }),
+      );
+      expect(screen.getByText('Springfield, IL')).toBeInTheDocument();
+      expect(screen.getByText('unverified')).toBeInTheDocument();
+    });
+
+    it('shows address without a badge when addressLowConfidence is false', () => {
+      renderCard(makeProfile({ address: '123 Main St, Austin, TX' }));
+      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
+      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+    });
+
+    it('shows an unverified badge on the address when addressLowConfidence is true', () => {
+      renderCard(
+        makeProfile({
+          address: '123 Main St, Austin, TX',
+          addressLowConfidence: true,
+        }),
+      );
+      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
+      expect(screen.getByText('unverified')).toBeInTheDocument();
+    });
+
     it('shows founded year when present', () => {
       renderCard(makeProfile({ founded: '2012' }));
       expect(screen.getByText('2012')).toBeInTheDocument();

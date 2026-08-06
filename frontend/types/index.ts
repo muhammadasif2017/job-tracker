@@ -72,7 +72,9 @@ export interface CompanyProfile {
   workPolicy?: string;
   workLifeBalance?: string;
   headquarters?: string;
+  headquartersLowConfidence?: boolean;
   address?: string;
+  addressLowConfidence?: boolean;
   founded?: string;
   errorMessage?: string;
   enrichedAt?: string;

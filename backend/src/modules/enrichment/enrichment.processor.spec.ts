@@ -341,12 +341,13 @@ describe('EnrichmentProcessor', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           address: 'Plot 5 Main Street Austin TX',
+          addressLowConfidence: false,
         }),
       }),
     );
   });
 
-  it('rejects an address that only appears in search results', async () => {
+  it('keeps a low-overlap address but flags it low-confidence instead of wiping it', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     // General search returns a same-name collision company's address; the
@@ -366,14 +367,19 @@ describe('EnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
+    // Kept, not wiped to "Unknown" — the guard now flags a low-confidence
+    // value instead of discarding it, so the field still shows something
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ address: 'Unknown' }),
+        data: expect.objectContaining({
+          address: 'Plot 10 Block BB Canal Road Lahore',
+          addressLowConfidence: true,
+        }),
       }),
     );
   });
 
-  it('rejects a headquarters value with under 40% official-page token overlap', async () => {
+  it('keeps a headquarters value with under 40% official-page token overlap but flags it low-confidence', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -388,7 +394,10 @@ describe('EnrichmentProcessor', () => {
 
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ headquarters: 'Unknown' }),
+        data: expect.objectContaining({
+          headquarters: 'Springfield Illinois USA',
+          headquartersLowConfidence: true,
+        }),
       }),
     );
   });
@@ -412,7 +421,10 @@ describe('EnrichmentProcessor', () => {
     // address's 0.7 bar — proves the loosened threshold is doing real work
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ headquarters: 'Austin TX USA HQ' }),
+        data: expect.objectContaining({
+          headquarters: 'Austin TX USA HQ',
+          headquartersLowConfidence: false,
+        }),
       }),
     );
   });
@@ -437,12 +449,15 @@ describe('EnrichmentProcessor', () => {
 
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ headquarters: 'Unknown' }),
+        data: expect.objectContaining({
+          headquarters: 'Springfield Inc',
+          headquartersLowConfidence: true,
+        }),
       }),
     );
   });
 
-  it('rejects a correct headquarters value on state-abbreviation-vs-spelled-out-name mismatch (known, accepted limitation)', async () => {
+  it('flags a correct headquarters value low-confidence on state-abbreviation-vs-spelled-out-name mismatch (known, accepted limitation)', async () => {
     mockPrisma.job.findFirst.mockResolvedValue(dbJob);
     mockPrisma.companyProfile.upsert.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -459,10 +474,15 @@ describe('EnrichmentProcessor', () => {
 
     // Only "austin" matches (1/3 ≈ 0.33, below the 0.4 threshold) since the
     // official text spells out "Texas" rather than "TX" — documented known
-    // limitation, not a bug to fix in this pass
+    // limitation, not a bug to fix in this pass. The value is still kept
+    // and shown, just flagged, so this limitation now costs a spurious
+    // "unverified" badge rather than hiding a correct value outright.
     expect(mockPrisma.companyProfile.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ headquarters: 'Unknown' }),
+        data: expect.objectContaining({
+          headquarters: 'Austin, TX, USA',
+          headquartersLowConfidence: true,
+        }),
       }),
     );
   });
