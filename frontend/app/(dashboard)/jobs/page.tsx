@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Plus,
   Sparkles,
@@ -34,11 +33,11 @@ import {
   JOB_PRIORITIES,
   PRIORITY_LABELS,
   type Job,
-  type PaginatedJobs,
   type JobStatus,
   type JobPriority,
 } from '../../../types';
-import api, { getErrorMessage } from '../../../lib/api';
+import api from '../../../lib/api';
+import { useJobsQuery, useDeleteJobMutation } from '../../../features/jobs/hooks';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -50,7 +49,6 @@ function useDebounce<T>(value: T, delay = 300): T {
 }
 
 export default function JobsPage() {
-  const qc = useQueryClient();
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('');
@@ -63,42 +61,14 @@ export default function JobsPage() {
 
   const debouncedSearch = useDebounce(search);
 
-  const params = new URLSearchParams({
-    page: String(page),
-    limit: '10',
-    sortBy: 'appliedAt',
-    sortOrder: 'desc',
-    ...(debouncedSearch && { search: debouncedSearch }),
-    ...(statusFilter && { status: statusFilter }),
-    ...(priorityFilter && { priority: priorityFilter }),
+  const { data, isLoading, isError, refetch } = useJobsQuery({
+    page,
+    search: debouncedSearch,
+    status: statusFilter,
+    priority: priorityFilter,
   });
 
-  const { data, isLoading, isError, refetch } = useQuery<PaginatedJobs>({
-    queryKey: [
-      'jobs',
-      {
-        page,
-        search: debouncedSearch,
-        status: statusFilter,
-        priority: priorityFilter,
-      },
-    ],
-    queryFn: () => api.get(`/jobs?${params}`).then((r) => r.data),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/jobs/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
-      setDeleteTarget(undefined);
-      toast.success('Job deleted');
-    },
-    onError: (err) => {
-      toast.error(getErrorMessage(err, 'Failed to delete job'));
-    },
-  });
+  const deleteMutation = useDeleteJobMutation(() => setDeleteTarget(undefined));
 
   const openEdit = useCallback((job: Job) => {
     setEditJob(job);

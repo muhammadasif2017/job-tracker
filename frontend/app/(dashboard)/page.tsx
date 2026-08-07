@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useQuery } from '@tanstack/react-query';
 import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays, Ghost } from 'lucide-react';
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
@@ -13,14 +12,13 @@ import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
 import { formatDateOnly } from '../../lib/utils';
-import api from '../../lib/api';
-import type {
-  JobStats,
-  PaginatedJobs,
-  FunnelStats,
-  TrendStats,
-  DashboardRange,
-} from '../../types';
+import type { DashboardRange } from '../../types';
+import {
+  useStatsQuery,
+  useFunnelQuery,
+  useTrendQuery,
+  useRecentJobsQuery,
+} from '../../features/dashboard/hooks';
 
 // Below-the-fold charts: code-split out of the initial dashboard bundle.
 const FunnelChart = dynamic(
@@ -39,45 +37,25 @@ export default function DashboardPage() {
     data: stats,
     isLoading: statsLoading,
     isError: statsError,
-  } = useQuery<JobStats>({
-    queryKey: ['stats', range],
-    queryFn: () => api.get(`/jobs/stats?range=${range}`).then((r) => r.data),
-    placeholderData: (prev) => prev,
-  });
+  } = useStatsQuery(range);
 
   const {
     data: funnel,
     isLoading: funnelLoading,
     isError: funnelError,
-  } = useQuery<FunnelStats>({
-    queryKey: ['analytics', 'funnel', range],
-    queryFn: () =>
-      api.get(`/jobs/stats/funnel?range=${range}`).then((r) => r.data),
-    placeholderData: (prev) => prev,
-  });
+  } = useFunnelQuery(range);
 
   const {
     data: trend,
     isLoading: trendLoading,
     isError: trendError,
-  } = useQuery<TrendStats>({
-    queryKey: ['analytics', 'trend', range],
-    queryFn: () =>
-      api.get(`/jobs/stats/trend?range=${range}`).then((r) => r.data),
-    placeholderData: (prev) => prev,
-  });
+  } = useTrendQuery(range);
 
   const {
     data: recent,
     isLoading: recentLoading,
     isError: recentError,
-  } = useQuery<PaginatedJobs>({
-    queryKey: ['jobs', { limit: 5, sortBy: 'createdAt' }],
-    queryFn: () =>
-      api
-        .get('/jobs?limit=5&sortBy=createdAt&sortOrder=desc')
-        .then((r) => r.data),
-  });
+  } = useRecentJobsQuery();
 
   return (
     <div className="space-y-6">

@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   CalendarDays,
@@ -10,7 +9,6 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
@@ -25,11 +23,15 @@ import { formatDate, formatDateOnly } from '../../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
-  type Job,
   type JobEvent,
   type JobStatus,
 } from '../../../../types';
-import api, { getErrorMessage } from '../../../../lib/api';
+import {
+  useJobQuery,
+  useJobEventsQuery,
+  usePatchJobStatusMutation,
+  useDeleteJobMutation,
+} from '../../../../features/jobs/hooks';
 
 function Timeline({ events }: { events: JobEvent[] }) {
   if (events.length === 0) return null;
@@ -86,71 +88,18 @@ function Timeline({ events }: { events: JobEvent[] }) {
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
-  const qc = useQueryClient();
   const [editOpen, setEditOpen] = useState(false);
 
-  const {
-    data: job,
-    isLoading,
-    isError,
-    error,
-    refetch,
-  } = useQuery<Job>({
-    queryKey: ['job', id],
-    queryFn: () => api.get(`/jobs/${id}`).then((r) => r.data),
-    refetchInterval: (query) => {
-      const status = query.state.data?.companyProfile?.status;
-      return status === 'PENDING' || status === 'PROCESSING' ? 3000 : false;
-    },
-  });
+  const { data: job, isLoading, isError, error, refetch } = useJobQuery(id);
 
   const isNotFound =
     isAxiosError(error) && error.response?.status === 404;
 
-  const { data: events = [] } = useQuery<JobEvent[]>({
-    queryKey: ['job-events', id],
-    queryFn: () => api.get(`/jobs/${id}/events`).then((r) => r.data),
-    enabled: !!id,
-  });
+  const { data: events = [] } = useJobEventsQuery(id);
 
-  const patchStatus = useMutation({
-    mutationFn: (status: JobStatus) =>
-      api.patch(`/jobs/${id}`, { status }).then((r) => r.data),
-    onSuccess: (updated) => {
-      qc.setQueryData<Job>(['job', id], (prev) => ({
-        ...updated,
-        companyProfile: prev?.companyProfile,
-      }));
-      qc.invalidateQueries({ queryKey: ['job-events', id] });
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
-    },
-    // A 409 here means another request (e.g. an interview-round
-    // auto-promotion) changed the status concurrently — refetch so the
-    // select snaps to the true current status instead of the stale cached
-    // one the user tried to change it from.
-    onError: (err: unknown) => {
-      qc.invalidateQueries({ queryKey: ['job', id] });
-      toast.error(getErrorMessage(err, 'Failed to update status'));
-    },
-  });
+  const patchStatus = usePatchJobStatusMutation(id);
 
-  const deleteMutation = useMutation({
-    mutationFn: () => api.delete(`/jobs/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
-      toast.success('Job deleted');
-      router.replace('/jobs');
-    },
-    onError: (err: unknown) => {
-      toast.error(getErrorMessage(err, 'Failed to delete job'));
-    },
-  });
+  const deleteMutation = useDeleteJobMutation(() => router.replace('/jobs'));
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -189,7 +138,7 @@ export default function JobDetailPage() {
                   variant="danger"
                   size="sm"
                   loading={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate()}
+                  onClick={() => deleteMutation.mutate(id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </Button>
