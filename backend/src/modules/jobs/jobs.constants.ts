@@ -68,14 +68,18 @@ export function appliedAtRangeFilter(
 // status/priority/search/date filters scoped to the owner.
 export function buildJobWhere(userId: string, query: JobQueryDto) {
   const { status, priority, search, dateFrom, dateTo } = query;
+  // NFKC folds styled Unicode (e.g. Mathematical Bold letters pasted from
+  // LinkedIn/social posts) down to plain Latin so `contains` can match
+  // against normally-typed stored data.
+  const normalizedSearch = search?.normalize('NFKC');
   return {
     userId,
     ...(status && { status }),
     ...(priority && { priority }),
-    ...(search && {
+    ...(normalizedSearch && {
       OR: [
-        { company: { contains: search, mode: 'insensitive' as const } },
-        { position: { contains: search, mode: 'insensitive' as const } },
+        { company: { contains: normalizedSearch, mode: 'insensitive' as const } },
+        { position: { contains: normalizedSearch, mode: 'insensitive' as const } },
       ],
     }),
     ...(dateFrom || dateTo
