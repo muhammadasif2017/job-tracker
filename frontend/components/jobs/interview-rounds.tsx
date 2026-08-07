@@ -11,7 +11,7 @@ import {
   useCreateInterviewRoundMutation,
   useInterviewRoundOutcomeMutation,
   useRemoveInterviewRoundMutation,
-} from '../../features/jobs/hooks';
+} from '../../features/jobs/interview-rounds.hooks';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
 const OUTCOMES: InterviewOutcome[] = [

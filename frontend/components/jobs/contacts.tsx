@@ -9,7 +9,7 @@ import {
   useUpdateContactMutation,
   useRemoveContactMutation,
   type ContactPayload,
-} from '../../features/jobs/hooks';
+} from '../../features/jobs/contacts.hooks';
 import type { Contact } from '../../types';
 
 interface ContactsProps {

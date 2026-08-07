@@ -9,7 +9,7 @@ import {
   useResumeQuery,
   useUploadResumeMutation,
   useRemoveResumeMutation,
-} from '../../features/jobs/hooks';
+} from '../../features/jobs/resume.hooks';
 import type { Resume } from '../../types';
 
 const MAX_SIZE = 8 * 1024 * 1024;
