@@ -15,8 +15,8 @@ hiring pipeline (Wishlist → Applied → Interviewing → Offer → Rejected �
 The **backend** is a NestJS 11 REST API backed by PostgreSQL via Prisma 7, with
 JWT + OAuth authentication. The **frontend** is a Next.js 16 (App Router) SPA-style
 dashboard using TanStack Query for server state, Zustand for auth state, and
-Tailwind for styling. It deploys as Docker containers on a single VM (backend +
-Caddy for TLS) with the frontend on Vercel and PostgreSQL on Neon — all chosen to
+Tailwind for styling. It deploys as Docker containers on a single VM (backend,
+Redis, and Caddy for TLS) with the frontend on Vercel and PostgreSQL on Neon — all chosen to
 stay inside free tiers.
 
 ---
@@ -52,12 +52,17 @@ AppModule
 ├── LoggerModule (nestjs-pino, redacts secrets)
 ├── BullModule.forRoot (Redis-backed queue)
 ├── PrismaModule (global → exports PrismaService)
-├── AuthModule       → AuthController, AuthService, 5 Passport strategies
-├── UsersModule      → UsersController, UsersService
-├── JobsModule       → JobsController, JobsService
-├── HealthModule     → HealthController (Terminus DB ping)
-└── EnrichmentModule → EnrichmentController, EnrichmentService, EnrichmentProcessor
-                       └── Services: WebFetchService, SearchService, LlmService
+├── AuthModule            → AuthController, AuthService, 5 Passport strategies
+├── UsersModule           → UsersController, UsersService
+├── JobsModule            → JobsController, JobsService, JobsStatsService
+├── EnrichmentModule      → HTTP trigger + BullMQ processor + web/search/LLM services
+├── NotificationsModule   → BullMQ email processor + scheduled reminders/digests
+├── StorageModule         → local-disk or Oracle Object Storage implementation
+├── ResumesModule         → resume upload and download URLs
+├── InterviewRoundsModule → interview scheduling and status synchronization
+├── ContactsModule        → job contacts
+├── AdminModule           → admin-only user operations
+└── HealthModule          → database health check
 ```
 
 Each feature module owns a **controller** (HTTP layer), a **service** (business
@@ -115,24 +120,24 @@ There are **five Passport strategies**, each a small adapter:
 | --- | --- | --- | --- |
 | `local` | `local.strategy.ts` | `POST /auth/login` | full user (after bcrypt compare) |
 | `jwt` | `jwt.strategy.ts` | every protected route | `{ id, email, name, avatarUrl }` |
-| `jwt-refresh` | `jwt-refresh.strategy.ts` | `POST /auth/refresh` | `{ sub, email, refreshToken }` |
+| `jwt-refresh` | `jwt-refresh.strategy.ts` | `POST /auth/refresh` | `{ sub, email, jti, refreshToken }` from the HttpOnly cookie |
 | `google` | `google.strategy.ts` | `GET /auth/google/callback` | `{ accessToken, refreshToken }` |
 | `github` | `github.strategy.ts` | `GET /auth/github/callback` | `{ accessToken, refreshToken }` |
 
 **Decision — two tokens, asymmetric storage.** `issueTokens()`
-(`auth.service.ts:116-137`) is the *single* place that mints credentials:
+(`auth.service.ts:193-219`) is the *single* place that mints credentials:
 
 - **Access token**: 15 min, signed with `JWT_SECRET`, sent as a Bearer header.
   Short-lived so a stolen one expires fast.
 - **Refresh token**: 7 days, signed with a *different* secret
-  (`JWT_REFRESH_SECRET`), sent in the request body. It is **bcrypt-hashed before
-  being stored** in `User.refreshToken`. So even a full DB leak doesn't hand an
-  attacker a usable refresh token — they'd have the hash, not the token.
+  (`JWT_REFRESH_SECRET`), stored in the `jt_refresh` HttpOnly cookie, and tracked
+  server-side in the `RefreshToken` table. It is **bcrypt-hashed before being
+  stored**, so even a full DB leak does not hand an attacker a usable token.
 
 **Decision — refresh rotation.** Every refresh re-runs `issueTokens`, which signs
-a new pair and overwrites the stored hash (`auth.service.ts:51-59`). A refresh
-token is single-use; replaying an old one fails the bcrypt compare. Logout simply
-nulls the stored hash (`auth.service.ts:61-66`).
+a new pair and creates a new stored session while revoking the old one
+(`auth.service.ts:79-123`). A refresh token is single-use; replaying an old one
+fails the revocation check. Logout deletes the user's refresh sessions.
 
 **Decision — why DB lookup on every request?** `jwt.strategy.ts:24-31` does a
 `findUnique` on every authenticated request rather than trusting the token's
@@ -146,27 +151,27 @@ The naive OAuth implementation redirects the browser to
 `FRONTEND_URL/callback?accessToken=...&refreshToken=...`. That **leaks tokens into
 the URL** — they land in browser history, server logs, and the `Referer` header.
 
-This project avoids that (`auth.controller.ts:96-100`, `auth.service.ts:68-85`):
+This project avoids that (`auth.controller.ts:195-225`, `auth.service.ts:131-154`):
 
 ```
 GET /auth/google/callback
   → GoogleStrategy.validate() → handleOAuthUser() → issueTokens()
-  → storeOAuthCode(tokens): generate random UUID, stash {tokens, expiresAt:+60s} in a Map
+  → storeOAuthCode(tokens): generate random UUID, store tokens in Redis with EX 60
   → redirect to FRONTEND_URL/callback?code=<uuid>        ← only an opaque code in the URL
 Frontend /callback page:
   → POST /auth/exchange-code { code }
-  → exchangeOAuthCode(): look up + DELETE the entry, reject if missing/expired
-  → returns { accessToken, refreshToken } in the JSON body  ← tokens never touch the URL
+  → exchangeOAuthCode(): read + delete the Redis entry, reject if missing/expired
+  → returns { accessToken } and sets the refresh cookie  ← tokens never touch the URL
 ```
 
-The code is **single-use** (deleted on read, `auth.service.ts:82`) and
-**short-lived** (60s). This is a real security pattern (similar in spirit to OAuth
+The code is **short-lived** (60s, enforced by Redis expiry) and deleted after
+exchange. It is intended to be single-use. This is a real security pattern (similar in spirit to OAuth
 authorization codes) and a great thing to be able to explain.
 
-**Decision — `handleOAuthUser` account-linking order** (`auth.service.ts:87-114`):
+**Decision — `handleOAuthUser` account-linking order** (`auth.service.ts:157-191`):
 1. Find an `Account` by `(provider, providerAccountId)` → existing OAuth login.
-2. Else find a `User` by email → link a new `Account` to it (so signing in with
-   Google then GitHub on the same email doesn't create a duplicate user).
+2. Else find a `User` by email. Password users must first authenticate with their
+   password before linking a provider; passwordless users can be linked directly.
 3. Else create a brand-new `User` + `Account`.
 
 The `Account` table (separate from `User`) is the standard "one user, many linked
@@ -183,19 +188,20 @@ comes from the verified token (`@CurrentUser()`), **never from the request body*
 that's the rule that prevents horizontal privilege escalation.
 
 **Decision — the timeline is event-sourced-lite.** A `JobEvent` row is written
-*in the same Prisma call* as the mutation, using Prisma's nested `create`:
+in the same database unit of work as the mutation:
 
-- On job create: a `CREATED` event (`jobs.service.ts:28-30`).
-- On a status change: a `STATUS_CHANGE` event capturing `fromStatus`/`toStatus`
-  (`jobs.service.ts:116-124`), but **only if the status actually changed**
-  (`statusChanged` guard at line 97).
+- On job create: a `CREATED` event (`jobs.service.ts:create`).
+- On a status change: a `STATUS_CHANGE` event capturing `fromStatus`/`toStatus`.
+  The update uses a compare-and-set check and a Prisma transaction because
+  interview-round automation can change status concurrently.
+- On interview-round creation: an `INTERVIEW_ROUND_ADDED` event is recorded by
+  the interview-round service.
 
-Because the event is nested in the same write, the job and its history can't drift
-out of sync — there's no separate "now also log an event" call that could fail
-independently. The detail page renders these as a vertical timeline.
+Because the event and mutation share the same transaction, the job and its history
+cannot drift out of sync. The detail page renders these as a vertical timeline.
 
-**Decision — stats computed in the DB, not in JS.** `getStats`
-(`jobs.service.ts:143-173`) runs three queries in parallel with `Promise.all`:
+**Decision — stats computed in the DB, not in JS.** `JobsStatsService`
+(`jobs-stats.service.ts`) runs the aggregate queries in parallel with `Promise.all`:
 a `groupBy(status)` for the per-status counts, a total `count`, and a "this month"
 `count`. It then fills a zeroed `byStatus` object so every status key exists even
 with zero jobs (so the frontend never sees `undefined`). `responseRate` =
@@ -203,9 +209,9 @@ with zero jobs (so the frontend never sees `undefined`). `responseRate` =
 aggregation into Postgres is the right instinct.
 
 **Decision — CSV export is hand-rolled and injection-safe.** `exportCsv`
-(`jobs.service.ts:175-232`) builds CSV manually. The `escape` helper wraps every
+(`jobs-stats.service.ts`) builds CSV manually. The `escape` helper wraps every
 field in quotes and doubles internal quotes (`"` → `""`), which is correct CSV
-escaping and also neutralizes the values. Capped at 10,000 rows. Returned with
+escaping and also neutralizes the values. Capped at 1,000 rows. Returned with
 `Content-Disposition: attachment` so the browser downloads it.
 
 ### 3.6 Error handling — one filter to rule them all
@@ -258,8 +264,8 @@ POST /jobs
 [BullMQ worker picks up the job]
   → EnrichmentProcessor.process()
       → CompanyProfile updated to PROCESSING
-      → Promise.all([Brave Search × 2, website fetch])
-      → LlmService.extract(company, context)  ← Anthropic Claude Haiku, tool_use
+      → Promise.all([Tavily Search × 2, website fetch])
+      → LlmService.extract(company, context)  ← Groq tool calling
       → CompanyProfile updated to COMPLETED (or FAILED with sanitised error)
 
 [Frontend]
@@ -282,7 +288,7 @@ POST /jobs
   non-HTTP protocols before any outbound call is made. The `job.url` field is
   user-supplied — always treat user-supplied URLs as untrusted.
 
-- **Tool-use for guaranteed structure** — the Anthropic call uses
+- **Tool-use for guaranteed structure** — the Groq call uses
   `tool_choice: { type: 'any' }` to force a tool call. Combined with a JSON Schema
   on the tool definition, the response is always a typed object. A `sanitize()`
   function validates field types at runtime as defence-in-depth.
@@ -354,20 +360,21 @@ mental model and a good thing to articulate.
 
 This trips people up, so be precise about it:
 
-1. **`lib/auth.ts` — `tokenStorage`**: a thin `localStorage` wrapper for the real
-   JWTs (`jt_access`, `jt_refresh`). Only the Axios interceptor reads these.
+1. **`lib/auth.ts` — `tokenStorage`**: a thin `localStorage` wrapper for the access
+   JWT (`jt_access`). The refresh token is never readable by frontend JavaScript.
 2. **`store/auth.store.ts` — Zustand (persisted as `jt-auth`)**: the `user` object
    + `isAuthenticated` for rendering. Its `setAuth` is the *single* sync point —
-   it writes tokens to `tokenStorage`, sets the `jt_authed` routing cookie (7-day,
-   `SameSite=Lax`, `Secure` on https), and updates React state
+   it writes the access token to `tokenStorage`, sets the `jt_authed` and `jt_role`
+   routing cookies (7-day, `SameSite=Lax`, `Secure` on https), and updates React state
    (`auth.store.ts:24-29`).
-3. **The `jt_authed` cookie**: the only thing `proxy.ts` (which runs server-side
-   and can't read `localStorage`) can see.
+3. **The routing cookies**: `jt_authed` and `jt_role` are the only auth signals
+   `proxy.ts` (which runs server-side and can't read `localStorage`) can see.
 
-So: **tokens live in `localStorage` (readable by JS, needed by Axios); a
-non-sensitive presence cookie lives where the middleware can read it; React state
-mirrors the user for rendering.** One action (`setAuth`) keeps all three in sync;
-`logout` tears all three down.
+So: **the access token lives in `localStorage` (readable by JS, needed by Axios),
+the refresh token lives in an HttpOnly cookie, non-sensitive routing cookies live
+where the proxy can read them, and React state mirrors the user for rendering.**
+`setAuth` synchronizes the access token, routing cookies, and React state; the UI
+logout flow calls the backend to revoke refresh sessions before local cleanup.
 
 ### 4.3 The Axios instance — the most sophisticated piece of frontend code
 
@@ -384,8 +391,8 @@ solves the **thundering-herd refresh** problem. When several requests 401 at onc
 2. Concurrent 401s are parked in `failedQueue` as pending promises (`api.ts:35-42`).
 3. On refresh success, `processQueue` resolves every parked promise with the new
    token and each retries (`api.ts:22-25, 66`). The original request retries too.
-4. On failure (or no refresh token), it clears storage, expires the cookie, and
-   hard-redirects to `/login` (`api.ts:69-74`).
+4. On definitive refresh failure, it clears access-token storage, expires the
+   routing cookies, and hard-redirects to `/login` (`api.ts:81-90`).
 
 Two guards prevent loops/leaks:
 - `original._retry` ensures a request is retried at most once (`api.ts:31, 49`).
@@ -403,11 +410,13 @@ created once and not torn down on re-render (`providers.tsx:8-13`). Global defau
 `staleTime: 60s`, `retry: 1`.
 
 **Query-key convention** (the contract the whole app relies on):
-- `['stats']` — dashboard cards + chart
+- `['stats', range]` — dashboard cards + status chart
 - `['jobs', filters]` — paginated list (filters object is part of the key, so
   changing a filter is a new cache entry and an automatic refetch)
 - `['job', id]` — single job
 - `['job-events', id]` — that job's timeline
+- `['analytics', 'funnel', range]` — application funnel
+- `['analytics', 'trend', range]` — applications over time
 - `['profile']` — user profile
 
 **Decision — invalidate by prefix.** Mutations call
@@ -448,11 +457,12 @@ the OS preference.
 
 ```
 User 1───∞ Job 1───∞ JobEvent
-  │           │
-  1           1
-  │           │
-  ∞           1
-Account     CompanyProfile   (nullable; 1:1; onDelete:Cascade)
+  │       ├── 1:1 CompanyProfile
+  │       ├── 1:1 Resume
+  │       ├── 1:N InterviewRound
+  │       └── 1:N Contact
+  ├──∞ Account
+  └──∞ RefreshToken
 ```
 
 - **CompanyProfile**: 1:1 optional relation to `Job`. Has its own `EnrichmentStatus`
@@ -464,8 +474,12 @@ Account     CompanyProfile   (nullable; 1:1; onDelete:Cascade)
 - **User**: `password` is *nullable* — OAuth-only users have no password. That one
   nullable column is what makes the "social login can't change password" guard
   (`users.service.ts:55-59`) necessary.
+- **RefreshToken**: one row per issued refresh session. Stores only a bcrypt hash,
+  expiry, and revocation timestamp; cascades when its user is deleted.
 - **Job**: enums for `status` and `priority`; `appliedAt` and `nextInterviewAt`
   separate from `createdAt`/`updatedAt` (when you applied ≠ when the row was made).
+- **Resume**, **InterviewRound**, and **Contact**: job-owned child records with
+  cascade deletion and indexes on their parent job.
 - **JobEvent**: `fromStatus` nullable (a `CREATED` event has no "from"), `toStatus`
   required.
 - **Cascades**: `onDelete: Cascade` on both FKs — deleting a user wipes their jobs
@@ -500,6 +514,9 @@ Account     CompanyProfile   (nullable; 1:1; onDelete:Cascade)
 **Decisions worth explaining:**
 - **No DB container** — Postgres is on Neon (managed), so the VM holds no
   stateful data and the compose file is simpler (`docker-compose.prod.yml` comment).
+- **Redis companion container** — BullMQ queues and short-lived OAuth exchange
+  codes use the same private Redis service on the VM; it is health-checked before
+  the backend starts.
 - **Caddy for TLS** — it auto-provisions and renews Let's Encrypt certs via HTTP-01,
   so there's no manual cert management (`Caddyfile`).
 - **Multi-stage Docker build** (`Dockerfile.prod`) — a `builder` stage compiles and
@@ -516,26 +533,29 @@ Account     CompanyProfile   (nullable; 1:1; onDelete:Cascade)
 
 ## 7. Testing
 
-**Backend unit tests (Jest)** — 91 tests across 10 spec files. The enrichment
-pipeline has the densest coverage:
+**Backend unit tests (Jest)** — tests are organized by service, controller,
+processor, strategy, and storage boundary. The enrichment and notification
+pipelines have especially focused coverage:
 
 | Suite | What it covers |
 |---|---|
 | `PrismaExceptionFilter` | P2002 → 409, P2025 → 404, passthrough, fallback |
 | `UsersService` | profile read, password change, OAuth guard, delete cascade |
-| `JobsService` | create + enrichment, stats math, CSV escaping, ownership checks, events limit |
+| `JobsService` | CRUD, parsing fallback, enrichment enqueue, CSV-adjacent job behavior, ownership checks, and event limits |
+| `JobsStatsService` | status aggregates, funnel, trend, attention items, and CSV escaping |
 | `EnrichmentController` | ownership + 409 cooldown guard |
 | `EnrichmentProcessor` | full pipeline, FAILED path, URL-strip in error message, mid-flight deletion |
 | `LlmService` | tool_use response, sanitize() null/mixed techStack |
-| `SearchService` | Brave API call, missing key guard, filter no-description results |
+| `SearchService` | Tavily API call, missing key guard, filter no-description results |
 | `WebFetchService` | HTML stripping, SSRF guard (8 blocked URLs), truncation |
 
 Tests use `jest.fn()` mocks at the service boundary. ConfigService is mocked rather
 than reading `process.env` directly.
 
-**Frontend unit tests (Vitest + React Testing Library)** — 23 tests covering
-`CompanyProfileCard` across all four enrichment states (absent, PENDING, PROCESSING,
-FAILED, COMPLETED), including Refresh button, deduplication, and API call assertions.
+**Frontend unit tests (Vitest + React Testing Library)** — component and page tests
+cover authentication flows, dashboard charts, job forms, list and detail pages,
+Kanban updates, contacts, interview rounds, resume uploads, profile, admin users,
+and company enrichment states.
 
 **Backend e2e (`test/app.e2e-spec.ts`)** — a full happy-path journey
 (register → login → me → refresh → create job → list/filter → stats → get →
