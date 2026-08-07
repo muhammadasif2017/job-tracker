@@ -25,6 +25,7 @@ import {
 } from '@nestjs/swagger';
 import { JobsService } from './jobs.service.js';
 import { JobsStatsService } from './jobs-stats.service.js';
+import { JobParsingService } from './job-parsing.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -50,6 +51,7 @@ export class JobsController {
   constructor(
     private jobsService: JobsService,
     private jobsStats: JobsStatsService,
+    private jobParsing: JobParsingService,
   ) {}
 
   @Post()
@@ -69,7 +71,7 @@ export class JobsController {
     if (!dto.url && !dto.text) {
       throw new BadRequestException('Either url or text must be provided');
     }
-    return this.jobsService.parseJobPosting(dto);
+    return this.jobParsing.parseJobPosting(dto);
   }
 
   @Get()
