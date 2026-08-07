@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "generate:api-types": "openapi-typescript http://localhost:3001/api/docs-json -o types/api.generated.ts"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
@@ -59,6 +60,7 @@
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.8",
+    "openapi-typescript": "^7.13.0",
     "prettier": "^3.9.5",
     "tailwindcss": "^4",
     "typescript": "^5",
