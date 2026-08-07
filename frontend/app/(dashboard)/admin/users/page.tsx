@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Search, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 import { Button } from '../../../../components/ui/button';
 import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { formatDate, cn } from '../../../../lib/utils';
-import type { AdminUser, PaginatedAdminUsers } from '../../../../types';
-import api, { getErrorMessage } from '../../../../lib/api';
+import type { AdminUser } from '../../../../types';
+import {
+  useAdminUsersQuery,
+  useDeleteAdminUserMutation,
+} from '../../../../features/admin/hooks';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -21,34 +22,20 @@ function useDebounce<T>(value: T, delay = 300): T {
 }
 
 export default function AdminUsersPage() {
-  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | undefined>();
 
   const debouncedSearch = useDebounce(search);
 
-  const params = new URLSearchParams({
-    page: String(page),
-    limit: '10',
-    ...(debouncedSearch && { search: debouncedSearch }),
+  const { data, isLoading, isError, refetch } = useAdminUsersQuery({
+    page,
+    search: debouncedSearch,
   });
 
-  const { data, isLoading, isError, refetch } = useQuery<PaginatedAdminUsers>({
-    queryKey: ['admin-users', { page, search: debouncedSearch }],
-    queryFn: () => api.get(`/admin/users?${params}`).then((r) => r.data),
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/admin/users/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-users'] });
-      setDeleteTarget(undefined);
-      toast.success('User deleted');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to delete user')),
-  });
+  const deleteMutation = useDeleteAdminUserMutation(() =>
+    setDeleteTarget(undefined),
+  );
 
   return (
     <div className="space-y-5">

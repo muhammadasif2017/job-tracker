@@ -4,17 +4,20 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
 import { Skeleton } from '../../../components/ui/skeleton';
 import { useAuthStore } from '../../../store/auth.store';
-import api, { getErrorMessage } from '../../../lib/api';
 import { DIGEST_FREQUENCIES, DIGEST_FREQUENCY_LABELS } from '../../../types';
+import {
+  useProfileQuery,
+  useUpdateProfileMutation,
+  useUpdateNotificationsMutation,
+  useChangePasswordMutation,
+  useDeleteAccountMutation,
+} from '../../../features/profile/hooks';
 
 // Reads Intl.supportedValuesOf('timeZone'), which depends on the runtime's
 // ICU data — SSR (Node) and hydration (browser) can disagree, which produced
@@ -44,15 +47,10 @@ const passwordSchema = z
   });
 
 export default function ProfilePage() {
-  const { user: storeUser, setUser, logout } = useAuthStore();
-  const router = useRouter();
-  const qc = useQueryClient();
+  const { user: storeUser } = useAuthStore();
   const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => api.get('/users/me').then((r) => r.data),
-  });
+  const { data: profile } = useProfileQuery();
   const user = profile ?? storeUser;
 
   const profileForm = useForm<{ name: string }>({
@@ -71,53 +69,10 @@ export default function ProfilePage() {
     resetOptions: { keepDirtyValues: true },
   });
 
-  const updateProfile = useMutation({
-    mutationFn: (data: { name: string }) =>
-      api.patch('/users/me', data).then((r) => r.data),
-    onSuccess: (updated) => {
-      setUser(updated);
-      qc.invalidateQueries({ queryKey: ['profile'] });
-      toast.success('Profile updated');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to update')),
-  });
-
-  const updateNotifications = useMutation({
-    mutationFn: (data: NotificationsFormData) =>
-      api.patch('/users/me/notifications', data).then((r) => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['profile'] });
-      toast.success('Notification preferences updated');
-    },
-    onError: () => toast.error('Failed to update notification preferences'),
-  });
-
-  const changePassword = useMutation({
-    mutationFn: ({
-      currentPassword,
-      newPassword,
-    }: {
-      currentPassword: string;
-      newPassword: string;
-      confirm: string;
-    }) => api.patch('/users/me/password', { currentPassword, newPassword }),
-    onSuccess: () => {
-      toast.success('Password changed');
-      passwordForm.reset();
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to change password')),
-  });
-
-  const deleteAccount = useMutation({
-    mutationFn: () => api.delete('/users/me'),
-    onSuccess: () => {
-      logout();
-      router.replace('/login');
-    },
-    onError: () => toast.error('Failed to delete account'),
-  });
+  const updateProfile = useUpdateProfileMutation();
+  const updateNotifications = useUpdateNotificationsMutation();
+  const changePassword = useChangePasswordMutation(() => passwordForm.reset());
+  const deleteAccount = useDeleteAccountMutation();
 
   const hasPassword = !!profile?.hasPassword;
 
