@@ -1,11 +1,15 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { FileText, Eye, Download, Trash2, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
-import api, { getErrorMessage } from '../../lib/api';
+import api from '../../lib/api';
+import {
+  useResumeQuery,
+  useUploadResumeMutation,
+  useRemoveResumeMutation,
+} from '../../features/jobs/resume.hooks';
 import type { Resume } from '../../types';
 
 const MAX_SIZE = 8 * 1024 * 1024;
@@ -21,57 +25,15 @@ interface ResumeUploadProps {
 }
 
 export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
-  const qc = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [initialTimestamp] = useState<number | undefined>(() =>
-    initialResume !== undefined ? Date.now() : undefined,
+
+  const { data: resume } = useResumeQuery(jobId, initialResume);
+  const uploadMutation = useUploadResumeMutation(jobId);
+  const removeMutation = useRemoveResumeMutation(jobId, () =>
+    setConfirming(false),
   );
-
-  const { data: resume } = useQuery<Resume | null>({
-    queryKey: ['resume', jobId],
-    queryFn: () => api.get(`/jobs/${jobId}/resumes`).then((r) => r.data),
-    initialData: initialResume !== undefined ? initialResume : undefined,
-    initialDataUpdatedAt: initialTimestamp,
-    enabled: !!jobId,
-    staleTime: 60_000,
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => {
-      const form = new FormData();
-      form.append('file', file);
-      return api
-        .post(`/jobs/${jobId}/resumes`, form, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-          // 8 MB cap (MAX_SIZE below) — 120s is generous even on a slow
-          // mobile upload, and still lets a truly stalled connection surface
-          // instead of spinning forever.
-          timeout: 120_000,
-        })
-        .then((r) => r.data);
-    },
-    onSuccess: (data: Resume) => {
-      qc.setQueryData(['resume', jobId], data);
-      toast.success('Resume uploaded');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Upload failed')),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: () => api.delete(`/jobs/${jobId}/resumes`).then((r) => r.data),
-    onSuccess: () => {
-      qc.setQueryData(['resume', jobId], null);
-      setConfirming(false);
-      toast.success('Resume removed');
-    },
-    onError: (err: unknown) => {
-      setConfirming(false);
-      toast.error(getErrorMessage(err, 'Remove failed'));
-    },
-  });
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];

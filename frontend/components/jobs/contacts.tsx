@@ -1,12 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { Mail, Phone, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import api, { getErrorMessage } from '../../lib/api';
+import {
+  useCreateContactMutation,
+  useUpdateContactMutation,
+  useRemoveContactMutation,
+  type ContactPayload,
+} from '../../features/jobs/contacts.hooks';
 import type { Contact } from '../../types';
 
 interface ContactsProps {
@@ -24,19 +27,11 @@ const EMPTY_FORM = {
 };
 
 export function Contacts({ jobId, contacts }: ContactsProps) {
-  const qc = useQueryClient();
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | undefined>();
-
-  function invalidate() {
-    // Contacts never touch Job.status/nextInterviewAt, so the job detail
-    // query is the only cache that needs refreshing — unlike interview
-    // rounds, there's no Kanban/stats/funnel invalidation to do here.
-    qc.invalidateQueries({ queryKey: ['job', jobId] });
-  }
 
   function resetForm() {
     setForm(EMPTY_FORM);
@@ -70,7 +65,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
   // drops `undefined` keys entirely, so an omitted field means "leave the
   // existing value alone" on the backend (see create-contact.dto.ts) —
   // `null` is required to actually clear a field the user has emptied out.
-  function buildPayload() {
+  function buildPayload(): ContactPayload {
     return {
       name: form.name.trim(),
       role: form.role || null,
@@ -81,45 +76,11 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     };
   }
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      api.post(`/jobs/${jobId}/contacts`, buildPayload()).then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      resetForm();
-      toast.success('Contact added');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to add contact')),
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (contactId: string) =>
-      api
-        .patch(`/jobs/${jobId}/contacts/${contactId}`, buildPayload())
-        .then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      resetForm();
-      toast.success('Contact updated');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to update contact')),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (contactId: string) =>
-      api.delete(`/jobs/${jobId}/contacts/${contactId}`).then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      setConfirmingId(null);
-      toast.success('Contact removed');
-    },
-    onError: (err: unknown) => {
-      setConfirmingId(null);
-      toast.error(getErrorMessage(err, 'Failed to remove contact'));
-    },
-  });
+  const createMutation = useCreateContactMutation(jobId, resetForm);
+  const updateMutation = useUpdateContactMutation(jobId, resetForm);
+  const removeMutation = useRemoveContactMutation(jobId, () =>
+    setConfirmingId(null),
+  );
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,9 +90,9 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     }
     setNameError(undefined);
     if (editingId) {
-      updateMutation.mutate(editingId);
+      updateMutation.mutate({ contactId: editingId, payload: buildPayload() });
     } else {
-      createMutation.mutate();
+      createMutation.mutate(buildPayload());
     }
   }
 

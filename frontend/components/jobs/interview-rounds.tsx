@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { formatDateOnly } from '../../lib/utils';
-import api, { getErrorMessage } from '../../lib/api';
+import api from '../../lib/api';
+import {
+  useCreateInterviewRoundMutation,
+  useInterviewRoundOutcomeMutation,
+  useRemoveInterviewRoundMutation,
+} from '../../features/jobs/interview-rounds.hooks';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
 const OUTCOMES: InterviewOutcome[] = [
@@ -23,7 +27,6 @@ interface InterviewRoundsProps {
 }
 
 export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
-  const qc = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [stage, setStage] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -31,75 +34,17 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | undefined>();
 
-  function invalidate() {
-    qc.invalidateQueries({ queryKey: ['job', jobId] });
-    qc.invalidateQueries({ queryKey: ['job-events', jobId] });
-    qc.invalidateQueries({ queryKey: ['attention'] });
-    // Creating a round can silently flip Job.status (APPLIED -> INTERVIEWING
-    // auto-promotion, see interview-rounds.service.ts). Match the invalidation
-    // set the manual status-change mutation uses (jobs/[id]/page.tsx) so the
-    // Kanban board and dashboard stats don't show a stale status.
-    qc.invalidateQueries({ queryKey: ['jobs'] });
-    qc.invalidateQueries({ queryKey: ['stats'] });
-    qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-  }
-
-  const createMutation = useMutation({
-    mutationFn: () =>
-      api
-        .post(`/jobs/${jobId}/interview-rounds`, {
-          stage: stage.trim(),
-          scheduledAt,
-          notes: notes || undefined,
-        })
-        .then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      setStage('');
-      setScheduledAt('');
-      setNotes('');
-      setAdding(false);
-      setStageError(undefined);
-      toast.success('Interview round added');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to add round')),
+  const createMutation = useCreateInterviewRoundMutation(jobId, () => {
+    setStage('');
+    setScheduledAt('');
+    setNotes('');
+    setAdding(false);
+    setStageError(undefined);
   });
-
-  const outcomeMutation = useMutation({
-    mutationFn: ({
-      roundId,
-      outcome,
-    }: {
-      roundId: string;
-      outcome: InterviewOutcome;
-    }) =>
-      api
-        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`, { outcome })
-        .then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      toast.success('Outcome updated');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to update outcome')),
-  });
-
-  const removeMutation = useMutation({
-    mutationFn: (roundId: string) =>
-      api
-        .delete(`/jobs/${jobId}/interview-rounds/${roundId}`)
-        .then((r) => r.data),
-    onSuccess: () => {
-      invalidate();
-      setConfirmingId(null);
-      toast.success('Interview round removed');
-    },
-    onError: (err: unknown) => {
-      setConfirmingId(null);
-      toast.error(getErrorMessage(err, 'Failed to remove round'));
-    },
-  });
+  const outcomeMutation = useInterviewRoundOutcomeMutation(jobId);
+  const removeMutation = useRemoveInterviewRoundMutation(jobId, () =>
+    setConfirmingId(null),
+  );
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -109,7 +54,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     }
     if (!scheduledAt) return;
     setStageError(undefined);
-    createMutation.mutate();
+    createMutation.mutate({ stage: stage.trim(), scheduledAt, notes: notes || undefined });
   }
 
   async function handleDownloadIcs(roundId: string) {

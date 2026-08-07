@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   DragDropContext,
   Droppable,
@@ -9,18 +8,11 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd';
 import { Pencil, ExternalLink } from 'lucide-react';
-import { toast } from 'sonner';
 import { Skeleton } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import { formatDateOnly } from '../../lib/utils';
-import {
-  STATUS_LABELS,
-  STATUS_DOT_COLORS,
-  type Job,
-  type JobStatus,
-  type PaginatedJobs,
-} from '../../types';
-import api, { getErrorMessage } from '../../lib/api';
+import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../../types';
+import { useKanbanJobsQuery, useKanbanPatchStatusMutation } from '../../features/jobs/hooks';
 
 const KANBAN_COLS: JobStatus[] = [
   'WISHLIST',
@@ -34,40 +26,8 @@ interface KanbanBoardProps {
 }
 
 export function KanbanBoard({ onEdit }: KanbanBoardProps) {
-  const qc = useQueryClient();
-
-  const { data, isLoading, isError, refetch } = useQuery<PaginatedJobs>({
-    queryKey: ['jobs', { limit: 100 }],
-    queryFn: () => api.get('/jobs?limit=100').then((r) => r.data),
-  });
-
-  const patchStatus = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: JobStatus }) =>
-      api.patch(`/jobs/${id}`, { status }).then((r) => r.data),
-    onMutate: async ({ id, status }) => {
-      await qc.cancelQueries({ queryKey: ['jobs'] });
-      const prev = qc.getQueryData<PaginatedJobs>(['jobs', { limit: 100 }]);
-      qc.setQueryData<PaginatedJobs>(['jobs', { limit: 100 }], (old) =>
-        old
-          ? {
-              ...old,
-              data: old.data.map((j) => (j.id === id ? { ...j, status } : j)),
-            }
-          : old,
-      );
-      return { prev };
-    },
-    onError: (err, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(['jobs', { limit: 100 }], ctx.prev);
-      toast.error(getErrorMessage(err, 'Failed to update status'));
-    },
-    onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
-    },
-  });
+  const { data, isLoading, isError, refetch } = useKanbanJobsQuery();
+  const patchStatus = useKanbanPatchStatusMutation();
 
   const jobsByStatus = useMemo(
     () =>

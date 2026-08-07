@@ -6,6 +6,7 @@ import type {
   FunnelStats,
   TrendStats,
   DashboardRange,
+  AttentionItem,
 } from '../../types';
 
 export function useStatsQuery(range: DashboardRange) {
@@ -41,5 +42,12 @@ export function useRecentJobsQuery() {
       api
         .get('/jobs?limit=5&sortBy=createdAt&sortOrder=desc')
         .then((r) => r.data),
+  });
+}
+
+export function useAttentionQuery() {
+  return useQuery<AttentionItem[]>({
+    queryKey: ['attention'],
+    queryFn: () => api.get('/jobs/attention').then((r) => r.data),
   });
 }
