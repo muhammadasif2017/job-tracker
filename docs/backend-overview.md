@@ -102,7 +102,7 @@ Every method touching a specific job scopes the lookup by both `userId` and `job
 
 - **`findAll`** — dynamic `where` clause: optional status filter, case-insensitive OR search on `company`/`position`, date range on `appliedAt`. Returns `{ data, meta: { total, page, limit, totalPages } }`.
 - **`update`** — if status changes, uses a compare-and-set update and a Prisma transaction to write the `STATUS_CHANGE` event safely alongside the mutation.
-- **`parseJobPosting`** — fetches a supplied URL, falls back to search snippets when necessary, and asks Groq for structured job fields. This is a synchronous convenience endpoint with explicit frontend timeouts.
+- **`parseJobPosting`** — owned by `JobParsingService`, a sibling provider in `JobsModule`. Fetches a supplied URL, falls back to search snippets when necessary, and asks Groq for structured job fields. Synchronous convenience endpoint with explicit frontend timeouts.
 - **`getStats`, `getFunnel`, `getTrend`, and `getAttention`** — owned by `JobsStatsService`, which keeps analytics queries separate from job CRUD.
 - **`exportCsv`** — up to 1,000 jobs, with quote escaping and spreadsheet-formula injection protection. Controller sets `Content-Type: text/csv` and `Content-Disposition` headers.
 

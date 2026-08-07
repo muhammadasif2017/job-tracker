@@ -18,7 +18,7 @@ Severity legend:
 | # | Finding | Severity | Why this rank |
 |---|---------|----------|----------------|
 | 1 | Frontend has zero unit-test coverage | 🟠 | e2e-gated merges (ADR-025) — highest fan-out code, slowest feedback loop. Biggest ongoing cost. |
-| 2 | God service `jobs.service.ts` | 🟠 | Most-touched module across ADR history, still growing unchecked. Risk compounds with every new feature. |
+| 2 | ~~God service `jobs.service.ts`~~ | ✅ | Resolved — stats/funnel/trend split into `JobsStatsService`, parsing split into `JobParsingService`. |
 | 3 | OAuth code store in-memory, never swept | 🟠 | Real memory leak + hard scaling ceiling, but latent — app is single-instance today. |
 | 4 | Date-only fields shift a day across timezones | 🟠 | Real user-facing bug, but low-frequency (only hits users in certain UTC offsets viewing certain dates). |
 | 5 | `jobs-page` ↔ `dashboard-chart` coupling | 🟡 | Architecture smell, cheap to fix, no user-facing symptom yet. |
@@ -60,15 +60,14 @@ refresh-triggered snapshots.
 
 ## New findings (graph-surfaced)
 
-### 🟠 God service: `jobs.service.ts`
-**Where:** `backend/src/modules/jobs/jobs.service.ts` — 541-line file, 496-line
-`JobsService` class (CRUD + stats + funnel + trend + CSV export all in one
-class). Mirrored by `jobs.service.spec.ts` — 1015 lines, a single 969-line
-`describe` block.
-**Why it matters:** Most-touched module across ADR history with no
-decomposition. Growing unchecked.
-**Fix:** Split stats/funnel/trend into a dedicated `JobsStatsService`; keep
-`JobsService` to CRUD + ownership checks.
+### ✅ RESOLVED — God service: `jobs.service.ts`
+**Was:** `backend/src/modules/jobs/jobs.service.ts` — 541-line file, 496-line
+`JobsService` class (CRUD + stats + funnel + trend + parsing + CSV export all
+in one class).
+**Fix applied:** Stats/funnel/trend/attention split into `JobsStatsService`;
+job-posting parsing (URL fetch, search-snippet fallback, Groq extraction,
+source-domain guessing) split into `JobParsingService`. `jobs.service.ts` is
+now 210 lines, CRUD + ownership checks only.
 
 ### 🟠 Core frontend has zero unit-test coverage, only e2e
 **Where (graph "untested hotspots," by fan-out):** `JobsPage` (82),

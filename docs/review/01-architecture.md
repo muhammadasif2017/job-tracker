@@ -54,7 +54,7 @@ AppModule
 ├── PrismaModule (global → exports PrismaService)
 ├── AuthModule            → AuthController, AuthService, 5 Passport strategies
 ├── UsersModule           → UsersController, UsersService
-├── JobsModule            → JobsController, JobsService, JobsStatsService
+├── JobsModule            → JobsController, JobsService, JobsStatsService, JobParsingService
 ├── EnrichmentModule      → HTTP trigger + BullMQ processor + web/search/LLM services
 ├── NotificationsModule   → BullMQ email processor + scheduled reminders/digests
 ├── StorageModule         → local-disk or Oracle Object Storage implementation
@@ -541,8 +541,9 @@ pipelines have especially focused coverage:
 |---|---|
 | `PrismaExceptionFilter` | P2002 → 409, P2025 → 404, passthrough, fallback |
 | `UsersService` | profile read, password change, OAuth guard, delete cascade |
-| `JobsService` | CRUD, parsing fallback, enrichment enqueue, CSV-adjacent job behavior, ownership checks, and event limits |
+| `JobsService` | CRUD, enrichment enqueue, CSV-adjacent job behavior, ownership checks, and event limits |
 | `JobsStatsService` | status aggregates, funnel, trend, attention items, and CSV escaping |
+| `JobParsingService` | URL fetch → search-snippet fallback → Groq extraction, source-domain guessing |
 | `EnrichmentController` | ownership + 409 cooldown guard |
 | `EnrichmentProcessor` | full pipeline, FAILED path, URL-strip in error message, mid-flight deletion |
 | `LlmService` | tool_use response, sanitize() null/mixed techStack |
