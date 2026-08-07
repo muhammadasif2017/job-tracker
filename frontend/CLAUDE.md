@@ -76,7 +76,7 @@ Base URL from `NEXT_PUBLIC_API_URL`.
 
 The instance is created with `withCredentials: true` — required both to let the browser store the `jt_refresh` httpOnly cookie from login/register/refresh responses, and to resend it on later requests.
 
-Default `timeout: 15_000` (`DEFAULT_TIMEOUT_MS` in `lib/api.ts`) so a hung backend doesn't spin forever. Any call expected to legitimately run long must override it per-request with a bounded explicit value — don't raise the global default, and avoid `timeout: 0` (uncapped) even for large payloads; pick a generous-but-finite cap instead so a stalled connection still eventually surfaces. Current overrides: resume upload (`components/jobs/resume-upload.tsx`, `timeout: 120_000`, bounded by the 8 MB size cap) and Quick Add's `/jobs/parse` (`components/jobs/quick-add.tsx`, `timeout: 60_000`, synchronous page-fetch + LLM extraction with a fallback search+retry pass).
+Default `timeout: 15_000` (`DEFAULT_TIMEOUT_MS` in `lib/api.ts`) so a hung backend doesn't spin forever. Any call expected to legitimately run long must override it per-request with a bounded explicit value — don't raise the global default, and avoid `timeout: 0` (uncapped) even for large payloads; pick a generous-but-finite cap instead so a stalled connection still eventually surfaces. Current overrides: resume upload (`features/jobs/resume.hooks.ts`, `timeout: 120_000`, bounded by the 8 MB size cap) and Quick Add's `/jobs/parse` (`features/jobs/hooks.ts`, `timeout: 60_000`, synchronous page-fetch + LLM extraction with a fallback search+retry pass).
 
 Also used by `app/(auth)/callback/page.tsx` to POST `/auth/exchange-code` with the OAuth code — same instance, so the refresh/queue interceptor applies to that call too.
 
@@ -126,7 +126,7 @@ Single source of truth for all shared types and UI constants:
   - `['jobs', filters]` — paginated job list (filters object is part of the key)
   - `['job', id]` — single job detail (includes `resume` relation)
   - `['job-events', id]` — timeline events for a job
-  - `['resume', jobId]` — resume metadata for a specific job; managed by `ResumeUpload` via `setQueryData` on mutation, not via invalidation
+  - `['resume', jobId]` — resume metadata for a specific job; managed by `useUploadResumeMutation`/`useRemoveResumeMutation` (`features/jobs/resume.hooks.ts`) via `setQueryData` on mutation, not via invalidation
   - `['profile']` — user profile
 - **Mutations always invalidate related keys on success.** When a job is created/edited/deleted, invalidate `['jobs']` and `['stats']`. On status change from job detail, also invalidate `['job-events', id]`.
 - Use `qc.setQueryData` for optimistic updates (see `KanbanBoard` drag-and-drop) — always roll back in `onError`.

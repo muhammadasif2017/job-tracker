@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type {
@@ -16,6 +21,13 @@ export interface JobsFilters {
   search: string;
   status: JobStatus | '';
   priority: JobPriority | '';
+}
+
+function invalidateJobListCaches(qc: QueryClient) {
+  qc.invalidateQueries({ queryKey: ['jobs'] });
+  qc.invalidateQueries({ queryKey: ['stats'] });
+  qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
+  qc.invalidateQueries({ queryKey: ['attention'] });
 }
 
 export function useJobsQuery(filters: JobsFilters) {
@@ -40,10 +52,7 @@ export function useDeleteJobMutation(onDeleted?: () => void) {
   return useMutation({
     mutationFn: (id: string) => api.delete(`/jobs/${id}`),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
+      invalidateJobListCaches(qc);
       toast.success('Job deleted');
       onDeleted?.();
     },
@@ -83,10 +92,7 @@ export function usePatchJobStatusMutation(id: string) {
         companyProfile: prev?.companyProfile,
       }));
       qc.invalidateQueries({ queryKey: ['job-events', id] });
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
+      invalidateJobListCaches(qc);
     },
     // A 409 here means another request (e.g. an interview-round
     // auto-promotion) changed the status concurrently — refetch so the
@@ -131,10 +137,7 @@ export function useKanbanPatchStatusMutation() {
       toast.error(getErrorMessage(err, 'Failed to update status'));
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-      qc.invalidateQueries({ queryKey: ['stats'] });
-      qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
-      qc.invalidateQueries({ queryKey: ['attention'] });
+      invalidateJobListCaches(qc);
     },
   });
 }
