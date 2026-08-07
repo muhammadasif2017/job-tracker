@@ -1,12 +1,11 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { CalendarClock, Clock, MailQuestion } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 import { formatRelative } from '../../lib/utils';
-import api from '../../lib/api';
-import type { AttentionItem, AttentionType } from '../../types';
+import { useAttentionQuery } from '../../features/dashboard/hooks';
+import type { AttentionType } from '../../types';
 
 const MESSAGES: Record<AttentionType, (since: string) => string> = {
   UPCOMING_INTERVIEW: (since) => `Interview ${formatRelative(since)} — prepare`,
@@ -29,10 +28,7 @@ const ICON_COLORS: Record<AttentionType, string> = {
 };
 
 export function AttentionCard() {
-  const { data: items, isLoading } = useQuery<AttentionItem[]>({
-    queryKey: ['attention'],
-    queryFn: () => api.get('/jobs/attention').then((r) => r.data),
-  });
+  const { data: items, isLoading } = useAttentionQuery();
 
   return (
     <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">

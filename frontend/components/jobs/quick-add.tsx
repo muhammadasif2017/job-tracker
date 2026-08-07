@@ -1,56 +1,23 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
-import { toast } from 'sonner';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
 import { JobForm } from './job-form';
-import api, { getErrorMessage } from '../../lib/api';
-import type { JobType, ApplicationChannel } from '../../types';
-
-interface ParsedJob {
-  company?: string;
-  position?: string;
-  location?: string;
-  url?: string;
-  jobType?: JobType;
-  applicationChannel?: ApplicationChannel;
-}
+import { useParseJobMutation, type ParsedJob } from '../../features/jobs/hooks';
 
 interface QuickAddProps {
   open: boolean;
   onClose: () => void;
 }
 
-function looksLikeUrl(value: string): boolean {
-  try {
-    const parsed = new URL(value.trim());
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
 export function QuickAdd({ open, onClose }: QuickAddProps) {
   const [input, setInput] = useState('');
   const [parsed, setParsed] = useState<ParsedJob | null>(null);
 
-  const mutation = useMutation({
-    mutationFn: (value: string) => {
-      const payload = looksLikeUrl(value)
-        ? { url: value.trim() }
-        : { text: value };
-      return api
-        .post<ParsedJob>('/jobs/parse', payload, { timeout: 60_000 })
-        .then((r) => r.data);
-    },
-    onSuccess: (data) => {
-      setParsed(data);
-      setInput('');
-    },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Could not parse that posting')),
+  const mutation = useParseJobMutation((data) => {
+    setParsed(data);
+    setInput('');
   });
 
   const handleClose = () => {
