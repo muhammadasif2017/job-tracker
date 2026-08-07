@@ -2,17 +2,25 @@
 
 ## Database Schema
 
-Four models, three relationships:
+The core ownership graph is:
 
 ```
 User ──< Job ──< JobEvent
-User ──< Account
+  │       ├── 1:1 CompanyProfile
+  │       ├── 1:1 Resume
+  │       ├── 1:N InterviewRound
+  │       └── 1:N Contact
+  ├──< Account
+  └──< RefreshToken
 ```
 
 - **User** — email/password (nullable for OAuth users). Refresh tokens live in the separate `RefreshToken` table (bcrypt-hashed `tokenHash`, `expiresAt`, cascades on user delete) — there is no `refreshToken` field on `User`.
 - **Account** — links a User to an OAuth provider. Compound unique on `[provider, providerAccountId]` so one user can link multiple providers.
 - **Job** — the core entity. `JobStatus` enum: `WISHLIST | APPLIED | INTERVIEWING | OFFER | REJECTED | GHOSTED`.
-- **JobEvent** — audit log. Two types: `CREATED` (on job create) and `STATUS_CHANGE` (on status update). Stores `fromStatus`/`toStatus`. Never created manually by callers — the service writes them automatically inside the same Prisma transaction using nested `create`.
+- **JobEvent** — audit log with `CREATED`, `STATUS_CHANGE`, and `INTERVIEW_ROUND_ADDED` events. Stores `fromStatus`/`toStatus`. Events are created by the relevant service inside the same database unit of work as the mutation.
+- **CompanyProfile** — optional one-to-one enrichment result for a job. Its `EnrichmentStatus` tracks queue progress.
+- **Resume** — optional one-to-one uploaded resume with a pluggable storage key.
+- **InterviewRound** and **Contact** — one-to-many job children, both ownership-scoped through their parent job.
 
 ---
 
@@ -40,7 +48,12 @@ Swagger only wired in non-production at `/api/docs`.
 | `ThrottlerModule` | 100 req/60s globally; auth endpoints override to 10 req/min in production |
 | `LoggerModule` (nestjs-pino) | Structured JSON logging; redacts `authorization`, `password`, `refreshToken` fields |
 | `PrismaModule` | Global DB client |
-| `AuthModule`, `UsersModule`, `JobsModule` | Feature modules |
+| `AuthModule`, `UsersModule`, `JobsModule` | Core feature modules |
+| `EnrichmentModule` | BullMQ company research pipeline and external web/LLM services |
+| `NotificationsModule` | BullMQ email processor and scheduled reminders/digests |
+| `StorageModule` | Local-disk or Oracle Object Storage implementation |
+| `ResumesModule`, `InterviewRoundsModule`, `ContactsModule` | Job child-resource APIs |
+| `AdminModule`, `HealthModule` | Administrative operations and health checks |
 
 ---
 
@@ -59,7 +72,7 @@ Prisma 7 quirk: no `url` field in schema. DB connection is wired via `new Prisma
 |---|---|---|
 | `LocalStrategy` | `'local'` | bcrypt-compares email/password, attaches user to `req.user` |
 | `JwtStrategy` | `'jwt'` | Bearer token from `Authorization` header, verifies with `JWT_SECRET`, fetches user from DB |
-| `JwtRefreshStrategy` | `'jwt-refresh'` | Token from request **body** (`req.body.refreshToken`), verifies with `JWT_REFRESH_SECRET` |
+| `JwtRefreshStrategy` | `'jwt-refresh'` | Token from the `jt_refresh` HttpOnly cookie, verifies with `JWT_REFRESH_SECRET` |
 | `GoogleStrategy` | `'google'` | OAuth 2.0, calls `handleOAuthUser` after redirect |
 | `GithubStrategy` | `'github'` | Same as Google |
 
@@ -72,10 +85,10 @@ Global guard. Checks `IS_PUBLIC_KEY` metadata: if a route has `@Public()`, it sh
 - **`issueTokens`** (private) — single source of truth. Signs both tokens in parallel, bcrypt-hashes the refresh token, saves to DB. Returns `{ accessToken, refreshToken }`.
 - **`register`** — hashes password, creates user, calls `issueTokens`.
 - **`validateLocalUser`** — called by `LocalStrategy`. Returns user or null.
-- **`refresh`** — looks up `RefreshToken` by `jti` (JWT ID claim), validates `userId` and `expiresAt`, bcrypt-compares the raw token against `tokenHash`, deletes the used row, issues new token pair via `issueTokens`.
+- **`refresh`** — looks up `RefreshToken` by `jti` (JWT ID claim), validates `userId` and `expiresAt`, bcrypt-compares the raw token against `tokenHash`, atomically marks the used row revoked, and issues a new token pair via `issueTokens`.
 - **`logout`** — `deleteMany` on `RefreshToken` for the user, invalidating all sessions across all devices.
-- **`handleOAuthUser`** — looks up by `Account`, then by email (links account), then creates new user. All paths end with `issueTokens`.
-- **`storeOAuthCode` / `exchangeOAuthCode`** — one-time code pattern. After OAuth callback, tokens are stored in an in-memory `Map` keyed by UUID (60s TTL). Frontend exchanges the code for tokens via `POST /auth/exchange-code`. Avoids exposing tokens in the redirect URL.
+- **`handleOAuthUser`** — looks up by `Account`, rejects silent linking to an existing password account, links passwordless users by email, or creates a new user. All paths end with `issueTokens`.
+- **`storeOAuthCode` / `exchangeOAuthCode`** — one-time code pattern. After OAuth callback, tokens are stored in Redis under a UUID key with a 60-second expiry. The frontend exchanges the code via `POST /auth/exchange-code`; only the opaque code appears in the redirect URL.
 
 ---
 
@@ -83,14 +96,15 @@ Global guard. Checks `IS_PUBLIC_KEY` metadata: if a route has `@Public()`, it sh
 
 ### Authorization Pattern
 
-Every method touching a specific job calls `findOne(userId, jobId)` first, which throws `ForbiddenException` if `job.userId !== userId`. Users can never access each other's data.
+Every method touching a specific job scopes the lookup by both `userId` and `jobId`. A missing or foreign job returns the same `404`, so users cannot discover each other's records.
 
 ### Key Service Behaviors
 
 - **`findAll`** — dynamic `where` clause: optional status filter, case-insensitive OR search on `company`/`position`, date range on `appliedAt`. Returns `{ data, meta: { total, page, limit, totalPages } }`.
-- **`update`** — if status changes, writes a `STATUS_CHANGE` event in the same Prisma operation via nested `events: { create: {...} }`.
-- **`getStats`** — three parallel queries (`Promise.all`): groupBy status, total count, this-month count. `responseRate = (interviewing + offer + rejected) / total * 100`.
-- **`exportCsv`** — up to 10,000 jobs, quote-escaped CSV string. Controller sets `Content-Type: text/csv` and `Content-Disposition` headers.
+- **`update`** — if status changes, uses a compare-and-set update and a Prisma transaction to write the `STATUS_CHANGE` event safely alongside the mutation.
+- **`parseJobPosting`** — fetches a supplied URL, falls back to search snippets when necessary, and asks Groq for structured job fields. This is a synchronous convenience endpoint with explicit frontend timeouts.
+- **`getStats`, `getFunnel`, `getTrend`, and `getAttention`** — owned by `JobsStatsService`, which keeps analytics queries separate from job CRUD.
+- **`exportCsv`** — up to 1,000 jobs, with quote escaping and spreadsheet-formula injection protection. Controller sets `Content-Type: text/csv` and `Content-Disposition` headers.
 
 ### API Endpoints
 
