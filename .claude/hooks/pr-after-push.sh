@@ -23,7 +23,20 @@ git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1 || exit 0
 existing=$(gh pr list --head "$branch" --json number --jq 'length' 2>/dev/null || echo 0)
 [ "${existing:-0}" != "0" ] && exit 0
 
-pr_url=$(gh pr create --fill --base main --head "$branch" 2>/dev/null | tail -1)
+merge_base=$(git merge-base main HEAD 2>/dev/null)
+if [ -z "$merge_base" ]; then
+  pr_url=$(gh pr create --fill --base main --head "$branch" 2>/dev/null | tail -1)
+else
+  subjects=$(git log --reverse --format='%s' "$merge_base..HEAD" 2>/dev/null)
+  count=$(printf '%s\n' "$subjects" | grep -c .)
+  if [ "$count" -le 1 ]; then
+    title="$subjects"
+  else
+    title=$(printf '%s\n' "$subjects" | head -1)
+  fi
+  body=$(printf '%s\n' "$subjects" | sed 's/^/- /')
+  pr_url=$(gh pr create --base main --head "$branch" --title "$title" --body "$body" 2>/dev/null | tail -1)
+fi
 if [ -n "$pr_url" ]; then
   printf '{"systemMessage":"Opened PR for %s: %s"}\n' "$branch" "$pr_url"
 fi
