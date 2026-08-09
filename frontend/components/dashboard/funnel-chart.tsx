@@ -40,7 +40,7 @@ function RangeBarChart({
       <BarChart
         data={data}
         layout="vertical"
-        margin={showValueLabels ? { left: 8, right: 28 } : { left: 8 }}
+        margin={showValueLabels ? { left: 8, right: 48 } : { left: 8 }}
       >
         <XAxis type="number" allowDecimals={false} hide />
         <YAxis
