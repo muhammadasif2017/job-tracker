@@ -58,11 +58,11 @@ describe('useTrendQuery', () => {
   it('fetches trend stats under ["analytics", "trend", range]', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: { points: [] } });
     const { qc, wrapper } = makeWrapper();
-    const { result } = renderHook(() => useTrendQuery('7d'), { wrapper });
+    const { result } = renderHook(() => useTrendQuery('all'), { wrapper });
 
     await waitFor(() => expect(result.current.data).toEqual({ points: [] }));
-    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/trend?range=7d');
-    expect(qc.getQueryData(['analytics', 'trend', '7d'])).toEqual({ points: [] });
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/trend?range=all');
+    expect(qc.getQueryData(['analytics', 'trend', 'all'])).toEqual({ points: [] });
   });
 });
 

@@ -26,11 +26,10 @@ function findByType(children: unknown[], type: string) {
 function getThemeInitScript(): string {
   const el = renderTree();
   const head = findByType(el.props.children, 'head')!;
-  const script = findByType(
-    head.props.children as unknown[],
-    'script',
-  )! as { props: { dangerouslySetInnerHTML: { __html: string } } };
-  return script.props.dangerouslySetInnerHTML.__html;
+  const script = findByType(head.props.children as unknown[], 'script')!;
+  return (
+    script.props as unknown as { dangerouslySetInnerHTML: { __html: string } }
+  ).dangerouslySetInnerHTML.__html;
 }
 
 function runThemeInit() {
