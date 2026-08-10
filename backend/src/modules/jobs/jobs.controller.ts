@@ -12,6 +12,7 @@ import {
   Query,
   Res,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import {
   ApiTags,
@@ -62,6 +63,10 @@ export class JobsController {
   }
 
   @Post('parse')
+  // Each call does a webFetch + Tavily search + Groq LLM round trip — real
+  // external cost, and (combined with the SSRF hardening in WebFetchService)
+  // a request path that shouldn't be hammerable at the global 100/60s rate.
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({
     summary:
       'Extract job fields from a posting URL or pasted text, for quick-add prefill',

@@ -1,7 +1,14 @@
 import { Test } from '@nestjs/testing';
 import { Logger } from 'nestjs-pino';
+// Node's dns/promises exports are non-configurable, so jest.spyOn can't
+// redefine `lookup` directly — mock the whole module at the factory level
+// instead, which intercepts resolution before either this file or the
+// service under test gets a real handle on it.
+jest.mock('node:dns/promises', () => ({ lookup: jest.fn() }));
+import * as dns from 'node:dns/promises';
 import { WebFetchService } from './web-fetch.service.js';
 
+const dnsLookup = dns.lookup as jest.Mock;
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 const htmlPage = `
@@ -19,6 +26,12 @@ const htmlPage = `
   </body>
 </html>`;
 
+function mockDnsAddresses(
+  ...addresses: Array<{ address: string; family: number }>
+) {
+  dnsLookup.mockResolvedValue(addresses);
+}
+
 describe('WebFetchService', () => {
   let service: WebFetchService;
   let fetchSpy: jest.SpyInstance;
@@ -29,11 +42,15 @@ describe('WebFetchService', () => {
     }).compile();
     service = module.get(WebFetchService);
     fetchSpy = jest.spyOn(global, 'fetch');
+    dnsLookup.mockReset();
   });
 
-  afterEach(() => fetchSpy.mockRestore());
+  afterEach(() => {
+    fetchSpy.mockRestore();
+  });
 
   it('returns plain text with HTML tags stripped', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy.mockResolvedValue({
       ok: true,
       text: () => Promise.resolve(htmlPage),
@@ -49,6 +66,7 @@ describe('WebFetchService', () => {
   });
 
   it('returns empty string when fetch rejects (network error)', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy.mockRejectedValue(new Error('ECONNREFUSED'));
 
     const result = await service.fetchPageText('https://unreachable.example');
@@ -57,6 +75,7 @@ describe('WebFetchService', () => {
   });
 
   it('returns empty string when response is not ok', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy.mockResolvedValue({
       ok: false,
       status: 404,
@@ -69,6 +88,7 @@ describe('WebFetchService', () => {
   });
 
   it('truncates output to 8000 characters', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     const bigHtml = `<html><body>${'<p>x</p>'.repeat(5000)}</body></html>`;
     fetchSpy.mockResolvedValue({
       ok: true,
@@ -81,23 +101,95 @@ describe('WebFetchService', () => {
   });
 
   it('returns empty string for an empty url without calling fetch', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+
     const result = await service.fetchPageText('');
+
+    expect(result).toBe('');
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(dnsLookup).not.toHaveBeenCalled();
+  });
+
+  it('returns empty string when DNS lookup fails', async () => {
+    dnsLookup.mockRejectedValue(new Error('ENOTFOUND'));
+
+    const result = await service.fetchPageText(
+      'https://does-not-exist.invalid',
+    );
+
     expect(result).toBe('');
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it.each([
-    'http://localhost/admin',
-    'http://127.0.0.1/etc/passwd',
-    'http://0.0.0.0',
-    'http://10.0.0.1/metadata',
-    'http://192.168.1.1/router',
-    'http://172.16.0.1/internal',
-    'http://169.254.169.254/latest/meta-data/',
-    'ftp://acme.com/file',
-  ])('blocks SSRF-prone url %s without calling fetch', async (url) => {
-    const result = await service.fetchPageText(url);
-    expect(result).toBe('');
-    expect(fetchSpy).not.toHaveBeenCalled();
+  it('sends redirect: "error" so a redirect target can never bypass validation', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('<html><body>ok</body></html>'),
+    });
+
+    await service.fetchPageText('https://acme.com');
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ redirect: 'error' }),
+    );
+  });
+
+  describe('SSRF protection', () => {
+    it('blocks non-http(s) protocols without a DNS lookup', async () => {
+      mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+
+      const result = await service.fetchPageText('ftp://acme.com/file');
+
+      expect(result).toBe('');
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(dnsLookup).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['http://localhost/admin', '127.0.0.1', 4],
+      ['http://127.0.0.1/etc/passwd', '127.0.0.1', 4],
+      ['http://0.0.0.0', '0.0.0.0', 4],
+      ['http://10.0.0.1/metadata', '10.0.0.1', 4],
+      ['http://192.168.1.1/router', '192.168.1.1', 4],
+      ['http://172.16.0.1/internal', '172.16.0.1', 4],
+      ['http://169.254.169.254/latest/meta-data/', '169.254.169.254', 4],
+      ['http://[::1]/', '::1', 6],
+      ['http://[::ffff:169.254.169.254]/', '::ffff:169.254.169.254', 6],
+    ])(
+      'blocks %s when it resolves to %s (a private/loopback/link-local address)',
+      async (url, address, family) => {
+        mockDnsAddresses({ address, family });
+
+        const result = await service.fetchPageText(url);
+
+        expect(result).toBe('');
+        expect(fetchSpy).not.toHaveBeenCalled();
+      },
+    );
+
+    it('blocks DNS rebinding — a normal-looking hostname that resolves to a private IP', async () => {
+      mockDnsAddresses({ address: '169.254.169.254', family: 4 });
+
+      const result = await service.fetchPageText(
+        'http://looks-legit.attacker.example/',
+      );
+
+      expect(result).toBe('');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('blocks when only one of several resolved addresses is private', async () => {
+      mockDnsAddresses(
+        { address: '93.184.216.34', family: 4 },
+        { address: '127.0.0.1', family: 4 },
+      );
+
+      const result = await service.fetchPageText('http://multi-homed.example/');
+
+      expect(result).toBe('');
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 });
