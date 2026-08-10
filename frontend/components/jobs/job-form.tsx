@@ -29,7 +29,14 @@ const schema = z.object({
   company: z.string().min(1, 'Company is required'),
   position: z.string().min(1, 'Position is required'),
   location: z.string().optional(),
-  url: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
+  url: z
+    .string()
+    .url('Enter a valid URL')
+    .refine((v) => /^https?:\/\//i.test(v), {
+      message: 'URL must start with http:// or https://',
+    })
+    .or(z.literal(''))
+    .optional(),
   status: z.enum(JOB_STATUSES),
   priority: z.enum(JOB_PRIORITIES),
   jobType: z.enum(JOB_TYPES),
