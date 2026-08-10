@@ -18,12 +18,30 @@ process.stdin.on('end',()=>{
       m = cmd.match(/-m\s+\"([^\"]+)\"/) || cmd.match(/-m\s+'([^']+)'/);
       if (m) msg = m[1].split('\n')[0];
     }
-    const slug = msg
+    const fullSlug = msg
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+\$/g, '')
-      .slice(0, 40)
-      .replace(/-+\$/, '');
+      .replace(/^-+|-+\$/g, '');
+    const MAX_LEN = 40;
+    let slug = fullSlug;
+    if (slug.length > MAX_LEN) {
+      // Hard char-slicing lands mid-word or leaves a stray trailing word
+      // wherever position 40 happens to fall (e.g. '...fetching-and',
+      // '...branches-from') — cut back to the last full word boundary
+      // instead so the name always ends cleanly.
+      const cut = slug.slice(0, MAX_LEN);
+      const lastDash = cut.lastIndexOf('-');
+      slug = lastDash > 0 ? cut.slice(0, lastDash) : cut;
+    }
+    // A word-complete cut can still land on a preposition/conjunction
+    // ('...branches-from', '...fetching-and') — technically whole, but
+    // reads exactly like a truncated fragment. Strip trailing filler words.
+    const STOPWORDS = new Set(['a','an','the','and','or','but','to','of','in','on','at','for','from','with','by','is','are']);
+    const parts = slug.split('-');
+    while (parts.length > 1 && STOPWORDS.has(parts[parts.length - 1])) {
+      parts.pop();
+    }
+    slug = parts.join('-');
     process.stdout.write((slug || 'update') + '\n');
   } catch (e) {
     process.stdout.write('0\nupdate\n');
