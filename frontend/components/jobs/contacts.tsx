@@ -26,24 +26,36 @@ const EMPTY_FORM = {
   notes: '',
 };
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function Contacts({ jobId, contacts }: ContactsProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | undefined>();
+  const [linkedinError, setLinkedinError] = useState<string | undefined>();
 
   function resetForm() {
     setForm(EMPTY_FORM);
     setFormOpen(false);
     setEditingId(null);
     setNameError(undefined);
+    setLinkedinError(undefined);
   }
 
   function startAdd() {
     setForm(EMPTY_FORM);
     setEditingId(null);
     setNameError(undefined);
+    setLinkedinError(undefined);
     setFormOpen(true);
   }
 
@@ -58,6 +70,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
     });
     setEditingId(contact.id);
     setNameError(undefined);
+    setLinkedinError(undefined);
     setFormOpen(true);
   }
 
@@ -89,6 +102,11 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       return;
     }
     setNameError(undefined);
+    if (form.linkedinUrl.trim() && !isValidHttpUrl(form.linkedinUrl.trim())) {
+      setLinkedinError('Enter a valid http:// or https:// URL');
+      return;
+    }
+    setLinkedinError(undefined);
     if (editingId) {
       updateMutation.mutate({ contactId: editingId, payload: buildPayload() });
     } else {
@@ -151,9 +169,11 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
               label="LinkedIn (optional)"
               placeholder="https://www.linkedin.com/in/janedoe"
               value={form.linkedinUrl}
-              onChange={(e) =>
-                setForm({ ...form, linkedinUrl: e.target.value })
-              }
+              onChange={(e) => {
+                setForm({ ...form, linkedinUrl: e.target.value });
+                if (linkedinError) setLinkedinError(undefined);
+              }}
+              error={linkedinError}
               className="sm:col-span-2"
             />
           </div>
