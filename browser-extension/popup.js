@@ -20,6 +20,15 @@ function sendMessage(msg) {
   return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
 }
 
+// Only https:// (or plain http:// on localhost, for local dev) is allowed
+// as a backend URL - the raw PAT gets sent to this origin on every connect
+// and every token refresh, so a plaintext non-localhost origin would ship
+// the credential in the clear.
+function isAllowedBackendUrl(url) {
+  const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  return url.protocol === 'https:' || isLocalhost;
+}
+
 function showError(message) {
   errorBox.textContent = message;
   errorBox.classList.remove('hidden');
@@ -67,8 +76,7 @@ connectForm.addEventListener('submit', async (e) => {
   try {
     const backendUrl = backendUrlInput.value.trim().replace(/\/+$/, '');
     const url = new URL(backendUrl);
-    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
-    if (url.protocol !== 'https:' && !isLocalhost) {
+    if (!isAllowedBackendUrl(url)) {
       showError('Backend URL must use https:// (plain http:// is only allowed for localhost).');
       return;
     }

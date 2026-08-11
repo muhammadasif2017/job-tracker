@@ -148,4 +148,135 @@ describe('background.js retry/self-heal logic', () => {
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('handleMessage', () => {
+    it('connect: exchanges the PAT, strips a trailing slash from backendUrl, and persists the connection', async () => {
+      fetchMock.mockResolvedValueOnce(
+        jsonResponse(200, { accessToken: 'at-1', expiresIn: 900 }),
+      );
+
+      const result = await ctx.handleMessage({
+        type: 'connect',
+        backendUrl: `${BACKEND_URL}/`,
+        patToken: 'jt_pat_id.secret',
+      });
+
+      expect(result).toEqual({ ok: true });
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${BACKEND_URL}/auth/token/exchange`,
+        expect.objectContaining({
+          body: JSON.stringify({ token: 'jt_pat_id.secret' }),
+        }),
+      );
+      const saved = await ctx.getConnection();
+      expect(saved).toMatchObject({
+        backendUrl: BACKEND_URL,
+        patToken: 'jt_pat_id.secret',
+        accessToken: 'at-1',
+      });
+    });
+
+    it('connect: propagates the exchange failure without saving a dead connection', async () => {
+      fetchMock.mockResolvedValueOnce(jsonResponse(403, { message: 'Invalid access token' }));
+
+      await expect(
+        ctx.handleMessage({
+          type: 'connect',
+          backendUrl: BACKEND_URL,
+          patToken: 'bad-token',
+        }),
+      ).rejects.toThrow('Invalid access token');
+
+      expect(await ctx.getConnection()).toBeNull();
+    });
+
+    it('disconnect: clears the stored connection', async () => {
+      await chrome.storage.local.set({ [STORAGE_KEY]: baseConn() });
+
+      const result = await ctx.handleMessage({ type: 'disconnect' });
+
+      expect(result).toEqual({ ok: true });
+      expect(await ctx.getConnection()).toBeNull();
+    });
+
+    it('status: reports connected with the stored backendUrl when a connection exists', async () => {
+      await chrome.storage.local.set({ [STORAGE_KEY]: baseConn({ backendUrl: 'https://example.com' }) });
+
+      const result = await ctx.handleMessage({ type: 'status' });
+
+      expect(result).toEqual({
+        ok: true,
+        connected: true,
+        backendUrl: 'https://example.com',
+      });
+    });
+
+    it('status: reports disconnected with the default backend URL when nothing is stored', async () => {
+      const result = await ctx.handleMessage({ type: 'status' });
+
+      expect(result).toEqual({
+        ok: true,
+        connected: false,
+        backendUrl: BACKEND_URL,
+      });
+    });
+
+    it('parseJob: rejects with "Not connected" when there is no stored connection', async () => {
+      await expect(
+        ctx.handleMessage({ type: 'parseJob', url: 'https://jobs.example.com/1' }),
+      ).rejects.toThrow('Not connected');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('parseJob: delegates to apiFetch against /jobs/parse and returns the parsed data', async () => {
+      await chrome.storage.local.set({ [STORAGE_KEY]: baseConn() });
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, { company: 'Acme', position: 'Engineer' }));
+
+      const result = await ctx.handleMessage({
+        type: 'parseJob',
+        url: 'https://jobs.example.com/1',
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        data: { company: 'Acme', position: 'Engineer' },
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        `${BACKEND_URL}/jobs/parse`,
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ url: 'https://jobs.example.com/1' }),
+        }),
+      );
+    });
+
+    it('createJob: rejects with "Not connected" when there is no stored connection', async () => {
+      await expect(
+        ctx.handleMessage({ type: 'createJob', payload: { company: 'Acme' } }),
+      ).rejects.toThrow('Not connected');
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('createJob: delegates to apiFetch against /jobs and returns the created job plus backendUrl', async () => {
+      await chrome.storage.local.set({ [STORAGE_KEY]: baseConn() });
+      fetchMock.mockResolvedValueOnce(jsonResponse(201, { id: 'job-9' }));
+
+      const result = await ctx.handleMessage({
+        type: 'createJob',
+        payload: { company: 'Acme', position: 'Engineer' },
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        data: { id: 'job-9' },
+        backendUrl: BACKEND_URL,
+      });
+    });
+
+    it('rejects unknown message types', async () => {
+      await expect(ctx.handleMessage({ type: 'bogus' })).rejects.toThrow(
+        'Unknown message type: bogus',
+      );
+    });
+  });
 });

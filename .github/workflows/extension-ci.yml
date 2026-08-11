@@ -52,3 +52,22 @@ jobs:
 
       - name: Run tests
         run: npm test
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Xvfb
+        run: sudo apt-get update && sudo apt-get install -y xvfb
+
+      - name: Run extension e2e (real Chromium, loads the unpacked extension)
+        # Extensions only load in headed Chromium (Playwright can't load
+        # --load-extension in real headless mode), so this needs a display.
+        run: xvfb-run --auto-servernum -- npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-playwright-report
+          path: browser-extension/playwright-report/
+          retention-days: 14

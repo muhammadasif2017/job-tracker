@@ -153,6 +153,20 @@ describe('Job Tracker (e2e)', () => {
 
     it('returns 401 without token', () =>
       agent.post('/tokens').send({ name: 'x' }).expect(401));
+
+    it('rejects an empty name with 400', () =>
+      agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: '' })
+        .expect(400));
+
+    it('rejects a name over 100 characters with 400', () =>
+      agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'x'.repeat(101) })
+        .expect(400));
   });
 
   describe('GET /tokens', () => {
@@ -187,6 +201,9 @@ describe('Job Tracker (e2e)', () => {
         .send({ token: 'not-a-real-token' })
         .expect(403));
 
+    it('rejects an empty token with 400 before it ever reaches the service', () =>
+      agent.post('/auth/token/exchange').send({ token: '' }).expect(400));
+
     it('allows the PAT-derived token to hit an @PatAccessible() route', () =>
       agent
         .post('/jobs')
@@ -215,10 +232,7 @@ describe('Job Tracker (e2e)', () => {
         .expect(404));
 
     it('rejects exchanging the now-revoked PAT with 403', () =>
-      agent
-        .post('/auth/token/exchange')
-        .send({ token: patToken })
-        .expect(403));
+      agent.post('/auth/token/exchange').send({ token: patToken }).expect(403));
 
     it('rejects the already-issued access token derived from the now-revoked PAT', () =>
       agent
