@@ -385,6 +385,7 @@ export default function ProfilePage() {
             className="space-y-4 pt-2"
           >
             <Input
+              id="token-name"
               label="Name"
               placeholder="Chrome extension"
               error={tokenNameForm.formState.errors.name?.message}
