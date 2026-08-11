@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "Job Tracker Import",
+  "version": "0.1.0",
+  "description": "Import the job posting in your current tab into Job Tracker with one click.",
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "activeTab"],
+  "optional_host_permissions": [
+    "https://*/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ]
+}

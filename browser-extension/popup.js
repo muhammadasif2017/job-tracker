@@ -1,0 +1,177 @@
+const el = (id) => document.getElementById(id);
+
+const errorBox = el('error');
+const connectView = el('connect-view');
+const importView = el('import-view');
+const connectForm = el('connect-form');
+const backendUrlInput = el('backend-url');
+const patTokenInput = el('pat-token');
+const connectSubmit = el('connect-submit');
+const connectedUrlLabel = el('connected-url');
+const disconnectLink = el('disconnect-link');
+const importReady = el('import-ready');
+const importButton = el('import-button');
+const previewForm = el('preview-form');
+const previewCancel = el('preview-cancel');
+const previewSave = el('preview-save');
+const successMsg = el('success');
+
+function sendMessage(msg) {
+  return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
+}
+
+function showError(message) {
+  errorBox.textContent = message;
+  errorBox.classList.remove('hidden');
+}
+
+function clearError() {
+  errorBox.classList.add('hidden');
+}
+
+function resetImportView() {
+  importReady.classList.remove('hidden');
+  previewForm.classList.add('hidden');
+  successMsg.classList.add('hidden');
+}
+
+async function showConnectedState(backendUrl) {
+  connectView.classList.add('hidden');
+  importView.classList.remove('hidden');
+  connectedUrlLabel.textContent = backendUrl;
+  resetImportView();
+}
+
+function showDisconnectedState() {
+  importView.classList.add('hidden');
+  connectView.classList.remove('hidden');
+  backendUrlInput.value = DEFAULT_BACKEND_URL;
+}
+
+async function init() {
+  const status = await sendMessage({ type: 'status' });
+  if (status.connected) {
+    await showConnectedState(status.backendUrl);
+  } else {
+    backendUrlInput.value = status.backendUrl || DEFAULT_BACKEND_URL;
+    showDisconnectedState();
+  }
+}
+
+connectForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearError();
+  connectSubmit.disabled = true;
+  connectSubmit.textContent = 'Connecting…';
+
+  try {
+    const backendUrl = backendUrlInput.value.trim().replace(/\/+$/, '');
+    const url = new URL(backendUrl);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    if (url.protocol !== 'https:' && !isLocalhost) {
+      showError('Backend URL must use https:// (plain http:// is only allowed for localhost).');
+      return;
+    }
+
+    const granted = await chrome.permissions.request({ origins: [`${url.origin}/*`] });
+    if (!granted) {
+      showError('Permission to reach that URL was not granted.');
+      return;
+    }
+
+    const result = await sendMessage({
+      type: 'connect',
+      backendUrl,
+      patToken: patTokenInput.value.trim(),
+    });
+
+    if (!result.ok) {
+      showError(result.error || 'Could not connect.');
+      return;
+    }
+
+    patTokenInput.value = '';
+    await showConnectedState(backendUrl);
+  } catch (err) {
+    showError(err.message || 'Could not connect.');
+  } finally {
+    connectSubmit.disabled = false;
+    connectSubmit.textContent = 'Connect';
+  }
+});
+
+disconnectLink.addEventListener('click', async (e) => {
+  e.preventDefault();
+  await sendMessage({ type: 'disconnect' });
+  showDisconnectedState();
+});
+
+importButton.addEventListener('click', async () => {
+  clearError();
+  importButton.disabled = true;
+  importButton.textContent = 'Reading page…';
+
+  try {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      currentWindow: true,
+    });
+    if (!tab?.url) throw new Error('No active tab URL found.');
+
+    const result = await sendMessage({ type: 'parseJob', url: tab.url });
+    if (!result.ok) throw new Error(result.error || 'Could not parse this page.');
+
+    const data = result.data || {};
+    el('field-company').value = data.company || '';
+    el('field-position').value = data.position || '';
+    el('field-location').value = data.location || '';
+    el('field-job-type').value = data.jobType || 'ONSITE';
+    el('field-application-channel').value =
+      data.applicationChannel || 'COMPANY_WEBSITE';
+    previewForm.dataset.url = data.url || tab.url;
+
+    importReady.classList.add('hidden');
+    previewForm.classList.remove('hidden');
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    importButton.disabled = false;
+    importButton.textContent = 'Import this job';
+  }
+});
+
+previewCancel.addEventListener('click', () => {
+  clearError();
+  resetImportView();
+});
+
+previewForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  clearError();
+  previewSave.disabled = true;
+  previewSave.textContent = 'Adding…';
+
+  try {
+    const payload = {
+      company: el('field-company').value.trim(),
+      position: el('field-position').value.trim(),
+      location: el('field-location').value.trim() || undefined,
+      url: previewForm.dataset.url || undefined,
+      jobType: el('field-job-type').value,
+      applicationChannel: el('field-application-channel').value,
+    };
+
+    const result = await sendMessage({ type: 'createJob', payload });
+    if (!result.ok) throw new Error(result.error || 'Could not add job.');
+
+    previewForm.classList.add('hidden');
+    successMsg.classList.remove('hidden');
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    previewSave.disabled = false;
+    previewSave.textContent = 'Add to Job Tracker';
+  }
+});
+
+init();

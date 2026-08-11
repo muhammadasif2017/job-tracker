@@ -20,6 +20,7 @@ import {
   ApiBody,
   ApiOkResponse,
   ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
   ApiConflictResponse,
   ApiBearerAuth,
   ApiExcludeEndpoint,
@@ -28,7 +29,9 @@ import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
+import { ExchangeApiTokenDto } from './dto/exchange-api-token.dto.js';
 import { AuthTokensDto } from './dto/auth-tokens.dto.js';
+import { ApiTokenAccessDto } from './dto/api-token-access.dto.js';
 import { CurrentUserDto } from './dto/current-user.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -157,6 +160,25 @@ export class AuthController {
       await this.authService.exchangeOAuthCode(dto.code);
     this.setRefreshCookie(res, refreshToken);
     return { accessToken };
+  }
+
+  @Public()
+  @Throttle({
+    default: {
+      ttl: 60000,
+      limit: process.env.NODE_ENV === 'production' ? 10 : 100,
+    },
+  })
+  @HttpCode(HttpStatus.OK)
+  @Post('token/exchange')
+  @ApiOperation({
+    summary:
+      'Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued)',
+  })
+  @ApiOkResponse({ type: ApiTokenAccessDto })
+  @ApiForbiddenResponse({ description: 'Invalid or revoked access token' })
+  exchangeApiToken(@Body() dto: ExchangeApiTokenDto) {
+    return this.authService.exchangeApiToken(dto.token);
   }
 
   @HttpCode(HttpStatus.OK)

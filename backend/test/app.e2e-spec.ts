@@ -8,6 +8,7 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
+import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
 
 // Unique email per run so tests are safe to run against the dev DB
@@ -24,6 +25,9 @@ describe('Job Tracker (e2e)', () => {
   let userId: string;
   let jobId: string;
   let roundId: string;
+  let patToken: string;
+  let patTokenId: string;
+  let patAccessToken: string;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +46,7 @@ describe('Job Tracker (e2e)', () => {
     app.useGlobalGuards(
       new JwtAuthGuard(app.get(Reflector)),
       new RolesGuard(app.get(Reflector)),
+      new PatScopeGuard(app.get(Reflector)),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
@@ -128,6 +133,99 @@ describe('Job Tracker (e2e)', () => {
 
     it('rejects a request with no refresh cookie', () =>
       request(app.getHttpServer()).post('/auth/refresh').expect(401));
+  });
+
+  // ── Personal access tokens ──────────────────────────────────────────────────
+
+  describe('POST /tokens', () => {
+    it('creates a token and returns the raw value exactly once', async () => {
+      const res = await agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'e2e extension' })
+        .expect(201);
+
+      expect(res.body.token).toMatch(/^jt_pat_/);
+      expect(res.body).not.toHaveProperty('tokenHash');
+      patToken = res.body.token;
+      patTokenId = res.body.id;
+    });
+
+    it('returns 401 without token', () =>
+      agent.post('/tokens').send({ name: 'x' }).expect(401));
+  });
+
+  describe('GET /tokens', () => {
+    it('lists the created token without leaking its hash', async () => {
+      const res = await agent
+        .get('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const listed = res.body.find((t: { id: string }) => t.id === patTokenId);
+      expect(listed).toMatchObject({ id: patTokenId, name: 'e2e extension' });
+      expect(listed).not.toHaveProperty('tokenHash');
+      expect(listed).not.toHaveProperty('token');
+    });
+  });
+
+  describe('POST /auth/token/exchange', () => {
+    it('exchanges the PAT for a short-lived, scope-restricted access token', async () => {
+      const res = await agent
+        .post('/auth/token/exchange')
+        .send({ token: patToken })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('accessToken');
+      expect(res.body).toHaveProperty('expiresIn');
+      patAccessToken = res.body.accessToken;
+    });
+
+    it('rejects a malformed token with 403', () =>
+      agent
+        .post('/auth/token/exchange')
+        .send({ token: 'not-a-real-token' })
+        .expect(403));
+
+    it('allows the PAT-derived token to hit an @PatAccessible() route', () =>
+      agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .send({ company: 'Extension Co', position: 'Imported Role' })
+        .expect(201));
+
+    it('rejects the PAT-derived token on a route without @PatAccessible()', () =>
+      agent
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .expect(403));
+  });
+
+  describe('DELETE /tokens/:id', () => {
+    it('revokes the token', () =>
+      agent
+        .delete(`/tokens/${patTokenId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200));
+
+    it('returns 404 revoking an already-revoked token', () =>
+      agent
+        .delete(`/tokens/${patTokenId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
+
+    it('rejects exchanging the now-revoked PAT with 403', () =>
+      agent
+        .post('/auth/token/exchange')
+        .send({ token: patToken })
+        .expect(403));
+
+    it('rejects the already-issued access token derived from the now-revoked PAT', () =>
+      agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .send({ company: 'Should Fail Co', position: 'Should Not Be Created' })
+        .expect(401));
   });
 
   // ── Jobs ────────────────────────────────────────────────────────────────────

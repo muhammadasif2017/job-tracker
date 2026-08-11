@@ -8,6 +8,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module.js';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
+import { PatScopeGuard } from './common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
 async function bootstrap() {
@@ -34,6 +35,7 @@ async function bootstrap() {
   app.useGlobalGuards(
     new JwtAuthGuard(app.get(Reflector)),
     new RolesGuard(app.get(Reflector)),
+    new PatScopeGuard(app.get(Reflector)),
   );
   app.useGlobalFilters(new GlobalExceptionFilter());
 

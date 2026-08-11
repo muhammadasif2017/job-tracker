@@ -51,7 +51,7 @@ Two JWTs issued together by the private `issueTokens(userId, email)` method:
 
 On every refresh, the old `RefreshToken` row is soft-revoked (`revokedAt` set, not deleted) and a new pair (new `jti`, new row) is issued. Presenting an already-revoked token (replay of a rotated-out refresh token) is treated as a theft signal — it revokes every `RefreshToken` row for that user, not just the one presented.
 
-`AuthService.cleanupExpiredRefreshTokens` (`@Cron(EVERY_DAY_AT_MIDNIGHT)`, via `@nestjs/schedule`'s `ScheduleModule.forRoot()` in `AppModule`) deletes rows past `expiresAt` — both naturally expired and soft-revoked rows accumulate until this runs.
+`AuthService.cleanupExpiredRefreshTokens` (`@Cron(EVERY_DAY_AT_MIDNIGHT)`, via `@nestjs/schedule`'s `ScheduleModule.forRoot()` in `AppModule`) deletes rows past `expiresAt` — both naturally expired and soft-revoked rows accumulate until this runs. `TokensService.cleanupExpiredApiTokens` is the same pattern for `ApiToken` rows.
 
 ### `@CurrentUser()` Decorator
 
@@ -80,6 +80,20 @@ GET /auth/google
 1. Find existing `Account` by `[provider, providerAccountId]` → return tokens
 2. Find `User` by email → link new `Account` → return tokens
 3. Create new `User` + `Account` → return tokens
+
+---
+
+### Personal Access Tokens (PATs) — Scoped, Not Full-Access
+
+`ApiToken` (see `TokensModule`, `POST/GET/DELETE /tokens`) is a long-lived credential for clients that can't hold the httpOnly refresh cookie (the browser extension). `AuthService.exchangeApiToken` trades a raw PAT for a normal 15-minute access JWT — but that JWT carries an extra `scope: 'pat'` claim (`PAT_SCOPE` in `tokens.constants.ts`) that a login/OAuth/refresh-issued JWT never has.
+
+`JwtStrategy.validate()` copies `payload.scope` onto `req.user` when present. `PatScopeGuard` (global, registered in `main.ts` right after `RolesGuard` — order matters, same as `RolesGuard` needing `req.user`) reads it: a token with no scope (normal login) passes through untouched; a token with `scope: 'pat'` is rejected on any route that isn't explicitly marked `@PatAccessible()`. This is opt-in, same shape as `@Public()`/`@Roles()` — a leaked PAT can only reach the handful of endpoints the extension actually needs (currently `POST /jobs` and `POST /jobs/parse`), not password change, account deletion, admin routes, or minting more tokens.
+
+The access JWT itself is otherwise stateless — to make `DELETE /tokens/:id` take effect immediately instead of up to 15 minutes later, PAT-scoped tokens also carry a `patId` claim (the source `ApiToken.id`), and `JwtStrategy.validate()` re-checks that row's `revokedAt`/`expiresAt` on every request. This lookup only runs for `scope: 'pat'` tokens — normal login/refresh-derived tokens skip it.
+
+`ApiToken.expiresAt` (`PAT_EXPIRY_DAYS` in `tokens.constants.ts`, currently 180 days from creation) bounds exposure from a token that's never manually revoked — checked both in `AuthService.exchangeApiToken` (can't exchange an expired PAT) and in `JwtStrategy.validate()` (an already-issued JWT stops working once its source PAT expires, same as revocation).
+
+`test/app.e2e-spec.ts` manually mirrors `main.ts`'s guard list — `PatScopeGuard` must be added there too if the global guard set changes again.
 
 ---
 
@@ -252,7 +266,9 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 
 ## Rate Limiting
 
-Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route with no per-route override anywhere in the codebase. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
+Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route by default. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
+
+A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled.
 
 ---
 

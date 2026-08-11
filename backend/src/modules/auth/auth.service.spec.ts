@@ -190,6 +190,7 @@ describe('AuthService', () => {
       userId: 'u-1',
       tokenHash: 'hash',
       revokedAt: null,
+      expiresAt: new Date(Date.now() + 10_000),
       user: { email: 'a@b.com' },
       ...overrides,
     });
@@ -236,6 +237,17 @@ describe('AuthService', () => {
       ).rejects.toThrow(ForbiddenException);
     });
 
+    it('rejects an expired token after still comparing the secret', async () => {
+      mockPrisma.apiToken.findUnique.mockResolvedValue(
+        activeToken({ expiresAt: new Date(Date.now() - 1) }),
+      );
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      await expect(
+        service.exchangeApiToken('jt_pat_id-1.secret'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(bcrypt.compare).toHaveBeenCalledWith('secret', 'hash');
+    });
+
     it('returns a short-lived access token and touches lastUsedAt on success', async () => {
       configFor();
       mockPrisma.apiToken.findUnique.mockResolvedValue(activeToken());
@@ -244,7 +256,7 @@ describe('AuthService', () => {
       const result = await service.exchangeApiToken('jt_pat_id-1.secret');
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'u-1', email: 'a@b.com', scope: 'pat' },
+        { sub: 'u-1', email: 'a@b.com', scope: 'pat', patId: 'id-1' },
         { secret: 'access-secret', expiresIn: '15m' },
       );
       expect(mockPrisma.apiToken.update).toHaveBeenCalledWith({
