@@ -17,6 +17,7 @@ export class JwtRefreshStrategy extends PassportStrategy(
       jwtFromRequest: (req: Request) =>
         (req.cookies?.[REFRESH_COOKIE_NAME] as string | undefined) ?? null,
       secretOrKey: config.get<string>('JWT_REFRESH_SECRET')!,
+      algorithms: ['HS256'],
       passReqToCallback: true,
     });
   }

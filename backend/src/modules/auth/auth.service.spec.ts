@@ -124,11 +124,11 @@ describe('AuthService', () => {
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
         { sub: 'u-1', email: 'a@b.com' },
-        { secret: 'access-secret', expiresIn: '15m' },
+        { secret: 'access-secret', expiresIn: '15m', algorithm: 'HS256' },
       );
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
         expect.objectContaining({ sub: 'u-1', email: 'a@b.com' }),
-        { secret: 'refresh-secret', expiresIn: '7d' },
+        { secret: 'refresh-secret', expiresIn: '7d', algorithm: 'HS256' },
       );
     });
 
@@ -257,7 +257,7 @@ describe('AuthService', () => {
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
         { sub: 'u-1', email: 'a@b.com', scope: 'pat', patId: 'id-1' },
-        { secret: 'access-secret', expiresIn: '15m' },
+        { secret: 'access-secret', expiresIn: '15m', algorithm: 'HS256' },
       );
       expect(mockPrisma.apiToken.update).toHaveBeenCalledWith({
         where: { id: 'id-1' },
