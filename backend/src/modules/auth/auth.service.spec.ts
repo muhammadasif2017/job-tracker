@@ -43,6 +43,10 @@ const mockPrisma = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
+  apiToken: {
+    findUnique: jest.fn(),
+    update: jest.fn(),
+  },
 };
 
 const mockJwt = { signAsync: jest.fn() };
@@ -56,6 +60,7 @@ describe('AuthService', () => {
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed');
     mockJwt.signAsync.mockResolvedValue('token');
     mockPrisma.refreshToken.create.mockResolvedValue({});
+    mockPrisma.apiToken.update.mockResolvedValue({});
 
     const module = await Test.createTestingModule({
       providers: [
@@ -166,6 +171,100 @@ describe('AuthService', () => {
       expect(bcrypt.hash).toHaveBeenCalledWith('pass12345', 10);
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
+    });
+  });
+
+  describe('exchangeApiToken', () => {
+    const configFor = (overrides: Record<string, string> = {}) =>
+      mockConfig.get.mockImplementation(
+        (key: string) =>
+          ({
+            JWT_SECRET: 'access-secret',
+            JWT_EXPIRES_IN: '15m',
+            ...overrides,
+          })[key],
+      );
+
+    const activeToken = (overrides: Record<string, unknown> = {}) => ({
+      id: 'id-1',
+      userId: 'u-1',
+      tokenHash: 'hash',
+      revokedAt: null,
+      user: { email: 'a@b.com' },
+      ...overrides,
+    });
+
+    it('rejects a token missing the expected prefix', async () => {
+      await expect(service.exchangeApiToken('not-a-token')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPrisma.apiToken.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('rejects a malformed token with no id/secret separator', async () => {
+      await expect(
+        service.exchangeApiToken('jt_pat_no-dot-here'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('rejects when the token id does not exist, comparing against a dummy hash to avoid a timing oracle', async () => {
+      mockPrisma.apiToken.findUnique.mockResolvedValue(null);
+      await expect(
+        service.exchangeApiToken('jt_pat_id-1.secret'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(bcrypt.compare).toHaveBeenCalledWith(
+        'secret',
+        expect.stringMatching(/^\$2b\$10\$/),
+      );
+    });
+
+    it('rejects a revoked token after still comparing the secret', async () => {
+      mockPrisma.apiToken.findUnique.mockResolvedValue(
+        activeToken({ revokedAt: new Date() }),
+      );
+      await expect(
+        service.exchangeApiToken('jt_pat_id-1.secret'),
+      ).rejects.toThrow(ForbiddenException);
+      expect(bcrypt.compare).toHaveBeenCalledWith('secret', 'hash');
+    });
+
+    it('rejects when the secret does not match the stored hash', async () => {
+      mockPrisma.apiToken.findUnique.mockResolvedValue(activeToken());
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+      await expect(
+        service.exchangeApiToken('jt_pat_id-1.secret'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('returns a short-lived access token and touches lastUsedAt on success', async () => {
+      configFor();
+      mockPrisma.apiToken.findUnique.mockResolvedValue(activeToken());
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      const result = await service.exchangeApiToken('jt_pat_id-1.secret');
+
+      expect(mockJwt.signAsync).toHaveBeenCalledWith(
+        { sub: 'u-1', email: 'a@b.com', scope: 'pat' },
+        { secret: 'access-secret', expiresIn: '15m' },
+      );
+      expect(mockPrisma.apiToken.update).toHaveBeenCalledWith({
+        where: { id: 'id-1' },
+        data: { lastUsedAt: expect.any(Date) },
+      });
+      expect(result).toEqual({ accessToken: 'token', expiresIn: 900 });
+    });
+
+    it('splits id/secret on the first dot only, tolerating dots in the secret', async () => {
+      mockPrisma.apiToken.findUnique.mockResolvedValue(activeToken());
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+
+      await service.exchangeApiToken('jt_pat_id-1.sec.ret');
+
+      expect(mockPrisma.apiToken.findUnique).toHaveBeenCalledWith({
+        where: { id: 'id-1' },
+        include: { user: { select: { email: true } } },
+      });
+      expect(bcrypt.compare).toHaveBeenCalledWith('sec.ret', 'hash');
     });
   });
 
