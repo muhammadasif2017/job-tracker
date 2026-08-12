@@ -55,19 +55,23 @@ jobs:
 
       - name: Get installed Playwright version
         id: playwright-version
-        run: echo "version=$(node -e "console.log(require('./package.json').devDependencies['@playwright/test'])")" >> "$GITHUB_OUTPUT"
+        # Read the resolved version from the installed package, not the
+        # semver range in package.json's devDependencies (e.g. "^1.60.0").
+        # The range string doesn't change between patch releases, but the
+        # browser revision Playwright expects does - keying the cache off
+        # the range let a stale-revision cache silently "hit" and serve a
+        # binary path that no longer exists. Root cause of the v2 poisoning.
+        run: echo "version=$(node -e "console.log(require('@playwright/test/package.json').version)")" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          # v2: actions/cache never overwrites an existing key, so a cache
-          # saved from an interrupted/failed install stays poisoned under the
-          # old key forever - restores keep reporting cache-hit=true for a
-          # dir that's missing the actual browser binary. Bump this suffix
-          # any time that happens again.
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-v2
+          # v3: bumped because v2 was still keyed off the devDependencies
+          # semver range (see note above) and could get silently poisoned
+          # the same way again.
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-v3
 
       # Don't trust cache-hit alone - a cache saved from a prior interrupted
       # install can report a hit while the browser binary is still missing
