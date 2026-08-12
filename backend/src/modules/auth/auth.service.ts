@@ -261,7 +261,6 @@ export class AuthService implements OnModuleDestroy {
       {
         secret: this.config.get('JWT_SECRET'),
         expiresIn: this.config.get('JWT_EXPIRES_IN'),
-        algorithm: 'HS256',
       },
     );
   }
@@ -276,7 +275,6 @@ export class AuthService implements OnModuleDestroy {
         {
           secret: this.config.get('JWT_REFRESH_SECRET'),
           expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),
-          algorithm: 'HS256',
         },
       ),
     ]);
