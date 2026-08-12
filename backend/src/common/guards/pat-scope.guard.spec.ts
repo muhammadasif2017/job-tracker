@@ -50,4 +50,16 @@ describe('PatScopeGuard', () => {
       guard.canActivate(contextWithUser({ id: 'u-1', scope: 'some-future-scope' })),
     ).toThrow(ForbiddenException);
   });
+
+  it('rejects a non-PAT scope even on a @PatAccessible() route', () => {
+    // @PatAccessible() only opts a route in for PAT_SCOPE specifically -
+    // truthiness of `allowed` alone must not be enough to let a future,
+    // unrelated scope value through.
+    mockReflector.getAllAndOverride.mockReturnValue(true);
+    expect(() =>
+      guard.canActivate(
+        contextWithUser({ id: 'u-1', scope: 'some-future-scope' }),
+      ),
+    ).toThrow(ForbiddenException);
+  });
 });

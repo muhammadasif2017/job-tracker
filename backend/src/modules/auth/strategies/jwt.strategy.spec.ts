@@ -110,4 +110,30 @@ describe('JwtStrategy', () => {
       }),
     ).rejects.toThrow(UnauthorizedException);
   });
+
+  it('rejects a PAT-scoped token with no patId claim instead of querying with undefined', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'u-1' });
+
+    await expect(
+      strategy.validate({ sub: 'u-1', email: 'a@b.com', scope: 'pat' }),
+    ).rejects.toThrow(UnauthorizedException);
+    expect(mockPrisma.apiToken.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('forwards a non-PAT scope claim onto the user instead of silently dropping it', async () => {
+    // JwtStrategy doesn't know about every scope type that might exist in
+    // future - it only owns the PAT-specific revocation check. Anything else
+    // must still reach req.user so PatScopeGuard can fail closed on it.
+    const user = { id: 'u-1', email: 'a@b.com', name: 'A', avatarUrl: null, role: 'USER' };
+    mockPrisma.user.findUnique.mockResolvedValue(user);
+
+    const result = await strategy.validate({
+      sub: 'u-1',
+      email: 'a@b.com',
+      scope: 'some-future-scope',
+    });
+
+    expect(result).toEqual({ ...user, scope: 'some-future-scope' });
+    expect(mockPrisma.apiToken.findUnique).not.toHaveBeenCalled();
+  });
 });

@@ -32,33 +32,49 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: JwtPayload) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: payload.sub },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        avatarUrl: true,
-        role: true,
-      },
-    });
+    const isPat = payload.scope === PAT_SCOPE;
+    // patId is only ever absent here if a future call site signs a
+    // scope: 'pat' payload without it - fail closed with the same 401 as
+    // every other invalid-PAT path, rather than passing undefined to
+    // findUnique below.
+    if (isPat && !payload.patId) throw new UnauthorizedException();
+
+    // The ApiToken lookup only depends on the payload, not on the user
+    // lookup's result, so run them concurrently instead of serially.
+    const [user, token] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          avatarUrl: true,
+          role: true,
+        },
+      }),
+      isPat
+        ? this.prisma.apiToken.findUnique({
+            where: { id: payload.patId },
+            select: { revokedAt: true, expiresAt: true },
+          })
+        : Promise.resolve(null),
+    ]);
     if (!user) throw new UnauthorizedException();
 
-    if (payload.scope === PAT_SCOPE) {
+    if (isPat) {
       // The JWT itself is stateless and stays valid for its full TTL once
       // signed - re-check the source ApiToken on every request so revoking
       // it (DELETE /tokens/:id) takes effect immediately instead of up to
       // 15 minutes later.
-      const token = await this.prisma.apiToken.findUnique({
-        where: { id: payload.patId },
-        select: { revokedAt: true, expiresAt: true },
-      });
       if (!token || token.revokedAt || token.expiresAt < new Date()) {
         throw new UnauthorizedException();
       }
-      return { ...user, scope: payload.scope };
     }
 
-    return user;
+    // Forward *any* scope claim, not just PAT_SCOPE, so PatScopeGuard sees
+    // it and fails closed on a scope it doesn't recognize instead of it
+    // being silently dropped here and granting unrestricted access.
+    if (!payload.scope) return user;
+    return { ...user, scope: payload.scope };
   }
 }

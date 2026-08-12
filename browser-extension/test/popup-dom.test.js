@@ -89,6 +89,26 @@ describe('popup.js DOM wiring', () => {
     expect(document.getElementById('connected-url').textContent).toBe('https://api.example.com');
   });
 
+  it('recovers instead of crashing when the background script is unreachable on load', async () => {
+    // Simulates the MV3 service worker being evicted right as the popup
+    // opens: chrome invokes the callback with response=undefined and sets
+    // runtime.lastError, rather than never calling back at all.
+    const sendMessage = vi.fn((_msg, resolve) => {
+      globalThis.chrome.runtime.lastError = {
+        message: 'Could not establish connection. Receiving end does not exist.',
+      };
+      resolve(undefined);
+      delete globalThis.chrome.runtime.lastError;
+    });
+    loadPopupIntoDom({ sendMessage });
+    await flush();
+
+    expect(document.getElementById('connect-view').classList.contains('hidden')).toBe(false);
+    expect(document.getElementById('import-view').classList.contains('hidden')).toBe(true);
+    expect(document.getElementById('error').classList.contains('hidden')).toBe(false);
+    expect(document.getElementById('error').textContent).toMatch(/could not establish connection/i);
+  });
+
   it('rejects a plain-http non-localhost backend URL before ever requesting permission or sending a message', async () => {
     const permissionsRequest = vi.fn().mockResolvedValue(true);
     const sendMessage = vi.fn((_msg, resolve) => resolve({ ok: true, connected: false }));

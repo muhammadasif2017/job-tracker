@@ -17,6 +17,12 @@ const mockPrisma = {
     updateMany: jest.fn(),
     count: jest.fn(),
   },
+  $executeRaw: jest.fn().mockResolvedValue(undefined),
+  // create() runs inside $transaction - hand the callback the same mock
+  // object so `tx.apiToken.*`/`tx.$executeRaw` calls hit the spies above.
+  $transaction: jest.fn((callback: (tx: unknown) => unknown) =>
+    callback(mockPrisma),
+  ),
 };
 
 describe('TokensService', () => {
@@ -26,6 +32,10 @@ describe('TokensService', () => {
     jest.clearAllMocks();
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-secret');
     mockPrisma.apiToken.count.mockResolvedValue(0);
+    mockPrisma.$executeRaw.mockResolvedValue(undefined);
+    mockPrisma.$transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
+      callback(mockPrisma),
+    );
     const module = await Test.createTestingModule({
       providers: [
         TokensService,
@@ -73,35 +83,39 @@ describe('TokensService', () => {
       expect(mockPrisma.apiToken.create).not.toHaveBeenCalled();
     });
 
-    it('documents the accepted TOCTOU race: two concurrent creates one below the cap both succeed', async () => {
-      // count-then-insert isn't atomic - two requests that both read
-      // count = MAX-1 before either insert lands will both pass the check
-      // and the user ends up with MAX+1 active tokens. tokens.constants.ts
-      // calls this out explicitly as "not a real security boundary on its
-      // own" (self-service, same-user, worst case a couple extra rows), so
-      // this test documents the accepted tradeoff rather than treating it
-      // as a bug to fix.
-      mockPrisma.apiToken.count.mockResolvedValue(
-        MAX_ACTIVE_TOKENS_PER_USER - 1,
-      );
-      mockPrisma.apiToken.create.mockImplementation(({ data }) =>
-        Promise.resolve({
+    it('runs the count-then-insert inside a transaction serialized by a per-user advisory lock', async () => {
+      // count-then-insert isn't atomic on its own - two concurrent calls
+      // could both read count < cap before either inserts. The lock (see
+      // pg_advisory_xact_lock in TokensService.create) closes that race by
+      // serializing concurrent create() calls for the same user; real
+      // cross-transaction proof lives in the e2e suite since a mocked
+      // Prisma client can't exercise actual Postgres locking. This test
+      // only pins the ordering: the lock must be acquired before the count
+      // check, not after.
+      const callOrder: string[] = [];
+      mockPrisma.$executeRaw.mockImplementation(() => {
+        callOrder.push('lock');
+        return Promise.resolve(undefined);
+      });
+      mockPrisma.apiToken.count.mockImplementation(() => {
+        callOrder.push('count');
+        return Promise.resolve(0);
+      });
+      mockPrisma.apiToken.create.mockImplementation(({ data }) => {
+        callOrder.push('create');
+        return Promise.resolve({
           id: data.id,
           name: data.name,
           createdAt: new Date('2026-01-01'),
           lastUsedAt: null,
           expiresAt: data.expiresAt,
-        }),
-      );
+        });
+      });
 
-      const [a, b] = await Promise.all([
-        service.create('user-1', { name: 'Request A' }),
-        service.create('user-1', { name: 'Request B' }),
-      ]);
+      await service.create('user-1', { name: 'Chrome extension' });
 
-      expect(a.name).toBe('Request A');
-      expect(b.name).toBe('Request B');
-      expect(mockPrisma.apiToken.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+      expect(callOrder).toEqual(['lock', 'count', 'create']);
     });
   });
 
@@ -122,7 +136,11 @@ describe('TokensService', () => {
       const result = await service.findAll('user-1');
 
       expect(mockPrisma.apiToken.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-1', revokedAt: null },
+        where: {
+          userId: 'user-1',
+          revokedAt: null,
+          expiresAt: { gt: expect.any(Date) },
+        },
         orderBy: { createdAt: 'desc' },
       });
       expect(result).toEqual([

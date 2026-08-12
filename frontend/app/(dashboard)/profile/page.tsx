@@ -97,6 +97,13 @@ export default function ProfilePage() {
   const { data: tokens } = useTokensQuery();
   const createToken = useCreateTokenMutation();
   const revokeToken = useRevokeTokenMutation();
+  // A single shared mutation only tracks the most recent call's `variables`,
+  // so revoking two different rows in quick succession would otherwise
+  // desync the spinner from `revokeToken.isPending`. Track pending ids
+  // per-row instead.
+  const [pendingRevokeIds, setPendingRevokeIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   const hasPassword = !!profile?.hasPassword;
 
@@ -300,10 +307,19 @@ export default function ProfilePage() {
                 <Button
                   variant="danger"
                   size="sm"
-                  loading={
-                    revokeToken.isPending && revokeToken.variables === t.id
-                  }
-                  onClick={() => revokeToken.mutate(t.id)}
+                  loading={pendingRevokeIds.has(t.id)}
+                  onClick={() => {
+                    setPendingRevokeIds((prev) => new Set(prev).add(t.id));
+                    revokeToken.mutate(t.id, {
+                      onSettled: () => {
+                        setPendingRevokeIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(t.id);
+                          return next;
+                        });
+                      },
+                    });
+                  }}
                 >
                   Revoke
                 </Button>

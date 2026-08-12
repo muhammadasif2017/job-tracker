@@ -17,7 +17,19 @@ const previewSave = el('preview-save');
 const successMsg = el('success');
 
 function sendMessage(msg) {
-  return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(msg, (response) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      if (response === undefined) {
+        reject(new Error('No response from the extension background script.'));
+        return;
+      }
+      resolve(response);
+    });
+  });
 }
 
 // Only https:// (or plain http:// on localhost, for local dev) is allowed
@@ -58,12 +70,17 @@ function showDisconnectedState() {
 }
 
 async function init() {
-  const status = await sendMessage({ type: 'status' });
-  if (status.connected) {
-    await showConnectedState(status.backendUrl);
-  } else {
-    backendUrlInput.value = status.backendUrl || DEFAULT_BACKEND_URL;
+  try {
+    const status = await sendMessage({ type: 'status' });
+    if (status.connected) {
+      await showConnectedState(status.backendUrl);
+    } else {
+      backendUrlInput.value = status.backendUrl || DEFAULT_BACKEND_URL;
+      showDisconnectedState();
+    }
+  } catch (err) {
     showDisconnectedState();
+    showError(err.message || 'Could not reach the extension background script. Reopen this popup to retry.');
   }
 }
 

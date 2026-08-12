@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
+import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constants';
 
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;
@@ -180,6 +181,33 @@ describe('Job Tracker (e2e)', () => {
       expect(listed).toMatchObject({ id: patTokenId, name: 'e2e extension' });
       expect(listed).not.toHaveProperty('tokenHash');
       expect(listed).not.toHaveProperty('token');
+    });
+  });
+
+  describe('POST /tokens concurrency', () => {
+    it('enforces the active-token cap exactly under concurrent requests, not approximately', async () => {
+      // Real proof of TokensService.create's pg_advisory_xact_lock: a
+      // count-then-insert without it would let concurrent requests all read
+      // the same pre-insert count and overshoot the cap - only a live
+      // Postgres transaction can demonstrate the lock actually serializes,
+      // a mocked Prisma client (see tokens.service.spec.ts) can't.
+      // One active token already exists from the earlier POST /tokens test,
+      // so exactly MAX_ACTIVE_TOKENS_PER_USER - 1 of these should succeed.
+      const attempts = MAX_ACTIVE_TOKENS_PER_USER + 5;
+      const responses = await Promise.all(
+        Array.from({ length: attempts }, (_, i) =>
+          agent
+            .post('/tokens')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: `concurrent-${i}` }),
+        ),
+      );
+
+      const succeeded = responses.filter((r) => r.status === 201);
+      const rejected = responses.filter((r) => r.status === 400);
+
+      expect(succeeded).toHaveLength(MAX_ACTIVE_TOKENS_PER_USER - 1);
+      expect(rejected).toHaveLength(attempts - (MAX_ACTIVE_TOKENS_PER_USER - 1));
     });
   });
 
