@@ -97,23 +97,45 @@ jobs:
       - name: Get installed Playwright version
         working-directory: ./frontend
         id: playwright-version
-        run: echo "version=$(node -e "console.log(require('./package.json').devDependencies['@playwright/test'])")" >> "$GITHUB_OUTPUT"
+        # Read the resolved version from the installed package, not the
+        # semver range in package.json's devDependencies (e.g. "^1.60.0").
+        # The range string doesn't change between patch releases, but the
+        # browser revision Playwright expects does - keying the cache off
+        # the range let a stale-revision cache silently "hit" and serve a
+        # binary path that no longer exists. Root cause of the v2 poisoning.
+        run: echo "version=$(node -e "console.log(require('@playwright/test/package.json').version)")" >> "$GITHUB_OUTPUT"
 
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          # v3: bumped because v2 was still keyed off the devDependencies
+          # semver range (see note above) and got silently poisoned again.
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-v3
+
+      # Don't trust cache-hit alone - a cache saved from a prior interrupted
+      # install can report a hit while the browser binary is still missing
+      # (this is exactly how the previous cache key got poisoned). Check for
+      # the real binary and reinstall if it's not there, regardless of what
+      # the cache step reported.
+      - name: Check whether Chromium is actually present
+        id: chromium-check
+        run: |
+          if find ~/.cache/ms-playwright -maxdepth 4 -type f \( -name chrome -o -name chrome-headless-shell \) 2>/dev/null | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install Playwright browsers
         working-directory: ./frontend
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.chromium-check.outputs.present != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Install Playwright OS deps only
         working-directory: ./frontend
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.chromium-check.outputs.present == 'true'
         run: npx playwright install-deps chromium
 
       - name: Build frontend
