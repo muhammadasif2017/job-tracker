@@ -287,14 +287,18 @@ export default function ProfilePage() {
       )}
 
       <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="font-medium">Personal access tokens</h2>
             <p className="text-sm text-slate-500">
               Used by the browser extension to import job postings.
             </p>
           </div>
-          <Button size="sm" onClick={() => setTokenModalOpen(true)}>
+          <Button
+            size="sm"
+            className="self-start sm:self-auto"
+            onClick={() => setTokenModalOpen(true)}
+          >
             Generate token
           </Button>
         </div>
