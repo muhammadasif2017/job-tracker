@@ -24,6 +24,7 @@ import {
   useTokensQuery,
   useCreateTokenMutation,
   useRevokeTokenMutation,
+  type ApiToken,
   type CreatedApiToken,
 } from '../../../features/tokens/hooks';
 
@@ -66,6 +67,7 @@ export default function ProfilePage() {
   const [createdToken, setCreatedToken] = useState<CreatedApiToken | null>(
     null,
   );
+  const [revokeTarget, setRevokeTarget] = useState<ApiToken | null>(null);
 
   const { data: profile } = useProfileQuery();
   const user = profile ?? storeUser;
@@ -111,6 +113,20 @@ export default function ProfilePage() {
     setTokenModalOpen(false);
     setCreatedToken(null);
     tokenNameForm.reset();
+  };
+
+  const confirmRevoke = (id: string) => {
+    setRevokeTarget(null);
+    setPendingRevokeIds((prev) => new Set(prev).add(id));
+    revokeToken.mutate(id, {
+      onSettled: () => {
+        setPendingRevokeIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+    });
   };
 
   const copyToken = async (token: string) => {
@@ -308,18 +324,7 @@ export default function ProfilePage() {
                   variant="danger"
                   size="sm"
                   loading={pendingRevokeIds.has(t.id)}
-                  onClick={() => {
-                    setPendingRevokeIds((prev) => new Set(prev).add(t.id));
-                    revokeToken.mutate(t.id, {
-                      onSettled: () => {
-                        setPendingRevokeIds((prev) => {
-                          const next = new Set(prev);
-                          next.delete(t.id);
-                          return next;
-                        });
-                      },
-                    });
-                  }}
+                  onClick={() => setRevokeTarget(t)}
                 >
                   Revoke
                 </Button>
@@ -340,6 +345,29 @@ export default function ProfilePage() {
           Delete account
         </Button>
       </div>
+
+      <Modal
+        open={!!revokeTarget}
+        onClose={() => setRevokeTarget(null)}
+        title="Revoke token?"
+        description={
+          revokeTarget
+            ? `"${revokeTarget.name}" will stop working immediately, including for the browser extension. This can't be undone.`
+            : undefined
+        }
+      >
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" onClick={() => setRevokeTarget(null)}>
+            Cancel
+          </Button>
+          <Button
+            variant="danger"
+            onClick={() => revokeTarget && confirmRevoke(revokeTarget.id)}
+          >
+            Yes, revoke token
+          </Button>
+        </div>
+      </Modal>
 
       <Modal
         open={deleteOpen}
