@@ -29,13 +29,20 @@ if [ -z "$merge_base" ]; then
 else
   subjects=$(git log --reverse --format='%s' "$merge_base..HEAD" 2>/dev/null)
   count=$(printf '%s\n' "$subjects" | grep -c .)
-  if [ "$count" -le 1 ]; then
-    title="$subjects"
-  else
-    title=$(printf '%s\n' "$subjects" | head -1)
-  fi
   body=$(printf '%s\n' "$subjects" | sed 's/^/- /')
-  pr_url=$(gh pr create --base main --head "$branch" --title "$title" --body "$body" 2>/dev/null | tail -1)
+  if [ "$count" -le 1 ]; then
+    # A single commit's subject is a legitimate title for a PR that is
+    # currently exactly that one commit.
+    pr_url=$(gh pr create --base main --head "$branch" --title "$subjects" --body "$body" 2>/dev/null | tail -1)
+  else
+    # No single commit subject represents an accumulated multi-commit
+    # branch - guessing one (oldest, newest, whatever) just produces a
+    # confidently wrong title nobody notices. Open as a draft with a
+    # title that is unmistakably a placeholder, so the "needs a real
+    # title" signal lives on the PR itself (gh pr list / the PR page),
+    # not in a hook message that may never reach the calling agent.
+    pr_url=$(gh pr create --draft --base main --head "$branch" --title "[needs title] $branch" --body "$body" 2>/dev/null | tail -1)
+  fi
 fi
 if [ -n "$pr_url" ]; then
   printf '{"systemMessage":"Opened PR for %s: %s"}\n' "$branch" "$pr_url"

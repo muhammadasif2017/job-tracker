@@ -8,7 +8,9 @@ import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
+import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
+import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constants';
 
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;
@@ -24,6 +26,9 @@ describe('Job Tracker (e2e)', () => {
   let userId: string;
   let jobId: string;
   let roundId: string;
+  let patToken: string;
+  let patTokenId: string;
+  let patAccessToken: string;
 
   beforeAll(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -42,6 +47,7 @@ describe('Job Tracker (e2e)', () => {
     app.useGlobalGuards(
       new JwtAuthGuard(app.get(Reflector)),
       new RolesGuard(app.get(Reflector)),
+      new PatScopeGuard(app.get(Reflector)),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
     await app.init();
@@ -128,6 +134,140 @@ describe('Job Tracker (e2e)', () => {
 
     it('rejects a request with no refresh cookie', () =>
       request(app.getHttpServer()).post('/auth/refresh').expect(401));
+  });
+
+  // ── Personal access tokens ──────────────────────────────────────────────────
+
+  describe('POST /tokens', () => {
+    it('creates a token and returns the raw value exactly once', async () => {
+      const res = await agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'e2e extension' })
+        .expect(201);
+
+      expect(res.body.token).toMatch(/^jt_pat_/);
+      expect(res.body).not.toHaveProperty('tokenHash');
+      patToken = res.body.token;
+      patTokenId = res.body.id;
+    });
+
+    it('returns 401 without token', () =>
+      agent.post('/tokens').send({ name: 'x' }).expect(401));
+
+    it('rejects an empty name with 400', () =>
+      agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: '' })
+        .expect(400));
+
+    it('rejects a name over 100 characters with 400', () =>
+      agent
+        .post('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'x'.repeat(101) })
+        .expect(400));
+  });
+
+  describe('GET /tokens', () => {
+    it('lists the created token without leaking its hash', async () => {
+      const res = await agent
+        .get('/tokens')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const listed = res.body.find((t: { id: string }) => t.id === patTokenId);
+      expect(listed).toMatchObject({ id: patTokenId, name: 'e2e extension' });
+      expect(listed).not.toHaveProperty('tokenHash');
+      expect(listed).not.toHaveProperty('token');
+    });
+  });
+
+  describe('POST /tokens concurrency', () => {
+    it('enforces the active-token cap exactly under concurrent requests, not approximately', async () => {
+      // Real proof of TokensService.create's pg_advisory_xact_lock: a
+      // count-then-insert without it would let concurrent requests all read
+      // the same pre-insert count and overshoot the cap - only a live
+      // Postgres transaction can demonstrate the lock actually serializes,
+      // a mocked Prisma client (see tokens.service.spec.ts) can't.
+      // One active token already exists from the earlier POST /tokens test,
+      // so exactly MAX_ACTIVE_TOKENS_PER_USER - 1 of these should succeed.
+      const attempts = MAX_ACTIVE_TOKENS_PER_USER + 5;
+      const responses = await Promise.all(
+        Array.from({ length: attempts }, (_, i) =>
+          agent
+            .post('/tokens')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: `concurrent-${i}` }),
+        ),
+      );
+
+      const succeeded = responses.filter((r) => r.status === 201);
+      const rejected = responses.filter((r) => r.status === 400);
+
+      expect(succeeded).toHaveLength(MAX_ACTIVE_TOKENS_PER_USER - 1);
+      expect(rejected).toHaveLength(attempts - (MAX_ACTIVE_TOKENS_PER_USER - 1));
+    });
+  });
+
+  describe('POST /auth/token/exchange', () => {
+    it('exchanges the PAT for a short-lived, scope-restricted access token', async () => {
+      const res = await agent
+        .post('/auth/token/exchange')
+        .send({ token: patToken })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('accessToken');
+      expect(res.body).toHaveProperty('expiresIn');
+      patAccessToken = res.body.accessToken;
+    });
+
+    it('rejects a malformed token with 403', () =>
+      agent
+        .post('/auth/token/exchange')
+        .send({ token: 'not-a-real-token' })
+        .expect(403));
+
+    it('rejects an empty token with 400 before it ever reaches the service', () =>
+      agent.post('/auth/token/exchange').send({ token: '' }).expect(400));
+
+    it('allows the PAT-derived token to hit an @PatAccessible() route', () =>
+      agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .send({ company: 'Extension Co', position: 'Imported Role' })
+        .expect(201));
+
+    it('rejects the PAT-derived token on a route without @PatAccessible()', () =>
+      agent
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .expect(403));
+  });
+
+  describe('DELETE /tokens/:id', () => {
+    it('revokes the token', () =>
+      agent
+        .delete(`/tokens/${patTokenId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200));
+
+    it('returns 404 revoking an already-revoked token', () =>
+      agent
+        .delete(`/tokens/${patTokenId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
+
+    it('rejects exchanging the now-revoked PAT with 403', () =>
+      agent.post('/auth/token/exchange').send({ token: patToken }).expect(403));
+
+    it('rejects the already-issued access token derived from the now-revoked PAT', () =>
+      agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${patAccessToken}`)
+        .send({ company: 'Should Fail Co', position: 'Should Not Be Created' })
+        .expect(401));
   });
 
   // ── Jobs ────────────────────────────────────────────────────────────────────

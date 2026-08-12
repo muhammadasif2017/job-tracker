@@ -180,6 +180,97 @@ test.describe('Profile page', () => {
     ).toBeVisible();
   });
 
+  test('generates a personal access token and displays the raw value exactly once', async ({
+    page,
+    context,
+  }) => {
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await goToProfile(page, user);
+
+    await page.getByRole('button', { name: 'Generate token' }).click();
+
+    const modal = page.getByRole('dialog');
+    await expect(
+      modal.getByRole('heading', { name: 'Generate access token' }),
+    ).toBeVisible();
+    await modal.getByLabel('Name').fill('E2E extension token');
+    await modal.getByRole('button', { name: 'Generate' }).click();
+
+    await expect(
+      modal.getByRole('heading', { name: 'Token created' }),
+    ).toBeVisible();
+    const tokenCode = modal.locator('code');
+    await expect(tokenCode).toContainText(/^jt_pat_/);
+
+    await modal.getByRole('button', { name: 'Copy' }).click();
+    await expect(page.getByText('Copied to clipboard')).toBeVisible();
+
+    await modal.getByRole('button', { name: 'Done' }).click();
+    await expect(modal).not.toBeVisible();
+
+    const row = page.locator('li', { hasText: 'E2E extension token' });
+    await expect(row).toBeVisible();
+    await expect(row.getByText('Never used')).toBeVisible();
+
+    // Clean up so this token doesn't linger against the shared `user`
+    await row.getByRole('button', { name: 'Revoke' }).click();
+    const revokeModal = page.getByRole('dialog');
+    await expect(
+      revokeModal.getByRole('heading', { name: 'Revoke token?' }),
+    ).toBeVisible();
+    await revokeModal.getByRole('button', { name: 'Yes, revoke token' }).click();
+    await expect(page.getByText('Token revoked')).toBeVisible();
+    await expect(row).not.toBeVisible();
+  });
+
+  test('shows a validation error and does not create a token when the name is empty', async ({
+    page,
+  }) => {
+    await goToProfile(page, user);
+
+    await page.getByRole('button', { name: 'Generate token' }).click();
+    const modal = page.getByRole('dialog');
+    await modal.getByRole('button', { name: 'Generate' }).click();
+
+    await expect(modal.getByText('Required')).toBeVisible();
+    // Still on the name form, not the one-time reveal - nothing was created.
+    await expect(
+      modal.getByRole('heading', { name: 'Generate access token' }),
+    ).toBeVisible();
+  });
+
+  test('revokes a personal access token and removes it from the list', async ({
+    page,
+  }) => {
+    await goToProfile(page, user);
+
+    await page.getByRole('button', { name: 'Generate token' }).click();
+    const modal = page.getByRole('dialog');
+    await modal.getByLabel('Name').fill('Token to revoke');
+    await modal.getByRole('button', { name: 'Generate' }).click();
+    await expect(modal.locator('code')).toContainText(/^jt_pat_/);
+    await modal.getByRole('button', { name: 'Done' }).click();
+
+    const row = page.locator('li', { hasText: 'Token to revoke' });
+    await expect(row).toBeVisible();
+
+    await row.getByRole('button', { name: 'Revoke' }).click();
+    const revokeModal = page.getByRole('dialog');
+    await expect(
+      revokeModal.getByRole('heading', { name: 'Revoke token?' }),
+    ).toBeVisible();
+    await revokeModal.getByRole('button', { name: 'Yes, revoke token' }).click();
+
+    await expect(page.getByText('Token revoked')).toBeVisible();
+    await expect(row).not.toBeVisible();
+
+    // Persists across reload - it's really gone server-side, not just hidden client-side.
+    await page.reload();
+    await expect(
+      page.locator('li', { hasText: 'Token to revoke' }),
+    ).not.toBeVisible();
+  });
+
   test('delete account redirects to /login and clears session', async ({
     page,
   }) => {

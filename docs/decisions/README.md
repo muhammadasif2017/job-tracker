@@ -33,6 +33,8 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [024](./024-per-user-timezone.md) | Per-user timezone for reminder/digest emails — supersedes SPEC.md's "out of scope v1" | Accepted |
 | [025](./025-e2e-gates-pr-merges.md) | Run Playwright e2e on PRs (path-filtered), not just nightly | Accepted |
 | [026](./026-e2e-locator-disambiguation.md) | Disambiguate Playwright locators with exact text and accessible names | Accepted |
+| [027](./027-frontend-edge-case-handling.md) | Frontend failure/edge-case handling — error boundaries, isError states, request timeouts, error normalization | Accepted |
+| [028](./028-personal-access-tokens.md) | Scoped personal access tokens for the browser extension | Accepted |
 
 ## How to read an ADR
 

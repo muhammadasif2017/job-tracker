@@ -1,0 +1,83 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Job Tracker Import</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Job Tracker</h1>
+    </header>
+
+    <main>
+      <p id="error" class="error hidden"></p>
+
+      <section id="connect-view" class="hidden">
+        <p class="hint">
+          Paste a personal access token from your Job Tracker profile page
+          (Profile &rarr; Personal access tokens &rarr; Generate token).
+        </p>
+        <form id="connect-form">
+          <label for="backend-url">Backend URL</label>
+          <input id="backend-url" type="url" required placeholder="http://localhost:3001" />
+
+          <label for="pat-token">Access token</label>
+          <input id="pat-token" type="password" required placeholder="jt_pat_..." />
+
+          <button type="submit" id="connect-submit">Connect</button>
+        </form>
+      </section>
+
+      <section id="import-view" class="hidden">
+        <p class="hint">
+          Connected to <span id="connected-url"></span>.
+          <a href="#" id="disconnect-link">Disconnect</a>
+        </p>
+
+        <div id="import-ready">
+          <button id="import-button">Import this job</button>
+        </div>
+
+        <form id="preview-form" class="hidden">
+          <label for="field-company">Company</label>
+          <input id="field-company" required />
+
+          <label for="field-position">Position</label>
+          <input id="field-position" required />
+
+          <label for="field-location">Location</label>
+          <input id="field-location" />
+
+          <label for="field-job-type">Work type</label>
+          <select id="field-job-type">
+            <option value="ONSITE">Onsite</option>
+            <option value="HYBRID">Hybrid</option>
+            <option value="REMOTE">Remote</option>
+          </select>
+
+          <label for="field-application-channel">Applied via</label>
+          <select id="field-application-channel">
+            <option value="COMPANY_WEBSITE">Company website</option>
+            <option value="ATS">ATS</option>
+            <option value="LINKEDIN">LinkedIn</option>
+            <option value="INDEED">Indeed</option>
+            <option value="ROZEE">Rozee</option>
+            <option value="REFERRAL">Referral</option>
+            <option value="OTHER">Other</option>
+          </select>
+
+          <div class="actions">
+            <button type="button" id="preview-cancel" class="secondary">Cancel</button>
+            <button type="submit" id="preview-save">Add to Job Tracker</button>
+          </div>
+        </form>
+
+        <p id="success" class="success hidden">Added to Job Tracker.</p>
+      </section>
+    </main>
+
+    <script src="config.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

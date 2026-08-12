@@ -95,6 +95,7 @@ model User {
   jobs                      Job[]
   accounts                  Account[]
   refreshTokens             RefreshToken[]
+  apiTokens                 ApiToken[]
 
   @@index([digestFrequency])
 }
@@ -107,6 +108,27 @@ model RefreshToken {
   expiresAt DateTime
   createdAt DateTime  @default(now())
   revokedAt DateTime?
+
+  @@index([userId])
+}
+
+// Personal access tokens for non-browser clients (e.g. the browser
+// extension) that can't use the httpOnly refresh-token cookie. Exchanged
+// server-side for a short-lived access JWT — see AuthService.exchangeApiToken.
+model ApiToken {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  tokenHash  String
+  lastUsedAt DateTime?
+  createdAt  DateTime  @default(now())
+  // Set at creation to createdAt + 180 days (see TokensService.create). A
+  // permanent bearer credential with no time-based ceiling is a bigger risk
+  // than manual revoke alone covers — this bounds exposure if a device is
+  // compromised and the user never notices/revokes.
+  expiresAt  DateTime
+  revokedAt  DateTime?
 
   @@index([userId])
 }

@@ -14,6 +14,11 @@ import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
+import {
+  API_TOKEN_PREFIX,
+  PAT_SCOPE,
+  DUMMY_TOKEN_HASH,
+} from '../tokens/tokens.constants.js';
 
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
@@ -190,17 +195,83 @@ export class AuthService implements OnModuleDestroy {
     return this.issueTokens(user.id, user.email);
   }
 
-  private async issueTokens(userId: string, email: string) {
-    const jti = randomUUID();
-    const payload = { sub: userId, email };
+  // Exchanges a long-lived personal access token (see TokensModule) for a
+  // normal short-lived access JWT - used by clients that can't hold the
+  // httpOnly refresh-token cookie (e.g. the browser extension). Never issues
+  // a refresh token: the caller re-exchanges the PAT itself once the access
+  // token expires.
+  async exchangeApiToken(
+    rawToken: string,
+  ): Promise<{ accessToken: string; expiresIn: number }> {
+    const invalid = () => new ForbiddenException('Invalid access token');
+    if (!rawToken.startsWith(API_TOKEN_PREFIX)) throw invalid();
 
-    const [accessToken, refreshToken] = await Promise.all([
-      this.jwt.signAsync(payload, {
+    const withoutPrefix = rawToken.slice(API_TOKEN_PREFIX.length);
+    const dotIndex = withoutPrefix.indexOf('.');
+    if (dotIndex === -1) throw invalid();
+
+    const id = withoutPrefix.slice(0, dotIndex);
+    const secret = withoutPrefix.slice(dotIndex + 1);
+
+    const token = await this.prisma.apiToken.findUnique({
+      where: { id },
+      include: { user: { select: { email: true } } },
+    });
+
+    const valid = await bcrypt.compare(
+      secret,
+      token?.tokenHash ?? DUMMY_TOKEN_HASH,
+    );
+    if (
+      !token ||
+      token.revokedAt ||
+      token.expiresAt < new Date() ||
+      !valid
+    ) {
+      throw invalid();
+    }
+
+    // Best-effort - a failed timestamp update shouldn't block the exchange.
+    this.prisma.apiToken
+      .update({ where: { id }, data: { lastUsedAt: new Date() } })
+      .catch((err: Error) =>
+        this.logger.warn(`Failed to update apiToken.lastUsedAt: ${err.message}`),
+      );
+
+    const accessToken = await this.signAccessToken(
+      token.userId,
+      token.user.email,
+      PAT_SCOPE,
+      token.id,
+    );
+    const expiresIn = Math.floor(
+      ms(this.config.get<string>('JWT_EXPIRES_IN') as StringValue) / 1000,
+    );
+    return { accessToken, expiresIn };
+  }
+
+  private async signAccessToken(
+    userId: string,
+    email: string,
+    scope?: string,
+    patId?: string,
+  ) {
+    return this.jwt.signAsync(
+      scope ? { sub: userId, email, scope, patId } : { sub: userId, email },
+      {
         secret: this.config.get('JWT_SECRET'),
         expiresIn: this.config.get('JWT_EXPIRES_IN'),
-      }),
+      },
+    );
+  }
+
+  private async issueTokens(userId: string, email: string) {
+    const jti = randomUUID();
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.signAccessToken(userId, email),
       this.jwt.signAsync(
-        { ...payload, jti },
+        { sub: userId, email, jti },
         {
           secret: this.config.get('JWT_REFRESH_SECRET'),
           expiresIn: this.config.get('JWT_REFRESH_EXPIRES_IN'),

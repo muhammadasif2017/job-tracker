@@ -5,7 +5,7 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { REFRESH_COOKIE_NAME } from './strategies/jwt-refresh.strategy.js';
 
-const mockAuthService = { login: jest.fn() };
+const mockAuthService = { login: jest.fn(), exchangeApiToken: jest.fn() };
 const mockConfig = { get: jest.fn().mockReturnValue(undefined) };
 
 const mockRes = () =>
@@ -83,6 +83,22 @@ describe('AuthController', () => {
           path: '/auth',
         }),
       );
+    });
+  });
+
+  describe('exchangeApiToken', () => {
+    it('delegates to authService with the raw token and returns its result as-is', async () => {
+      mockAuthService.exchangeApiToken.mockResolvedValue({
+        accessToken: 'at',
+        expiresIn: 900,
+      });
+
+      const result = await controller.exchangeApiToken({ token: 'jt_pat_x.y' });
+
+      expect(mockAuthService.exchangeApiToken).toHaveBeenCalledWith(
+        'jt_pat_x.y',
+      );
+      expect(result).toEqual({ accessToken: 'at', expiresIn: 900 });
     });
   });
 });

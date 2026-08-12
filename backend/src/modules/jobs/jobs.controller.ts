@@ -43,6 +43,7 @@ import { StatsQueryDto } from './dto/stats-query.dto.js';
 import { AttentionItemDto } from './dto/attention-item.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
 
 @ApiTags('jobs')
 @ApiBearerAuth()
@@ -56,6 +57,7 @@ export class JobsController {
   ) {}
 
   @Post()
+  @PatAccessible()
   @ApiOperation({ summary: 'Create a job application' })
   @ApiCreatedResponse({ type: JobResponseDto })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateJobDto) {
@@ -63,6 +65,7 @@ export class JobsController {
   }
 
   @Post('parse')
+  @PatAccessible()
   // Each call does a webFetch + Tavily search + Groq LLM round trip — real
   // external cost, and (combined with the SSRF hardening in WebFetchService)
   // a request path that shouldn't be hammerable at the global 100/60s rate.

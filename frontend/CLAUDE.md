@@ -143,6 +143,7 @@ Pulls from `http://localhost:3001/api/docs-json` (Nest Swagger's auto-exposed JS
   - `['job-events', id]` — timeline events for a job
   - `['resume', jobId]` — resume metadata for a specific job; managed by `useUploadResumeMutation`/`useRemoveResumeMutation` (`features/jobs/resume.hooks.ts`) via `setQueryData` on mutation, not via invalidation
   - `['profile']` — user profile
+  - `['tokens']` — personal access tokens (`features/tokens/hooks.ts`)
 - **Mutations always invalidate related keys on success.** When a job is created/edited/deleted, invalidate `['jobs']` and `['stats']`. On status change from job detail, also invalidate `['job-events', id]`.
 - Use `qc.setQueryData` for optimistic updates (see `KanbanBoard` drag-and-drop) — always roll back in `onError`.
 
