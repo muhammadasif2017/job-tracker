@@ -95,6 +95,8 @@ The access JWT itself is otherwise stateless — to make `DELETE /tokens/:id` ta
 
 `test/app.e2e-spec.ts` manually mirrors `main.ts`'s guard list — `PatScopeGuard` must be added there too if the global guard set changes again.
 
+**No explicit `algorithm`/`algorithms` pin on sign or verify** — tried once, reverted same branch. Both `JWT_SECRET` and `JWT_REFRESH_SECRET` are plain HMAC secret strings, and `jsonwebtoken` (under `@nestjs/jwt`/`passport-jwt`) already restricts `verify()` to the HMAC family (HS256/384/512) whenever `secretOrKey` is a string/Buffer rather than an asymmetric public key — the classic RS256→HS256 alg-confusion attack only applies when a public key is in play. Pinning `algorithm: 'HS256'` here was redundant defensive code, not a fix for a real gap. Re-pin only if either secret is ever swapped for an asymmetric keypair.
+
 ---
 
 ## Admin Architecture
