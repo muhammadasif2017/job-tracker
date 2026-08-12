@@ -62,14 +62,33 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+          # v2: actions/cache never overwrites an existing key, so a cache
+          # saved from an interrupted/failed install stays poisoned under the
+          # old key forever - restores keep reporting cache-hit=true for a
+          # dir that's missing the actual browser binary. Bump this suffix
+          # any time that happens again.
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}-v2
+
+      # Don't trust cache-hit alone - a cache saved from a prior interrupted
+      # install can report a hit while the browser binary is still missing
+      # (this is exactly how the previous cache key got poisoned). Check for
+      # the real binary and reinstall if it's not there, regardless of what
+      # the cache step reported.
+      - name: Check whether Chromium is actually present
+        id: chromium-check
+        run: |
+          if find ~/.cache/ms-playwright -maxdepth 2 -type f -name chrome 2>/dev/null | grep -q .; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.chromium-check.outputs.present != 'true'
         run: npx playwright install --with-deps chromium
 
       - name: Install Playwright OS deps only
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.chromium-check.outputs.present == 'true'
         run: npx playwright install-deps chromium
 
       - name: Install Xvfb
