@@ -296,7 +296,7 @@ export default function ProfilePage() {
           </div>
           <Button
             size="sm"
-            className="self-start sm:self-auto"
+            className="self-start whitespace-nowrap sm:self-auto sm:shrink-0"
             onClick={() => setTokenModalOpen(true)}
           >
             Generate token
