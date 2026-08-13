@@ -60,7 +60,7 @@ export class JobParsingService {
 
     let parsed = await this.tryExtractJobPosting(content);
     let applicationChannel =
-      parsed && dto.url && fetchedText
+      parsed && dto.url && content
         ? this.guessSourceFromUrl(dto.url)
         : undefined;
 

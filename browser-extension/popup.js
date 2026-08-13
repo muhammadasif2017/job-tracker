@@ -131,6 +131,32 @@ disconnectLink.addEventListener('click', async (e) => {
   showDisconnectedState();
 });
 
+// Some job boards (Indeed in particular) put the posting behind a bot
+// challenge that rejects the backend's server-side fetch outright, so the
+// backend never sees real page content. Pulling the text straight out of
+// the user's own tab sidesteps that - it's the page already rendered in
+// their browser, no re-fetch involved. Truncated/whitespace-collapsed to
+// match ParseJobDto's `text` field (MaxLength 20000) and the shape the
+// backend's own cheerio-based extraction already produces.
+async function extractPageText(tabId) {
+  if (!tabId) return '';
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        const main =
+          document.querySelector('#jobDescriptionText') || // Indeed
+          document.querySelector('.jobs-description') || // LinkedIn
+          document.body;
+        return main ? main.innerText : '';
+      },
+    });
+    return (injection?.result || '').replace(/\s+/g, ' ').trim().slice(0, 20000);
+  } catch {
+    return '';
+  }
+}
+
 importButton.addEventListener('click', async () => {
   clearError();
   importButton.disabled = true;
@@ -143,7 +169,8 @@ importButton.addEventListener('click', async () => {
     });
     if (!tab?.url) throw new Error('No active tab URL found.');
 
-    const result = await sendMessage({ type: 'parseJob', url: tab.url });
+    const text = await extractPageText(tab.id);
+    const result = await sendMessage({ type: 'parseJob', url: tab.url, text });
     if (!result.ok) throw new Error(result.error || 'Could not parse this page.');
 
     const data = result.data || {};

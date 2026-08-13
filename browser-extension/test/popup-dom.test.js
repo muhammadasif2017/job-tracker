@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 const extensionRoot = path.join(dirname, '..');
 
-function loadPopupIntoDom({ sendMessage, permissionsRequest, tabsQuery } = {}) {
+function loadPopupIntoDom({ sendMessage, permissionsRequest, tabsQuery, scriptingExecuteScript } = {}) {
   const html = fs.readFileSync(path.join(extensionRoot, 'popup.html'), 'utf8');
   const bodyMatch = html.match(/<body>([\s\S]*)<\/body>/);
   const bodyHtml = bodyMatch[1].replace(/<script[^>]*><\/script>\s*/g, '');
@@ -32,6 +32,9 @@ function loadPopupIntoDom({ sendMessage, permissionsRequest, tabsQuery } = {}) {
     },
     permissions: { request: permissionsRequest ?? vi.fn().mockResolvedValue(true) },
     tabs: { query: tabsQuery ?? vi.fn().mockResolvedValue([]) },
+    scripting: {
+      executeScript: scriptingExecuteScript ?? vi.fn().mockResolvedValue([{ result: '' }]),
+    },
   };
 
   // Wrapped in an IIFE and re-run fresh per test - vm.runInThisContext ties
@@ -207,8 +210,9 @@ describe('popup.js DOM wiring', () => {
     expect(document.getElementById('import-view').classList.contains('hidden')).toBe(true);
   });
 
-  it('import: reads the active tab URL, parses the job, and populates the preview form', async () => {
-    const tabsQuery = vi.fn().mockResolvedValue([{ url: 'https://jobs.example.com/123' }]);
+  it('import: reads the active tab URL and page text, parses the job, and populates the preview form', async () => {
+    const tabsQuery = vi.fn().mockResolvedValue([{ id: 7, url: 'https://jobs.example.com/123' }]);
+    const scriptingExecuteScript = vi.fn().mockResolvedValue([{ result: 'Senior Engineer at Acme...' }]);
     const sendMessage = vi.fn((msg, resolve) => {
       if (msg.type === 'status') return resolve({ ok: true, connected: true, backendUrl: 'https://api.example.com' });
       if (msg.type === 'parseJob') {
@@ -226,14 +230,21 @@ describe('popup.js DOM wiring', () => {
       }
       resolve({ ok: false });
     });
-    loadPopupIntoDom({ sendMessage, tabsQuery });
+    loadPopupIntoDom({ sendMessage, tabsQuery, scriptingExecuteScript });
     await flush();
 
     click(document.getElementById('import-button'));
     await flush();
 
+    expect(scriptingExecuteScript).toHaveBeenCalledWith(
+      expect.objectContaining({ target: { tabId: 7 } }),
+    );
     expect(sendMessage).toHaveBeenCalledWith(
-      { type: 'parseJob', url: 'https://jobs.example.com/123' },
+      {
+        type: 'parseJob',
+        url: 'https://jobs.example.com/123',
+        text: 'Senior Engineer at Acme...',
+      },
       expect.any(Function),
     );
     expect(document.getElementById('field-company').value).toBe('Acme');
