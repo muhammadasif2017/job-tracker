@@ -138,17 +138,35 @@ disconnectLink.addEventListener('click', async (e) => {
 // their browser, no re-fetch involved. Truncated/whitespace-collapsed to
 // match ParseJobDto's `text` field (MaxLength 20000) and the shape the
 // backend's own cheerio-based extraction already produces.
+// Ordered most-specific-first. Sites like LinkedIn render a different DOM
+// depending on logged-in vs guest state (and change class names over time),
+// so this is a fallback chain, not a single guess - the first candidate
+// with substantial text wins. The length check skips near-empty matches
+// (e.g. a loader placeholder that happens to share a "details" class).
+const JOB_DETAIL_SELECTORS = [
+  '#jobDescriptionText', // Indeed
+  '#job-details', // LinkedIn, logged-in split view
+  '.jobs-description__content', // LinkedIn, logged-in
+  '.jobs-description-content__text', // LinkedIn, logged-in
+  '.jobs-box__html-content', // LinkedIn, logged-in
+  '.details-pane__content', // LinkedIn, guest/logged-out split view
+  '.decorated-job-posting__details', // LinkedIn, guest/logged-out
+  '.description__text', // LinkedIn, standalone job view page
+];
+
 async function extractPageText(tabId) {
   if (!tabId) return '';
   try {
     const [injection] = await chrome.scripting.executeScript({
       target: { tabId },
-      func: () => {
-        const main =
-          document.querySelector('#jobDescriptionText') || // Indeed
-          document.querySelector('.jobs-description') || // LinkedIn
-          document.body;
-        return main ? main.innerText : '';
+      args: [JOB_DETAIL_SELECTORS],
+      func: (selectors) => {
+        for (const selector of selectors) {
+          const node = document.querySelector(selector);
+          const text = node?.innerText?.trim();
+          if (text && text.length > 40) return text;
+        }
+        return document.body ? document.body.innerText : '';
       },
     });
     return (injection?.result || '').replace(/\s+/g, ' ').trim().slice(0, 20000);
