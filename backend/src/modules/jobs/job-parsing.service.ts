@@ -53,10 +53,16 @@ export class JobParsingService {
   }
 
   async parseJobPosting(dto: ParseJobDto): Promise<ParsedJobDto> {
-    const fetchedText = dto.url
+    // Client-scraped text (the extension pulling from the user's own,
+    // possibly-logged-in tab) beats our own server-side fetch when both are
+    // available. Sites like LinkedIn don't hard-block the server fetch the
+    // way Indeed does - they 200 with a logged-out/paywall page, which is
+    // non-empty and would otherwise win and feed the LLM junk instead of the
+    // real posting already rendered in the user's browser.
+    const fetchedText = dto.url && !dto.text
       ? await this.webFetch.fetchPageText(dto.url)
       : '';
-    const content = fetchedText || dto.text || '';
+    const content = dto.text || fetchedText || '';
 
     let parsed = await this.tryExtractJobPosting(content);
     let applicationChannel =
