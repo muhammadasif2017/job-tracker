@@ -79,6 +79,28 @@ describe('JobParsingService', () => {
       expect(result.company).toBe('Acme Corp');
     });
 
+    it('prefers client-scraped text over the server-side fetch when both are present', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue(
+        'Sign in to see more jobs like this - LinkedIn',
+      );
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: 'Acme Corp',
+        position: 'Senior Engineer',
+      });
+
+      const result = await service.parseJobPosting({
+        url: 'https://www.linkedin.com/jobs/view/123',
+        text: 'Senior Engineer at Acme - full job description...',
+      });
+
+      expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+      expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
+        'Senior Engineer at Acme - full job description...',
+      );
+      expect(result.company).toBe('Acme Corp');
+      expect(result.applicationChannel).toBe('LINKEDIN');
+    });
+
     it('extracts from text-only input with no URL, leaving applicationChannel and url undefined', async () => {
       mockLlm.extractJobPosting.mockResolvedValue({
         company: 'Acme Corp',
