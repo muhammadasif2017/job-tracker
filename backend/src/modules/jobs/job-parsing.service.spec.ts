@@ -60,7 +60,7 @@ describe('JobParsingService', () => {
       });
     });
 
-    it('falls back to text extraction when the URL fetch fails, and leaves applicationChannel undefined', async () => {
+    it('falls back to text extraction when the URL fetch fails, and still maps the domain to an ApplicationChannel', async () => {
       mockWebFetch.fetchPageText.mockResolvedValue('');
       mockLlm.extractJobPosting.mockResolvedValue({
         company: 'Acme Corp',
@@ -68,14 +68,14 @@ describe('JobParsingService', () => {
       });
 
       const result = await service.parseJobPosting({
-        url: 'https://gated.example.com/job/1',
+        url: 'https://www.indeed.com/job/1',
         text: 'pasted job description text',
       });
 
       expect(mockLlm.extractJobPosting).toHaveBeenCalledWith(
         'pasted job description text',
       );
-      expect(result.applicationChannel).toBeUndefined();
+      expect(result.applicationChannel).toBe('INDEED');
       expect(result.company).toBe('Acme Corp');
     });
 

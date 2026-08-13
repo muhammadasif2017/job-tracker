@@ -131,6 +131,50 @@ disconnectLink.addEventListener('click', async (e) => {
   showDisconnectedState();
 });
 
+// Some job boards (Indeed in particular) put the posting behind a bot
+// challenge that rejects the backend's server-side fetch outright, so the
+// backend never sees real page content. Pulling the text straight out of
+// the user's own tab sidesteps that - it's the page already rendered in
+// their browser, no re-fetch involved. Truncated/whitespace-collapsed to
+// match ParseJobDto's `text` field (MaxLength 20000) and the shape the
+// backend's own cheerio-based extraction already produces.
+// Ordered most-specific-first. Sites like LinkedIn render a different DOM
+// depending on logged-in vs guest state (and change class names over time),
+// so this is a fallback chain, not a single guess - the first candidate
+// with substantial text wins. The length check skips near-empty matches
+// (e.g. a loader placeholder that happens to share a "details" class).
+const JOB_DETAIL_SELECTORS = [
+  '#jobDescriptionText', // Indeed
+  '#job-details', // LinkedIn, logged-in split view
+  '.jobs-description__content', // LinkedIn, logged-in
+  '.jobs-description-content__text', // LinkedIn, logged-in
+  '.jobs-box__html-content', // LinkedIn, logged-in
+  '.details-pane__content', // LinkedIn, guest/logged-out split view
+  '.decorated-job-posting__details', // LinkedIn, guest/logged-out
+  '.description__text', // LinkedIn, standalone job view page
+];
+
+async function extractPageText(tabId) {
+  if (!tabId) return '';
+  try {
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [JOB_DETAIL_SELECTORS],
+      func: (selectors) => {
+        for (const selector of selectors) {
+          const node = document.querySelector(selector);
+          const text = node?.innerText?.trim();
+          if (text && text.length > 40) return text;
+        }
+        return document.body ? document.body.innerText : '';
+      },
+    });
+    return (injection?.result || '').replace(/\s+/g, ' ').trim().slice(0, 20000);
+  } catch {
+    return '';
+  }
+}
+
 importButton.addEventListener('click', async () => {
   clearError();
   importButton.disabled = true;
@@ -143,7 +187,8 @@ importButton.addEventListener('click', async () => {
     });
     if (!tab?.url) throw new Error('No active tab URL found.');
 
-    const result = await sendMessage({ type: 'parseJob', url: tab.url });
+    const text = await extractPageText(tab.id);
+    const result = await sendMessage({ type: 'parseJob', url: tab.url, text });
     if (!result.ok) throw new Error(result.error || 'Could not parse this page.');
 
     const data = result.data || {};

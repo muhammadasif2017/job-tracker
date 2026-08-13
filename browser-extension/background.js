@@ -130,7 +130,7 @@ async function handleMessage(msg) {
       if (!conn) throw new Error('Not connected');
       const data = await apiFetch(conn, '/jobs/parse', {
         method: 'POST',
-        body: JSON.stringify({ url: msg.url }),
+        body: JSON.stringify({ url: msg.url, text: msg.text }),
       });
       return { ok: true, data };
     }

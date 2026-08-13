@@ -31,6 +31,7 @@ export function loadPopup({ chrome } = {}) {
     },
     permissions: { request: async () => true },
     tabs: { query: async () => [] },
+    scripting: { executeScript: async () => [{ result: '' }] },
   };
 
   const context = vm.createContext({
