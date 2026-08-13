@@ -8,9 +8,20 @@ body {
   color: #1e293b;
 }
 
+header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+}
+
+header img {
+  border-radius: 4px;
+}
+
 header h1 {
   font-size: 15px;
-  margin: 0 0 10px;
+  margin: 0;
 }
 
 .hidden {

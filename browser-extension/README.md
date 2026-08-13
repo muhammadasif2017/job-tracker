@@ -1,4 +1,4 @@
-# Job Tracker Import (browser extension)
+# Job Tracker (browser extension)
 
 Imports the job posting in your current tab into Job Tracker via the
 existing `/jobs/parse` quick-add endpoint. Not published to a store — load
