@@ -204,11 +204,28 @@ describe('Job Tracker (e2e)', () => {
       );
 
       const succeeded = responses.filter((r) => r.status === 201);
-      const rejected = responses.filter((r) => r.status === 400);
+      const capRejected = responses.filter((r) => r.status === 400);
+      // By this point in the file the shared agent has made 100+ prior
+      // requests - a burst this size can also trip the unrelated global
+      // ThrottlerGuard (100 req/60s), which 429s before the request ever
+      // reaches TokensService. Bucket those separately instead of folding
+      // them into "rejected" - they prove nothing about the advisory lock.
+      const throttled = responses.filter((r) => r.status === 429);
 
       expect(succeeded).toHaveLength(MAX_ACTIVE_TOKENS_PER_USER - 1);
-      expect(rejected).toHaveLength(attempts - (MAX_ACTIVE_TOKENS_PER_USER - 1));
-    });
+      expect(capRejected).toHaveLength(
+        attempts - succeeded.length - throttled.length,
+      );
+
+      // Authoritative check, independent of HTTP status codes entirely: the
+      // invariant actually under test is that active tokens for this user
+      // never exceed the cap no matter how many requests raced for it -
+      // this holds regardless of how the throttle guard split the burst.
+      const activeCount = await prisma.apiToken.count({
+        where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      });
+      expect(activeCount).toBe(MAX_ACTIVE_TOKENS_PER_USER);
+    }, 20_000);
   });
 
   describe('POST /auth/token/exchange', () => {
