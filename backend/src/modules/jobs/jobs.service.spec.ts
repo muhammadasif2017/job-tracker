@@ -27,7 +27,10 @@ const mockPrisma = {
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
-const mockEnrichment = { enqueueEnrichment: jest.fn() };
+const mockEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
+  EnrichmentService,
+  'enqueueEnrichment'
+>;
 const mockStorage = {
   upload: jest.fn(),
   getPresignedUrl: jest.fn(),

@@ -2,14 +2,23 @@ import type { Job } from 'bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { EnrichmentProcessor } from './enrichment.processor.js';
+import { WebFetchService } from './services/web-fetch.service.js';
+import { SearchService } from './services/search.service.js';
+import { LlmService } from './services/llm.service.js';
 
 const mockPrisma = {
   job: { findFirst: jest.fn() },
   companyProfile: { upsert: jest.fn(), update: jest.fn() },
 };
-const mockWebFetch = { fetchPageText: jest.fn() };
-const mockSearch = { search: jest.fn() };
-const mockLlm = { extract: jest.fn() };
+const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
+  WebFetchService,
+  'fetchPageText'
+>;
+const mockSearch = { search: jest.fn() } satisfies Pick<
+  SearchService,
+  'search'
+>;
+const mockLlm = { extract: jest.fn() } satisfies Pick<LlmService, 'extract'>;
 const mockLogger = {
   log: jest.fn(),
   warn: jest.fn(),
