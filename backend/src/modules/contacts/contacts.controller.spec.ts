@@ -4,7 +4,7 @@ import { ContactsService } from './contacts.service.js';
 
 const mockService = {
   create: jest.fn(),
-  findAllForJob: jest.fn(),
+  findAllFor: jest.fn(),
   update: jest.fn(),
   remove: jest.fn(),
 };
@@ -24,13 +24,17 @@ describe('ContactsController', () => {
   });
 
   describe('create', () => {
-    it('delegates to service with userId, jobId, and dto', async () => {
+    it('delegates to service with userId, a jobId ref, and dto', async () => {
       const dto = { name: 'Jane Doe', role: 'Recruiter' };
       mockService.create.mockResolvedValue({ id: 'c-1' });
 
       await controller.create(user, 'j-1', dto);
 
-      expect(mockService.create).toHaveBeenCalledWith('u-1', 'j-1', dto);
+      expect(mockService.create).toHaveBeenCalledWith(
+        'u-1',
+        { jobId: 'j-1' },
+        dto,
+      );
     });
 
     it('returns the result from the service', async () => {
@@ -44,17 +48,19 @@ describe('ContactsController', () => {
   });
 
   describe('findAll', () => {
-    it('delegates to service with userId and jobId', async () => {
-      mockService.findAllForJob.mockResolvedValue([]);
+    it('delegates to service with userId and a jobId ref', async () => {
+      mockService.findAllFor.mockResolvedValue([]);
 
       await controller.findAll(user, 'j-1');
 
-      expect(mockService.findAllForJob).toHaveBeenCalledWith('u-1', 'j-1');
+      expect(mockService.findAllFor).toHaveBeenCalledWith('u-1', {
+        jobId: 'j-1',
+      });
     });
 
     it('returns the contacts from the service', async () => {
       const contacts = [{ id: 'c-1' }, { id: 'c-2' }];
-      mockService.findAllForJob.mockResolvedValue(contacts);
+      mockService.findAllFor.mockResolvedValue(contacts);
 
       const result = await controller.findAll(user, 'j-1');
 
@@ -63,7 +69,7 @@ describe('ContactsController', () => {
   });
 
   describe('update', () => {
-    it('delegates to service with userId, jobId, contactId, and dto', async () => {
+    it('delegates to service with userId, a jobId ref, contactId, and dto', async () => {
       const dto = { role: 'Hiring Manager' };
       mockService.update.mockResolvedValue({
         id: 'c-1',
@@ -72,17 +78,26 @@ describe('ContactsController', () => {
 
       await controller.update(user, 'j-1', 'c-1', dto);
 
-      expect(mockService.update).toHaveBeenCalledWith('u-1', 'j-1', 'c-1', dto);
+      expect(mockService.update).toHaveBeenCalledWith(
+        'u-1',
+        { jobId: 'j-1' },
+        'c-1',
+        dto,
+      );
     });
   });
 
   describe('remove', () => {
-    it('delegates to service with userId, jobId, and contactId', async () => {
+    it('delegates to service with userId, a jobId ref, and contactId', async () => {
       mockService.remove.mockResolvedValue({ message: 'Contact deleted' });
 
       await controller.remove(user, 'j-1', 'c-1');
 
-      expect(mockService.remove).toHaveBeenCalledWith('u-1', 'j-1', 'c-1');
+      expect(mockService.remove).toHaveBeenCalledWith(
+        'u-1',
+        { jobId: 'j-1' },
+        'c-1',
+      );
     });
 
     it('returns the success message from the service', async () => {

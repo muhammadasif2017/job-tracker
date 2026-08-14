@@ -7,6 +7,9 @@ const mockPrisma = {
   job: {
     findFirst: jest.fn(),
   },
+  company: {
+    findFirst: jest.fn(),
+  },
   contact: {
     create: jest.fn(),
     count: jest.fn(),
@@ -32,14 +35,85 @@ describe('ContactsService', () => {
     service = module.get(ContactsService);
   });
 
-  describe('ownership', () => {
+  describe('ownership — job-scoped', () => {
     it('throws NotFoundException when the job does not belong to the user', async () => {
       mockPrisma.job.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.create('user-1', 'job-1', { name: 'Jane Doe' }),
+        service.create('user-1', { jobId: 'job-1' }, { name: 'Jane Doe' }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPrisma.contact.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ownership — company-scoped', () => {
+    it('throws NotFoundException when the company does not belong to the user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.create(
+          'user-1',
+          { companyId: 'company-1' },
+          { name: 'HR Contact' },
+        ),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.contact.create).not.toHaveBeenCalled();
+      // Job ownership isn't even queried for a company-scoped ref
+      expect(mockPrisma.job.findFirst).not.toHaveBeenCalled();
+    });
+
+    it('creates the contact scoped to the company, never both FKs at once', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.create.mockResolvedValue({ id: 'contact-1' });
+
+      await service.create(
+        'user-1',
+        { companyId: 'company-1' },
+        { name: 'HR Contact', role: 'Recruiter' },
+      );
+
+      expect(mockPrisma.contact.create).toHaveBeenCalledWith({
+        data: {
+          companyId: 'company-1',
+          name: 'HR Contact',
+          role: 'Recruiter',
+          email: undefined,
+          phone: undefined,
+          linkedinUrl: undefined,
+          notes: undefined,
+        },
+      });
+    });
+
+    it('lists contacts scoped to the company', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.findMany.mockResolvedValue([{ id: 'c1' }]);
+
+      const result = await service.findAllFor('user-1', {
+        companyId: 'company-1',
+      });
+
+      expect(mockPrisma.contact.findMany).toHaveBeenCalledWith({
+        where: { companyId: 'company-1' },
+        orderBy: { createdAt: 'asc' },
+      });
+      expect(result).toEqual([{ id: 'c1' }]);
+    });
+
+    it('deletes a contact scoped to the company', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.remove(
+        'user-1',
+        { companyId: 'company-1' },
+        'contact-1',
+      );
+
+      expect(mockPrisma.contact.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'contact-1', companyId: 'company-1' },
+      });
+      expect(result).toEqual({ message: 'Contact deleted' });
     });
   });
 
@@ -48,11 +122,15 @@ describe('ContactsService', () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.contact.create.mockResolvedValue({ id: 'contact-1' });
 
-      await service.create('user-1', 'job-1', {
-        name: 'Jane Doe',
-        role: 'Recruiter',
-        email: 'jane@example.com',
-      });
+      await service.create(
+        'user-1',
+        { jobId: 'job-1' },
+        {
+          name: 'Jane Doe',
+          role: 'Recruiter',
+          email: 'jane@example.com',
+        },
+      );
 
       expect(mockPrisma.contact.create).toHaveBeenCalledWith({
         data: {
@@ -72,18 +150,18 @@ describe('ContactsService', () => {
       mockPrisma.contact.count.mockResolvedValue(20);
 
       await expect(
-        service.create('user-1', 'job-1', { name: 'One too many' }),
+        service.create('user-1', { jobId: 'job-1' }, { name: 'One too many' }),
       ).rejects.toThrow(BadRequestException);
       expect(mockPrisma.contact.create).not.toHaveBeenCalled();
     });
   });
 
-  describe('findAllForJob', () => {
+  describe('findAllFor', () => {
     it('returns contacts ordered by createdAt', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.contact.findMany.mockResolvedValue([{ id: 'c1' }]);
 
-      const result = await service.findAllForJob('user-1', 'job-1');
+      const result = await service.findAllFor('user-1', { jobId: 'job-1' });
 
       expect(mockPrisma.contact.findMany).toHaveBeenCalledWith({
         where: { jobId: 'job-1' },
@@ -99,7 +177,9 @@ describe('ContactsService', () => {
       mockPrisma.contact.findFirst.mockResolvedValue(null);
 
       await expect(
-        service.update('user-1', 'job-1', 'contact-x', { name: 'New Name' }),
+        service.update('user-1', { jobId: 'job-1' }, 'contact-x', {
+          name: 'New Name',
+        }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPrisma.contact.update).not.toHaveBeenCalled();
     });
@@ -112,9 +192,12 @@ describe('ContactsService', () => {
         role: 'Hiring Manager',
       });
 
-      const result = await service.update('user-1', 'job-1', 'contact-1', {
-        role: 'Hiring Manager',
-      });
+      const result = await service.update(
+        'user-1',
+        { jobId: 'job-1' },
+        'contact-1',
+        { role: 'Hiring Manager' },
+      );
 
       expect(mockPrisma.contact.update).toHaveBeenCalledWith({
         where: { id: 'contact-1' },
@@ -141,7 +224,9 @@ describe('ContactsService', () => {
         email: null,
       });
 
-      await service.update('user-1', 'job-1', 'contact-1', { email: null });
+      await service.update('user-1', { jobId: 'job-1' }, 'contact-1', {
+        email: null,
+      });
 
       expect(mockPrisma.contact.update).toHaveBeenCalledWith({
         where: { id: 'contact-1' },
@@ -163,7 +248,7 @@ describe('ContactsService', () => {
       mockPrisma.contact.deleteMany.mockResolvedValue({ count: 0 });
 
       await expect(
-        service.remove('user-1', 'job-1', 'contact-x'),
+        service.remove('user-1', { jobId: 'job-1' }, 'contact-x'),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -171,7 +256,11 @@ describe('ContactsService', () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
       mockPrisma.contact.deleteMany.mockResolvedValue({ count: 1 });
 
-      const result = await service.remove('user-1', 'job-1', 'contact-1');
+      const result = await service.remove(
+        'user-1',
+        { jobId: 'job-1' },
+        'contact-1',
+      );
 
       expect(mockPrisma.contact.deleteMany).toHaveBeenCalledWith({
         where: { id: 'contact-1', jobId: 'job-1' },

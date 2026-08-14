@@ -17,6 +17,7 @@ import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './modules/resumes/resumes.module.js';
 import { InterviewRoundsModule } from './modules/interview-rounds/interview-rounds.module.js';
 import { ContactsModule } from './modules/contacts/contacts.module.js';
+import { CompaniesModule } from './modules/companies/companies.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { TokensModule } from './modules/tokens/tokens.module.js';
 
@@ -97,6 +98,7 @@ function parseRedisConnection() {
     ResumesModule,
     InterviewRoundsModule,
     ContactsModule,
+    CompaniesModule,
     UsersModule,
     JobsModule,
     HealthModule,

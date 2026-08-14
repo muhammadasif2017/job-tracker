@@ -22,6 +22,7 @@ const mockPrisma = {
   },
   jobEvent: { findMany: jest.fn(), create: jest.fn() },
   resume: { findFirst: jest.fn() },
+  company: { findFirst: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
   // callback against the same mock instead of modeling a real transaction.
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
@@ -43,6 +44,7 @@ describe('JobsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrisma.company.findFirst.mockResolvedValue(null);
     const module = await Test.createTestingModule({
       providers: [
         JobsService,
@@ -118,6 +120,51 @@ describe('JobsService', () => {
           data: expect.objectContaining({ jobType: JobType.ONSITE }),
         }),
       );
+    });
+
+    it('returns matchedCompany when the job company case-insensitively matches a saved target company', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Systems Limited',
+      });
+
+      const dto: CreateJobDto = {
+        company: 'systems limited',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          name: { equals: 'systems limited', mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+      });
+      expect(result.matchedCompany).toEqual({
+        id: 'company-1',
+        name: 'Systems Limited',
+      });
+    });
+
+    it('returns matchedCompany: null when no saved target company matches', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      const dto: CreateJobDto = {
+        company: 'Nobody Saved This',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
+      expect(result.matchedCompany).toBeNull();
     });
   });
 

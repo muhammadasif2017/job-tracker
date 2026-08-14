@@ -105,7 +105,10 @@ export interface InterviewRound {
 
 export interface Contact {
   id: string;
-  jobId: string;
+  // Exactly one is set — a job-scoped contact has companyId: null and vice
+  // versa. See docs/specs/target-companies.md Assumption 7.
+  jobId?: string | null;
+  companyId?: string | null;
   name: string;
   role?: string | null;
   email?: string | null;
@@ -114,6 +117,11 @@ export interface Contact {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface MatchedCompany {
+  id: string;
+  name: string;
 }
 
 export interface Job {
@@ -137,6 +145,8 @@ export interface Job {
   resume?: Resume | null;
   interviewRounds?: InterviewRound[];
   contacts?: Contact[];
+  // Only present on the POST /jobs (create) response — see MatchedCompany.
+  matchedCompany?: MatchedCompany | null;
 }
 
 export type Role = 'USER' | 'ADMIN';
@@ -370,3 +380,109 @@ export const STATUS_DOT_COLORS: Record<JobStatus, string> = {
   REJECTED: '#ef4444',
   GHOSTED: '#f59e0b',
 };
+
+// --- Target Companies ---
+// See docs/specs/target-companies.md — standalone company list, independent
+// of any Job, with its own parallel AI-enrichment pipeline.
+
+export const COMPANY_CITIES = [
+  'LAHORE',
+  'ISLAMABAD',
+  'KARACHI',
+  'OTHER',
+] as const;
+
+export type CompanyCity = (typeof COMPANY_CITIES)[number];
+
+export const CITY_LABELS: Record<CompanyCity, string> = {
+  LAHORE: 'Lahore',
+  ISLAMABAD: 'Islamabad',
+  KARACHI: 'Karachi',
+  OTHER: 'Other',
+};
+
+export const CITY_COLORS: Record<CompanyCity, string> = {
+  LAHORE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  ISLAMABAD:
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  KARACHI:
+    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+};
+
+export const BUSINESS_MODES = ['PRODUCT', 'SERVICES', 'HYBRID'] as const;
+
+export type BusinessMode = (typeof BUSINESS_MODES)[number];
+
+export const BUSINESS_MODE_LABELS: Record<BusinessMode, string> = {
+  PRODUCT: 'Product',
+  SERVICES: 'Services',
+  HYBRID: 'Hybrid',
+};
+
+export const BUSINESS_MODE_COLORS: Record<BusinessMode, string> = {
+  PRODUCT:
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  SERVICES: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+  HYBRID:
+    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+};
+
+export interface Company {
+  id: string;
+  name: string;
+  city: CompanyCity;
+  location?: string | null;
+  priority: JobPriority;
+  personalNotes?: string | null;
+  websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  businessMode?: BusinessMode | null;
+  productDescription?: string | null;
+  // null = enrichment never triggered (distinct from PENDING/PROCESSING)
+  status: EnrichmentStatus | null;
+  industry?: string | null;
+  companySize?: string | null;
+  techStack: string[];
+  cultureSummary?: string | null;
+  workPolicy?: string | null;
+  workLifeBalance?: string | null;
+  headquarters?: string | null;
+  headquartersLowConfidence?: boolean;
+  address?: string | null;
+  addressLowConfidence?: boolean;
+  founded?: string | null;
+  errorMessage?: string | null;
+  enrichedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  contacts?: Contact[];
+}
+
+export interface PaginatedCompanies {
+  data: Company[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface CompanyQuery {
+  page?: number;
+  limit?: number;
+  city?: CompanyCity | '';
+  priority?: JobPriority | '';
+  search?: string;
+}
+
+export interface CsvImportError {
+  row: number;
+  message: string;
+}
+
+export interface CsvImportResult {
+  imported: number;
+  errors: CsvImportError[];
+}

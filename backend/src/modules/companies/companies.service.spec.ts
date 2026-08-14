@@ -1,0 +1,202 @@
+import { Test } from '@nestjs/testing';
+import { NotFoundException } from '@nestjs/common';
+import { CompaniesService } from './companies.service.js';
+import { PrismaService } from '../../prisma/prisma.service.js';
+import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+import { Logger } from 'nestjs-pino';
+
+const mockPrisma = {
+  company: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn(),
+    update: jest.fn(),
+    deleteMany: jest.fn(),
+  },
+};
+
+const mockCompanyEnrichment = {
+  enqueueEnrichment: jest.fn(),
+} satisfies Pick<CompanyEnrichmentService, 'enqueueEnrichment'>;
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+
+describe('CompaniesService', () => {
+  let service: CompaniesService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockCompanyEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+    const module = await Test.createTestingModule({
+      providers: [
+        CompaniesService,
+        { provide: PrismaService, useValue: mockPrisma },
+        { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
+        { provide: Logger, useValue: mockLogger },
+      ],
+    }).compile();
+    service = module.get(CompaniesService);
+  });
+
+  describe('create', () => {
+    it('creates the company scoped to the user', async () => {
+      mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
+
+      await service.create('user-1', {
+        name: 'Systems Limited',
+        city: 'LAHORE',
+      });
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          userId: 'user-1',
+          name: 'Systems Limited',
+          city: 'LAHORE',
+          techStack: [],
+        }),
+      });
+    });
+
+    it('auto-triggers enrichment after creating the company', async () => {
+      mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
+
+      await service.create('user-1', {
+        name: 'Systems Limited',
+        city: 'LAHORE',
+      });
+
+      expect(mockCompanyEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
+        'company-1',
+      );
+    });
+
+    it('returns the company with status PENDING when enqueue succeeds', async () => {
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-1',
+        status: null,
+      });
+
+      const result = await service.create('user-1', {
+        name: 'Systems Limited',
+        city: 'LAHORE',
+      });
+
+      expect(result).toMatchObject({ status: 'PENDING', errorMessage: null });
+    });
+
+    it('still returns the created company even if enqueueEnrichment throws', async () => {
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-1',
+        status: null,
+      });
+      mockCompanyEnrichment.enqueueEnrichment.mockRejectedValue(
+        new Error('Redis down'),
+      );
+
+      const result = await service.create('user-1', {
+        name: 'Systems Limited',
+        city: 'LAHORE',
+      });
+
+      expect(result).toMatchObject({ id: 'company-1', status: null });
+      expect(mockLogger.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('findAll', () => {
+    it('scopes the list to the user and applies city/priority filters', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([{ id: 'c1' }]);
+      mockPrisma.company.count.mockResolvedValue(1);
+
+      const result = await service.findAll('user-1', {
+        page: 1,
+        limit: 10,
+        city: 'KARACHI',
+        priority: 'HIGH',
+      });
+
+      expect(mockPrisma.company.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'user-1', city: 'KARACHI', priority: 'HIGH' },
+        }),
+      );
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 10,
+        totalPages: 1,
+      });
+    });
+  });
+
+  describe('findOne', () => {
+    it('throws NotFoundException when the company does not belong to the user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne('user-1', 'company-x')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('returns the company with its contacts', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        contacts: [],
+      });
+
+      const result = await service.findOne('user-1', 'company-1');
+
+      expect(result).toEqual({ id: 'company-1', contacts: [] });
+    });
+  });
+
+  describe('update', () => {
+    it('throws NotFoundException when the company does not belong to the user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', 'company-x', { name: 'New Name' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.company.update).not.toHaveBeenCalled();
+    });
+
+    it('passes an explicit null through to clear a previously-set field', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.update.mockResolvedValue({
+        id: 'company-1',
+        businessMode: null,
+      });
+
+      await service.update('user-1', 'company-1', { businessMode: null });
+
+      expect(mockPrisma.company.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'company-1' },
+          data: expect.objectContaining({ businessMode: null }),
+        }),
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('throws NotFoundException when nothing was deleted', async () => {
+      mockPrisma.company.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(service.remove('user-1', 'company-x')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('deletes the company scoped to the user', async () => {
+      mockPrisma.company.deleteMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.remove('user-1', 'company-1');
+
+      expect(mockPrisma.company.deleteMany).toHaveBeenCalledWith({
+        where: { id: 'company-1', userId: 'user-1' },
+      });
+      expect(result).toEqual({ message: 'Company deleted' });
+    });
+  });
+});

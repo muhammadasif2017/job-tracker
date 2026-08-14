@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Briefcase, User, LogOut, ShieldCheck } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Briefcase,
+  Building2,
+  User,
+  LogOut,
+  ShieldCheck,
+} from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../lib/api';
@@ -11,6 +18,7 @@ import { useRouter } from 'next/navigation';
 const nav = [
   { href: '/', label: 'Dashboard', icon: LayoutDashboard },
   { href: '/jobs', label: 'Jobs', icon: Briefcase },
+  { href: '/companies', label: 'Companies', icon: Building2 },
   { href: '/profile', label: 'Profile', icon: User },
 ];
 

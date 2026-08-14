@@ -43,7 +43,7 @@ export class ContactsController {
     @Param('jobId') jobId: string,
     @Body() dto: CreateContactDto,
   ) {
-    return this.contactsService.create(user.id, jobId, dto);
+    return this.contactsService.create(user.id, { jobId }, dto);
   }
 
   @Get(':jobId/contacts')
@@ -52,7 +52,7 @@ export class ContactsController {
   @ApiOkResponse({ type: ContactResponseDto, isArray: true })
   @ApiNotFoundResponse({ description: 'Job not found' })
   findAll(@CurrentUser() user: { id: string }, @Param('jobId') jobId: string) {
-    return this.contactsService.findAllForJob(user.id, jobId);
+    return this.contactsService.findAllFor(user.id, { jobId });
   }
 
   @Patch(':jobId/contacts/:contactId')
@@ -67,7 +67,7 @@ export class ContactsController {
     @Param('contactId') contactId: string,
     @Body() dto: UpdateContactDto,
   ) {
-    return this.contactsService.update(user.id, jobId, contactId, dto);
+    return this.contactsService.update(user.id, { jobId }, contactId, dto);
   }
 
   @Delete(':jobId/contacts/:contactId')
@@ -82,6 +82,69 @@ export class ContactsController {
     @Param('jobId') jobId: string,
     @Param('contactId') contactId: string,
   ) {
-    return this.contactsService.remove(user.id, jobId, contactId);
+    return this.contactsService.remove(user.id, { jobId }, contactId);
+  }
+}
+
+@ApiTags('companies')
+@ApiBearerAuth()
+@ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+@Controller('companies')
+export class CompanyContactsController {
+  constructor(private contactsService: ContactsService) {}
+
+  @Post(':companyId/contacts')
+  @ApiOperation({ summary: 'Add an HR/company contact to a target company' })
+  @ApiParam({ name: 'companyId', description: 'Company ID' })
+  @ApiCreatedResponse({ type: ContactResponseDto })
+  @ApiNotFoundResponse({ description: 'Company not found' })
+  create(
+    @CurrentUser() user: { id: string },
+    @Param('companyId') companyId: string,
+    @Body() dto: CreateContactDto,
+  ) {
+    return this.contactsService.create(user.id, { companyId }, dto);
+  }
+
+  @Get(':companyId/contacts')
+  @ApiOperation({ summary: 'List contacts for a target company' })
+  @ApiParam({ name: 'companyId', description: 'Company ID' })
+  @ApiOkResponse({ type: ContactResponseDto, isArray: true })
+  @ApiNotFoundResponse({ description: 'Company not found' })
+  findAll(
+    @CurrentUser() user: { id: string },
+    @Param('companyId') companyId: string,
+  ) {
+    return this.contactsService.findAllFor(user.id, { companyId });
+  }
+
+  @Patch(':companyId/contacts/:contactId')
+  @ApiOperation({ summary: 'Update a company contact' })
+  @ApiParam({ name: 'companyId', description: 'Company ID' })
+  @ApiParam({ name: 'contactId', description: 'Contact ID' })
+  @ApiOkResponse({ type: ContactResponseDto })
+  @ApiNotFoundResponse({ description: 'Company or contact not found' })
+  update(
+    @CurrentUser() user: { id: string },
+    @Param('companyId') companyId: string,
+    @Param('contactId') contactId: string,
+    @Body() dto: UpdateContactDto,
+  ) {
+    return this.contactsService.update(user.id, { companyId }, contactId, dto);
+  }
+
+  @Delete(':companyId/contacts/:contactId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Delete a company contact' })
+  @ApiParam({ name: 'companyId', description: 'Company ID' })
+  @ApiParam({ name: 'contactId', description: 'Contact ID' })
+  @ApiOkResponse({ type: MessageDto })
+  @ApiNotFoundResponse({ description: 'Company or contact not found' })
+  remove(
+    @CurrentUser() user: { id: string },
+    @Param('companyId') companyId: string,
+    @Param('contactId') contactId: string,
+  ) {
+    return this.contactsService.remove(user.id, { companyId }, contactId);
   }
 }
