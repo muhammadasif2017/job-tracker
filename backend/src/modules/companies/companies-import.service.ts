@@ -112,13 +112,15 @@ export class CompaniesImportService {
       toCreate.push({ userId, name, city, businessMode });
     });
 
+    let imported = 0;
     if (toCreate.length > 0) {
-      await this.prisma.company.createMany({
+      const result = await this.prisma.company.createMany({
         data: toCreate,
         skipDuplicates: true,
       });
+      imported = result.count;
     }
 
-    return { imported: toCreate.length, errors };
+    return { imported, errors };
   }
 }

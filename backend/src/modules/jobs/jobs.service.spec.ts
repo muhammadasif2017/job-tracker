@@ -166,6 +166,22 @@ describe('JobsService', () => {
 
       expect(result.matchedCompany).toBeNull();
     });
+
+    it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+
+      const dto: CreateJobDto = {
+        company: '   ',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(result.matchedCompany).toBeNull();
+    });
   });
 
   describe('findOne', () => {

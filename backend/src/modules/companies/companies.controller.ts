@@ -138,6 +138,7 @@ export class CompaniesController {
     const { count } = await this.prisma.company.updateMany({
       where: {
         id,
+        userId: user.id,
         OR: [
           { status: null },
           {

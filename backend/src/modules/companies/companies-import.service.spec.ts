@@ -16,7 +16,10 @@ describe('CompaniesImportService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockPrisma.company.findMany.mockResolvedValue([]);
-    mockPrisma.company.createMany.mockResolvedValue({ count: 0 });
+    mockPrisma.company.createMany.mockImplementation(
+      ({ data }: { data: unknown[] }) =>
+        Promise.resolve({ count: data.length }),
+    );
     const module = await Test.createTestingModule({
       providers: [
         CompaniesImportService,
@@ -143,6 +146,19 @@ describe('CompaniesImportService', () => {
 
     expect(result.imported).toBe(0);
     expect(result.errors[0].message).toContain('Duplicate company name');
+  });
+
+  it('reports the DB-confirmed insert count, not the attempted count, when a row is skipped by the unique constraint', async () => {
+    // Simulates a concurrent-import race: app-level dedup (findMany snapshot
+    // + seenNames) doesn't see the row, but the DB unique constraint does
+    // and createMany's skipDuplicates silently drops it.
+    mockPrisma.company.createMany.mockResolvedValue({ count: 1 });
+    const csv =
+      'name,city,businessMode\nGood Co,LAHORE,SERVICES\nOther Co,LAHORE,SERVICES';
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(1);
   });
 
   it('rejects a duplicate name repeated within the same file', async () => {
