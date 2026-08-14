@@ -37,16 +37,6 @@
             "timeout": 30
           }
         ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR/.claude/hooks/pr-after-push.sh\"",
-            "timeout": 45
-          }
-        ]
       }
     ],
     "SessionStart": [
