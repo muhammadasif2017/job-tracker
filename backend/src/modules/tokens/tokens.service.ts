@@ -1,5 +1,10 @@
 import { randomBytes, randomUUID } from 'crypto';
-import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -19,11 +24,25 @@ export class TokensService {
   constructor(private prisma: PrismaService) {}
 
   async create(userId: string, dto: CreateTokenDto): Promise<CreatedTokenDto> {
-    return this.prisma.$transaction(async (tx) => {
+    // Computed before the transaction: bcrypt.hash is CPU-bound (~50-100ms+
+    // at cost 10) and doesn't touch any state the advisory lock protects.
+    // Doing it inside the transaction would hold both the lock and a DB
+    // connection for that whole duration - under concurrent load (see the
+    // e2e concurrency test below) that's enough to exhaust Prisma's
+    // connection pool and surface as an unrelated 500 (P2024, pool_timeout).
+    const id = randomUUID();
+    const secret = randomBytes(32).toString('base64url');
+    const tokenHash = await bcrypt.hash(secret, 10);
+    const expiresAt = new Date(
+      Date.now() + PAT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
+    );
+
+    const token = await this.prisma.$transaction(async (tx) => {
       // Serializes concurrent create() calls for the same user so two
       // simultaneous requests can't both pass the count check before either
       // inserts - pg_advisory_xact_lock is released automatically when the
-      // transaction ends.
+      // transaction ends. Now that the hash above is precomputed, this
+      // critical section is just lock + count + insert - fast, DB-only.
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${userId}))`;
 
       const active = await tx.apiToken.count({
@@ -35,26 +54,19 @@ export class TokensService {
         );
       }
 
-      const id = randomUUID();
-      const secret = randomBytes(32).toString('base64url');
-      const tokenHash = await bcrypt.hash(secret, 10);
-      const expiresAt = new Date(
-        Date.now() + PAT_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
-      );
-
-      const token = await tx.apiToken.create({
+      return tx.apiToken.create({
         data: { id, userId, name: dto.name, tokenHash, expiresAt },
       });
-
-      return {
-        id: token.id,
-        name: token.name,
-        createdAt: token.createdAt,
-        lastUsedAt: token.lastUsedAt,
-        expiresAt: token.expiresAt,
-        token: `${API_TOKEN_PREFIX}${id}.${secret}`,
-      };
     });
+
+    return {
+      id: token.id,
+      name: token.name,
+      createdAt: token.createdAt,
+      lastUsedAt: token.lastUsedAt,
+      expiresAt: token.expiresAt,
+      token: `${API_TOKEN_PREFIX}${id}.${secret}`,
+    };
   }
 
   async findAll(userId: string): Promise<TokenResponseDto[]> {
