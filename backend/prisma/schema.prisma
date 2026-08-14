@@ -261,6 +261,7 @@ model Company {
   updatedAt DateTime  @updatedAt
   contacts  Contact[]
 
+  @@unique([userId, name])
   @@index([userId])
   @@index([userId, city])
   @@index([userId, priority])

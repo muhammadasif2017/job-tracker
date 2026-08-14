@@ -113,7 +113,10 @@ export class CompaniesImportService {
     });
 
     if (toCreate.length > 0) {
-      await this.prisma.company.createMany({ data: toCreate });
+      await this.prisma.company.createMany({
+        data: toCreate,
+        skipDuplicates: true,
+      });
     }
 
     return { imported: toCreate.length, errors };

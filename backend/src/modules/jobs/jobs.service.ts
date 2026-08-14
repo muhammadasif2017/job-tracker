@@ -57,10 +57,12 @@ export class JobsService {
     // Soft-link only (no FK) — surfaces a "you already saved this company"
     // banner on the frontend. Case-insensitive exact match, no fuzzy
     // matching (see docs/specs/target-companies.md Assumption 6).
-    const matchedCompany = await this.prisma.company.findFirst({
-      where: { userId, name: { equals: dto.company, mode: 'insensitive' } },
-      select: { id: true, name: true },
-    });
+    const matchedCompany = dto.company?.trim()
+      ? await this.prisma.company.findFirst({
+          where: { userId, name: { equals: dto.company, mode: 'insensitive' } },
+          select: { id: true, name: true },
+        })
+      : null;
 
     return { ...job, matchedCompany };
   }

@@ -76,6 +76,7 @@ describe('CompaniesImportService', () => {
           businessMode: 'PRODUCT',
         },
       ],
+      skipDuplicates: true,
     });
   });
 
@@ -94,6 +95,7 @@ describe('CompaniesImportService', () => {
           businessMode: undefined,
         },
       ],
+      skipDuplicates: true,
     });
   });
 

@@ -128,13 +128,28 @@ export class CompaniesController {
   ) {
     const company = await this.prisma.company.findFirst({
       where: { id, userId: user.id },
-      select: { id: true, status: true },
+      select: { id: true },
     });
     if (!company) throw new NotFoundException('Company not found');
-    if (
-      company.status === EnrichmentStatus.PENDING ||
-      company.status === EnrichmentStatus.PROCESSING
-    ) {
+
+    // CAS: claim the row by flipping status to PENDING only if it isn't
+    // already PENDING/PROCESSING, closing the TOCTOU window where two
+    // concurrent requests both read a non-busy status and both enqueue.
+    const { count } = await this.prisma.company.updateMany({
+      where: {
+        id,
+        OR: [
+          { status: null },
+          {
+            status: {
+              notIn: [EnrichmentStatus.PENDING, EnrichmentStatus.PROCESSING],
+            },
+          },
+        ],
+      },
+      data: { status: EnrichmentStatus.PENDING, errorMessage: null },
+    });
+    if (count === 0) {
       throw new ConflictException('Enrichment already in progress');
     }
 
