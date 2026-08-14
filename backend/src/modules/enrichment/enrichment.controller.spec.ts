@@ -8,7 +8,10 @@ const mockPrisma = {
   job: { findFirst: jest.fn() },
   companyProfile: { findFirst: jest.fn() },
 };
-const mockEnrichment = { enqueueEnrichment: jest.fn() };
+const mockEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
+  EnrichmentService,
+  'enqueueEnrichment'
+>;
 const user = { id: 'user-1' };
 
 describe('EnrichmentController', () => {

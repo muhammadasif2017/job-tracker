@@ -1,8 +1,11 @@
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsProcessor } from './notifications.processor.js';
+import { EmailService } from './email.service.js';
 
 describe('NotificationsProcessor', () => {
-  const email = { send: jest.fn().mockResolvedValue(undefined) };
+  const email = {
+    send: jest.fn().mockResolvedValue(undefined),
+  } satisfies Pick<EmailService, 'send'>;
   const logger = { log: jest.fn(), warn: jest.fn() };
   const config = { get: jest.fn().mockReturnValue('http://localhost:3000') };
 

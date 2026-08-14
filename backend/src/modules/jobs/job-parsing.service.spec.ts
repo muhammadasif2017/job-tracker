@@ -6,9 +6,18 @@ import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
 import { SearchService } from '../enrichment/services/search.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 
-const mockWebFetch = { fetchPageText: jest.fn() };
-const mockSearch = { search: jest.fn() };
-const mockLlm = { extractJobPosting: jest.fn() };
+const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
+  WebFetchService,
+  'fetchPageText'
+>;
+const mockSearch = { search: jest.fn() } satisfies Pick<
+  SearchService,
+  'search'
+>;
+const mockLlm = { extractJobPosting: jest.fn() } satisfies Pick<
+  LlmService,
+  'extractJobPosting'
+>;
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 describe('JobParsingService', () => {
