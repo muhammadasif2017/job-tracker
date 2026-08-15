@@ -229,7 +229,7 @@ describe('JobsService', () => {
       expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
     });
 
-    it('still returns the created job and matchedCompany when copying enrichment throws', async () => {
+    it('falls back to enqueueEnrichment when copying enrichment throws', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -250,13 +250,70 @@ describe('JobsService', () => {
       };
       const result = await service.create('user-1', dto);
 
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
       expect(result.matchedCompany).toEqual({
         id: 'company-1',
         name: 'Systems Limited',
       });
     });
 
-    it('returns matchedCompany: null when no saved target company matches', async () => {
+    it('still returns the created job even when both the copy and the enqueueEnrichment fallback throw', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Systems Limited',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Software',
+      });
+      mockPrisma.companyProfile.create.mockRejectedValue(
+        new Error('DB unavailable'),
+      );
+      mockEnrichment.enqueueEnrichment.mockRejectedValue(
+        new Error('Redis down'),
+      );
+
+      const dto: CreateJobDto = {
+        company: 'systems limited',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
+      expect(result.matchedCompany).toEqual({
+        id: 'company-1',
+        name: 'Systems Limited',
+      });
+    });
+
+    it.each([null, EnrichmentStatus.FAILED, EnrichmentStatus.PROCESSING])(
+      'falls back to enqueueEnrichment when the matched company status is %s',
+      async (status) => {
+        mockPrisma.job.create.mockResolvedValue({
+          id: 'job-new',
+          status: JobStatus.APPLIED,
+        });
+        mockPrisma.company.findFirst.mockResolvedValue({
+          id: 'company-1',
+          name: 'Systems Limited',
+          status,
+        });
+
+        const dto: CreateJobDto = {
+          company: 'systems limited',
+          position: 'Engineer',
+        };
+        await service.create('user-1', dto);
+
+        expect(mockPrisma.companyProfile.create).not.toHaveBeenCalled();
+        expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
+          'job-new',
+        );
+      },
+    );
+
+    it('returns matchedCompany: null and still enqueues enrichment when no saved target company matches', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -269,10 +326,11 @@ describe('JobsService', () => {
       };
       const result = await service.create('user-1', dto);
 
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
       expect(result.matchedCompany).toBeNull();
     });
 
-    it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
+    it('skips the matchedCompany lookup for a whitespace-only company name but still enqueues enrichment', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -285,6 +343,7 @@ describe('JobsService', () => {
       const result = await service.create('user-1', dto);
 
       expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
       expect(result.matchedCompany).toBeNull();
     });
   });

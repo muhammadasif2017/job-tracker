@@ -53,6 +53,21 @@ true before this change (it's the same button used for a normal re-run) — so
 a copied profile is refreshable exactly like an organically-enriched one,
 via `POST /jobs/:id/enrichment`. No new UI or endpoint was needed.
 
+If the copy write itself fails (e.g. a DB blip on `companyProfile.create`),
+`JobsService.create` falls back to the normal `enqueueEnrichment` path rather
+than leaving the job with no `CompanyProfile` row and no way to recover one
+— same best-effort contract, just chained instead of dropped.
+
+**Accepted tradeoff — no staleness check.** Reuse has no age limit on
+`matchedCompany.enrichedAt`: a target company researched months ago is
+copied as freshly as one researched a minute ago, with no UI distinction
+between "reused" and "organically enriched" data. This mirrors the same
+no-provenance tradeoff already accepted for `Company`'s own AI-fillable
+fields (spec Assumption 9) — adding an age threshold is a real product
+decision (what counts as stale?) that wasn't part of this change's ask.
+Revisit if reused-but-stale data turns out to bite in practice; the fix
+would be a simple `enrichedAt` age check gating the `COMPLETED` branch.
+
 ## Alternatives Considered
 
 ### Option A: Skip enrichment entirely, leave CompanyProfile unset

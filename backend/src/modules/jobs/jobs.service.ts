@@ -81,9 +81,11 @@ export class JobsService {
 
     if (matchedCompany?.status === EnrichmentStatus.COMPLETED) {
       // Target company already has completed AI research — reuse it instead
-      // of paying for another Tavily/Groq round trip. Best-effort, same as
-      // the enqueue path below; the job's own "Refresh" button (unaffected,
-      // see EnrichmentController) still lets the user force a fresh fetch.
+      // of paying for another Tavily/Groq round trip. The job's own
+      // "Refresh" button (unaffected, see EnrichmentController) still lets
+      // the user force a fresh fetch. If the copy itself fails, fall back to
+      // the normal enqueue path rather than leaving the job with no
+      // CompanyProfile row and no UI affordance to recover one.
       try {
         await this.prisma.companyProfile.create({
           data: {
@@ -108,6 +110,14 @@ export class JobsService {
           jobId: job.id,
           err,
         });
+        try {
+          await this.enrichment.enqueueEnrichment(job.id);
+        } catch (enqueueErr: unknown) {
+          this.logger.warn('Enrichment enqueue failed', {
+            jobId: job.id,
+            err: enqueueErr,
+          });
+        }
       }
     } else {
       try {
