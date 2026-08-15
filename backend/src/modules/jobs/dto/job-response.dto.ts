@@ -10,6 +10,17 @@ import { CompanyProfileResponseDto } from './company-profile-response.dto.js';
 import { ResumeResponseDto } from '../../resumes/dto/resume-response.dto.js';
 import { InterviewRoundResponseDto } from '../../interview-rounds/dto/interview-round-response.dto.js';
 
+// Only ever populated on the POST /jobs response — a case-insensitive
+// name match against the user's target-company list (soft-link, no FK; see
+// docs/specs/target-companies.md). Never persisted on Job itself.
+export class MatchedCompanyDto {
+  @ApiProperty({ format: 'cuid' })
+  id: string;
+
+  @ApiProperty({ example: 'Systems Limited' })
+  name: string;
+}
+
 export class JobResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
@@ -67,4 +78,13 @@ export class JobResponseDto {
 
   @ApiPropertyOptional({ type: () => InterviewRoundResponseDto, isArray: true })
   interviewRounds?: InterviewRoundResponseDto[];
+
+  @ApiPropertyOptional({
+    type: () => MatchedCompanyDto,
+    description:
+      'Only present on the create response — a saved target company whose ' +
+      "name case-insensitively matches this job's company field, or null " +
+      'if none matched.',
+  })
+  matchedCompany?: MatchedCompanyDto | null;
 }

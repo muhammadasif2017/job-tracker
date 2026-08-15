@@ -222,12 +222,7 @@ export class AuthService implements OnModuleDestroy {
       secret,
       token?.tokenHash ?? DUMMY_TOKEN_HASH,
     );
-    if (
-      !token ||
-      token.revokedAt ||
-      token.expiresAt < new Date() ||
-      !valid
-    ) {
+    if (!token || token.revokedAt || token.expiresAt < new Date() || !valid) {
       throw invalid();
     }
 
@@ -235,7 +230,9 @@ export class AuthService implements OnModuleDestroy {
     this.prisma.apiToken
       .update({ where: { id }, data: { lastUsedAt: new Date() } })
       .catch((err: Error) =>
-        this.logger.warn(`Failed to update apiToken.lastUsedAt: ${err.message}`),
+        this.logger.warn(
+          `Failed to update apiToken.lastUsedAt: ${err.message}`,
+        ),
       );
 
     const accessToken = await this.signAccessToken(

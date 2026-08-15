@@ -47,7 +47,9 @@ describe('PatScopeGuard', () => {
   it('fails closed on an unrecognized scope value rather than granting full access', () => {
     mockReflector.getAllAndOverride.mockReturnValue(undefined);
     expect(() =>
-      guard.canActivate(contextWithUser({ id: 'u-1', scope: 'some-future-scope' })),
+      guard.canActivate(
+        contextWithUser({ id: 'u-1', scope: 'some-future-scope' }),
+      ),
     ).toThrow(ForbiddenException);
   });
 

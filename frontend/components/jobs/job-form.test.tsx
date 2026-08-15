@@ -182,6 +182,38 @@ describe('JobForm', () => {
     });
   });
 
+  describe('matched company banner', () => {
+    it('shows a dismissible banner linking to the matched company', async () => {
+      vi.mocked(api.post).mockResolvedValue({
+        data: {
+          id: 'new-job',
+          matchedCompany: { id: 'company-1', name: 'Systems Limited' },
+        },
+      });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      const link = await screen.findByRole('link', { name: 'Systems Limited' });
+      expect(link).toHaveAttribute('href', '/companies/company-1');
+
+      fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
+      expect(screen.queryByRole('link', { name: 'Systems Limited' })).not.toBeInTheDocument();
+    });
+
+    it('does not render a banner when there is no matched company', async () => {
+      vi.mocked(api.post).mockResolvedValue({
+        data: { id: 'new-job', matchedCompany: null },
+      });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      await screen.findByText('Job Added');
+      expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument();
+    });
+  });
+
   describe('edit submit', () => {
     it('patches the job and closes on success', async () => {
       vi.mocked(api.patch).mockResolvedValue({ data: job });

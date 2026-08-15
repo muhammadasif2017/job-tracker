@@ -29,7 +29,13 @@ describe('JwtStrategy', () => {
   });
 
   it('returns the user unchanged for a normal (non-PAT) token', async () => {
-    const user = { id: 'u-1', email: 'a@b.com', name: 'A', avatarUrl: null, role: 'USER' };
+    const user = {
+      id: 'u-1',
+      email: 'a@b.com',
+      name: 'A',
+      avatarUrl: null,
+      role: 'USER',
+    };
     mockPrisma.user.findUnique.mockResolvedValue(user);
 
     const result = await strategy.validate({ sub: 'u-1', email: 'a@b.com' });
@@ -42,7 +48,13 @@ describe('JwtStrategy', () => {
   const past = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   it('attaches the scope claim for a PAT-derived token whose source ApiToken is still active', async () => {
-    const user = { id: 'u-1', email: 'a@b.com', name: 'A', avatarUrl: null, role: 'USER' };
+    const user = {
+      id: 'u-1',
+      email: 'a@b.com',
+      name: 'A',
+      avatarUrl: null,
+      role: 'USER',
+    };
     mockPrisma.user.findUnique.mockResolvedValue(user);
     mockPrisma.apiToken.findUnique.mockResolvedValue({
       revokedAt: null,
@@ -124,7 +136,13 @@ describe('JwtStrategy', () => {
     // JwtStrategy doesn't know about every scope type that might exist in
     // future - it only owns the PAT-specific revocation check. Anything else
     // must still reach req.user so PatScopeGuard can fail closed on it.
-    const user = { id: 'u-1', email: 'a@b.com', name: 'A', avatarUrl: null, role: 'USER' };
+    const user = {
+      id: 'u-1',
+      email: 'a@b.com',
+      name: 'A',
+      avatarUrl: null,
+      role: 'USER',
+    };
     mockPrisma.user.findUnique.mockResolvedValue(user);
 
     const result = await strategy.validate({

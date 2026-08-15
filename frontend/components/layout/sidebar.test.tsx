@@ -40,6 +40,7 @@ describe('Sidebar', () => {
     render(<Sidebar isOpen onClose={vi.fn()} />);
     expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /^jobs$/i })).toHaveAttribute('href', '/jobs');
+    expect(screen.getByRole('link', { name: /companies/i })).toHaveAttribute('href', '/companies');
     expect(screen.getByRole('link', { name: /profile/i })).toHaveAttribute('href', '/profile');
     expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
   });

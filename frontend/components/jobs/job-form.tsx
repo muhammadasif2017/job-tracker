@@ -6,6 +6,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import Link from 'next/link';
+import { Building2, X } from 'lucide-react';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
@@ -22,6 +24,7 @@ import {
   APPLICATION_CHANNEL_LABELS,
   STATUS_LABELS,
   type Job,
+  type MatchedCompany,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
 
@@ -71,6 +74,10 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;
   const [createdJobId, setCreatedJobId] = useState<string | null>(null);
+  const [matchedCompany, setMatchedCompany] = useState<MatchedCompany | null>(
+    null,
+  );
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const {
     register,
@@ -89,6 +96,8 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
 
   const handleClose = () => {
     setCreatedJobId(null);
+    setMatchedCompany(null);
+    setBannerDismissed(false);
     onClose();
   };
 
@@ -145,6 +154,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       } else {
         toast.success('Job added');
         setCreatedJobId(data.id);
+        setMatchedCompany(data.matchedCompany ?? null);
       }
     },
     onError: (err: unknown) =>
@@ -155,6 +165,29 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     return (
       <Modal open={open} onClose={handleClose} title="Job Added">
         <div className="space-y-4">
+          {matchedCompany && !bannerDismissed && (
+            <div className="flex items-start gap-2 rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950/30">
+              <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400" />
+              <p className="flex-1 text-sm text-indigo-700 dark:text-indigo-300">
+                You already saved{' '}
+                <Link
+                  href={`/companies/${matchedCompany.id}`}
+                  className="font-medium underline hover:no-underline"
+                >
+                  {matchedCompany.name}
+                </Link>{' '}
+                as a target company.
+              </p>
+              <button
+                type="button"
+                aria-label="Dismiss"
+                onClick={() => setBannerDismissed(true)}
+                className="shrink-0 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-200"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
           <p className="text-sm text-slate-600 dark:text-slate-400">
             Job added successfully. Optionally attach a resume before closing.
           </p>

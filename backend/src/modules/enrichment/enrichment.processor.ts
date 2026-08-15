@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { WebFetchService } from './services/web-fetch.service.js';
 import { SearchService } from './services/search.service.js';
 import { LlmService, type CompanyData } from './services/llm.service.js';
+import { JOB_BOARD_DOMAINS } from '../../common/job-board-domains.js';
 
 export const ENRICHMENT_QUEUE = 'company-enrichment';
 
@@ -14,19 +15,6 @@ type ExtractionResult = {
   data: CompanyData;
   lowConfidence: { address: boolean; headquarters: boolean };
 };
-
-// Hosts that are job boards, not the company's own site — their domain must not
-// be used as a trust hint or for contact-page fetching
-const JOB_BOARD_DOMAINS = [
-  'linkedin.com',
-  'indeed.com',
-  'glassdoor.com',
-  'rozee.pk',
-  'bayt.com',
-  'monster.com',
-  'ziprecruiter.com',
-  'wellfound.com',
-];
 
 @Injectable()
 // lockDuration is stall-detection margin (crashed worker / blocked event

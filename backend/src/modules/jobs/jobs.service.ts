@@ -53,7 +53,18 @@ export class JobsService {
       // enrichment is best-effort; job creation always succeeds
       this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
     }
-    return job;
+
+    // Soft-link only (no FK) — surfaces a "you already saved this company"
+    // banner on the frontend. Case-insensitive exact match, no fuzzy
+    // matching (see docs/specs/target-companies.md Assumption 6).
+    const matchedCompany = dto.company.trim()
+      ? await this.prisma.company.findFirst({
+          where: { userId, name: { equals: dto.company, mode: 'insensitive' } },
+          select: { id: true, name: true },
+        })
+      : null;
+
+    return { ...job, matchedCompany };
   }
 
   async findAll(userId: string, query: JobQueryDto) {

@@ -10,7 +10,10 @@ import { PAT_ACCESSIBLE_KEY } from '../../common/decorators/pat-accessible.decor
 // unnoticed. See PatScopeGuard / pat-scope.guard.spec.ts for the enforcement
 // side.
 describe('JobsController @PatAccessible() allowlist', () => {
-  const EXPECTED_PAT_ACCESSIBLE_METHODS = new Set(['create', 'parseJobPosting']);
+  const EXPECTED_PAT_ACCESSIBLE_METHODS = new Set([
+    'create',
+    'parseJobPosting',
+  ]);
 
   const methodNames = Object.getOwnPropertyNames(
     JobsController.prototype,

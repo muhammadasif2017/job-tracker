@@ -74,6 +74,19 @@ enum Role {
   ADMIN
 }
 
+enum CompanyCity {
+  LAHORE
+  ISLAMABAD
+  KARACHI
+  OTHER
+}
+
+enum BusinessMode {
+  PRODUCT
+  SERVICES
+  HYBRID
+}
+
 enum DigestFrequency {
   OFF
   DAILY
@@ -93,6 +106,7 @@ model User {
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
   jobs                      Job[]
+  companies                 Company[]
   accounts                  Account[]
   refreshTokens             RefreshToken[]
   apiTokens                 ApiToken[]
@@ -207,6 +221,53 @@ model CompanyProfile {
   @@map("company_profiles")
 }
 
+model Company {
+  id            String       @id @default(cuid())
+  userId        String
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  city          CompanyCity
+  location      String?
+  priority      JobPriority  @default(MEDIUM)
+  personalNotes String?
+  websiteUrl    String?
+  linkedinUrl   String?
+
+  // AI-fillable, user-correctable — see docs/specs/target-companies.md
+  // "Company Fields — Scope" and Assumption 9 (refresh always overwrites,
+  // no per-field provenance tracking).
+  businessMode              BusinessMode?
+  productDescription        String?
+  // No default (unlike CompanyProfile, this row always exists from creation)
+  // — null means "enrichment never triggered", distinct from PENDING/
+  // PROCESSING ("currently queued/running"). See the conflict check in
+  // CompaniesController.triggerEnrichment.
+  status                    EnrichmentStatus?
+  industry                  String?
+  companySize               String?
+  techStack                 String[]
+  cultureSummary            String?
+  workPolicy                String?
+  workLifeBalance           String?
+  headquarters              String?
+  headquartersLowConfidence Boolean          @default(false)
+  address                   String?
+  addressLowConfidence      Boolean          @default(false)
+  founded                   String?
+  errorMessage              String?
+  enrichedAt                DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  contacts  Contact[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@index([userId, city])
+  @@index([userId, priority])
+  @@map("companies")
+}
+
 model Resume {
   id           String   @id @default(cuid())
   jobId        String   @unique
@@ -236,8 +297,10 @@ model InterviewRound {
 
 model Contact {
   id          String   @id @default(cuid())
-  jobId       String
-  job         Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId       String?
+  job         Job?     @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  companyId   String?
+  company     Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name        String
   role        String?
   email       String?
@@ -248,6 +311,7 @@ model Contact {
   updatedAt   DateTime @updatedAt
 
   @@index([jobId])
+  @@index([companyId])
   @@map("contacts")
 }
 

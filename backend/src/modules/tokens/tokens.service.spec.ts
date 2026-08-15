@@ -33,8 +33,8 @@ describe('TokensService', () => {
     (bcrypt.hash as jest.Mock).mockResolvedValue('hashed-secret');
     mockPrisma.apiToken.count.mockResolvedValue(0);
     mockPrisma.$executeRaw.mockResolvedValue(undefined);
-    mockPrisma.$transaction.mockImplementation((callback: (tx: unknown) => unknown) =>
-      callback(mockPrisma),
+    mockPrisma.$transaction.mockImplementation(
+      (callback: (tx: unknown) => unknown) => callback(mockPrisma),
     );
     const module = await Test.createTestingModule({
       providers: [
