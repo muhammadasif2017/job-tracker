@@ -207,4 +207,28 @@ describe('MergeCompanyDialog', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Industry')).not.toBeInTheDocument();
   });
+
+  it('skips the search step and jumps to conflicts when preSeedDuplicate is provided', () => {
+    const duplicateWithIndustry: Company = {
+      ...duplicate,
+      industry: 'Fintech',
+    };
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <MergeCompanyDialog
+          open
+          onClose={vi.fn()}
+          company={canonical}
+          preSeedDuplicate={duplicateWithIndustry}
+        />
+      </QueryClientProvider>,
+    );
+
+    expect(
+      screen.queryByLabelText(/search for a duplicate company/i),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText('Industry')).toBeInTheDocument();
+    expect(screen.getByText('Fintech')).toBeInTheDocument();
+  });
 });

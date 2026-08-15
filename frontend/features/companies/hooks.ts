@@ -6,6 +6,7 @@ import type {
   Company,
   CompanyCity,
   CsvImportResult,
+  DuplicateSuggestion,
   JobPriority,
   PaginatedCompanies,
 } from '../../types';
@@ -73,6 +74,14 @@ export function useCompanyQuery(id: string) {
       const status = query.state.data?.status;
       return status === 'PENDING' || status === 'PROCESSING' ? 3000 : false;
     },
+  });
+}
+
+// Phase 5c (docs/specs/company-fk-phase5c.md)
+export function useDuplicateSuggestionsQuery() {
+  return useQuery<DuplicateSuggestion[]>({
+    queryKey: ['companies', 'duplicates'],
+    queryFn: () => api.get('/companies/duplicates').then((r) => r.data),
   });
 }
 
