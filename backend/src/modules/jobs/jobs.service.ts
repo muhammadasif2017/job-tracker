@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -16,6 +16,7 @@ import {
   JobPriority,
   JobType,
   CompanyCity,
+  EnrichmentStatus,
 } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -27,7 +28,7 @@ import { buildJobWhere } from './jobs.constants.js';
 export class JobsService {
   constructor(
     private prisma: PrismaService,
-    private enrichment: EnrichmentService,
+    private companyEnrichment: CompanyEnrichmentService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
@@ -98,11 +99,21 @@ export class JobsService {
         },
       },
     });
-    try {
-      await this.enrichment.enqueueEnrichment(job.id);
-    } catch (err: unknown) {
-      // enrichment is best-effort; job creation always succeeds
-      this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
+    // Company-scoped, not job-scoped (see docs/specs/company-fk-phase3b.md)
+    // — one AI research run per company, not duplicated per job at that
+    // company. Skipped entirely for a blank company name (nothing to
+    // enrich; there's no linked Company).
+    if (company) {
+      try {
+        await this.companyEnrichment.enqueueEnrichment(company.id);
+      } catch (err: unknown) {
+        // enrichment is best-effort; job creation always succeeds
+        this.logger.warn('Enrichment enqueue failed', {
+          jobId: job.id,
+          companyId: company.id,
+          err,
+        });
+      }
     }
 
     return { ...job, matchedCompany };
@@ -137,26 +148,53 @@ export class JobsService {
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
-    // NOT reading from Company here (see docs/specs/company-fk-phase3.md
-    // "Blocked" note) — the job-scoped enrichment pipeline
-    // (EnrichmentService/EnrichmentProcessor) still writes results to
-    // CompanyProfile keyed by jobId, not to Company. Cutting over reads
-    // without also moving those writes would leave every new job's
-    // enrichment permanently invisible (stuck at PENDING).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
       include: {
-        companyProfile: true,
+        companyLink: true,
         resume: true,
         interviewRounds: { orderBy: { scheduledAt: 'asc' } },
         contacts: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!job) throw new NotFoundException('Job not found');
-    return job;
+
+    const { companyLink, ...rest } = job;
+    return {
+      ...rest,
+      // Company is the sole source of enrichment data (CompanyProfile
+      // dropped in phase 4, docs/specs/company-fk-phase4.md) — reshaped into
+      // the companyProfile response shape the frontend already expects.
+      // status defaults to PENDING for a manually-added target company that
+      // has never had enrichment triggered (Company.status has no DB
+      // default — null there means "never triggered", distinct from an
+      // in-flight PENDING/PROCESSING run).
+      companyProfile: companyLink
+        ? {
+            id: companyLink.id,
+            jobId: job.id,
+            status: companyLink.status ?? EnrichmentStatus.PENDING,
+            industry: companyLink.industry,
+            companySize: companyLink.companySize,
+            techStack: companyLink.techStack,
+            cultureSummary: companyLink.cultureSummary,
+            workPolicy: companyLink.workPolicy,
+            workLifeBalance: companyLink.workLifeBalance,
+            headquarters: companyLink.headquarters,
+            headquartersLowConfidence: companyLink.headquartersLowConfidence,
+            address: companyLink.address,
+            addressLowConfidence: companyLink.addressLowConfidence,
+            founded: companyLink.founded,
+            errorMessage: companyLink.errorMessage,
+            enrichedAt: companyLink.enrichedAt,
+            createdAt: companyLink.createdAt,
+            updatedAt: companyLink.updatedAt,
+          }
+        : null,
+    };
   }
 
-  // Lean ownership check — only selects id + status, no companyProfile JOIN.
+  // Lean ownership check — only selects id + status, no companyLink JOIN.
   // Use this in write operations that don't need enrichment data.
   private async findOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
@@ -192,7 +230,7 @@ export class JobsService {
     if (!statusChanged) {
       return this.prisma.job.update({
         where: { id: jobId },
-        include: { companyProfile: true, resume: true },
+        include: { resume: true },
         data,
       });
     }
@@ -227,7 +265,7 @@ export class JobsService {
       });
       return tx.job.update({
         where: { id: jobId },
-        include: { companyProfile: true, resume: true },
+        include: { resume: true },
         data,
       });
     });
