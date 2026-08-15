@@ -2,13 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { HealthIndicatorService } from '@nestjs/terminus';
-import { ENRICHMENT_QUEUE } from '../enrichment/enrichment.processor.js';
+import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 
 @Injectable()
 export class RedisHealthIndicator {
   constructor(
     private readonly healthIndicatorService: HealthIndicatorService,
-    @InjectQueue(ENRICHMENT_QUEUE) private readonly queue: Queue,
+    @InjectQueue(COMPANY_ENRICHMENT_QUEUE) private readonly queue: Queue,
   ) {}
 
   async isHealthy(key: string) {
