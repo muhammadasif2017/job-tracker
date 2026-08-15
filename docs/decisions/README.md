@@ -35,6 +35,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [026](./026-e2e-locator-disambiguation.md) | Disambiguate Playwright locators with exact text and accessible names | Accepted |
 | [027](./027-frontend-edge-case-handling.md) | Frontend failure/edge-case handling — error boundaries, isError states, request timeouts, error normalization | Accepted |
 | [028](./028-personal-access-tokens.md) | Scoped personal access tokens for the browser extension | Accepted |
+| [029](./029-job-enrichment-reuses-target-company-data.md) | Job creation reuses a matched target company's completed enrichment instead of re-fetching | Accepted |
 
 ## How to read an ADR
 
