@@ -7,6 +7,7 @@ import { Modal } from '../../../components/ui/modal';
 import { CompanyList } from '../../../components/companies/company-list';
 import { CompanyForm } from '../../../components/companies/company-form';
 import { CsvImportDialog } from '../../../components/companies/csv-import-dialog';
+import { MergeCompanyDialog } from '../../../components/companies/merge-company-dialog';
 import {
   COMPANY_CITIES,
   CITY_LABELS,
@@ -39,6 +40,7 @@ export default function CompaniesPage() {
   const [importOpen, setImportOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Company | undefined>();
+  const [mergeTarget, setMergeTarget] = useState<Company | undefined>();
 
   const debouncedSearch = useDebounce(search);
 
@@ -138,6 +140,7 @@ export default function CompaniesPage() {
         onRetry={() => refetch()}
         onEdit={openEdit}
         onDelete={setDeleteTarget}
+        onMerge={setMergeTarget}
       />
 
       {data && data.meta.totalPages > 1 && (
@@ -168,6 +171,11 @@ export default function CompaniesPage() {
 
       <CompanyForm open={formOpen} onClose={closeForm} company={editCompany} />
       <CsvImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
+      <MergeCompanyDialog
+        open={!!mergeTarget}
+        onClose={() => setMergeTarget(undefined)}
+        company={mergeTarget}
+      />
 
       <Modal
         open={!!deleteTarget}

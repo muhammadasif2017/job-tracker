@@ -177,6 +177,98 @@ test.describe('Delete company', () => {
   });
 });
 
+// ── Merge companies ──────────────────────────────────────────────────────────
+
+test.describe('Merge companies', () => {
+  test('merges a duplicate into the canonical company via the row action', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Canonical',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Duplicate',
+    });
+
+    await goToCompanies(page);
+
+    const row = page.locator('tr').filter({ hasText: 'Merge E2E Canonical' });
+    await row.getByRole('button', { name: /merge merge e2e canonical/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(
+      dialog.getByText('Merge into Merge E2E Canonical'),
+    ).toBeVisible();
+
+    await dialog
+      .getByLabel('Search for a duplicate company')
+      .fill('Merge E2E Duplicate');
+    await dialog.getByText('Merge E2E Duplicate', { exact: true }).click();
+
+    await expect(
+      dialog.getByRole('button', { name: 'Merge companies' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+
+    await expect(page.getByText('Companies merged')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Duplicate' }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Canonical' }),
+    ).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+
+  test('shows a field conflict picker and applies the picked value', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Conflict Canonical',
+      industry: 'Old Industry',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Conflict Duplicate',
+      industry: 'New Industry',
+    });
+
+    await goToCompanies(page);
+
+    const row = page
+      .locator('tr')
+      .filter({ hasText: 'Merge E2E Conflict Canonical' });
+    await row
+      .getByRole('button', { name: /merge merge e2e conflict canonical/i })
+      .click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog
+      .getByLabel('Search for a duplicate company')
+      .fill('Merge E2E Conflict Duplicate');
+    await dialog
+      .getByText('Merge E2E Conflict Duplicate', { exact: true })
+      .click();
+
+    // Conflict step — Industry differs.
+    await expect(
+      dialog.getByText('Industry', { exact: true }),
+    ).toBeVisible();
+    await dialog
+      .getByRole('radio', { name: /merge e2e conflict duplicate: new industry/i })
+      .click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+    await expect(page.getByText('Companies merged')).toBeVisible();
+
+    await page.goto(`/companies/${canonical.id}`);
+    await expect(page.getByText('New Industry')).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+});
+
 // ── Search & filters ──────────────────────────────────────────────────────────
 
 test.describe('Search and filters', () => {

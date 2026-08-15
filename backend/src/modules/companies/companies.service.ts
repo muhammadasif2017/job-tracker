@@ -10,6 +10,12 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
+import type { MergeFieldOverridesDto } from './dto/merge-company.dto.js';
+import {
+  normalizeCompanyName,
+  normalizeWebsiteUrl,
+  similarityRatio,
+} from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
 
 @Injectable()
@@ -251,5 +257,103 @@ export class CompaniesService {
 
     await this.companyEnrichment.enqueueEnrichment(companyId);
     return { message: 'Enrichment queued' };
+  }
+
+  // Phase 5a (docs/specs/company-fk-phase5a.md) — manual merge, no
+  // auto-detection yet (5c). Job AND Contact both need reassigning —
+  // Contact.companyId has onDelete: Cascade from Company, so deleting the
+  // duplicate without first reassigning its contacts would silently destroy
+  // them. fieldOverrides (phase 5b, docs/specs/company-fk-phase5b.md) is a
+  // sparse patch applied to canonical — an absent key keeps canonical's
+  // current value, only present keys (the fields the user explicitly picked
+  // the duplicate's value for) get overwritten. Only AI-enrichment fields
+  // are eligible; user-curated identity fields (websiteUrl, personalNotes,
+  // etc.) always stay canonical's own, no override path for them.
+  async mergeCompanies(
+    userId: string,
+    canonicalId: string,
+    duplicateId: string,
+    fieldOverrides?: MergeFieldOverridesDto,
+  ) {
+    if (canonicalId === duplicateId) {
+      throw new ConflictException('Cannot merge a company with itself');
+    }
+    return this.prisma.$transaction(async (tx) => {
+      const [canonical, duplicate] = await Promise.all([
+        tx.company.findFirst({ where: { id: canonicalId, userId } }),
+        tx.company.findFirst({
+          where: { id: duplicateId, userId },
+          select: { id: true, name: true },
+        }),
+      ]);
+      if (!canonical || !duplicate) {
+        throw new NotFoundException('Company not found');
+      }
+
+      await tx.job.updateMany({
+        where: { companyId: duplicateId },
+        data: { companyId: canonicalId },
+      });
+      await tx.contact.updateMany({
+        where: { companyId: duplicateId },
+        data: { companyId: canonicalId },
+      });
+      await tx.company.delete({ where: { id: duplicateId } });
+
+      if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
+        return tx.company.update({
+          where: { id: canonicalId },
+          data: fieldOverrides,
+        });
+      }
+      return canonical;
+    });
+  }
+
+  // Phase 5c (docs/specs/company-fk-phase5c.md) — computed fresh on each
+  // request against the current user's own companies only, no caching/
+  // background job. O(n^2) pairwise comparison is fine at this data volume
+  // (a personal job-tracking tool's per-user company count is small, not a
+  // CRM at scale) — see the spec for why this isn't a Postgres pg_trgm
+  // extension instead. Full Company objects (not a narrow select) — the
+  // frontend pre-seeds MergeCompanyDialog with these, same shape the
+  // existing search step already provides.
+  async findDuplicateSuggestions(userId: string) {
+    const companies = await this.prisma.company.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const suggestions: {
+      companyA: (typeof companies)[number];
+      companyB: (typeof companies)[number];
+      reason: 'website' | 'name';
+    }[] = [];
+
+    for (let i = 0; i < companies.length; i++) {
+      for (let j = i + 1; j < companies.length; j++) {
+        const a = companies[i];
+        const b = companies[j];
+
+        if (
+          a.websiteUrl &&
+          b.websiteUrl &&
+          normalizeWebsiteUrl(a.websiteUrl) === normalizeWebsiteUrl(b.websiteUrl)
+        ) {
+          suggestions.push({ companyA: a, companyB: b, reason: 'website' });
+          continue;
+        }
+
+        const ratio = similarityRatio(
+          normalizeCompanyName(a.name),
+          normalizeCompanyName(b.name),
+        );
+        if (ratio >= 0.85) {
+          suggestions.push({ companyA: a, companyB: b, reason: 'name' });
+        }
+      }
+    }
+
+    return suggestions;
   }
 }
