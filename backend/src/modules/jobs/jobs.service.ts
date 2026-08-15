@@ -10,7 +10,13 @@ import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { JobStatus, JobEventType, JobPriority, JobType } from '@prisma/client';
+import {
+  JobStatus,
+  JobEventType,
+  JobPriority,
+  JobType,
+  EnrichmentStatus,
+} from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
@@ -47,24 +53,77 @@ export class JobsService {
         },
       },
     });
-    try {
-      await this.enrichment.enqueueEnrichment(job.id);
-    } catch (err: unknown) {
-      // enrichment is best-effort; job creation always succeeds
-      this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
-    }
-
     // Soft-link only (no FK) — surfaces a "you already saved this company"
     // banner on the frontend. Case-insensitive exact match, no fuzzy
     // matching (see docs/specs/target-companies.md Assumption 6).
     const matchedCompany = dto.company.trim()
       ? await this.prisma.company.findFirst({
           where: { userId, name: { equals: dto.company, mode: 'insensitive' } },
-          select: { id: true, name: true },
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            industry: true,
+            companySize: true,
+            techStack: true,
+            cultureSummary: true,
+            workPolicy: true,
+            workLifeBalance: true,
+            headquarters: true,
+            headquartersLowConfidence: true,
+            address: true,
+            addressLowConfidence: true,
+            founded: true,
+            enrichedAt: true,
+          },
         })
       : null;
 
-    return { ...job, matchedCompany };
+    if (matchedCompany?.status === EnrichmentStatus.COMPLETED) {
+      // Target company already has completed AI research — reuse it instead
+      // of paying for another Tavily/Groq round trip. Best-effort, same as
+      // the enqueue path below; the job's own "Refresh" button (unaffected,
+      // see EnrichmentController) still lets the user force a fresh fetch.
+      try {
+        await this.prisma.companyProfile.create({
+          data: {
+            jobId: job.id,
+            status: EnrichmentStatus.COMPLETED,
+            industry: matchedCompany.industry,
+            companySize: matchedCompany.companySize,
+            techStack: matchedCompany.techStack,
+            cultureSummary: matchedCompany.cultureSummary,
+            workPolicy: matchedCompany.workPolicy,
+            workLifeBalance: matchedCompany.workLifeBalance,
+            headquarters: matchedCompany.headquarters,
+            headquartersLowConfidence: matchedCompany.headquartersLowConfidence,
+            address: matchedCompany.address,
+            addressLowConfidence: matchedCompany.addressLowConfidence,
+            founded: matchedCompany.founded,
+            enrichedAt: matchedCompany.enrichedAt,
+          },
+        });
+      } catch (err: unknown) {
+        this.logger.warn('Copying target company enrichment failed', {
+          jobId: job.id,
+          err,
+        });
+      }
+    } else {
+      try {
+        await this.enrichment.enqueueEnrichment(job.id);
+      } catch (err: unknown) {
+        // enrichment is best-effort; job creation always succeeds
+        this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
+      }
+    }
+
+    return {
+      ...job,
+      matchedCompany: matchedCompany
+        ? { id: matchedCompany.id, name: matchedCompany.name }
+        : null,
+    };
   }
 
   async findAll(userId: string, query: JobQueryDto) {

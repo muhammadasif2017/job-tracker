@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { JobStatus, JobType } from '@prisma/client';
+import { EnrichmentStatus, JobStatus, JobType } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -23,6 +23,7 @@ const mockPrisma = {
   jobEvent: { findMany: jest.fn(), create: jest.fn() },
   resume: { findFirst: jest.fn() },
   company: { findFirst: jest.fn() },
+  companyProfile: { create: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
   // callback against the same mock instead of modeling a real transaction.
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
@@ -138,13 +139,117 @@ describe('JobsService', () => {
       };
       const result = await service.create('user-1', dto);
 
-      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith({
-        where: {
-          userId: 'user-1',
-          name: { equals: 'systems limited', mode: 'insensitive' },
-        },
-        select: { id: true, name: true },
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            name: { equals: 'systems limited', mode: 'insensitive' },
+          },
+          select: expect.objectContaining({ id: true, name: true }),
+        }),
+      );
+      expect(result.matchedCompany).toEqual({
+        id: 'company-1',
+        name: 'Systems Limited',
       });
+    });
+
+    it('copies matched company enrichment into a new CompanyProfile and skips enqueueEnrichment when the match already has completed research', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Systems Limited',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Software',
+        companySize: '51-200',
+        techStack: ['TypeScript'],
+        cultureSummary: 'Remote-friendly',
+        workPolicy: 'Hybrid',
+        workLifeBalance: 'Good',
+        headquarters: 'Lahore',
+        headquartersLowConfidence: false,
+        address: '123 Main St',
+        addressLowConfidence: false,
+        founded: '2010',
+        enrichedAt: new Date('2026-01-01'),
+      });
+
+      const dto: CreateJobDto = {
+        company: 'systems limited',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.companyProfile.create).toHaveBeenCalledWith({
+        data: {
+          jobId: 'job-new',
+          status: EnrichmentStatus.COMPLETED,
+          industry: 'Software',
+          companySize: '51-200',
+          techStack: ['TypeScript'],
+          cultureSummary: 'Remote-friendly',
+          workPolicy: 'Hybrid',
+          workLifeBalance: 'Good',
+          headquarters: 'Lahore',
+          headquartersLowConfidence: false,
+          address: '123 Main St',
+          addressLowConfidence: false,
+          founded: '2010',
+          enrichedAt: new Date('2026-01-01'),
+        },
+      });
+      expect(mockEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
+      expect(result.matchedCompany).toEqual({
+        id: 'company-1',
+        name: 'Systems Limited',
+      });
+    });
+
+    it('falls back to enqueueEnrichment when the matched company has no completed research yet', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Systems Limited',
+        status: EnrichmentStatus.PENDING,
+      });
+
+      const dto: CreateJobDto = {
+        company: 'systems limited',
+        position: 'Engineer',
+      };
+      await service.create('user-1', dto);
+
+      expect(mockPrisma.companyProfile.create).not.toHaveBeenCalled();
+      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
+    });
+
+    it('still returns the created job and matchedCompany when copying enrichment throws', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        name: 'Systems Limited',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Software',
+      });
+      mockPrisma.companyProfile.create.mockRejectedValue(
+        new Error('DB unavailable'),
+      );
+
+      const dto: CreateJobDto = {
+        company: 'systems limited',
+        position: 'Engineer',
+      };
+      const result = await service.create('user-1', dto);
+
       expect(result.matchedCompany).toEqual({
         id: 'company-1',
         name: 'Systems Limited',
