@@ -16,6 +16,10 @@ interface Props {
   // The company the "Merge" action was triggered from — kept as the
   // canonical (surviving) company. The user picks the duplicate to merge in.
   company: Company | undefined;
+  // Phase 5c (docs/specs/company-fk-phase5c.md) — when set, the dialog skips
+  // the search step and jumps straight to conflicts/confirm for this
+  // pre-picked duplicate (auto-suggest "Review" action).
+  preSeedDuplicate?: Company;
 }
 
 type Step = 'search' | 'conflicts' | 'confirm';
@@ -63,7 +67,12 @@ function useDebounce<T>(value: T, delay = 300): T {
   return debounced;
 }
 
-export function MergeCompanyDialog({ open, onClose, company }: Props) {
+export function MergeCompanyDialog({
+  open,
+  onClose,
+  company,
+  preSeedDuplicate,
+}: Props) {
   const [step, setStep] = useState<Step>('search');
   const [search, setSearch] = useState('');
   const [duplicate, setDuplicate] = useState<Company | undefined>();
@@ -122,15 +131,25 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
     onClose();
   });
 
-  if (!company) return null;
-
   const selectDuplicate = (c: Company) => {
+    if (!company) return;
     setDuplicate(c);
     const nextConflicts = CONFLICT_FIELDS.filter(
       (f) => normalize(company[f.key]) !== normalize(c[f.key]),
     );
     setStep(nextConflicts.length > 0 ? 'conflicts' : 'confirm');
   };
+
+  useEffect(() => {
+    if (open && preSeedDuplicate) {
+      selectDuplicate(preSeedDuplicate);
+    }
+    // Only re-run when the dialog opens or the pre-seed target changes —
+    // selectDuplicate is recreated every render and isn't a stable dep.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, preSeedDuplicate]);
+
+  if (!company) return null;
 
   const buildFieldOverrides = (): MergeFieldOverrides => {
     if (!duplicate) return {};

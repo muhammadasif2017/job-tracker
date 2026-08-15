@@ -166,7 +166,22 @@ export class CompaniesService {
     // from one that doesn't exist — same 404-for-both pattern as JobsService.
     const company = await this.prisma.company.findFirst({
       where: { id: companyId, userId },
-      include: { contacts: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        contacts: { orderBy: { createdAt: 'asc' } },
+        // Phase 6 (docs/specs/company-fk-phase6.md) — lean select, not the
+        // full Job row; the detail page only needs enough to list and link
+        // to each job, not render it.
+        jobs: {
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            position: true,
+            status: true,
+            priority: true,
+            appliedAt: true,
+          },
+        },
+      },
     });
     if (!company) throw new NotFoundException('Company not found');
     return company;
@@ -338,7 +353,8 @@ export class CompaniesService {
         if (
           a.websiteUrl &&
           b.websiteUrl &&
-          normalizeWebsiteUrl(a.websiteUrl) === normalizeWebsiteUrl(b.websiteUrl)
+          normalizeWebsiteUrl(a.websiteUrl) ===
+            normalizeWebsiteUrl(b.websiteUrl)
         ) {
           suggestions.push({ companyA: a, companyB: b, reason: 'website' });
           continue;
