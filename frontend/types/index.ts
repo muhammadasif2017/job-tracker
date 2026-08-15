@@ -470,6 +470,13 @@ export interface PaginatedCompanies {
   };
 }
 
+// Phase 5c (docs/specs/company-fk-phase5c.md)
+export interface DuplicateSuggestion {
+  companyA: Company;
+  companyB: Company;
+  reason: 'website' | 'name';
+}
+
 export interface CompanyQuery {
   page?: number;
   limit?: number;
