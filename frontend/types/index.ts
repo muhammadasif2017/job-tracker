@@ -141,6 +141,7 @@ export interface Job {
   createdAt: string;
   updatedAt: string;
   userId: string;
+  companyId?: string | null;
   companyProfile?: CompanyProfile;
   resume?: Resume | null;
   interviewRounds?: InterviewRound[];
