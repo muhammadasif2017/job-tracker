@@ -11,6 +11,7 @@ import type { CompanyProfile } from '../types';
 interface Props {
   profile: CompanyProfile | null | undefined;
   jobId: string;
+  companyId?: string | null;
 }
 
 type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG';
@@ -229,11 +230,16 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
   );
 }
 
-export function CompanyProfileCard({ profile, jobId }: Props) {
+export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
-    mutationFn: () => api.post(`/jobs/${jobId}/enrichment`).then((r) => r.data),
+    // Company-scoped (docs/specs/company-fk-phase3b.md) — a profile only
+    // ever renders when the job has a linked Company (a blank-company-name
+    // job never has a profile to show a Refresh button for), so companyId
+    // is always set here.
+    mutationFn: () =>
+      api.post(`/companies/${companyId}/enrichment`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Enrichment queued');

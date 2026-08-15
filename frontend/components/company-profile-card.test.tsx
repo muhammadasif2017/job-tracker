@@ -39,11 +39,12 @@ function makeProfile(overrides: Partial<CompanyProfile> = {}): CompanyProfile {
 function renderCard(
   profile: CompanyProfile | null | undefined,
   jobId = 'job-1',
+  companyId?: string | null,
 ) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <CompanyProfileCard profile={profile} jobId={jobId} />
+      <CompanyProfileCard profile={profile} jobId={jobId} companyId={companyId} />
     </QueryClientProvider>,
   );
 }
@@ -173,12 +174,12 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /jobs/:id/enrichment when Refresh is clicked', async () => {
-      renderCard(makeProfile({ status: 'FAILED' }), 'job-xyz');
+    it('calls POST /companies/:companyId/enrichment when Refresh is clicked', async () => {
+      renderCard(makeProfile({ status: 'FAILED' }), 'job-xyz', 'company-xyz');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/jobs/job-xyz/enrichment',
+          '/companies/company-xyz/enrichment',
         );
       });
     });
@@ -356,12 +357,12 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /jobs/:id/enrichment when Refresh is clicked', async () => {
-      renderCard(makeProfile(), 'job-abc');
+    it('calls POST /companies/:companyId/enrichment when Refresh is clicked', async () => {
+      renderCard(makeProfile(), 'job-abc', 'company-abc');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/jobs/job-abc/enrichment',
+          '/companies/company-abc/enrichment',
         );
       });
     });
