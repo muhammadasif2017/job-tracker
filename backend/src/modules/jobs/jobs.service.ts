@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -27,7 +27,7 @@ import { buildJobWhere } from './jobs.constants.js';
 export class JobsService {
   constructor(
     private prisma: PrismaService,
-    private enrichment: EnrichmentService,
+    private companyEnrichment: CompanyEnrichmentService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
@@ -98,11 +98,21 @@ export class JobsService {
         },
       },
     });
-    try {
-      await this.enrichment.enqueueEnrichment(job.id);
-    } catch (err: unknown) {
-      // enrichment is best-effort; job creation always succeeds
-      this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
+    // Company-scoped, not job-scoped (see docs/specs/company-fk-phase3b.md)
+    // — one AI research run per company, not duplicated per job at that
+    // company. Skipped entirely for a blank company name (nothing to
+    // enrich; there's no linked Company).
+    if (company) {
+      try {
+        await this.companyEnrichment.enqueueEnrichment(company.id);
+      } catch (err: unknown) {
+        // enrichment is best-effort; job creation always succeeds
+        this.logger.warn('Enrichment enqueue failed', {
+          jobId: job.id,
+          companyId: company.id,
+          err,
+        });
+      }
     }
 
     return { ...job, matchedCompany };
@@ -137,23 +147,53 @@ export class JobsService {
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
-    // NOT reading from Company here (see docs/specs/company-fk-phase3.md
-    // "Blocked" note) — the job-scoped enrichment pipeline
-    // (EnrichmentService/EnrichmentProcessor) still writes results to
-    // CompanyProfile keyed by jobId, not to Company. Cutting over reads
-    // without also moving those writes would leave every new job's
-    // enrichment permanently invisible (stuck at PENDING).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
       include: {
         companyProfile: true,
+        companyLink: true,
         resume: true,
         interviewRounds: { orderBy: { scheduledAt: 'asc' } },
         contacts: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!job) throw new NotFoundException('Job not found');
-    return job;
+
+    const { companyLink, companyProfile, ...rest } = job;
+    return {
+      ...rest,
+      // Company is the source of truth for enrichment now that create()
+      // writes there (docs/specs/company-fk-phase3b.md) — reshaped into the
+      // same companyProfile shape the frontend already expects. A non-null
+      // companyLink.status means company-scoped enrichment has run (or is
+      // running) for this company at least once, including for jobs created
+      // before this change once they're re-enriched. Until then, fall back
+      // to the legacy per-job CompanyProfile row so already-completed
+      // research from the old job-scoped pipeline doesn't go dark.
+      companyProfile:
+        companyLink && companyLink.status
+          ? {
+              id: companyLink.id,
+              jobId: job.id,
+              status: companyLink.status,
+              industry: companyLink.industry,
+              companySize: companyLink.companySize,
+              techStack: companyLink.techStack,
+              cultureSummary: companyLink.cultureSummary,
+              workPolicy: companyLink.workPolicy,
+              workLifeBalance: companyLink.workLifeBalance,
+              headquarters: companyLink.headquarters,
+              headquartersLowConfidence: companyLink.headquartersLowConfidence,
+              address: companyLink.address,
+              addressLowConfidence: companyLink.addressLowConfidence,
+              founded: companyLink.founded,
+              errorMessage: companyLink.errorMessage,
+              enrichedAt: companyLink.enrichedAt,
+              createdAt: companyLink.createdAt,
+              updatedAt: companyLink.updatedAt,
+            }
+          : companyProfile,
+    };
   }
 
   // Lean ownership check — only selects id + status, no companyProfile JOIN.

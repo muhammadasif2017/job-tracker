@@ -306,6 +306,32 @@ describe('Job Tracker (e2e)', () => {
       jobId = res.body.id;
     });
 
+    // Real end-to-end proof that company-scoped enrichment (see
+    // docs/specs/company-fk-phase3b.md) actually reaches the linked Company,
+    // not just that a status field exists — the gap that let a real bug
+    // (writes going to Company while reads stayed on CompanyProfile, or vice
+    // versa) slip past this suite once already. Polls instead of a fixed
+    // sleep so it doesn't wait longer than necessary on a fast run.
+    it('company-scoped enrichment reaches a terminal state on the linked Company', async () => {
+      const deadline = Date.now() + 45_000;
+      let companyProfile: { status?: string } | null = null;
+      while (Date.now() < deadline) {
+        const res = await agent
+          .get(`/jobs/${jobId}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+        companyProfile = res.body.companyProfile;
+        if (
+          companyProfile?.status === 'COMPLETED' ||
+          companyProfile?.status === 'FAILED'
+        ) {
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      expect(['COMPLETED', 'FAILED']).toContain(companyProfile?.status);
+    }, 50_000);
+
     it('rejects empty company with 400', () =>
       agent
         .post('/jobs')

@@ -239,7 +239,11 @@ export default function JobDetailPage() {
           <Timeline events={events} />
           <InterviewRounds jobId={id} rounds={job.interviewRounds ?? []} />
           <Contacts jobId={id} contacts={job.contacts ?? []} />
-          <CompanyProfileCard profile={job.companyProfile} jobId={id} />
+          <CompanyProfileCard
+            profile={job.companyProfile}
+            jobId={id}
+            companyId={job.companyId}
+          />
           <JobForm
             open={editOpen}
             onClose={() => setEditOpen(false)}
