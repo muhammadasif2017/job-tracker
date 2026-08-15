@@ -177,6 +177,51 @@ test.describe('Delete company', () => {
   });
 });
 
+// ── Merge companies ──────────────────────────────────────────────────────────
+
+test.describe('Merge companies', () => {
+  test('merges a duplicate into the canonical company via the row action', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Canonical',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Duplicate',
+    });
+
+    await goToCompanies(page);
+
+    const row = page.locator('tr').filter({ hasText: 'Merge E2E Canonical' });
+    await row.getByRole('button', { name: /merge merge e2e canonical/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(
+      dialog.getByText('Merge into Merge E2E Canonical'),
+    ).toBeVisible();
+
+    await dialog
+      .getByLabel('Search for a duplicate company')
+      .fill('Merge E2E Duplicate');
+    await dialog.getByText('Merge E2E Duplicate', { exact: true }).click();
+
+    await expect(
+      dialog.getByRole('button', { name: 'Merge companies' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+
+    await expect(page.getByText('Companies merged')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Duplicate' }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Canonical' }),
+    ).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+});
+
 // ── Search & filters ──────────────────────────────────────────────────────────
 
 test.describe('Search and filters', () => {

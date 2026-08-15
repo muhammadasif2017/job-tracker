@@ -214,6 +214,35 @@ export function useRemoveCompanyContactMutation(
   });
 }
 
+export function useMergeCompaniesMutation(onMerged?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      canonicalId,
+      duplicateId,
+    }: {
+      canonicalId: string;
+      duplicateId: string;
+    }) =>
+      api
+        .post<Company>(`/companies/${canonicalId}/merge`, {
+          duplicateCompanyId: duplicateId,
+        })
+        .then((r) => r.data),
+    onSuccess: (_, { canonicalId }) => {
+      invalidateCompanyListCaches(qc);
+      qc.invalidateQueries({ queryKey: ['company', canonicalId] });
+      // Jobs/contacts moved off the duplicate onto the canonical company —
+      // both lists can now show stale companyId/company data until refetched.
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      toast.success('Companies merged');
+      onMerged?.();
+    },
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, 'Failed to merge companies')),
+  });
+}
+
 export function useImportCompaniesCsvMutation(onSuccess?: (result: CsvImportResult) => void) {
   const qc = useQueryClient();
   return useMutation({

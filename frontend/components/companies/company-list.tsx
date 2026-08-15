@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Pencil, Trash2, Globe } from 'lucide-react';
+import { Pencil, Trash2, Globe, GitMerge } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import {
@@ -17,6 +17,7 @@ interface CompanyListProps {
   onRetry: () => void;
   onEdit: (company: Company) => void;
   onDelete: (company: Company) => void;
+  onMerge: (company: Company) => void;
 }
 
 const COLUMNS = [
@@ -35,6 +36,7 @@ export function CompanyList({
   onRetry,
   onEdit,
   onDelete,
+  onMerge,
 }: CompanyListProps) {
   return (
     <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-x-auto">
@@ -142,6 +144,13 @@ export function CompanyList({
                         <Globe className="h-3.5 w-3.5" />
                       </a>
                     )}
+                    <button
+                      onClick={() => onMerge(company)}
+                      aria-label={`Merge ${company.name} with another company`}
+                      className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                    >
+                      <GitMerge className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       onClick={() => onEdit(company)}
                       aria-label={`Edit ${company.name}`}
