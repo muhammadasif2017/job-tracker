@@ -11,6 +11,11 @@ import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
 import type { MergeFieldOverridesDto } from './dto/merge-company.dto.js';
+import {
+  normalizeCompanyName,
+  normalizeWebsiteUrl,
+  similarityRatio,
+} from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
 
 @Injectable()
@@ -303,5 +308,52 @@ export class CompaniesService {
       }
       return canonical;
     });
+  }
+
+  // Phase 5c (docs/specs/company-fk-phase5c.md) — computed fresh on each
+  // request against the current user's own companies only, no caching/
+  // background job. O(n^2) pairwise comparison is fine at this data volume
+  // (a personal job-tracking tool's per-user company count is small, not a
+  // CRM at scale) — see the spec for why this isn't a Postgres pg_trgm
+  // extension instead. Full Company objects (not a narrow select) — the
+  // frontend pre-seeds MergeCompanyDialog with these, same shape the
+  // existing search step already provides.
+  async findDuplicateSuggestions(userId: string) {
+    const companies = await this.prisma.company.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const suggestions: {
+      companyA: (typeof companies)[number];
+      companyB: (typeof companies)[number];
+      reason: 'website' | 'name';
+    }[] = [];
+
+    for (let i = 0; i < companies.length; i++) {
+      for (let j = i + 1; j < companies.length; j++) {
+        const a = companies[i];
+        const b = companies[j];
+
+        if (
+          a.websiteUrl &&
+          b.websiteUrl &&
+          normalizeWebsiteUrl(a.websiteUrl) === normalizeWebsiteUrl(b.websiteUrl)
+        ) {
+          suggestions.push({ companyA: a, companyB: b, reason: 'website' });
+          continue;
+        }
+
+        const ratio = similarityRatio(
+          normalizeCompanyName(a.name),
+          normalizeCompanyName(b.name),
+        );
+        if (ratio >= 0.85) {
+          suggestions.push({ companyA: a, companyB: b, reason: 'name' });
+        }
+      }
+    }
+
+    return suggestions;
   }
 }

@@ -38,6 +38,7 @@ import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
 import { MergeCompanyDto } from './dto/merge-company.dto.js';
 import { CompanyResponseDto } from './dto/company-response.dto.js';
+import { DuplicateSuggestionDto } from './dto/duplicate-suggestion.dto.js';
 import { PaginatedCompaniesDto } from './dto/paginated-companies.dto.js';
 import { CsvImportResultDto } from './dto/csv-import-result.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
@@ -72,6 +73,18 @@ export class CompaniesController {
     @Query() query: CompanyQueryDto,
   ) {
     return this.companiesService.findAll(user.id, query);
+  }
+
+  @Get('duplicates')
+  // Must be registered before GET :id — otherwise "duplicates" would be
+  // captured as an :id param instead of matching this literal route.
+  @ApiOperation({
+    summary:
+      'Find likely-duplicate company pairs (websiteUrl match or fuzzy name match)',
+  })
+  @ApiOkResponse({ type: DuplicateSuggestionDto, isArray: true })
+  findDuplicates(@CurrentUser() user: { id: string }) {
+    return this.companiesService.findDuplicateSuggestions(user.id);
   }
 
   @Get(':id')

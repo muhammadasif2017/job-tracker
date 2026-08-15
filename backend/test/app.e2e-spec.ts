@@ -439,6 +439,72 @@ describe('Job Tracker (e2e)', () => {
         .expect(404));
   });
 
+  describe('GET /companies/duplicates', () => {
+    it('flags companies with matching websiteUrl and companies with fuzzy-matching names', async () => {
+      const websiteA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Dup Website A',
+          city: 'LAHORE',
+          websiteUrl: 'https://e2e-dup-shared.example.com',
+        })
+        .expect(201);
+      const websiteB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Dup Website B',
+          city: 'LAHORE',
+          websiteUrl: 'https://e2e-dup-shared.example.com/',
+        })
+        .expect(201);
+      const nameA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Dup Fuzzy Systems Limited', city: 'LAHORE' })
+        .expect(201);
+      const nameB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Dup Fuzzy Systems Ltd', city: 'LAHORE' })
+        .expect(201);
+
+      const res = await agent
+        .get('/companies/duplicates')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const ids = (c: { companyA: { id: string }; companyB: { id: string } }) => [
+        c.companyA.id,
+        c.companyB.id,
+      ];
+      const websitePair = res.body.find(
+        (s: { reason: string }) => s.reason === 'website',
+      );
+      const namePair = res.body.find(
+        (s: { reason: string }) => s.reason === 'name',
+      );
+      expect(websitePair && ids(websitePair).sort()).toEqual(
+        [websiteA.body.id, websiteB.body.id].sort(),
+      );
+      expect(namePair && ids(namePair).sort()).toEqual(
+        [nameA.body.id, nameB.body.id].sort(),
+      );
+
+      for (const id of [websiteA, websiteB, nameA, nameB].map(
+        (r) => r.body.id,
+      )) {
+        await agent
+          .delete(`/companies/${id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+      }
+    });
+
+    it('returns 401 without a token', () =>
+      agent.get('/companies/duplicates').expect(401));
+  });
+
   describe('POST /companies/:id/merge', () => {
     it('reassigns jobs and contacts from the duplicate to the canonical company, then deletes the duplicate', async () => {
       const canonical = await agent
