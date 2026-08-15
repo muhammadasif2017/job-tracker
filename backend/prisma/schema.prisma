@@ -189,12 +189,15 @@ model Job {
   resume                      Resume?
   interviewRounds             InterviewRound[]
   contacts                    Contact[]
+  companyId                   String?
+  companyLink                 Company?         @relation(fields: [companyId], references: [id])
 
   @@index([userId])
   @@index([userId, status])
   @@index([userId, appliedAt])
   @@index([userId, createdAt])
   @@index([userId, nextInterviewAt])
+  @@index([companyId])
 }
 
 model CompanyProfile {
@@ -260,6 +263,7 @@ model Company {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   contacts  Contact[]
+  jobs      Job[]
 
   @@unique([userId, name])
   @@index([userId])

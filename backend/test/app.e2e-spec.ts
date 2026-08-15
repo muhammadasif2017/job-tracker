@@ -302,6 +302,7 @@ describe('Job Tracker (e2e)', () => {
         .expect(201);
 
       expect(res.body.company).toBe('Stripe');
+      expect(typeof res.body.companyId).toBe('string');
       jobId = res.body.id;
     });
 
@@ -311,6 +312,22 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ company: '', position: 'Dev' })
         .expect(400));
+
+    it('links a new job to the same Company row when the company name already exists (case-insensitive)', async () => {
+      const first = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'E2E Shared Co', position: 'Role One' })
+        .expect(201);
+
+      const second = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'e2e shared co', position: 'Role Two' })
+        .expect(201);
+
+      expect(first.body.companyId).toEqual(second.body.companyId);
+    });
 
     it('returns 401 without token', () =>
       agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
