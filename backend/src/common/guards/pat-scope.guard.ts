@@ -1,4 +1,9 @@
-import { ExecutionContext, Injectable, CanActivate, ForbiddenException } from '@nestjs/common';
+import {
+  ExecutionContext,
+  Injectable,
+  CanActivate,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PAT_ACCESSIBLE_KEY } from '../decorators/pat-accessible.decorator.js';
 import { PAT_SCOPE } from '../../modules/tokens/tokens.constants.js';

@@ -1,13 +1,11 @@
 import {
   Body,
-  ConflictException,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
   MaxFileSizeValidator,
-  NotFoundException,
   Param,
   ParseFilePipe,
   Patch,
@@ -16,7 +14,6 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { EnrichmentStatus } from '@prisma/client';
 import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
@@ -44,8 +41,6 @@ import { PaginatedCompaniesDto } from './dto/paginated-companies.dto.js';
 import { CsvImportResultDto } from './dto/csv-import-result.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
 
 // CSV of company names is tiny — 1 MB comfortably covers a large import
 // while still rejecting an accidentally-wrong file upload early.
@@ -59,8 +54,6 @@ export class CompaniesController {
   constructor(
     private companiesService: CompaniesService,
     private companiesImport: CompaniesImportService,
-    private prisma: PrismaService,
-    private companyEnrichment: CompanyEnrichmentService,
   ) {}
 
   @Post()
@@ -122,40 +115,11 @@ export class CompaniesController {
   @ApiAcceptedResponse({ description: 'Enrichment queued' })
   @ApiNotFoundResponse({ description: 'Company not found' })
   @ApiConflictResponse({ description: 'Enrichment already in progress' })
-  async triggerEnrichment(
+  triggerEnrichment(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
   ) {
-    const company = await this.prisma.company.findFirst({
-      where: { id, userId: user.id },
-      select: { id: true },
-    });
-    if (!company) throw new NotFoundException('Company not found');
-
-    // CAS: claim the row by flipping status to PENDING only if it isn't
-    // already PENDING/PROCESSING, closing the TOCTOU window where two
-    // concurrent requests both read a non-busy status and both enqueue.
-    const { count } = await this.prisma.company.updateMany({
-      where: {
-        id,
-        userId: user.id,
-        OR: [
-          { status: null },
-          {
-            status: {
-              notIn: [EnrichmentStatus.PENDING, EnrichmentStatus.PROCESSING],
-            },
-          },
-        ],
-      },
-      data: { status: EnrichmentStatus.PENDING, errorMessage: null },
-    });
-    if (count === 0) {
-      throw new ConflictException('Enrichment already in progress');
-    }
-
-    await this.companyEnrichment.enqueueEnrichment(id);
-    return { message: 'Enrichment queued' };
+    return this.companiesService.triggerEnrichment(user.id, id);
   }
 
   @Post('import')

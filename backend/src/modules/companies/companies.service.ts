@@ -22,13 +22,18 @@ export class CompaniesService {
 
   // Case-insensitive companion to the DB's case-sensitive @@unique([userId, name])
   // — matches the check CompaniesImportService already does for CSV rows, so
-  // "Google" and "google" can't coexist via either path.
+  // "Google" and "google" can't coexist via either path. Takes a client param
+  // so callers can run it inside a Serializable transaction (see create/update)
+  // to close the TOCTOU window between this read and the write that follows —
+  // Postgres aborts the loser with P2034, which we map back to the same
+  // ConflictException.
   private async ensureNameAvailable(
+    client: Pick<Prisma.TransactionClient, 'company'> | PrismaService,
     userId: string,
     name: string,
     excludeId?: string,
   ) {
-    const duplicate = await this.prisma.company.findFirst({
+    const duplicate = await client.company.findFirst({
       where: {
         userId,
         name: { equals: name, mode: 'insensitive' },
@@ -41,34 +46,62 @@ export class CompaniesService {
     }
   }
 
+  // Serializable isolation makes Postgres detect the read-write conflict
+  // between two concurrent ensureNameAvailable+write pairs and abort one
+  // with P2034, rather than letting both pass the pre-check and both write —
+  // the case-insensitive check alone can't close that window since the DB's
+  // own unique constraint is case-sensitive.
+  private async runNameCheckedWrite<T>(
+    name: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await this.prisma.$transaction(fn, {
+        isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel,
+      });
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 'P2034'
+      ) {
+        throw new ConflictException(`A company named "${name}" already exists`);
+      }
+      throw err;
+    }
+  }
+
   // Single-company create auto-triggers enrichment (mirrors JobsService.create).
   // CSV import does NOT — see CompaniesImportService; a bulk import firing
   // dozens of concurrent Tavily/Groq calls at once is a real rate-limit/cost
   // risk that a single manual add isn't.
   async create(userId: string, dto: CreateCompanyDto) {
-    await this.ensureNameAvailable(userId, dto.name);
-    const company = await this.prisma.company.create({
-      data: {
-        userId,
-        name: dto.name,
-        city: dto.city,
-        location: dto.location,
-        priority: dto.priority,
-        personalNotes: dto.personalNotes,
-        websiteUrl: dto.websiteUrl,
-        linkedinUrl: dto.linkedinUrl,
-        businessMode: dto.businessMode,
-        productDescription: dto.productDescription,
-        industry: dto.industry,
-        companySize: dto.companySize,
-        techStack: dto.techStack ?? [],
-        cultureSummary: dto.cultureSummary,
-        workPolicy: dto.workPolicy,
-        workLifeBalance: dto.workLifeBalance,
-        headquarters: dto.headquarters,
-        address: dto.address,
-        founded: dto.founded,
-      },
+    const company = await this.runNameCheckedWrite(dto.name, async (tx) => {
+      await this.ensureNameAvailable(tx, userId, dto.name);
+      return tx.company.create({
+        data: {
+          userId,
+          name: dto.name,
+          city: dto.city,
+          location: dto.location,
+          priority: dto.priority,
+          personalNotes: dto.personalNotes,
+          websiteUrl: dto.websiteUrl,
+          linkedinUrl: dto.linkedinUrl,
+          businessMode: dto.businessMode,
+          productDescription: dto.productDescription,
+          industry: dto.industry,
+          companySize: dto.companySize,
+          techStack: dto.techStack ?? [],
+          cultureSummary: dto.cultureSummary,
+          workPolicy: dto.workPolicy,
+          workLifeBalance: dto.workLifeBalance,
+          headquarters: dto.headquarters,
+          address: dto.address,
+          founded: dto.founded,
+        },
+      });
     });
 
     try {
@@ -145,31 +178,35 @@ export class CompaniesService {
 
   async update(userId: string, companyId: string, dto: UpdateCompanyDto) {
     await this.findOwned(userId, companyId);
-    if (dto.name !== undefined) {
-      await this.ensureNameAvailable(userId, dto.name, companyId);
+
+    const data = {
+      name: dto.name,
+      city: dto.city,
+      location: dto.location,
+      priority: dto.priority,
+      personalNotes: dto.personalNotes,
+      websiteUrl: dto.websiteUrl,
+      linkedinUrl: dto.linkedinUrl,
+      businessMode: dto.businessMode,
+      productDescription: dto.productDescription,
+      industry: dto.industry,
+      companySize: dto.companySize,
+      techStack: dto.techStack,
+      cultureSummary: dto.cultureSummary,
+      workPolicy: dto.workPolicy,
+      workLifeBalance: dto.workLifeBalance,
+      headquarters: dto.headquarters,
+      address: dto.address,
+      founded: dto.founded,
+    };
+
+    if (dto.name === undefined) {
+      return this.prisma.company.update({ where: { id: companyId }, data });
     }
-    return this.prisma.company.update({
-      where: { id: companyId },
-      data: {
-        name: dto.name,
-        city: dto.city,
-        location: dto.location,
-        priority: dto.priority,
-        personalNotes: dto.personalNotes,
-        websiteUrl: dto.websiteUrl,
-        linkedinUrl: dto.linkedinUrl,
-        businessMode: dto.businessMode,
-        productDescription: dto.productDescription,
-        industry: dto.industry,
-        companySize: dto.companySize,
-        techStack: dto.techStack,
-        cultureSummary: dto.cultureSummary,
-        workPolicy: dto.workPolicy,
-        workLifeBalance: dto.workLifeBalance,
-        headquarters: dto.headquarters,
-        address: dto.address,
-        founded: dto.founded,
-      },
+
+    return this.runNameCheckedWrite(dto.name, async (tx) => {
+      await this.ensureNameAvailable(tx, userId, dto.name!, companyId);
+      return tx.company.update({ where: { id: companyId }, data });
     });
   }
 
@@ -181,5 +218,38 @@ export class CompaniesService {
     });
     if (count === 0) throw new NotFoundException('Company not found');
     return { message: 'Company deleted' };
+  }
+
+  async triggerEnrichment(userId: string, companyId: string) {
+    const company = await this.prisma.company.findFirst({
+      where: { id: companyId, userId },
+      select: { id: true },
+    });
+    if (!company) throw new NotFoundException('Company not found');
+
+    // CAS: claim the row by flipping status to PENDING only if it isn't
+    // already PENDING/PROCESSING, closing the TOCTOU window where two
+    // concurrent requests both read a non-busy status and both enqueue.
+    const { count } = await this.prisma.company.updateMany({
+      where: {
+        id: companyId,
+        userId,
+        OR: [
+          { status: null },
+          {
+            status: {
+              notIn: [EnrichmentStatus.PENDING, EnrichmentStatus.PROCESSING],
+            },
+          },
+        ],
+      },
+      data: { status: EnrichmentStatus.PENDING, errorMessage: null },
+    });
+    if (count === 0) {
+      throw new ConflictException('Enrichment already in progress');
+    }
+
+    await this.companyEnrichment.enqueueEnrichment(companyId);
+    return { message: 'Enrichment queued' };
   }
 }

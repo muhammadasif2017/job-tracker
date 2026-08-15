@@ -59,9 +59,8 @@ export class JobParsingService {
     // way Indeed does - they 200 with a logged-out/paywall page, which is
     // non-empty and would otherwise win and feed the LLM junk instead of the
     // real posting already rendered in the user's browser.
-    const fetchedText = dto.url && !dto.text
-      ? await this.webFetch.fetchPageText(dto.url)
-      : '';
+    const fetchedText =
+      dto.url && !dto.text ? await this.webFetch.fetchPageText(dto.url) : '';
     const content = dto.text || fetchedText || '';
 
     let parsed = await this.tryExtractJobPosting(content);

@@ -115,6 +115,65 @@ describe('ContactsService', () => {
       });
       expect(result).toEqual({ message: 'Contact deleted' });
     });
+
+    it('rejects with the "company" cap message once the company hits the contact cap', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.count.mockResolvedValue(20);
+
+      await expect(
+        service.create(
+          'user-1',
+          { companyId: 'company-1' },
+          { name: 'One too many' },
+        ),
+      ).rejects.toThrow('A company can have at most 20 contacts');
+      expect(mockPrisma.contact.create).not.toHaveBeenCalled();
+    });
+
+    it('throws NotFoundException when updating a contact that does not belong to the company', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.update('user-1', { companyId: 'company-1' }, 'contact-x', {
+          name: 'New Name',
+        }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.contact.update).not.toHaveBeenCalled();
+    });
+
+    it('updates a contact scoped to the company', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.contact.findFirst.mockResolvedValue({ id: 'contact-1' });
+      mockPrisma.contact.update.mockResolvedValue({
+        id: 'contact-1',
+        role: 'Hiring Manager',
+      });
+
+      const result = await service.update(
+        'user-1',
+        { companyId: 'company-1' },
+        'contact-1',
+        { role: 'Hiring Manager' },
+      );
+
+      expect(mockPrisma.contact.findFirst).toHaveBeenCalledWith({
+        where: { id: 'contact-1', companyId: 'company-1' },
+        select: { id: true },
+      });
+      expect(mockPrisma.contact.update).toHaveBeenCalledWith({
+        where: { id: 'contact-1' },
+        data: {
+          name: undefined,
+          role: 'Hiring Manager',
+          email: undefined,
+          phone: undefined,
+          linkedinUrl: undefined,
+          notes: undefined,
+        },
+      });
+      expect(result).toEqual({ id: 'contact-1', role: 'Hiring Manager' });
+    });
   });
 
   describe('create', () => {

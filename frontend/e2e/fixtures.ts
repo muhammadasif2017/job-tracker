@@ -86,6 +86,46 @@ export async function deleteTestJob(
   }).catch(() => {});
 }
 
+// ── Company helpers ──────────────────────────────────────────────────────────
+
+export interface TestCompany {
+  id: string;
+  name: string;
+}
+
+export async function createTestCompany(
+  accessToken: string,
+  overrides: Partial<{
+    name: string;
+    city: string;
+    priority: string;
+  }> = {},
+): Promise<TestCompany> {
+  const res = await fetch(`${API}/companies`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      name: 'Acme Corp',
+      city: 'LAHORE',
+      ...overrides,
+    }),
+  });
+  return res.json() as Promise<TestCompany>;
+}
+
+export async function deleteTestCompany(
+  accessToken: string,
+  companyId: string,
+): Promise<void> {
+  await fetch(`${API}/companies/${companyId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  }).catch(() => {});
+}
+
 // ── Auth injection ────────────────────────────────────────────────────────────
 
 /**

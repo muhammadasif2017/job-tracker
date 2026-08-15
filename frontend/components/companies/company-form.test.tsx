@@ -146,6 +146,26 @@ describe('CompanyForm', () => {
       );
       expect(onClose).toHaveBeenCalled();
     });
+
+    it('shows the duplicate-name error toast and stays open on a 409 conflict', async () => {
+      vi.mocked(api.post).mockRejectedValue({
+        isAxiosError: true,
+        response: {
+          data: { message: 'A company named "Devsinc" already exists' },
+        },
+      });
+      const { onClose } = renderForm();
+      fireEvent.change(screen.getByLabelText(/name/i), {
+        target: { value: 'Devsinc' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add company/i }));
+      await waitFor(() =>
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'A company named "Devsinc" already exists',
+        ),
+      );
+      expect(onClose).not.toHaveBeenCalled();
+    });
   });
 
   describe('edit submit', () => {

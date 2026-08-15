@@ -48,6 +48,34 @@ describe('CompaniesImportService', () => {
     ).rejects.toThrow(BadRequestException);
   });
 
+  it('throws BadRequestException when the file exceeds the max row count', async () => {
+    const rows = Array.from(
+      { length: 1001 },
+      (_, i) => `Co ${i},LAHORE,SERVICES`,
+    ).join('\n');
+    const csv = `name,city,businessMode\n${rows}`;
+
+    await expect(service.import('user-1', csv)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(mockPrisma.company.createMany).not.toHaveBeenCalled();
+  });
+
+  it('reports a row with the wrong number of columns without aborting the import', async () => {
+    const csv =
+      'name,city,businessMode\nGood Co,LAHORE,SERVICES\nBad Row,LAHORE';
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(1);
+    expect(result.errors).toEqual([
+      {
+        row: 3,
+        message: expect.stringContaining('Expected 3 columns'),
+      },
+    ]);
+  });
+
   it('imports all valid rows and reports zero errors', async () => {
     const csv =
       'name,city,businessMode\n' +
@@ -159,6 +187,21 @@ describe('CompaniesImportService', () => {
     const result = await service.import('user-1', csv);
 
     expect(result.imported).toBe(1);
+  });
+
+  it('reports a name over the 200-char limit as a row error', async () => {
+    const longName = 'A'.repeat(201);
+    const csv = `name,city,businessMode\n${longName},LAHORE,SERVICES`;
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(0);
+    expect(result.errors).toEqual([
+      {
+        row: 2,
+        message: expect.stringContaining('200 characters or fewer'),
+      },
+    ]);
   });
 
   it('rejects a duplicate name repeated within the same file', async () => {

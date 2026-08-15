@@ -78,8 +78,15 @@ export function buildJobWhere(userId: string, query: JobQueryDto) {
     ...(priority && { priority }),
     ...(normalizedSearch && {
       OR: [
-        { company: { contains: normalizedSearch, mode: 'insensitive' as const } },
-        { position: { contains: normalizedSearch, mode: 'insensitive' as const } },
+        {
+          company: { contains: normalizedSearch, mode: 'insensitive' as const },
+        },
+        {
+          position: {
+            contains: normalizedSearch,
+            mode: 'insensitive' as const,
+          },
+        },
       ],
     }),
     ...(dateFrom || dateTo

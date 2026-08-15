@@ -14,6 +14,16 @@ export interface CsvImportResult {
 
 const EXPECTED_HEADER = ['name', 'city', 'businessmode'];
 
+// The 1 MB file-size cap doesn't bound row count — short rows can still pack
+// tens of thousands of records into one request. Cap rows independently so a
+// crafted file can't drive a single huge createMany against the shared DB.
+const MAX_CSV_ROWS = 1000;
+
+// Matches CreateCompanyDto's @MaxLength(200) on name — the CSV path writes
+// straight to createMany and bypasses that DTO validation entirely, so this
+// is re-applied by hand here.
+const MAX_NAME_LENGTH = 200;
+
 // Hand-rolled, deliberately minimal — no quoted-field/embedded-comma
 // support. See docs/specs/target-companies.md Assumption 5: escalate to
 // csv-parse only if a real-world export needs that, rather than building it
@@ -46,6 +56,11 @@ export class CompaniesImportService {
     if (dataLines.length === 0) {
       throw new BadRequestException('CSV file has no data rows');
     }
+    if (dataLines.length > MAX_CSV_ROWS) {
+      throw new BadRequestException(
+        `CSV has ${dataLines.length} rows — max ${MAX_CSV_ROWS} per import`,
+      );
+    }
 
     const existing = await this.prisma.company.findMany({
       where: { userId },
@@ -75,6 +90,13 @@ export class CompaniesImportService {
 
       if (!name) {
         errors.push({ row: rowNum, message: 'name is required' });
+        return;
+      }
+      if (name.length > MAX_NAME_LENGTH) {
+        errors.push({
+          row: rowNum,
+          message: `name must be ${MAX_NAME_LENGTH} characters or fewer, got ${name.length}`,
+        });
         return;
       }
 

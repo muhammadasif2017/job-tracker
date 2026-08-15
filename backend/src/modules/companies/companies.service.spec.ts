@@ -12,8 +12,12 @@ const mockPrisma = {
     findMany: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     deleteMany: jest.fn(),
   },
+  // Mirrors Prisma's interactive-transaction shape closely enough for unit
+  // tests: hands the callback the same mock client, ignoring isolationLevel.
+  $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
 const mockCompanyEnrichment = {
@@ -47,6 +51,30 @@ describe('CompaniesService', () => {
         service.create('user-1', { name: 'systems limited', city: 'LAHORE' }),
       ).rejects.toThrow(ConflictException);
       expect(mockPrisma.company.create).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when the Serializable transaction detects a concurrent duplicate (P2034)', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.$transaction.mockRejectedValueOnce({ code: 'P2034' });
+
+      await expect(
+        service.create('user-1', { name: 'Systems Limited', city: 'LAHORE' }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('runs the duplicate check and the write inside a Serializable transaction', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
+
+      await service.create('user-1', {
+        name: 'Systems Limited',
+        city: 'LAHORE',
+      });
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ isolationLevel: 'Serializable' }),
+      );
     });
 
     it('creates the company scoped to the user', async () => {
@@ -236,6 +264,55 @@ describe('CompaniesService', () => {
         where: { id: 'company-1', userId: 'user-1' },
       });
       expect(result).toEqual({ message: 'Company deleted' });
+    });
+  });
+
+  describe('triggerEnrichment', () => {
+    it('throws NotFoundException when the company does not belong to the user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      await expect(
+        service.triggerEnrichment('user-1', 'company-x'),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.company.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('throws ConflictException when the CAS claim loses the race (already PENDING/PROCESSING)', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.triggerEnrichment('user-1', 'company-1'),
+      ).rejects.toThrow(ConflictException);
+      expect(mockCompanyEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
+    });
+
+    it('scopes the CAS claim to the requesting user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.triggerEnrichment('user-1', 'company-1');
+
+      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: 'company-1',
+            userId: 'user-1',
+          }),
+        }),
+      );
+    });
+
+    it('claims the company and enqueues enrichment when not already busy', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.triggerEnrichment('user-1', 'company-1');
+
+      expect(mockCompanyEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
+        'company-1',
+      );
+      expect(result).toEqual({ message: 'Enrichment queued' });
     });
   });
 });

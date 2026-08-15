@@ -1,5 +1,8 @@
 import { Test } from '@nestjs/testing';
-import { ContactsController } from './contacts.controller.js';
+import {
+  ContactsController,
+  CompanyContactsController,
+} from './contacts.controller.js';
 import { ContactsService } from './contacts.service.js';
 
 const mockService = {
@@ -104,6 +107,87 @@ describe('ContactsController', () => {
       mockService.remove.mockResolvedValue({ message: 'Contact deleted' });
 
       const result = await controller.remove(user, 'j-1', 'c-1');
+
+      expect(result).toEqual({ message: 'Contact deleted' });
+    });
+  });
+});
+
+describe('CompanyContactsController', () => {
+  let controller: CompanyContactsController;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module = await Test.createTestingModule({
+      controllers: [CompanyContactsController],
+      providers: [{ provide: ContactsService, useValue: mockService }],
+    }).compile();
+    controller = module.get(CompanyContactsController);
+  });
+
+  describe('create', () => {
+    it('delegates to service with userId, a companyId ref, and dto', async () => {
+      const dto = { name: 'Jane Doe', role: 'Recruiter' };
+      mockService.create.mockResolvedValue({ id: 'c-1' });
+
+      await controller.create(user, 'co-1', dto);
+
+      expect(mockService.create).toHaveBeenCalledWith(
+        'u-1',
+        { companyId: 'co-1' },
+        dto,
+      );
+    });
+  });
+
+  describe('findAll', () => {
+    it('delegates to service with userId and a companyId ref', async () => {
+      mockService.findAllFor.mockResolvedValue([]);
+
+      await controller.findAll(user, 'co-1');
+
+      expect(mockService.findAllFor).toHaveBeenCalledWith('u-1', {
+        companyId: 'co-1',
+      });
+    });
+  });
+
+  describe('update', () => {
+    it('delegates to service with userId, a companyId ref, contactId, and dto', async () => {
+      const dto = { role: 'Hiring Manager' };
+      mockService.update.mockResolvedValue({
+        id: 'c-1',
+        role: 'Hiring Manager',
+      });
+
+      await controller.update(user, 'co-1', 'c-1', dto);
+
+      expect(mockService.update).toHaveBeenCalledWith(
+        'u-1',
+        { companyId: 'co-1' },
+        'c-1',
+        dto,
+      );
+    });
+  });
+
+  describe('remove', () => {
+    it('delegates to service with userId, a companyId ref, and contactId', async () => {
+      mockService.remove.mockResolvedValue({ message: 'Contact deleted' });
+
+      await controller.remove(user, 'co-1', 'c-1');
+
+      expect(mockService.remove).toHaveBeenCalledWith(
+        'u-1',
+        { companyId: 'co-1' },
+        'c-1',
+      );
+    });
+
+    it('returns the success message from the service', async () => {
+      mockService.remove.mockResolvedValue({ message: 'Contact deleted' });
+
+      const result = await controller.remove(user, 'co-1', 'c-1');
 
       expect(result).toEqual({ message: 'Contact deleted' });
     });
