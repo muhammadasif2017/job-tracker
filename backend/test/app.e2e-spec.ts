@@ -406,6 +406,20 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body.id).toBe(jobId);
     });
 
+    it('returns companyProfile reshaped from the linked Company, not the legacy CompanyProfile table', async () => {
+      const res = await agent
+        .get(`/jobs/${jobId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.companyId).toEqual(expect.any(String));
+      expect(res.body.companyProfile).toMatchObject({
+        id: res.body.companyId,
+        jobId: res.body.id,
+        status: expect.any(String),
+      });
+    });
+
     it('returns 404 for non-existent id', () =>
       agent
         .get('/jobs/nonexistent-id')

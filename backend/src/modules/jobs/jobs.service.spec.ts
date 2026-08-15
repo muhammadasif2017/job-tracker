@@ -1,6 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { CompanyCity, JobStatus, JobType } from '@prisma/client';
+import {
+  CompanyCity,
+  EnrichmentStatus,
+  JobStatus,
+  JobType,
+} from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -237,10 +242,10 @@ describe('JobsService', () => {
   });
 
   describe('findOne', () => {
-    it('includes companyProfile and resume in the Prisma query', async () => {
+    it('includes companyLink and resume in the Prisma query', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
-        companyProfile: null,
+        companyLink: null,
         resume: null,
       });
 
@@ -249,12 +254,88 @@ describe('JobsService', () => {
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith({
         where: { id: 'job-1', userId: 'user-1' },
         include: {
-          companyProfile: true,
+          companyLink: true,
           resume: true,
           interviewRounds: { orderBy: { scheduledAt: 'asc' } },
           contacts: { orderBy: { createdAt: 'asc' } },
         },
       });
+    });
+
+    it('reshapes the linked Company into the companyProfile response shape', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyLink: {
+          id: 'company-1',
+          status: EnrichmentStatus.COMPLETED,
+          industry: 'Software',
+          companySize: '51-200',
+          techStack: ['TypeScript'],
+          cultureSummary: 'Remote-friendly',
+          workPolicy: 'Hybrid',
+          workLifeBalance: 'Good',
+          headquarters: 'Lahore',
+          headquartersLowConfidence: false,
+          address: '123 Main St',
+          addressLowConfidence: false,
+          founded: '2010',
+          errorMessage: null,
+          enrichedAt: new Date('2026-01-01'),
+          createdAt: new Date('2025-12-01'),
+          updatedAt: new Date('2026-01-01'),
+        },
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toEqual({
+        id: 'company-1',
+        jobId: 'job-1',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Software',
+        companySize: '51-200',
+        techStack: ['TypeScript'],
+        cultureSummary: 'Remote-friendly',
+        workPolicy: 'Hybrid',
+        workLifeBalance: 'Good',
+        headquarters: 'Lahore',
+        headquartersLowConfidence: false,
+        address: '123 Main St',
+        addressLowConfidence: false,
+        founded: '2010',
+        errorMessage: null,
+        enrichedAt: new Date('2026-01-01'),
+        createdAt: new Date('2025-12-01'),
+        updatedAt: new Date('2026-01-01'),
+      });
+      expect(result).not.toHaveProperty('companyLink');
+    });
+
+    it('defaults status to PENDING when the linked Company has never been enriched', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyLink: { id: 'company-1', status: null },
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toMatchObject({
+        status: EnrichmentStatus.PENDING,
+      });
+    });
+
+    it('returns companyProfile: null when the job has no linked Company', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyLink: null,
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toBeNull();
     });
   });
 

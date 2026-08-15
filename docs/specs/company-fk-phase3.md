@@ -48,6 +48,11 @@ Match `findOne()` at `jobs.service.ts:168-174` — swap the `include: { companyP
 - [ ] `CompanyProfile` no longer read by any code path (grep confirms zero remaining reads, only writes)
 - [ ] PR(s) ≤10 files each (split backend/frontend if needed)
 
+## Resolution
+
+Both open items decided as recommended, 2026-08-15: `companyId` stays nullable (a blank-company-name job is a legitimate unlinked state, same as before phase 1). Backfill reuses phase 1's exact find-or-create logic (case-insensitive match, create with `city: OTHER` on a miss) — one code path, not two.
+
+Implemented as: `JobsService.findOne()` now includes `companyLink` and reshapes it into the same `companyProfile` response shape the frontend already expects (status defaults to `PENDING` when the linked `Company` has never been enriched) — **no frontend changes needed**, `company-profile-card.tsx` reads an identical shape regardless of source. `scripts/backfill-company-fk.ts` backfills pre-phase-1 jobs (dry-run by default, `--apply` to write); verified against seeded test data (matched-existing, new-company dedup within a batch, blank-name skip, idempotent re-run) since the dev DB currently has no real pre-phase-1 jobs to backfill. `CompanyProfile` itself is untouched — still written by the enrichment flow, still exists — removal is phase 4.
+
 ## Open Questions
-- Should `companyId` become non-null (required) at the end of this phase, or stay nullable indefinitely for jobs that fail to backfill (e.g. empty company name)? Recommend: stays nullable — an empty-company-name job is a legitimate state (soft-link was already optional today).
-- Backfill matching: exact name match only (same as phase 1's find-or-create), or does an unmatched job get a newly created `Company` row at backfill time too? Recommend: yes, same find-or-create logic as phase 1, applied retroactively — keeps one code path instead of two.
+None remaining.
