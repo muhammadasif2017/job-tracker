@@ -83,13 +83,18 @@ test.describe('Company enrichment card', () => {
     // guard being tested (in production, real extraction takes real
     // seconds) — retry with a fresh job on a miss instead of asserting on
     // wall-clock luck.
+    //
+    // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md) —
+    // job creation now auto-queues via POST /companies/:companyId/enrichment,
+    // so a second request racing it must hit the same endpoint to observe
+    // the CAS conflict guard.
     let res: Response | undefined;
     for (let attempt = 0; attempt < 5; attempt++) {
       const target =
         attempt === 0
           ? job
           : await createTestJob(user.accessToken, { company: 'Enrich Co' });
-      res = await fetch(`${API}/jobs/${target.id}/enrichment`, {
+      res = await fetch(`${API}/companies/${target.companyId}/enrichment`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
@@ -147,10 +152,18 @@ test.describe('Company enrichment card', () => {
       await route.fulfill({ response, json: body });
     });
 
-    await page.route(`${API}/jobs/${job.id}/enrichment`, async (route) => {
-      status = 'PENDING';
-      await route.fulfill({ status: 202, json: { message: 'Enrichment queued' } });
-    });
+    // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md) —
+    // the Refresh button hits POST /companies/:companyId/enrichment.
+    await page.route(
+      `${API}/companies/${job.companyId}/enrichment`,
+      async (route) => {
+        status = 'PENDING';
+        await route.fulfill({
+          status: 202,
+          json: { message: 'Enrichment queued' },
+        });
+      },
+    );
 
     await goToJob(page, job);
 
