@@ -16,6 +16,7 @@ import {
   JobPriority,
   JobType,
   CompanyCity,
+  EnrichmentStatus,
 } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -150,7 +151,6 @@ export class JobsService {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
       include: {
-        companyProfile: true,
         companyLink: true,
         resume: true,
         interviewRounds: { orderBy: { scheduledAt: 'asc' } },
@@ -159,44 +159,42 @@ export class JobsService {
     });
     if (!job) throw new NotFoundException('Job not found');
 
-    const { companyLink, companyProfile, ...rest } = job;
+    const { companyLink, ...rest } = job;
     return {
       ...rest,
-      // Company is the source of truth for enrichment now that create()
-      // writes there (docs/specs/company-fk-phase3b.md) — reshaped into the
-      // same companyProfile shape the frontend already expects. A non-null
-      // companyLink.status means company-scoped enrichment has run (or is
-      // running) for this company at least once, including for jobs created
-      // before this change once they're re-enriched. Until then, fall back
-      // to the legacy per-job CompanyProfile row so already-completed
-      // research from the old job-scoped pipeline doesn't go dark.
-      companyProfile:
-        companyLink && companyLink.status
-          ? {
-              id: companyLink.id,
-              jobId: job.id,
-              status: companyLink.status,
-              industry: companyLink.industry,
-              companySize: companyLink.companySize,
-              techStack: companyLink.techStack,
-              cultureSummary: companyLink.cultureSummary,
-              workPolicy: companyLink.workPolicy,
-              workLifeBalance: companyLink.workLifeBalance,
-              headquarters: companyLink.headquarters,
-              headquartersLowConfidence: companyLink.headquartersLowConfidence,
-              address: companyLink.address,
-              addressLowConfidence: companyLink.addressLowConfidence,
-              founded: companyLink.founded,
-              errorMessage: companyLink.errorMessage,
-              enrichedAt: companyLink.enrichedAt,
-              createdAt: companyLink.createdAt,
-              updatedAt: companyLink.updatedAt,
-            }
-          : companyProfile,
+      // Company is the sole source of enrichment data (CompanyProfile
+      // dropped in phase 4, docs/specs/company-fk-phase4.md) — reshaped into
+      // the companyProfile response shape the frontend already expects.
+      // status defaults to PENDING for a manually-added target company that
+      // has never had enrichment triggered (Company.status has no DB
+      // default — null there means "never triggered", distinct from an
+      // in-flight PENDING/PROCESSING run).
+      companyProfile: companyLink
+        ? {
+            id: companyLink.id,
+            jobId: job.id,
+            status: companyLink.status ?? EnrichmentStatus.PENDING,
+            industry: companyLink.industry,
+            companySize: companyLink.companySize,
+            techStack: companyLink.techStack,
+            cultureSummary: companyLink.cultureSummary,
+            workPolicy: companyLink.workPolicy,
+            workLifeBalance: companyLink.workLifeBalance,
+            headquarters: companyLink.headquarters,
+            headquartersLowConfidence: companyLink.headquartersLowConfidence,
+            address: companyLink.address,
+            addressLowConfidence: companyLink.addressLowConfidence,
+            founded: companyLink.founded,
+            errorMessage: companyLink.errorMessage,
+            enrichedAt: companyLink.enrichedAt,
+            createdAt: companyLink.createdAt,
+            updatedAt: companyLink.updatedAt,
+          }
+        : null,
     };
   }
 
-  // Lean ownership check — only selects id + status, no companyProfile JOIN.
+  // Lean ownership check — only selects id + status, no companyLink JOIN.
   // Use this in write operations that don't need enrichment data.
   private async findOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
@@ -232,7 +230,7 @@ export class JobsService {
     if (!statusChanged) {
       return this.prisma.job.update({
         where: { id: jobId },
-        include: { companyProfile: true, resume: true },
+        include: { resume: true },
         data,
       });
     }
@@ -267,7 +265,7 @@ export class JobsService {
       });
       return tx.job.update({
         where: { id: jobId },
-        include: { companyProfile: true, resume: true },
+        include: { resume: true },
         data,
       });
     });
