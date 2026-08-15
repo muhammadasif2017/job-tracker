@@ -14,6 +14,7 @@ export interface TestJob {
   id: string;
   company: string;
   position: string;
+  companyId: string | null;
 }
 
 // ── User helpers ─────────────────────────────────────────────────────────────

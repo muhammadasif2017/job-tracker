@@ -1,10 +1,15 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { CompanyCity, JobStatus, JobType } from '@prisma/client';
+import {
+  CompanyCity,
+  EnrichmentStatus,
+  JobStatus,
+  JobType,
+} from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { EnrichmentService } from '../enrichment/enrichment.service.js';
+import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 
@@ -28,8 +33,8 @@ const mockPrisma = {
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
-const mockEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
-  EnrichmentService,
+const mockCompanyEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
+  CompanyEnrichmentService,
   'enqueueEnrichment'
 >;
 const mockStorage = {
@@ -49,7 +54,7 @@ describe('JobsService', () => {
       providers: [
         JobsService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: EnrichmentService, useValue: mockEnrichment },
+        { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
         { provide: Logger, useValue: mockLogger },
       ],
@@ -58,17 +63,35 @@ describe('JobsService', () => {
   });
 
   describe('create', () => {
-    it('calls enqueueEnrichment with the created job id', async () => {
+    it('calls enqueueEnrichment with the linked company id, not the job id', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
       });
-      mockEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+      mockCompanyEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
 
       const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
       await service.create('user-1', dto);
 
-      expect(mockEnrichment.enqueueEnrichment).toHaveBeenCalledWith('job-new');
+      expect(mockCompanyEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
+        'company-new',
+      );
+    });
+
+    it('does not call enqueueEnrichment when the company name is blank', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+
+      const dto: CreateJobDto = { company: '   ', position: 'Engineer' };
+      await service.create('user-1', dto);
+
+      expect(mockCompanyEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
     });
 
     it('still returns the created job even if enqueueEnrichment throws', async () => {
@@ -76,7 +99,11 @@ describe('JobsService', () => {
         id: 'job-new',
         status: JobStatus.APPLIED,
       });
-      mockEnrichment.enqueueEnrichment.mockRejectedValue(
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+      mockCompanyEnrichment.enqueueEnrichment.mockRejectedValue(
         new Error('Redis down'),
       );
 
@@ -237,10 +264,11 @@ describe('JobsService', () => {
   });
 
   describe('findOne', () => {
-    it('includes companyProfile and resume in the Prisma query', async () => {
+    it('includes companyProfile, companyLink, and resume in the Prisma query', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         companyProfile: null,
+        companyLink: null,
         resume: null,
       });
 
@@ -250,11 +278,99 @@ describe('JobsService', () => {
         where: { id: 'job-1', userId: 'user-1' },
         include: {
           companyProfile: true,
+          companyLink: true,
           resume: true,
           interviewRounds: { orderBy: { scheduledAt: 'asc' } },
           contacts: { orderBy: { createdAt: 'asc' } },
         },
       });
+    });
+
+    it('reshapes the linked Company into the companyProfile shape when it has been enriched at least once', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyProfile: null,
+        companyLink: {
+          id: 'company-1',
+          status: EnrichmentStatus.COMPLETED,
+          industry: 'Software',
+          companySize: '51-200',
+          techStack: ['TypeScript'],
+          cultureSummary: 'Remote-friendly',
+          workPolicy: 'Hybrid',
+          workLifeBalance: 'Good',
+          headquarters: 'Lahore',
+          headquartersLowConfidence: false,
+          address: '123 Main St',
+          addressLowConfidence: false,
+          founded: '2010',
+          errorMessage: null,
+          enrichedAt: new Date('2026-01-01'),
+          createdAt: new Date('2025-12-01'),
+          updatedAt: new Date('2026-01-01'),
+        },
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toEqual({
+        id: 'company-1',
+        jobId: 'job-1',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Software',
+        companySize: '51-200',
+        techStack: ['TypeScript'],
+        cultureSummary: 'Remote-friendly',
+        workPolicy: 'Hybrid',
+        workLifeBalance: 'Good',
+        headquarters: 'Lahore',
+        headquartersLowConfidence: false,
+        address: '123 Main St',
+        addressLowConfidence: false,
+        founded: '2010',
+        errorMessage: null,
+        enrichedAt: new Date('2026-01-01'),
+        createdAt: new Date('2025-12-01'),
+        updatedAt: new Date('2026-01-01'),
+      });
+      expect(result).not.toHaveProperty('companyLink');
+    });
+
+    it('falls back to the legacy CompanyProfile row when the linked Company has never been enriched', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyProfile: {
+          id: 'profile-1',
+          jobId: 'job-1',
+          status: EnrichmentStatus.COMPLETED,
+          industry: 'Old pipeline data',
+        },
+        companyLink: { id: 'company-1', status: null },
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toEqual({
+        id: 'profile-1',
+        jobId: 'job-1',
+        status: EnrichmentStatus.COMPLETED,
+        industry: 'Old pipeline data',
+      });
+    });
+
+    it('returns companyProfile: null when there is no linked Company and no legacy CompanyProfile row', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyProfile: null,
+        companyLink: null,
+        resume: null,
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.companyProfile).toBeNull();
     });
   });
 
