@@ -534,6 +534,48 @@ describe('Job Tracker (e2e)', () => {
         .delete(`/companies/${company.body.id}`)
         .set('Authorization', `Bearer ${accessToken}`);
     });
+
+    it('applies fieldOverrides to the canonical company (phase 5b)', async () => {
+      const canonical = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Merge Field Override Canonical',
+          city: 'LAHORE',
+          industry: 'Old Industry',
+        })
+        .expect(201);
+
+      const duplicate = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Merge Field Override Duplicate',
+          city: 'LAHORE',
+          industry: 'New Industry From Duplicate',
+        })
+        .expect(201);
+
+      const mergeRes = await agent
+        .post(`/companies/${canonical.body.id}/merge`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          duplicateCompanyId: duplicate.body.id,
+          fieldOverrides: { industry: 'New Industry From Duplicate' },
+        })
+        .expect(201);
+      expect(mergeRes.body.industry).toBe('New Industry From Duplicate');
+
+      const fetched = await agent
+        .get(`/companies/${canonical.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(fetched.body.industry).toBe('New Industry From Duplicate');
+
+      await agent
+        .delete(`/companies/${canonical.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
   });
 
   describe('PATCH /jobs/:id', () => {

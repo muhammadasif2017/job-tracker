@@ -10,6 +10,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
+import type { MergeFieldOverridesDto } from './dto/merge-company.dto.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
 
 @Injectable()
@@ -253,26 +254,28 @@ export class CompaniesService {
     return { message: 'Enrichment queued' };
   }
 
-  // Phase 5a (docs/specs/company-fk-phase5a.md) — manual merge, no auto-detection
-  // yet (5c) and no field-by-field conflict resolution yet (5b): the
-  // canonical company's own fields are kept as-is, untouched by the merge.
-  // Job AND Contact both need reassigning — Contact.companyId has
-  // onDelete: Cascade from Company, so deleting the duplicate without first
-  // reassigning its contacts would silently destroy them.
+  // Phase 5a (docs/specs/company-fk-phase5a.md) — manual merge, no
+  // auto-detection yet (5c). Job AND Contact both need reassigning —
+  // Contact.companyId has onDelete: Cascade from Company, so deleting the
+  // duplicate without first reassigning its contacts would silently destroy
+  // them. fieldOverrides (phase 5b, docs/specs/company-fk-phase5b.md) is a
+  // sparse patch applied to canonical — an absent key keeps canonical's
+  // current value, only present keys (the fields the user explicitly picked
+  // the duplicate's value for) get overwritten. Only AI-enrichment fields
+  // are eligible; user-curated identity fields (websiteUrl, personalNotes,
+  // etc.) always stay canonical's own, no override path for them.
   async mergeCompanies(
     userId: string,
     canonicalId: string,
     duplicateId: string,
+    fieldOverrides?: MergeFieldOverridesDto,
   ) {
     if (canonicalId === duplicateId) {
       throw new ConflictException('Cannot merge a company with itself');
     }
     return this.prisma.$transaction(async (tx) => {
       const [canonical, duplicate] = await Promise.all([
-        tx.company.findFirst({
-          where: { id: canonicalId, userId },
-          select: { id: true, name: true },
-        }),
+        tx.company.findFirst({ where: { id: canonicalId, userId } }),
         tx.company.findFirst({
           where: { id: duplicateId, userId },
           select: { id: true, name: true },
@@ -292,6 +295,12 @@ export class CompaniesService {
       });
       await tx.company.delete({ where: { id: duplicateId } });
 
+      if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
+        return tx.company.update({
+          where: { id: canonicalId },
+          data: fieldOverrides,
+        });
+      }
       return canonical;
     });
   }
