@@ -234,14 +234,12 @@ export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
-    // Company-scoped when linked (docs/specs/company-fk-phase3b.md) — falls
-    // back to the legacy job-scoped endpoint for a job with no linked
-    // Company (pre-companyId-FK data, or a blank company name).
+    // Company-scoped (docs/specs/company-fk-phase3b.md) — a profile only
+    // ever renders when the job has a linked Company (a blank-company-name
+    // job never has a profile to show a Refresh button for), so companyId
+    // is always set here.
     mutationFn: () =>
-      (companyId
-        ? api.post(`/companies/${companyId}/enrichment`)
-        : api.post(`/jobs/${jobId}/enrichment`)
-      ).then((r) => r.data),
+      api.post(`/companies/${companyId}/enrichment`).then((r) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Enrichment queued');
