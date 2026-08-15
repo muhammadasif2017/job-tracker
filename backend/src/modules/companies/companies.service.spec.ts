@@ -455,4 +455,68 @@ describe('CompaniesService', () => {
       expect(mockPrisma.company.update).not.toHaveBeenCalled();
     });
   });
+
+  describe('findDuplicateSuggestions', () => {
+    it('flags a pair with matching websiteUrl (different casing/protocol) as a website match', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'Acme Inc', websiteUrl: 'https://www.acme.com/' },
+        { id: 'c-2', name: 'Acme Corporation', websiteUrl: 'ACME.com' },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toEqual([
+        {
+          companyA: { id: 'c-1', name: 'Acme Inc', websiteUrl: 'https://www.acme.com/' },
+          companyB: { id: 'c-2', name: 'Acme Corporation', websiteUrl: 'ACME.com' },
+          reason: 'website',
+        },
+      ]);
+    });
+
+    it('flags a pair with a fuzzy name match when websiteUrl does not match', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'Systems Limited', websiteUrl: null },
+        { id: 'c-2', name: 'systems ltd.', websiteUrl: null },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].reason).toBe('name');
+    });
+
+    it('prefers a website match over a name match when both would fire', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'Systems Limited', websiteUrl: 'https://systems.com' },
+        { id: 'c-2', name: 'Systems Limited', websiteUrl: 'https://systems.com' },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].reason).toBe('website');
+    });
+
+    it('does not flag unrelated companies', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'Systems Limited', websiteUrl: null },
+        { id: 'c-2', name: 'Totally Different Co', websiteUrl: null },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toEqual([]);
+    });
+
+    it('only compares companies within the scoping userId query', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([]);
+
+      await service.findDuplicateSuggestions('user-1');
+
+      expect(mockPrisma.company.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { userId: 'user-1' } }),
+      );
+    });
+  });
 });
