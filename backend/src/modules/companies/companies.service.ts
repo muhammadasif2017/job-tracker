@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
@@ -16,11 +20,33 @@ export class CompaniesService {
     private logger: Logger,
   ) {}
 
+  // Case-insensitive companion to the DB's case-sensitive @@unique([userId, name])
+  // — matches the check CompaniesImportService already does for CSV rows, so
+  // "Google" and "google" can't coexist via either path.
+  private async ensureNameAvailable(
+    userId: string,
+    name: string,
+    excludeId?: string,
+  ) {
+    const duplicate = await this.prisma.company.findFirst({
+      where: {
+        userId,
+        name: { equals: name, mode: 'insensitive' },
+        ...(excludeId && { id: { not: excludeId } }),
+      },
+      select: { id: true },
+    });
+    if (duplicate) {
+      throw new ConflictException(`A company named "${name}" already exists`);
+    }
+  }
+
   // Single-company create auto-triggers enrichment (mirrors JobsService.create).
   // CSV import does NOT — see CompaniesImportService; a bulk import firing
   // dozens of concurrent Tavily/Groq calls at once is a real rate-limit/cost
   // risk that a single manual add isn't.
   async create(userId: string, dto: CreateCompanyDto) {
+    await this.ensureNameAvailable(userId, dto.name);
     const company = await this.prisma.company.create({
       data: {
         userId,
@@ -119,6 +145,9 @@ export class CompaniesService {
 
   async update(userId: string, companyId: string, dto: UpdateCompanyDto) {
     await this.findOwned(userId, companyId);
+    if (dto.name !== undefined) {
+      await this.ensureNameAvailable(userId, dto.name, companyId);
+    }
     return this.prisma.company.update({
       where: { id: companyId },
       data: {

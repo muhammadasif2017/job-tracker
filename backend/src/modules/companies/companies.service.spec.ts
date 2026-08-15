@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
@@ -40,7 +40,17 @@ describe('CompaniesService', () => {
   });
 
   describe('create', () => {
+    it('throws ConflictException on a case-insensitive duplicate name', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'existing-1' });
+
+      await expect(
+        service.create('user-1', { name: 'systems limited', city: 'LAHORE' }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+    });
+
     it('creates the company scoped to the user', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
       mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
 
       await service.create('user-1', {
@@ -176,6 +186,35 @@ describe('CompaniesService', () => {
           data: expect.objectContaining({ businessMode: null }),
         }),
       );
+    });
+
+    it('throws ConflictException when renaming to a case-insensitive duplicate of another company', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({ id: 'company-1' }) // findOwned
+        .mockResolvedValueOnce({ id: 'company-2' }); // ensureNameAvailable
+
+      await expect(
+        service.update('user-1', 'company-1', { name: 'systems limited' }),
+      ).rejects.toThrow(ConflictException);
+      expect(mockPrisma.company.update).not.toHaveBeenCalled();
+      expect(mockPrisma.company.findFirst).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          where: {
+            userId: 'user-1',
+            name: { equals: 'systems limited', mode: 'insensitive' },
+            id: { not: 'company-1' },
+          },
+        }),
+      );
+    });
+
+    it('does not check for duplicates when name is not being changed', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.update.mockResolvedValue({ id: 'company-1' });
+
+      await service.update('user-1', 'company-1', { location: 'Remote' });
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(1);
     });
   });
 
