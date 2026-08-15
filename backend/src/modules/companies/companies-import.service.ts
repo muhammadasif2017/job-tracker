@@ -1,4 +1,9 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+} from '@nestjs/common';
+import type { Prisma } from '@prisma/client';
 import { BusinessMode, CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -62,7 +67,45 @@ export class CompaniesImportService {
       );
     }
 
-    const existing = await this.prisma.company.findMany({
+    return this.runImportTransaction(userId, dataLines);
+  }
+
+  // Serializable isolation closes the same TOCTOU window
+  // CompaniesService.runNameCheckedWrite closes for single create/update —
+  // without it, two concurrent imports (or an import racing a single
+  // POST /companies) with case-variant names could both pass the in-memory
+  // seenNames check below and both write, since the DB's own
+  // @@unique([userId, name]) is case-sensitive.
+  private async runImportTransaction(
+    userId: string,
+    dataLines: string[],
+  ): Promise<CsvImportResult> {
+    try {
+      return await this.prisma.$transaction(
+        (tx) => this.parseAndCreate(tx, userId, dataLines),
+        { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
+      );
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 'P2034'
+      ) {
+        throw new ConflictException(
+          'Another change happened at the same time — please retry the import',
+        );
+      }
+      throw err;
+    }
+  }
+
+  private async parseAndCreate(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    dataLines: string[],
+  ): Promise<CsvImportResult> {
+    const existing = await tx.company.findMany({
       where: { userId },
       select: { name: true },
     });
@@ -136,7 +179,7 @@ export class CompaniesImportService {
 
     let imported = 0;
     if (toCreate.length > 0) {
-      const result = await this.prisma.company.createMany({
+      const result = await tx.company.createMany({
         data: toCreate,
         skipDuplicates: true,
       });

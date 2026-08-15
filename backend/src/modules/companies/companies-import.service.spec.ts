@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { CompaniesImportService } from './companies-import.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -8,6 +8,7 @@ const mockPrisma = {
     findMany: jest.fn(),
     createMany: jest.fn(),
   },
+  $transaction: jest.fn(),
 };
 
 describe('CompaniesImportService', () => {
@@ -19,6 +20,12 @@ describe('CompaniesImportService', () => {
     mockPrisma.company.createMany.mockImplementation(
       ({ data }: { data: unknown[] }) =>
         Promise.resolve({ count: data.length }),
+    );
+    // Mirrors companies.service.spec.ts's $transaction mock — runs the
+    // callback against mockPrisma itself, so `tx.company.*` inside the
+    // service hits the same jest.fn()s as `this.prisma.company.*` would.
+    mockPrisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) =>
+      fn(mockPrisma),
     );
     const module = await Test.createTestingModule({
       providers: [
@@ -202,6 +209,25 @@ describe('CompaniesImportService', () => {
         message: expect.stringContaining('200 characters or fewer'),
       },
     ]);
+  });
+
+  it('runs the name-check + createMany inside a Serializable transaction', async () => {
+    const csv = 'name,city,businessMode\nSystems Limited,LAHORE,SERVICES';
+
+    await service.import('user-1', csv);
+
+    expect(mockPrisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: 'Serializable',
+    });
+  });
+
+  it('maps a P2034 serialization failure (concurrent import/create race) to ConflictException', async () => {
+    mockPrisma.$transaction.mockRejectedValue({ code: 'P2034' });
+    const csv = 'name,city,businessMode\nSystems Limited,LAHORE,SERVICES';
+
+    await expect(service.import('user-1', csv)).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('rejects a duplicate name repeated within the same file', async () => {

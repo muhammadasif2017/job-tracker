@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
   IsArray,
   IsEnum,
   IsNotEmpty,
@@ -89,7 +90,9 @@ export class CreateCompanyDto {
   @ApiPropertyOptional({ example: ['React', 'Node.js', 'AWS'], type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @MaxLength(100, { each: true })
   techStack?: string[];
 
   @ApiPropertyOptional({

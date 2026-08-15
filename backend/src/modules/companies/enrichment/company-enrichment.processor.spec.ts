@@ -171,6 +171,80 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
+  it('does not write a completed profile when the company was deleted mid-run (success path)', async () => {
+    mockPrisma.company.findFirst
+      .mockResolvedValueOnce(dbCompany) // initial lookup
+      .mockResolvedValueOnce(null); // still-exists re-check, post-extraction
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+
+    await processor.process(bullJob);
+
+    // PROCESSING is written, but the final COMPLETED write must not happen —
+    // exactly one update call (the PROCESSING one), not two.
+    expect(mockPrisma.company.update).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: EnrichmentStatus.PROCESSING }),
+      }),
+    );
+  });
+
+  it('salvages extracted data on a late failure (write succeeds, later step throws) and does not rethrow', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    // First update (PROCESSING) succeeds; the completed-profile write throws
+    // (simulating a late failure after extraction succeeded); the salvage
+    // retry inside the catch block then succeeds.
+    mockPrisma.company.update
+      .mockResolvedValueOnce({}) // PROCESSING
+      .mockRejectedValueOnce(new Error('DB blip')) // completed write fails
+      .mockResolvedValueOnce({}); // salvage retry succeeds
+
+    await expect(processor.process(bullJob)).resolves.toBeUndefined();
+
+    expect(mockPrisma.company.update).toHaveBeenCalledTimes(3);
+    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: EnrichmentStatus.COMPLETED,
+          industry: 'IT Services',
+        }),
+      }),
+    );
+  });
+
+  it('rethrows for BullMQ retry when both the completed write and the salvage retry fail', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.company.update
+      .mockResolvedValueOnce({}) // PROCESSING
+      .mockRejectedValueOnce(new Error('DB blip')) // completed write fails
+      .mockRejectedValueOnce(new Error('DB still down')); // salvage retry also fails
+
+    await expect(processor.process(bullJob)).rejects.toThrow('DB blip');
+  });
+
+  it('does not attempt to salvage or mark-failed when the company was deleted during failure handling', async () => {
+    mockPrisma.company.findFirst
+      .mockResolvedValueOnce(dbCompany) // initial lookup
+      .mockResolvedValueOnce(null); // still-exists re-check, in the catch block
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(new Error('Search API down'));
+
+    await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
+
+    // Only the PROCESSING update should have happened — no FAILED/salvage
+    // write against a company that no longer exists.
+    expect(mockPrisma.company.update).toHaveBeenCalledTimes(1);
+  });
+
   it('keeps a low-overlap address but flags it low-confidence instead of wiping it (same guard as job enrichment)', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});

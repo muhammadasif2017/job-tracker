@@ -2,12 +2,41 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type {
+  BusinessMode,
   Company,
   CompanyCity,
   CsvImportResult,
   JobPriority,
   PaginatedCompanies,
 } from '../../types';
+
+// Mirrors CreateCompanyDto/UpdateCompanyDto's nullability exactly: per
+// ADR-022, a field the user emptied out must be sent as explicit `null`
+// (never `undefined`, which JSON.stringify drops and Prisma reads as
+// "leave alone"). company-form.tsx's onSubmit always builds a payload in
+// this exact shape — this type makes that contract checkable at compile
+// time instead of relying on the loose `Partial<Company>` shape doing so
+// implicitly.
+export interface CompanyWritePayload {
+  name: string;
+  city: CompanyCity;
+  location: string | null;
+  priority: JobPriority;
+  personalNotes: string | null;
+  websiteUrl: string | null;
+  linkedinUrl: string | null;
+  businessMode: BusinessMode | null;
+  productDescription: string | null;
+  industry: string | null;
+  companySize: string | null;
+  techStack: string[];
+  cultureSummary: string | null;
+  workPolicy: string | null;
+  workLifeBalance: string | null;
+  headquarters: string | null;
+  address: string | null;
+  founded: string | null;
+}
 
 export interface CompaniesFilters {
   page: number;
@@ -50,7 +79,7 @@ export function useCompanyQuery(id: string) {
 export function useCreateCompanyMutation(onCreated?: (company: Company) => void) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: Partial<Company>) =>
+    mutationFn: (dto: CompanyWritePayload) =>
       api.post<Company>('/companies', dto).then((r) => r.data),
     onSuccess: (company) => {
       invalidateCompanyListCaches(qc);
@@ -69,7 +98,7 @@ export function useUpdateCompanyMutation(
 ) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (dto: Partial<Company>) =>
+    mutationFn: (dto: CompanyWritePayload) =>
       api.patch<Company>(`/companies/${id}`, dto).then((r) => r.data),
     onSuccess: (company) => {
       qc.setQueryData(['company', id], company);

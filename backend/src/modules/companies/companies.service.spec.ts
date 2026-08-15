@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { EnrichmentStatus } from '@prisma/client';
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
@@ -293,14 +294,21 @@ describe('CompaniesService', () => {
 
       await service.triggerEnrichment('user-1', 'company-1');
 
-      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: expect.objectContaining({
-            id: 'company-1',
-            userId: 'user-1',
-          }),
-        }),
-      );
+      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith({
+        where: {
+          id: 'company-1',
+          userId: 'user-1',
+          OR: [
+            { status: null },
+            {
+              status: {
+                notIn: [EnrichmentStatus.PENDING, EnrichmentStatus.PROCESSING],
+              },
+            },
+          ],
+        },
+        data: { status: EnrichmentStatus.PENDING, errorMessage: null },
+      });
     });
 
     it('claims the company and enqueues enrichment when not already busy', async () => {
