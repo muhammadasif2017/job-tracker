@@ -1,12 +1,16 @@
-# Spec: Per-Job Company Override Fields, Phase 2
+# Spec: Per-Job Company Override Fields, Phase 2 — RESOLVED, NO-OP
 
-Parent: [company-single-source-of-truth.md](../ideas/company-single-source-of-truth.md), phase 2 of 4. Depends on phase 1 (`Job.companyId` FK) merged.
+Parent: [company-single-source-of-truth.md](../ideas/company-single-source-of-truth.md), phase 2 of 4. Depends on phase 1 (`Job.companyId` FK), merged in #176.
 
-## Objective
+## Resolution
+
+Both open items confirmed by user, 2026-08-15: `Job.priority` (already exists, `schema.prisma:167`) is already per-job — no change needed. `Job.notes` (already exists) is confirmed as the per-job "why this company/role" field — reused as-is, not replaced by a dedicated column.
+
+**No schema, service, or frontend changes required.** `Company.priority`/`Company.personalNotes` stay company-wide; `Job.priority`/`Job.notes` stay per-application. The two were already correctly separated before this phase — this doc exists only to record that the separation was checked and confirmed, ahead of phase 4's model merge (so the merge doesn't accidentally collapse them into one field).
+
+## Objective (original)
 
 `Company.priority`/`personalNotes` are company-level today. User confirmed priority/notes are per-application (this specific role), not per-company. Give `Job` its own priority/notes fields distinct from `Company`'s, so merging the models in phase 4 doesn't collapse two different concepts into one column.
-
-Success: `Job` has its own priority (already exists — `Job.priority` at schema.prisma:167) — confirm it's already per-job and only `personalNotes`-equivalent is missing. Add `Job.companyNotes` (or reuse existing `Job.notes`? — see Open Questions) as the per-application note field, kept separate from `Company.personalNotes` (which stays company-wide).
 
 ## Tech Stack
 
@@ -39,5 +43,4 @@ Unit: DTO validation accepts/omits the field per existing optional-field pattern
 - [ ] PR ≤10 files
 
 ## Open Questions
-- **Is `Job.notes` (already exists) sufficient as the "per-job notes" field, or does the user want something distinct from general job notes (e.g. specifically "why this company, this role")?** If `Job.notes` already serves this purpose, phase 2 may need zero schema changes — just documentation that it's the confirmed per-job home. Recommend confirming with user before writing any migration.
-- `Job.priority` already exists and is per-job — spec assumes no change needed there, only notes was the open item. Confirm.
+None remaining — see Resolution above.
