@@ -137,6 +137,12 @@ export class JobsService {
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
+    // NOT reading from Company here (see docs/specs/company-fk-phase3.md
+    // "Blocked" note) — the job-scoped enrichment pipeline
+    // (EnrichmentService/EnrichmentProcessor) still writes results to
+    // CompanyProfile keyed by jobId, not to Company. Cutting over reads
+    // without also moving those writes would leave every new job's
+    // enrichment permanently invisible (stuck at PENDING).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
       include: {

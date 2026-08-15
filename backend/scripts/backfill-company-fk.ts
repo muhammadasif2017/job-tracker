@@ -1,0 +1,118 @@
+import 'dotenv/config';
+import { PrismaClient, CompanyCity } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+// One-off backfill for phase 3 of the company single-source-of-truth
+// migration (docs/specs/company-fk-phase3.md). Links pre-phase-1 jobs
+// (companyId still null) to a Company row, using the same find-or-create
+// logic as JobsService.create — exact case-insensitive name match, and a
+// new Company (city: OTHER) when no match exists. Dry run by default; pass
+// --apply to write.
+//
+// Usage:
+//   npx ts-node scripts/backfill-company-fk.ts            (dry run, no writes)
+//   npx ts-node scripts/backfill-company-fk.ts --apply     (writes)
+
+const APPLY = process.argv.includes('--apply');
+
+async function main() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+  const prisma = new PrismaClient({ adapter });
+
+  const candidates = await prisma.job.findMany({
+    where: { companyId: null },
+    select: { id: true, userId: true, company: true },
+  });
+
+  const toBackfill = candidates.filter((job) => job.company.trim().length > 0);
+  const blank = candidates.length - toBackfill.length;
+
+  console.log(
+    `${APPLY ? 'APPLY' : 'DRY RUN'}: ${candidates.length} jobs with no companyId ` +
+      `(${toBackfill.length} have a company name, ${blank} are blank and stay unlinked).`,
+  );
+
+  let matchedExisting = 0;
+  let createdNew = 0;
+  const unmatched: string[] = [];
+  // Dry-run-only: tracks companies this run "would create" so repeated new
+  // company names within the same batch are deduped in the report, same as
+  // they would be once actually applied.
+  const pendingNewCompanies = new Map<string, string>();
+
+  for (const job of toBackfill) {
+    const trimmedName = job.company.trim();
+    const key = `${job.userId} ${trimmedName.toLowerCase()}`;
+
+    let companyId = (
+      await prisma.company.findFirst({
+        where: {
+          userId: job.userId,
+          name: { equals: trimmedName, mode: 'insensitive' },
+        },
+        select: { id: true },
+      })
+    )?.id;
+
+    if (companyId) {
+      matchedExisting++;
+    } else if (!APPLY && pendingNewCompanies.has(key)) {
+      matchedExisting++;
+      companyId = pendingNewCompanies.get(key);
+    } else if (!APPLY) {
+      createdNew++;
+      pendingNewCompanies.set(key, '(dry-run-placeholder)');
+      continue;
+    } else {
+      try {
+        companyId = (
+          await prisma.company.create({
+            data: {
+              userId: job.userId,
+              name: trimmedName,
+              city: CompanyCity.OTHER,
+            },
+            select: { id: true },
+          })
+        ).id;
+        createdNew++;
+      } catch (err: unknown) {
+        // Unique-constraint race, same as JobsService.create.
+        companyId = (
+          await prisma.company.findFirst({
+            where: {
+              userId: job.userId,
+              name: { equals: trimmedName, mode: 'insensitive' },
+            },
+            select: { id: true },
+          })
+        )?.id;
+        if (!companyId) {
+          unmatched.push(job.id);
+          console.warn(`Unmatched job ${job.id}:`, err);
+          continue;
+        }
+        matchedExisting++;
+      }
+    }
+
+    if (APPLY && companyId) {
+      await prisma.job.update({ where: { id: job.id }, data: { companyId } });
+    }
+  }
+
+  console.log(
+    `${APPLY ? 'Applied' : 'Would apply'}: matched existing company ${matchedExisting}, ` +
+      `created new company ${createdNew}, unmatched (needs manual resolution) ${unmatched.length}.`,
+  );
+  if (unmatched.length > 0) {
+    console.log('Unmatched job IDs:', unmatched);
+  }
+
+  await prisma.$disconnect();
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});

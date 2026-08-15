@@ -48,6 +48,18 @@ Match `findOne()` at `jobs.service.ts:168-174` — swap the `include: { companyP
 - [ ] `CompanyProfile` no longer read by any code path (grep confirms zero remaining reads, only writes)
 - [ ] PR(s) ≤10 files each (split backend/frontend if needed)
 
+## Resolution
+
+Both original open items decided as recommended, 2026-08-15: `companyId` stays nullable (a blank-company-name job is a legitimate unlinked state, same as before phase 1). Backfill reuses phase 1's exact find-or-create logic (case-insensitive match, create with `city: OTHER` on a miss) — one code path, not two. `scripts/backfill-company-fk.ts` shipped and is safe/independent of the read cutover below — verified against seeded test data (matched-existing, new-company dedup within a batch, blank-name skip, idempotent re-run).
+
+## Blocked: read cutover reverted, 2026-08-15
+
+`JobsService.findOne()` was changed to read from `Company` (via `companyLink`) and reshape it into the `companyProfile` response shape, then **reverted** after CI caught a real bug the local test suite missed: the job-scoped enrichment pipeline (`EnrichmentService.enqueueEnrichment` → `EnrichmentProcessor`, `src/modules/enrichment/`) writes its results exclusively to `CompanyProfile`, keyed by `jobId` — never to `Company`. Cutting over reads without also moving those writes meant every newly created job's AI research became permanently invisible (stuck at "Queued…" forever); caught by `frontend/e2e/company-enrichment.spec.ts` on the PR's CI run, not by the backend unit/e2e suites (which only asserted `status: expect.any(String)`, true even for the stuck `PENDING` case — a real gap in this phase's own testing strategy above).
+
+This means phase 3's "cutover reads" is not a read-only change — it requires the job-scoped enrichment write path to target `Company` (keyed by `companyId`) instead of `CompanyProfile` (keyed by `jobId`) first. That's a substantially bigger, separate piece of work: `EnrichmentProcessor` owns the actual Tavily/Groq extraction calls and the confidence-flag logic (`headquartersLowConfidence`/`addressLowConfidence`), and redirecting its writes needs its own spec, not a few-line addition here.
+
+**Not doing in this PR.** `findOne()` stays on `CompanyProfile` for now. Only the backfill script ships from this phase.
+
 ## Open Questions
-- Should `companyId` become non-null (required) at the end of this phase, or stay nullable indefinitely for jobs that fail to backfill (e.g. empty company name)? Recommend: stays nullable — an empty-company-name job is a legitimate state (soft-link was already optional today).
-- Backfill matching: exact name match only (same as phase 1's find-or-create), or does an unmatched job get a newly created `Company` row at backfill time too? Recommend: yes, same find-or-create logic as phase 1, applied retroactively — keeps one code path instead of two.
+- New phase needed (call it phase 3b) to redirect `EnrichmentService`/`EnrichmentProcessor` writes from `CompanyProfile` (keyed by `jobId`) to `Company` (keyed by `companyId`) before the read cutover above can be safely retried. Needs its own spec — touches real LLM extraction logic, not just a model swap.
+- Once 3b lands, re-attempt this phase's read cutover with a stronger test: an e2e assertion that actually waits for enrichment to reach `COMPLETED` and checks the Refresh button becomes visible, not just that `status` is *a* string.
