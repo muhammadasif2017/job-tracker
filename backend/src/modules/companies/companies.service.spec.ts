@@ -401,5 +401,58 @@ describe('CompaniesService', () => {
       ).resolves.toEqual({ id: 'canonical-1', name: 'Canonical Co' });
       expect(mockPrisma.company.delete).toHaveBeenCalled();
     });
+
+    it('applies fieldOverrides to the canonical company as part of the merge', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({
+          id: 'canonical-1',
+          name: 'Canonical Co',
+          industry: 'Old industry',
+        })
+        .mockResolvedValueOnce({ id: 'duplicate-1', name: 'Duplicate Co' });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.contact.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.company.delete.mockResolvedValue({ id: 'duplicate-1' });
+      mockPrisma.company.update.mockResolvedValue({
+        id: 'canonical-1',
+        name: 'Canonical Co',
+        industry: 'New industry from duplicate',
+      });
+
+      const result = await service.mergeCompanies(
+        'user-1',
+        'canonical-1',
+        'duplicate-1',
+        { industry: 'New industry from duplicate' },
+      );
+
+      expect(mockPrisma.company.update).toHaveBeenCalledWith({
+        where: { id: 'canonical-1' },
+        data: { industry: 'New industry from duplicate' },
+      });
+      expect(result).toEqual({
+        id: 'canonical-1',
+        name: 'Canonical Co',
+        industry: 'New industry from duplicate',
+      });
+    });
+
+    it('does not call update when fieldOverrides is an empty object', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({ id: 'canonical-1', name: 'Canonical Co' })
+        .mockResolvedValueOnce({ id: 'duplicate-1', name: 'Duplicate Co' });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.contact.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.company.delete.mockResolvedValue({ id: 'duplicate-1' });
+
+      await service.mergeCompanies(
+        'user-1',
+        'canonical-1',
+        'duplicate-1',
+        {},
+      );
+
+      expect(mockPrisma.company.update).not.toHaveBeenCalled();
+    });
   });
 });

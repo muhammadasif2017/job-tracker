@@ -141,6 +141,7 @@ export class CompaniesController {
       user.id,
       id,
       dto.duplicateCompanyId,
+      dto.fieldOverrides,
     );
   }
 
