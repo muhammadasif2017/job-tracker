@@ -10,7 +10,13 @@ import { EnrichmentService } from '../enrichment/enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { JobStatus, JobEventType, JobPriority, JobType } from '@prisma/client';
+import {
+  JobStatus,
+  JobEventType,
+  JobPriority,
+  JobType,
+  CompanyCity,
+} from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
@@ -28,6 +34,50 @@ export class JobsService {
 
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
+    // Find-or-create, backing a real Job.companyId FK. Case-insensitive
+    // exact match, no fuzzy matching (see docs/specs/target-companies.md
+    // Assumption 6) — findFirst first, create only on a miss, and re-fetch
+    // on a unique-constraint race (two concurrent creates of the same new
+    // company name). Never overwrites an existing company's user-edited/
+    // enriched fields as a side effect of creating a job. CompanyCity.OTHER
+    // is used for auto-created rows since job-create collects no city.
+    const trimmedCompanyName = dto.company.trim();
+    // matchedCompany is only ever a *pre-existing* target company — it drives
+    // the "saved as a target company" banner in the response, which must not
+    // fire for a company row we silently auto-created just now. company is
+    // the row backing Job.companyId either way (found or newly created).
+    const matchedCompany = trimmedCompanyName
+      ? await this.prisma.company.findFirst({
+          where: {
+            userId,
+            name: { equals: trimmedCompanyName, mode: 'insensitive' },
+          },
+          select: { id: true, name: true },
+        })
+      : null;
+    let company = matchedCompany;
+
+    if (trimmedCompanyName && !company) {
+      try {
+        company = await this.prisma.company.create({
+          data: { userId, name: trimmedCompanyName, city: CompanyCity.OTHER },
+          select: { id: true, name: true },
+        });
+      } catch (err: unknown) {
+        // Unique-constraint race: another request created the same company
+        // between our findFirst and create. Re-fetch instead of failing
+        // job creation.
+        company = await this.prisma.company.findFirst({
+          where: {
+            userId,
+            name: { equals: trimmedCompanyName, mode: 'insensitive' },
+          },
+          select: { id: true, name: true },
+        });
+        if (!company) throw err;
+      }
+    }
+
     const job = await this.prisma.job.create({
       data: {
         company: dto.company,
@@ -42,6 +92,7 @@ export class JobsService {
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         userId,
+        companyId: company?.id,
         events: {
           create: { type: JobEventType.CREATED, toStatus: initialStatus },
         },
@@ -53,16 +104,6 @@ export class JobsService {
       // enrichment is best-effort; job creation always succeeds
       this.logger.warn('Enrichment enqueue failed', { jobId: job.id, err });
     }
-
-    // Soft-link only (no FK) — surfaces a "you already saved this company"
-    // banner on the frontend. Case-insensitive exact match, no fuzzy
-    // matching (see docs/specs/target-companies.md Assumption 6).
-    const matchedCompany = dto.company.trim()
-      ? await this.prisma.company.findFirst({
-          where: { userId, name: { equals: dto.company, mode: 'insensitive' } },
-          select: { id: true, name: true },
-        })
-      : null;
 
     return { ...job, matchedCompany };
   }
