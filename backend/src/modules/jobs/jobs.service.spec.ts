@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
-import { JobStatus, JobType } from '@prisma/client';
+import { CompanyCity, JobStatus, JobType } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -22,7 +22,7 @@ const mockPrisma = {
   },
   jobEvent: { findMany: jest.fn(), create: jest.fn() },
   resume: { findFirst: jest.fn() },
-  company: { findFirst: jest.fn() },
+  company: { findFirst: jest.fn(), create: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
   // callback against the same mock instead of modeling a real transaction.
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
@@ -145,18 +145,28 @@ describe('JobsService', () => {
         },
         select: { id: true, name: true },
       });
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-1' }),
+        }),
+      );
       expect(result.matchedCompany).toEqual({
         id: 'company-1',
         name: 'Systems Limited',
       });
     });
 
-    it('returns matchedCompany: null when no saved target company matches', async () => {
+    it('creates a new Company row (city OTHER) and links companyId when no existing target company matches', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
       });
       mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Nobody Saved This',
+      });
 
       const dto: CreateJobDto = {
         company: 'Nobody Saved This',
@@ -164,6 +174,48 @@ describe('JobsService', () => {
       };
       const result = await service.create('user-1', dto);
 
+      expect(mockPrisma.company.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          name: 'Nobody Saved This',
+          city: CompanyCity.OTHER,
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-new' }),
+        }),
+      );
+      // matchedCompany drives the "saved as a target company" banner — must
+      // stay null for a row we just silently auto-created, even though the
+      // job is still linked to it via companyId.
+      expect(result.matchedCompany).toBeNull();
+    });
+
+    it('re-fetches instead of failing job creation when a concurrent request creates the same new company first', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce(null) // initial lookup: no match yet
+        .mockResolvedValueOnce({ id: 'company-raced', name: 'Race Co' }); // re-fetch after the create races
+      mockPrisma.company.create.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), {
+          code: 'P2002',
+        }),
+      );
+
+      const dto: CreateJobDto = { company: 'Race Co', position: 'Engineer' };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-raced' }),
+        }),
+      );
       expect(result.matchedCompany).toBeNull();
     });
 

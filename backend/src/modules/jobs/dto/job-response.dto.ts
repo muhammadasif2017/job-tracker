@@ -70,6 +70,9 @@ export class JobResponseDto {
   @ApiProperty({ format: 'cuid' })
   userId: string;
 
+  @ApiPropertyOptional({ format: 'cuid' })
+  companyId: string | null;
+
   @ApiPropertyOptional({ type: () => CompanyProfileResponseDto })
   companyProfile: CompanyProfileResponseDto | null;
 
