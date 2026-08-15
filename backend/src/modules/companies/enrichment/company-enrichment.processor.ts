@@ -11,25 +11,12 @@ import {
   type CompanyData,
 } from '../../enrichment/services/llm.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
+import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 
 type ExtractionResult = {
   data: CompanyData;
   lowConfidence: { address: boolean; headquarters: boolean };
 };
-
-// Same list as EnrichmentProcessor's JOB_BOARD_DOMAINS — a Company.websiteUrl
-// pointing at one of these (e.g. a pasted LinkedIn company page) is not the
-// company's own domain and must not be used as a trust hint.
-const JOB_BOARD_DOMAINS = [
-  'linkedin.com',
-  'indeed.com',
-  'glassdoor.com',
-  'rozee.pk',
-  'bayt.com',
-  'monster.com',
-  'ziprecruiter.com',
-  'wellfound.com',
-];
 
 @Injectable()
 // See EnrichmentProcessor for why 90s — same stall-detection margin, same
