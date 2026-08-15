@@ -16,7 +16,6 @@ import {
   JobPriority,
   JobType,
   CompanyCity,
-  EnrichmentStatus,
 } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -138,48 +137,23 @@ export class JobsService {
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
+    // NOT reading from Company here (see docs/specs/company-fk-phase3.md
+    // "Blocked" note) — the job-scoped enrichment pipeline
+    // (EnrichmentService/EnrichmentProcessor) still writes results to
+    // CompanyProfile keyed by jobId, not to Company. Cutting over reads
+    // without also moving those writes would leave every new job's
+    // enrichment permanently invisible (stuck at PENDING).
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
       include: {
-        companyLink: true,
+        companyProfile: true,
         resume: true,
         interviewRounds: { orderBy: { scheduledAt: 'asc' } },
         contacts: { orderBy: { createdAt: 'asc' } },
       },
     });
     if (!job) throw new NotFoundException('Job not found');
-
-    const { companyLink, ...rest } = job;
-    return {
-      ...rest,
-      // Phase 3 cutover (docs/specs/company-fk-phase3.md): reads now come
-      // from Company via Job.companyId instead of the legacy CompanyProfile
-      // table (CompanyProfile itself is untouched until phase 4 drops it).
-      // Reshaped into the same shape the frontend already expects so
-      // CompanyProfileCard needs no changes beyond its data source.
-      companyProfile: companyLink
-        ? {
-            id: companyLink.id,
-            jobId: job.id,
-            status: companyLink.status ?? EnrichmentStatus.PENDING,
-            industry: companyLink.industry,
-            companySize: companyLink.companySize,
-            techStack: companyLink.techStack,
-            cultureSummary: companyLink.cultureSummary,
-            workPolicy: companyLink.workPolicy,
-            workLifeBalance: companyLink.workLifeBalance,
-            headquarters: companyLink.headquarters,
-            headquartersLowConfidence: companyLink.headquartersLowConfidence,
-            address: companyLink.address,
-            addressLowConfidence: companyLink.addressLowConfidence,
-            founded: companyLink.founded,
-            errorMessage: companyLink.errorMessage,
-            enrichedAt: companyLink.enrichedAt,
-            createdAt: companyLink.createdAt,
-            updatedAt: companyLink.updatedAt,
-          }
-        : null,
-    };
+    return job;
   }
 
   // Lean ownership check — only selects id + status, no companyProfile JOIN.
