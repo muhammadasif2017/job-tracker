@@ -36,6 +36,7 @@ import { CompaniesImportService } from './companies-import.service.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
+import { MergeCompanyDto } from './dto/merge-company.dto.js';
 import { CompanyResponseDto } from './dto/company-response.dto.js';
 import { PaginatedCompaniesDto } from './dto/paginated-companies.dto.js';
 import { CsvImportResultDto } from './dto/csv-import-result.dto.js';
@@ -120,6 +121,27 @@ export class CompaniesController {
     @Param('id') id: string,
   ) {
     return this.companiesService.triggerEnrichment(user.id, id);
+  }
+
+  @Post(':id/merge')
+  @ApiOperation({
+    summary:
+      'Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it',
+  })
+  @ApiParam({ name: 'id', description: 'Canonical company ID (survives the merge)' })
+  @ApiOkResponse({ type: CompanyResponseDto })
+  @ApiNotFoundResponse({ description: 'Canonical or duplicate company not found' })
+  @ApiConflictResponse({ description: 'Cannot merge a company with itself' })
+  merge(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+    @Body() dto: MergeCompanyDto,
+  ) {
+    return this.companiesService.mergeCompanies(
+      user.id,
+      id,
+      dto.duplicateCompanyId,
+    );
   }
 
   @Post('import')
