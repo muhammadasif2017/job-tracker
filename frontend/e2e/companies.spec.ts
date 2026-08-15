@@ -447,6 +447,40 @@ test.describe('Company detail page', () => {
     await expect(page).toHaveURL('/companies');
     await expect(page.getByText('Company deleted')).toBeVisible();
   });
+
+  // Phase 6 (docs/specs/company-fk-phase6.md)
+  test('lists jobs linked to the company, each linking to its detail page', async ({
+    page,
+  }) => {
+    const jobA = await createTestJob(user.accessToken, {
+      company: 'Detail Target Co',
+      position: 'Backend Engineer',
+    });
+    const jobB = await createTestJob(user.accessToken, {
+      company: 'Detail Target Co',
+      position: 'Frontend Engineer',
+    });
+
+    await injectAuth(page, user);
+    await page.goto(`/companies/${company.id}`);
+    await expect(
+      page.getByRole('heading', { name: 'Detail Target Co' }),
+    ).toBeVisible();
+
+    const backendLink = page.getByRole('link', {
+      name: /backend engineer/i,
+    });
+    const frontendLink = page.getByRole('link', {
+      name: /frontend engineer/i,
+    });
+    await expect(backendLink).toBeVisible();
+    await expect(frontendLink).toBeVisible();
+    await expect(backendLink).toHaveAttribute('href', `/jobs/${jobA.id}`);
+    await expect(frontendLink).toHaveAttribute('href', `/jobs/${jobB.id}`);
+
+    await deleteTestJob(user.accessToken, jobA.id).catch(() => {});
+    await deleteTestJob(user.accessToken, jobB.id).catch(() => {});
+  });
 });
 
 // ── CSV import ────────────────────────────────────────────────────────────────

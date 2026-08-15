@@ -191,6 +191,34 @@ describe('CompaniesService', () => {
 
       expect(result).toEqual({ id: 'company-1', contacts: [] });
     });
+
+    // Phase 6 (docs/specs/company-fk-phase6.md)
+    it("includes a lean, newest-first select of the company's jobs", async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'company-1',
+        contacts: [],
+        jobs: [],
+      });
+
+      await service.findOne('user-1', 'company-1');
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          include: expect.objectContaining({
+            jobs: {
+              orderBy: { createdAt: 'desc' },
+              select: {
+                id: true,
+                position: true,
+                status: true,
+                priority: true,
+                appliedAt: true,
+              },
+            },
+          }),
+        }),
+      );
+    });
   });
 
   describe('update', () => {
@@ -445,12 +473,7 @@ describe('CompaniesService', () => {
       mockPrisma.contact.updateMany.mockResolvedValue({ count: 0 });
       mockPrisma.company.delete.mockResolvedValue({ id: 'duplicate-1' });
 
-      await service.mergeCompanies(
-        'user-1',
-        'canonical-1',
-        'duplicate-1',
-        {},
-      );
+      await service.mergeCompanies('user-1', 'canonical-1', 'duplicate-1', {});
 
       expect(mockPrisma.company.update).not.toHaveBeenCalled();
     });
@@ -467,8 +490,16 @@ describe('CompaniesService', () => {
 
       expect(result).toEqual([
         {
-          companyA: { id: 'c-1', name: 'Acme Inc', websiteUrl: 'https://www.acme.com/' },
-          companyB: { id: 'c-2', name: 'Acme Corporation', websiteUrl: 'ACME.com' },
+          companyA: {
+            id: 'c-1',
+            name: 'Acme Inc',
+            websiteUrl: 'https://www.acme.com/',
+          },
+          companyB: {
+            id: 'c-2',
+            name: 'Acme Corporation',
+            websiteUrl: 'ACME.com',
+          },
           reason: 'website',
         },
       ]);
@@ -488,8 +519,16 @@ describe('CompaniesService', () => {
 
     it('prefers a website match over a name match when both would fire', async () => {
       mockPrisma.company.findMany.mockResolvedValue([
-        { id: 'c-1', name: 'Systems Limited', websiteUrl: 'https://systems.com' },
-        { id: 'c-2', name: 'Systems Limited', websiteUrl: 'https://systems.com' },
+        {
+          id: 'c-1',
+          name: 'Systems Limited',
+          websiteUrl: 'https://systems.com',
+        },
+        {
+          id: 'c-2',
+          name: 'Systems Limited',
+          websiteUrl: 'https://systems.com',
+        },
       ]);
 
       const result = await service.findDuplicateSuggestions('user-1');

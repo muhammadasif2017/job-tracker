@@ -429,6 +429,16 @@ export const BUSINESS_MODE_COLORS: Record<BusinessMode, string> = {
     'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
 };
 
+// Phase 6 (docs/specs/company-fk-phase6.md) — lean projection returned by
+// GET /companies/:id, not the full Job shape.
+export interface CompanyJobSummary {
+  id: string;
+  position: string;
+  status: JobStatus;
+  priority: JobPriority;
+  appliedAt: string;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -458,6 +468,7 @@ export interface Company {
   createdAt: string;
   updatedAt: string;
   contacts?: Contact[];
+  jobs?: CompanyJobSummary[];
 }
 
 export interface PaginatedCompanies {
