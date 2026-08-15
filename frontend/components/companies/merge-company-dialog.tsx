@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Modal } from '../ui/modal';
 import { Button } from '../ui/button';
 import api from '../../lib/api';
-import { useMergeCompaniesMutation } from '../../features/companies/hooks';
+import {
+  useMergeCompaniesMutation,
+  type MergeFieldOverrides,
+} from '../../features/companies/hooks';
 import type { Company, PaginatedCompanies } from '../../types';
 
 interface Props {
@@ -13,6 +16,42 @@ interface Props {
   // The company the "Merge" action was triggered from — kept as the
   // canonical (surviving) company. The user picks the duplicate to merge in.
   company: Company | undefined;
+}
+
+type Step = 'search' | 'conflicts' | 'confirm';
+
+// Phase 5b (docs/specs/company-fk-phase5b.md) — only the AI-enrichment field
+// set is pickable; user-curated identity fields (websiteUrl, personalNotes,
+// businessMode, etc.) stay canonical-wins unconditionally, no picker for them.
+const CONFLICT_FIELDS: {
+  key: keyof MergeFieldOverrides;
+  confidenceKey?: keyof MergeFieldOverrides;
+  label: string;
+}[] = [
+  { key: 'industry', label: 'Industry' },
+  { key: 'companySize', label: 'Company Size' },
+  { key: 'techStack', label: 'Tech Stack' },
+  { key: 'cultureSummary', label: 'Culture' },
+  { key: 'workPolicy', label: 'Work Policy' },
+  { key: 'workLifeBalance', label: 'Work-Life Balance' },
+  {
+    key: 'headquarters',
+    confidenceKey: 'headquartersLowConfidence',
+    label: 'Headquarters',
+  },
+  { key: 'address', confidenceKey: 'addressLowConfidence', label: 'Address' },
+  { key: 'founded', label: 'Founded' },
+];
+
+function normalize(value: unknown): string {
+  if (value == null) return '';
+  if (Array.isArray(value)) return [...new Set(value)].sort().join(', ');
+  return String(value);
+}
+
+function formatValue(value: unknown): string {
+  const n = normalize(value);
+  return n === '' ? '(empty)' : n;
 }
 
 function useDebounce<T>(value: T, delay = 300): T {
@@ -25,19 +64,26 @@ function useDebounce<T>(value: T, delay = 300): T {
 }
 
 export function MergeCompanyDialog({ open, onClose, company }: Props) {
+  const [step, setStep] = useState<Step>('search');
   const [search, setSearch] = useState('');
   const [duplicate, setDuplicate] = useState<Company | undefined>();
-  const [confirming, setConfirming] = useState(false);
   const [results, setResults] = useState<Company[]>([]);
   const [loading, setLoading] = useState(false);
+  // Field key -> 'canonical' | 'duplicate'. Absent key defaults to
+  // 'canonical' — matches the spec's "canonical wins unless overridden"
+  // boundary exactly, no field is force-decided.
+  const [picks, setPicks] = useState<Record<string, 'canonical' | 'duplicate'>>(
+    {},
+  );
   const debouncedSearch = useDebounce(search);
 
   useEffect(() => {
     if (!open) {
+      setStep('search');
       setSearch('');
       setDuplicate(undefined);
-      setConfirming(false);
       setResults([]);
+      setPicks({});
     }
   }, [open]);
 
@@ -65,20 +111,54 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
     };
   }, [debouncedSearch, open, company]);
 
+  const conflicts = useMemo(() => {
+    if (!company || !duplicate) return [];
+    return CONFLICT_FIELDS.filter(
+      (f) => normalize(company[f.key]) !== normalize(duplicate[f.key]),
+    );
+  }, [company, duplicate]);
+
   const merge = useMergeCompaniesMutation(() => {
     onClose();
   });
 
   if (!company) return null;
 
+  const selectDuplicate = (c: Company) => {
+    setDuplicate(c);
+    const nextConflicts = CONFLICT_FIELDS.filter(
+      (f) => normalize(company[f.key]) !== normalize(c[f.key]),
+    );
+    setStep(nextConflicts.length > 0 ? 'conflicts' : 'confirm');
+  };
+
+  const buildFieldOverrides = (): MergeFieldOverrides => {
+    if (!duplicate) return {};
+    const overrides: Record<string, unknown> = {};
+    for (const field of conflicts) {
+      if (picks[field.key] !== 'duplicate') continue;
+      overrides[field.key] = duplicate[field.key];
+      if (field.confidenceKey) {
+        overrides[field.confidenceKey] = duplicate[field.confidenceKey];
+      }
+    }
+    return overrides as MergeFieldOverrides;
+  };
+
   return (
     <Modal
       open={open}
       onClose={onClose}
       title={`Merge into ${company.name}`}
-      description="Find the duplicate company to merge in. Its jobs and contacts move to this company, and the duplicate is deleted."
+      description={
+        step === 'search'
+          ? 'Find the duplicate company to merge in. Its jobs and contacts move to this company, and the duplicate is deleted.'
+          : step === 'conflicts'
+            ? 'These fields differ between the two companies. Pick which value to keep — unpicked fields keep this company\'s current value.'
+            : undefined
+      }
     >
-      {!confirming ? (
+      {step === 'search' && (
         <div className="space-y-3">
           <input
             aria-label="Search for a duplicate company"
@@ -103,10 +183,7 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
                   <li key={c.id}>
                     <button
                       className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
-                      onClick={() => {
-                        setDuplicate(c);
-                        setConfirming(true);
-                      }}
+                      onClick={() => selectDuplicate(c)}
                     >
                       {c.name}
                     </button>
@@ -121,7 +198,69 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
             </Button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {step === 'conflicts' && duplicate && (
+        <div className="space-y-4">
+          <div className="max-h-80 space-y-3 overflow-y-auto">
+            {conflicts.map((field) => {
+              const pick = picks[field.key] ?? 'canonical';
+              return (
+                <fieldset
+                  key={field.key}
+                  className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+                >
+                  <legend className="px-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                    {field.label}
+                  </legend>
+                  <div className="space-y-1.5">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        className="mt-0.5"
+                        name={`conflict-${field.key}`}
+                        aria-label={`${company.name}: ${formatValue(company[field.key])}`}
+                        checked={pick === 'canonical'}
+                        onChange={() =>
+                          setPicks((p) => ({ ...p, [field.key]: 'canonical' }))
+                        }
+                      />
+                      <span>
+                        <span className="text-slate-400">{company.name}: </span>
+                        {formatValue(company[field.key])}
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        className="mt-0.5"
+                        name={`conflict-${field.key}`}
+                        aria-label={`${duplicate.name}: ${formatValue(duplicate[field.key])}`}
+                        checked={pick === 'duplicate'}
+                        onChange={() =>
+                          setPicks((p) => ({ ...p, [field.key]: 'duplicate' }))
+                        }
+                      />
+                      <span>
+                        <span className="text-slate-400">{duplicate.name}: </span>
+                        {formatValue(duplicate[field.key])}
+                      </span>
+                    </label>
+                  </div>
+                </fieldset>
+              );
+            })}
+          </div>
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" onClick={() => setStep('search')}>
+              Back
+            </Button>
+            <Button onClick={() => setStep('confirm')}>Continue</Button>
+          </div>
+        </div>
+      )}
+
+      {step === 'confirm' && (
         <div className="space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-300">
             <strong>{duplicate?.name}</strong> will be merged into{' '}
@@ -132,7 +271,7 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
           <div className="flex justify-end gap-3">
             <Button
               variant="secondary"
-              onClick={() => setConfirming(false)}
+              onClick={() => setStep(conflicts.length > 0 ? 'conflicts' : 'search')}
               disabled={merge.isPending}
             >
               Back
@@ -145,6 +284,7 @@ export function MergeCompanyDialog({ open, onClose, company }: Props) {
                 merge.mutate({
                   canonicalId: company.id,
                   duplicateId: duplicate.id,
+                  fieldOverrides: buildFieldOverrides(),
                 })
               }
             >

@@ -127,4 +127,84 @@ describe('MergeCompanyDialog', () => {
     });
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
+
+  it('shows a conflict picker when an enrichment field differs, defaulting to the canonical value', async () => {
+    const duplicateWithIndustry: Company = {
+      ...duplicate,
+      industry: 'Fintech',
+    };
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: [duplicateWithIndustry], meta: {} },
+    });
+    renderDialog();
+
+    fireEvent.change(screen.getByLabelText(/search for a duplicate company/i), {
+      target: { value: 'ltd' },
+    });
+    await waitFor(() => screen.getByText('Systems Ltd'));
+    fireEvent.click(screen.getByText('Systems Ltd'));
+
+    // Conflict step, not confirm — Industry differs (canonical has none set).
+    expect(screen.getByText('Industry')).toBeInTheDocument();
+    expect(screen.getByText('(empty)')).toBeInTheDocument();
+    expect(screen.getByText('Fintech')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /merge companies/i }),
+    ).not.toBeInTheDocument();
+
+    // Default pick is canonical's (empty) value.
+    const canonicalRadio = screen.getByRole('radio', {
+      name: /systems limited: \(empty\)/i,
+    });
+    expect(canonicalRadio).toBeChecked();
+  });
+
+  it('sends the picked duplicate value as a fieldOverride on merge', async () => {
+    const duplicateWithIndustry: Company = {
+      ...duplicate,
+      industry: 'Fintech',
+    };
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: [duplicateWithIndustry], meta: {} },
+    });
+    vi.mocked(api.post).mockResolvedValue({ data: canonical });
+    renderDialog();
+
+    fireEvent.change(screen.getByLabelText(/search for a duplicate company/i), {
+      target: { value: 'ltd' },
+    });
+    await waitFor(() => screen.getByText('Systems Ltd'));
+    fireEvent.click(screen.getByText('Systems Ltd'));
+
+    fireEvent.click(
+      screen.getByRole('radio', { name: /systems ltd: fintech/i }),
+    );
+    fireEvent.click(screen.getByRole('button', { name: /continue/i }));
+    fireEvent.click(screen.getByRole('button', { name: /merge companies/i }));
+
+    await waitFor(() => {
+      expect(api.post).toHaveBeenCalledWith('/companies/canonical-1/merge', {
+        duplicateCompanyId: 'duplicate-1',
+        fieldOverrides: { industry: 'Fintech' },
+      });
+    });
+  });
+
+  it('skips the conflict picker entirely when no enrichment fields differ', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: { data: [duplicate], meta: {} },
+    });
+    renderDialog();
+
+    fireEvent.change(screen.getByLabelText(/search for a duplicate company/i), {
+      target: { value: 'ltd' },
+    });
+    await waitFor(() => screen.getByText('Systems Ltd'));
+    fireEvent.click(screen.getByText('Systems Ltd'));
+
+    expect(
+      screen.getByRole('button', { name: /merge companies/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Industry')).not.toBeInTheDocument();
+  });
 });
