@@ -42,7 +42,11 @@ export class JobsService {
     // enriched fields as a side effect of creating a job. CompanyCity.OTHER
     // is used for auto-created rows since job-create collects no city.
     const trimmedCompanyName = dto.company.trim();
-    let matchedCompany = trimmedCompanyName
+    // matchedCompany is only ever a *pre-existing* target company — it drives
+    // the "saved as a target company" banner in the response, which must not
+    // fire for a company row we silently auto-created just now. company is
+    // the row backing Job.companyId either way (found or newly created).
+    const matchedCompany = trimmedCompanyName
       ? await this.prisma.company.findFirst({
           where: {
             userId,
@@ -51,10 +55,11 @@ export class JobsService {
           select: { id: true, name: true },
         })
       : null;
+    let company = matchedCompany;
 
-    if (trimmedCompanyName && !matchedCompany) {
+    if (trimmedCompanyName && !company) {
       try {
-        matchedCompany = await this.prisma.company.create({
+        company = await this.prisma.company.create({
           data: { userId, name: trimmedCompanyName, city: CompanyCity.OTHER },
           select: { id: true, name: true },
         });
@@ -62,14 +67,14 @@ export class JobsService {
         // Unique-constraint race: another request created the same company
         // between our findFirst and create. Re-fetch instead of failing
         // job creation.
-        matchedCompany = await this.prisma.company.findFirst({
+        company = await this.prisma.company.findFirst({
           where: {
             userId,
             name: { equals: trimmedCompanyName, mode: 'insensitive' },
           },
           select: { id: true, name: true },
         });
-        if (!matchedCompany) throw err;
+        if (!company) throw err;
       }
     }
 
@@ -87,7 +92,7 @@ export class JobsService {
         notes: dto.notes,
         appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
         userId,
-        companyId: matchedCompany?.id,
+        companyId: company?.id,
         events: {
           create: { type: JobEventType.CREATED, toStatus: initialStatus },
         },

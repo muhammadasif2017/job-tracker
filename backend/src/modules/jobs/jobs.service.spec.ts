@@ -187,10 +187,10 @@ describe('JobsService', () => {
           data: expect.objectContaining({ companyId: 'company-new' }),
         }),
       );
-      expect(result.matchedCompany).toEqual({
-        id: 'company-new',
-        name: 'Nobody Saved This',
-      });
+      // matchedCompany drives the "saved as a target company" banner — must
+      // stay null for a row we just silently auto-created, even though the
+      // job is still linked to it via companyId.
+      expect(result.matchedCompany).toBeNull();
     });
 
     it('re-fetches instead of failing job creation when a concurrent request creates the same new company first', async () => {
@@ -211,10 +211,12 @@ describe('JobsService', () => {
       const result = await service.create('user-1', dto);
 
       expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(2);
-      expect(result.matchedCompany).toEqual({
-        id: 'company-raced',
-        name: 'Race Co',
-      });
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-raced' }),
+        }),
+      );
+      expect(result.matchedCompany).toBeNull();
     });
 
     it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
