@@ -178,7 +178,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
         </div>
       </div>
 
-      {profile.techStack.length > 0 && (
+      {profile.techStack?.length > 0 && (
         <div>
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
             Tech Stack
@@ -258,12 +258,29 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
 
   if (!profile) return null;
 
-  // A profile carries `enrichedAt` only after at least one COMPLETED run.
-  // Since a re-run no longer wipes the previous fields (see
-  // EnrichmentService.enqueueEnrichment), a PENDING/PROCESSING/FAILED status
-  // can still have real, last-known-good data attached — show that instead
-  // of hiding it behind a loading skeleton or a bare error card.
-  const hasData = Boolean(profile.enrichedAt);
+  // On the job-detail page a profile's fields are only ever populated by a
+  // COMPLETED enrichment run, so `enrichedAt` alone used to be a reliable
+  // "is there anything to show" check. On the company-detail page that's no
+  // longer true — these same columns are also directly user-editable
+  // (CompanyForm) and mergeable (fieldOverrides), independent of enrichment
+  // ever completing, so a fresh company sitting in PENDING/PROCESSING can
+  // still have a real, user-set industry/headquarters/etc. worth showing
+  // immediately rather than stuck behind a loading skeleton. Checking the
+  // fields themselves (not just `enrichedAt`) covers both contexts — on the
+  // job page these are equivalent, since enrichedAt and the fields are only
+  // ever written together in the same completed-run update.
+  const hasData = Boolean(
+    profile.enrichedAt ||
+      profile.industry ||
+      profile.companySize ||
+      profile.techStack?.length > 0 ||
+      profile.cultureSummary ||
+      profile.workPolicy ||
+      profile.workLifeBalance ||
+      profile.headquarters ||
+      profile.address ||
+      profile.founded,
+  );
   const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
 
   if (inFlight && !hasData) {

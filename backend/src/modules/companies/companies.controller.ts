@@ -79,10 +79,12 @@ export class CompaniesController {
   // Must be registered before GET :id — otherwise "duplicates" would be
   // captured as an :id param instead of matching this literal route.
   // O(n^2) pairwise scan over the user's own companies (intentional design,
-  // see docs/specs/company-fk-phase5c.md) — throttled independently of the
-  // generic 100/min limit since its per-call cost is far higher than a
-  // typical CRUD read.
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  // see docs/specs/company-fk-phase5c.md), but no per-route throttle here —
+  // unlike /companies/import, this is fetched passively by
+  // DuplicateSuggestionsBanner on every companies-page mount, not a
+  // deliberate bulk action, so a 10/min cap breaks ordinary navigation (see
+  // the E2E flakiness this caused). MAX_COMPANIES_PER_USER already bounds
+  // the worst-case per-call cost; the generic 100/min guard is enough here.
   @ApiOperation({
     summary:
       'Find likely-duplicate company pairs (websiteUrl match or fuzzy name match)',
