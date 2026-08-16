@@ -97,6 +97,20 @@ describe('QuickAdd', () => {
     expect(screen.getByLabelText(/position/i)).toHaveValue('Senior Engineer');
   });
 
+  it('leaves the job-form field blank when the parser returns null for it', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: { company: 'Acme', position: null, location: null },
+    });
+    renderQuickAdd();
+    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
+      target: { value: 'Some posting text' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+    expect(await screen.findByText('Add Job')).toBeInTheDocument();
+    expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
+    expect(screen.getByLabelText(/position/i)).toHaveValue('');
+  });
+
   it('calls onClose without parsing when cancel is clicked', () => {
     const { onClose } = renderQuickAdd();
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));

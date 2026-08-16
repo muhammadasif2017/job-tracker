@@ -185,15 +185,15 @@ describe('LlmService', () => {
     expect(result.techStack).toEqual(['TypeScript', 'React']);
   });
 
-  it('converts empty string and whitespace-only fields to Unknown', async () => {
+  it('converts empty string and whitespace-only fields to null', async () => {
     mockCreate.mockResolvedValue(
       groqResponse({ ...baseInput, industry: '', headquarters: '   ' }),
     );
 
     const result = await service.extract('Acme', 'context');
 
-    expect(result.industry).toBe('Unknown');
-    expect(result.headquarters).toBe('Unknown');
+    expect(result.industry).toBeNull();
+    expect(result.headquarters).toBeNull();
   });
 });
 
@@ -249,15 +249,15 @@ describe('LlmService.extractJobPosting', () => {
     );
   });
 
-  it('converts "Unknown" string fields to undefined', async () => {
+  it('converts "Unknown" string fields to null', async () => {
     mockCreate.mockResolvedValue(
       groqResponse({ ...baseJobInput, company: 'Unknown', location: '' }),
     );
 
     const result = await service.extractJobPosting('content');
 
-    expect(result.company).toBeUndefined();
-    expect(result.location).toBeUndefined();
+    expect(result.company).toBeNull();
+    expect(result.location).toBeNull();
     expect(result.position).toBe('Senior Engineer');
   });
 

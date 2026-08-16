@@ -34,7 +34,15 @@ export function QuickAdd({ open, onClose }: QuickAddProps) {
           setParsed(null);
           onClose();
         }}
-        initialValues={parsed}
+        initialValues={{
+          ...parsed,
+          // JobForm's fields are plain (non-nullable) strings — a field the
+          // parser couldn't find comes back as `null` from the API, which
+          // means "leave it blank" here, same as if it had been omitted.
+          company: parsed.company ?? undefined,
+          position: parsed.position ?? undefined,
+          location: parsed.location ?? undefined,
+        }}
       />
     );
   }

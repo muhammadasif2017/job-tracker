@@ -143,9 +143,9 @@ export function useKanbanPatchStatusMutation() {
 }
 
 export interface ParsedJob {
-  company?: string;
-  position?: string;
-  location?: string;
+  company?: string | null;
+  position?: string | null;
+  location?: string | null;
   url?: string;
   jobType?: JobType;
   applicationChannel?: ApplicationChannel;

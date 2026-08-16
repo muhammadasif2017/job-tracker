@@ -12,6 +12,7 @@ import {
   PriorityBadge,
   BusinessModeBadge,
 } from '../../../../components/ui/badge';
+import { FieldValue } from '../../../../components/ui/field-value';
 import { CompanyForm } from '../../../../components/companies/company-form';
 import { CompanyContacts } from '../../../../components/companies/company-contacts';
 import { CompanyJobs } from '../../../../components/companies/company-jobs';
@@ -99,46 +100,46 @@ export default function CompanyDetailPage() {
                   <p className="break-words">{company.location}</p>
                 </div>
               )}
-              {company.industry && (
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Industry
-                  </p>
-                  <p className="break-words">{company.industry}</p>
-                </div>
-              )}
-              {company.companySize && (
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Size
-                  </p>
-                  <p className="break-words">{company.companySize}</p>
-                </div>
-              )}
-              {company.founded && (
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Founded
-                  </p>
-                  <p>{company.founded}</p>
-                </div>
-              )}
-              {company.headquarters && (
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Headquarters
-                  </p>
-                  <p className="break-words">{company.headquarters}</p>
-                </div>
-              )}
-              {company.workPolicy && (
-                <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Work Policy
-                  </p>
-                  <p className="break-words">{company.workPolicy}</p>
-                </div>
-              )}
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Industry
+                </p>
+                <p className="break-words">
+                  <FieldValue value={company.industry} />
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Size
+                </p>
+                <p className="break-words">
+                  <FieldValue value={company.companySize} />
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Founded
+                </p>
+                <p>
+                  <FieldValue value={company.founded} />
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Headquarters
+                </p>
+                <p className="break-words">
+                  <FieldValue value={company.headquarters} />
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  Work Policy
+                </p>
+                <p className="break-words">
+                  <FieldValue value={company.workPolicy} />
+                </p>
+              </div>
               {company.websiteUrl && (
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
@@ -189,16 +190,14 @@ export default function CompanyDetailPage() {
               </div>
             )}
 
-            {company.cultureSummary && (
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Culture
-                </p>
-                <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
-                  {company.cultureSummary}
-                </p>
-              </div>
-            )}
+            <div>
+              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                Culture
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
+                <FieldValue value={company.cultureSummary} />
+              </p>
+            </div>
 
             {company.personalNotes && (
               <div>
