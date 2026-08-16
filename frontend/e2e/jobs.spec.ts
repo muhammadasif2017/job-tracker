@@ -4,6 +4,8 @@ import {
   deleteTestUser,
   createTestJob,
   deleteTestJob,
+  createTestCompany,
+  deleteTestCompany,
   injectAuth,
   type TestUser,
   type TestJob,
@@ -92,6 +94,35 @@ test.describe('Create job', () => {
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     await expect(dialog.getByText('Company is required')).toBeVisible();
+  });
+
+  // Phase 6 (docs/specs/company-fk-phase6.md)
+  test('suggests an existing target company by name and fills it in on selection', async ({
+    page,
+  }) => {
+    const targetCompany = await createTestCompany(user.accessToken, {
+      name: 'Autocomplete Target Co',
+    });
+
+    await goToJobs(page);
+    await page.getByRole('button', { name: 'Add Job' }).click();
+    const dialog = page.getByRole('dialog');
+
+    await dialog.getByPlaceholder('Google').fill('Autocomplete Ta');
+    const suggestion = dialog.getByRole('button', {
+      name: 'Autocomplete Target Co',
+    });
+    await expect(suggestion).toBeVisible();
+    await suggestion.click();
+
+    await expect(dialog.getByPlaceholder('Google')).toHaveValue(
+      'Autocomplete Target Co',
+    );
+    await expect(suggestion).not.toBeVisible();
+
+    await deleteTestCompany(user.accessToken, targetCompany.id).catch(
+      () => {},
+    );
   });
 });
 
