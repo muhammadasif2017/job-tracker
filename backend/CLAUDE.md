@@ -195,6 +195,30 @@ from the existing `['job', id]` query; no separate fetch.
 
 ---
 
+## Jobs/Companies: `companyId` FK Resolution
+
+`JobsService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
+path for turning a job's free-text `company` label into a real `Company` row
+and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
+for auto-created rows, unique-constraint-race retry. Both `create` and
+`update` call it; `update` only re-resolves when the caller actually sends
+`dto.company`, so `Job.company` (the label as typed at link time) is never
+retroactively rewritten just because the linked `Company` was renamed or
+merged elsewhere. Don't reintroduce a separate inline find-or-create in
+either method — that's exactly the drift ADR-029 fixes. The CSV backfill
+script (`backend/scripts/backfill-company-fk.core.ts`) duplicates this same
+logic rather than importing it, since it runs standalone against a raw
+`PrismaClient` outside Nest's DI container.
+
+`JobResponseDto.companyProfile` is only populated by `findOne`'s reshaped
+response — `PATCH /jobs/:id` returns the raw Prisma update result, which
+doesn't include it. Don't add a new PATCH consumer that reads this field
+without checking `findOne` first; existing ones (e.g.
+`usePatchJobStatusMutation`) re-graft the previous `companyProfile` instead
+of trusting the PATCH response. See [ADR-029](../docs/decisions/029-company-fk-integrity-and-enrichment-card-unification.md).
+
+---
+
 ## Storage: Dual-Driver Pattern
 
 `StorageModule` is global. It exposes a single `STORAGE_SERVICE` injection token backed by either `LocalStorageService` (dev) or `OracleStorageService` (prod), selected at startup by `STORAGE_DRIVER`:
@@ -270,7 +294,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 
 Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route by default. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
 
-A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled.
+A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled. `GET /companies/duplicates` (O(n²) pairwise scan) and `POST /companies/import` (bulk CSV write) also cap at 10/min — see ADR-029.
 
 ---
 

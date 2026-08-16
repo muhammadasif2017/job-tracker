@@ -35,6 +35,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [026](./026-e2e-locator-disambiguation.md) | Disambiguate Playwright locators with exact text and accessible names | Accepted |
 | [027](./027-frontend-edge-case-handling.md) | Frontend failure/edge-case handling — error boundaries, isError states, request timeouts, error normalization | Accepted |
 | [028](./028-personal-access-tokens.md) | Scoped personal access tokens for the browser extension | Accepted |
+| [029](./029-company-fk-integrity-and-enrichment-card-unification.md) | Company/job FK integrity fixes, merge race, CSV import cap, and shared enrichment card | Accepted |
 
 ## How to read an ADR
 
