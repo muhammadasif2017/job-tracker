@@ -439,6 +439,211 @@ describe('Job Tracker (e2e)', () => {
         .expect(404));
   });
 
+  describe('GET /companies/duplicates', () => {
+    it('flags companies with matching websiteUrl and companies with fuzzy-matching names', async () => {
+      const websiteA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Dup Website A',
+          city: 'LAHORE',
+          websiteUrl: 'https://e2e-dup-shared.example.com',
+        })
+        .expect(201);
+      const websiteB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Dup Website B',
+          city: 'LAHORE',
+          websiteUrl: 'https://e2e-dup-shared.example.com/',
+        })
+        .expect(201);
+      const nameA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Dup Fuzzy Systems Limited', city: 'LAHORE' })
+        .expect(201);
+      const nameB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Dup Fuzzy Systems Ltd', city: 'LAHORE' })
+        .expect(201);
+
+      const res = await agent
+        .get('/companies/duplicates')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const ids = (c: { companyA: { id: string }; companyB: { id: string } }) => [
+        c.companyA.id,
+        c.companyB.id,
+      ];
+      const websitePair = res.body.find(
+        (s: { reason: string }) => s.reason === 'website',
+      );
+      const namePair = res.body.find(
+        (s: { reason: string }) => s.reason === 'name',
+      );
+      expect(websitePair && ids(websitePair).sort()).toEqual(
+        [websiteA.body.id, websiteB.body.id].sort(),
+      );
+      expect(namePair && ids(namePair).sort()).toEqual(
+        [nameA.body.id, nameB.body.id].sort(),
+      );
+
+      for (const id of [websiteA, websiteB, nameA, nameB].map(
+        (r) => r.body.id,
+      )) {
+        await agent
+          .delete(`/companies/${id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+      }
+    });
+
+    it('returns 401 without a token', () =>
+      agent.get('/companies/duplicates').expect(401));
+  });
+
+  describe('POST /companies/:id/merge', () => {
+    it('reassigns jobs and contacts from the duplicate to the canonical company, then deletes the duplicate', async () => {
+      const canonical = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Merge Canonical', city: 'LAHORE' })
+        .expect(201);
+
+      const duplicate = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Merge Duplicate', city: 'LAHORE' })
+        .expect(201);
+
+      const job = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ company: 'E2E Merge Duplicate', position: 'Merge Test Role' })
+        .expect(201);
+      expect(job.body.companyId).toBe(duplicate.body.id);
+
+      const contact = await agent
+        .post(`/companies/${duplicate.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Merge Test Contact' })
+        .expect(201);
+
+      await agent
+        .post(`/companies/${canonical.body.id}/merge`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ duplicateCompanyId: duplicate.body.id })
+        .expect(201);
+
+      const movedJob = await agent
+        .get(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(movedJob.body.companyId).toBe(canonical.body.id);
+
+      const movedContacts = await agent
+        .get(`/companies/${canonical.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(
+        movedContacts.body.some((c: { id: string }) => c.id === contact.body.id),
+      ).toBe(true);
+
+      await agent
+        .get(`/companies/${duplicate.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      await agent
+        .delete(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+      await agent
+        .delete(`/companies/${canonical.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+
+    it('rejects merging a company with itself', async () => {
+      const company = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Self Merge', city: 'LAHORE' })
+        .expect(201);
+
+      await agent
+        .post(`/companies/${company.body.id}/merge`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ duplicateCompanyId: company.body.id })
+        .expect(409);
+
+      await agent
+        .delete(`/companies/${company.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+
+    it('returns 404 when the duplicate company does not exist', async () => {
+      const company = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Merge Missing Duplicate', city: 'LAHORE' })
+        .expect(201);
+
+      await agent
+        .post(`/companies/${company.body.id}/merge`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ duplicateCompanyId: 'nonexistent-id' })
+        .expect(404);
+
+      await agent
+        .delete(`/companies/${company.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+
+    it('applies fieldOverrides to the canonical company (phase 5b)', async () => {
+      const canonical = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Merge Field Override Canonical',
+          city: 'LAHORE',
+          industry: 'Old Industry',
+        })
+        .expect(201);
+
+      const duplicate = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: 'E2E Merge Field Override Duplicate',
+          city: 'LAHORE',
+          industry: 'New Industry From Duplicate',
+        })
+        .expect(201);
+
+      const mergeRes = await agent
+        .post(`/companies/${canonical.body.id}/merge`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          duplicateCompanyId: duplicate.body.id,
+          fieldOverrides: { industry: 'New Industry From Duplicate' },
+        })
+        .expect(201);
+      expect(mergeRes.body.industry).toBe('New Industry From Duplicate');
+
+      const fetched = await agent
+        .get(`/companies/${canonical.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(fetched.body.industry).toBe('New Industry From Duplicate');
+
+      await agent
+        .delete(`/companies/${canonical.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+  });
+
   describe('PATCH /jobs/:id', () => {
     it('updates status and creates STATUS_CHANGE event', async () => {
       const res = await agent

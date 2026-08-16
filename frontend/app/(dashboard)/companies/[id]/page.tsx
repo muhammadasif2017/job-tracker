@@ -14,6 +14,7 @@ import {
 } from '../../../../components/ui/badge';
 import { CompanyForm } from '../../../../components/companies/company-form';
 import { CompanyContacts } from '../../../../components/companies/company-contacts';
+import { CompanyJobs } from '../../../../components/companies/company-jobs';
 import { useCompanyQuery, useDeleteCompanyMutation } from '../../../../features/companies/hooks';
 
 export default function CompanyDetailPage() {
@@ -210,6 +211,8 @@ export default function CompanyDetailPage() {
               </div>
             )}
           </div>
+
+          <CompanyJobs jobs={company.jobs ?? []} />
 
           <CompanyContacts companyId={id} contacts={company.contacts ?? []} />
 

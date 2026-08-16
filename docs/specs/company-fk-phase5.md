@@ -41,7 +41,19 @@ Unit: merge reassigns all jobs, duplicate row deleted, canonical row's own field
 - [ ] Cross-user merge attempt rejected (test explicitly)
 - [ ] PRs ≤10 files each
 
-## Open Questions — must resolve before implementation
-- **Detection method**: manual "select two companies → merge" only, or auto-suggest near-duplicates? Two sub-options if auto-suggest: `websiteUrl` exact match, or fuzzy name match (e.g. Levenshtein/trigram). Recommend starting manual-only (simplest, matches "10x simpler" lens from idea-refine) — auto-suggest is its own follow-up once real duplicate data is observed.
-- **Enrichment field conflict**: if both companies have `COMPLETED` enrichment with different values, which wins — canonical's existing data, or a user-driven field-by-field pick? Recommend: canonical wins by default (simplest), field-by-field picker is a nice-to-have, not MVP.
-- Which company is "canonical" — always the one the user clicks first, or the one with more jobs / older `createdAt`? Recommend: user explicitly picks, don't infer.
+## Resolution, 2026-08-16
+
+All three decided — bigger scope than the spec's own recommendations:
+
+- **Detection method: auto-suggest near-duplicates.** Not manual-only. Still needs a concrete matching rule — likely `websiteUrl` exact match plus fuzzy name match (trigram/Levenshtein) — to be pinned down in planning, since Postgres trigram similarity (`pg_trgm`) vs. an in-app string-distance check is itself a real implementation choice (extension install vs. no-dependency JS).
+- **Enrichment field conflict: field-by-field picker.** Not canonical-wins. When both companies have differing `COMPLETED` (or any non-null) values for the same field, the user picks per field which value survives on the merged row. This is real UI work — a diff-style comparison view, not just a confirm dialog.
+- **Canonical selection: user explicitly picks.** Confirmed as recommended — no inference.
+
+## Scope Impact
+
+This changes the file/phase estimate substantially. The original ~5-backend/~3-4-frontend, 2-PR estimate assumed manual-only detection and canonical-wins conflict resolution — both no longer hold. Needs re-planning as more sub-phases, likely:
+- 5a: canonical-pick + jobs-reassignment merge endpoint and dialog (the core transactional merge, manual trigger only — build this first, it's needed regardless of how duplicates get detected)
+- 5b: field-by-field conflict picker UI (extends 5a's dialog once a real conflict case exists to design against)
+- 5c: auto-suggest detection (backend matching logic + surfacing suggestions in the Companies list UI) — the most open-ended piece, needs its own matching-rule decision before scoping
+
+Re-plan file counts per sub-phase before starting implementation, same discipline as phases 1-4.

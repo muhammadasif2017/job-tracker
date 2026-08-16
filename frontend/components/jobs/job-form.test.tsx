@@ -253,4 +253,81 @@ describe('JobForm', () => {
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
   });
+
+  // Phase 6 (docs/specs/company-fk-phase6.md)
+  describe('company autocomplete (create mode only)', () => {
+    it('searches after 2+ characters and lists matching companies', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: { data: [{ id: 'c-1', name: 'Systems Limited' }], meta: {} },
+      });
+      renderForm();
+
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Sy' },
+      });
+
+      await waitFor(() =>
+        expect(vi.mocked(api.get)).toHaveBeenCalledWith('/companies', {
+          params: { search: 'Sy', limit: 5 },
+        }),
+      );
+      expect(
+        await screen.findByRole('button', { name: 'Systems Limited' }),
+      ).toBeInTheDocument();
+    });
+
+    it('fills the field and closes the list when a suggestion is picked, without submitting', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: { data: [{ id: 'c-1', name: 'Systems Limited' }], meta: {} },
+      });
+      renderForm();
+
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Sy' },
+      });
+      const option = await screen.findByRole('button', {
+        name: 'Systems Limited',
+      });
+      fireEvent.click(option);
+
+      expect(screen.getByLabelText(/company/i)).toHaveValue('Systems Limited');
+      expect(
+        screen.queryByRole('button', { name: 'Systems Limited' }),
+      ).not.toBeInTheDocument();
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('still allows submitting a genuinely new company name with no match', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: { data: [], meta: {} } });
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      renderForm();
+
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Brand New Startup' },
+      });
+      fireEvent.change(screen.getByLabelText(/position/i), {
+        target: { value: 'Engineer' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      await waitFor(() =>
+        expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+          '/jobs',
+          expect.objectContaining({ company: 'Brand New Startup' }),
+        ),
+      );
+    });
+
+    it('does not search when editing an existing job', async () => {
+      renderForm({ job });
+
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Systems Limited' },
+      });
+
+      // Give the debounce window a chance to fire before asserting silence.
+      await new Promise((resolve) => setTimeout(resolve, 350));
+      expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+    });
+  });
 });
