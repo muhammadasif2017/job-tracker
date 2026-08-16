@@ -325,6 +325,38 @@ describe('CompanyProfileCard', () => {
       expect(screen.queryByText('Tech Stack')).not.toBeInTheDocument();
     });
 
+    it('shows the row with "Unknown" for a field the backend sent as null', () => {
+      renderCard(
+        makeProfile({
+          industry: null,
+          companySize: 'Startup (<50)',
+          headquarters: null,
+          founded: null,
+          address: 'known',
+          workPolicy: 'known',
+          workLifeBalance: 'known',
+          cultureSummary: 'known',
+        }),
+      );
+      expect(screen.getByText('Industry')).toBeInTheDocument();
+      expect(screen.getByText('Startup (<50)')).toBeInTheDocument();
+      expect(screen.getByText('HQ')).toBeInTheDocument();
+      expect(screen.getByText('Founded')).toBeInTheDocument();
+      expect(screen.getAllByText('Unknown')).toHaveLength(3);
+    });
+
+    it('does not show an unverified badge on a null (Unknown) headquarters or address', () => {
+      renderCard(
+        makeProfile({
+          headquarters: null,
+          headquartersLowConfidence: true,
+          address: null,
+          addressLowConfidence: true,
+        }),
+      );
+      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+    });
+
     it('deduplicates tech stack entries so each badge appears once', () => {
       renderCard(
         makeProfile({ techStack: ['TypeScript', 'React', 'TypeScript'] }),
