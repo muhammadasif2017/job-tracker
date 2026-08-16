@@ -75,9 +75,9 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
 };
 
 export interface ParsedJobData {
-  company?: string;
-  position?: string;
-  location?: string;
+  company?: string | null;
+  position?: string | null;
+  location?: string | null;
   jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
 }
 
@@ -107,15 +107,11 @@ function str(val: unknown): string {
   return typeof val === 'string' && val.trim() ? val.trim() : 'Unknown';
 }
 
-function optStr(val: unknown): string | undefined {
-  const s = str(val);
-  return s === 'Unknown' ? undefined : s;
-}
-
-// Company profile fields are Prisma-nullable and written via a full-object
-// spread (see CompanyEnrichmentProcessor.buildCompletedProfileData) — an
-// explicit null clears a stale value on re-enrichment, whereas undefined
-// would just omit the key and leave the old value in place.
+// Both company-profile and job-posting fields are Prisma-nullable and can be
+// written via a full-object spread onto an existing row (see
+// CompanyEnrichmentProcessor.buildCompletedProfileData) — an explicit null
+// clears a stale value on re-write, whereas undefined would just omit the
+// key and leave the old value in place.
 function strOrNull(val: unknown): string | null {
   const s = str(val);
   return s === 'Unknown' ? null : s;
@@ -129,9 +125,9 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
       ? raw.jobType
       : undefined;
   return {
-    company: optStr(raw.company),
-    position: optStr(raw.position),
-    location: optStr(raw.location),
+    company: strOrNull(raw.company),
+    position: strOrNull(raw.position),
+    location: strOrNull(raw.location),
     jobType,
   };
 }
