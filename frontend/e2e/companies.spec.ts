@@ -177,6 +177,183 @@ test.describe('Delete company', () => {
   });
 });
 
+// ── Merge companies ──────────────────────────────────────────────────────────
+
+test.describe('Merge companies', () => {
+  test('merges a duplicate into the canonical company via the row action', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Canonical',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Duplicate',
+    });
+
+    await goToCompanies(page);
+
+    const row = page.locator('tr').filter({ hasText: 'Merge E2E Canonical' });
+    await row.getByRole('button', { name: /merge merge e2e canonical/i }).click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(
+      dialog.getByText('Merge into Merge E2E Canonical'),
+    ).toBeVisible();
+
+    await dialog
+      .getByLabel('Search for a duplicate company')
+      .fill('Merge E2E Duplicate');
+    await dialog.getByText('Merge E2E Duplicate', { exact: true }).click();
+
+    await expect(
+      dialog.getByRole('button', { name: 'Merge companies' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+
+    await expect(page.getByText('Companies merged')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Duplicate' }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Canonical' }),
+    ).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+
+  test('shows a field conflict picker and applies the picked value', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Conflict Canonical',
+      industry: 'Old Industry',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Merge E2E Conflict Duplicate',
+      industry: 'New Industry',
+    });
+
+    await goToCompanies(page);
+
+    const row = page
+      .locator('tr')
+      .filter({ hasText: 'Merge E2E Conflict Canonical' });
+    await row
+      .getByRole('button', { name: /merge merge e2e conflict canonical/i })
+      .click();
+
+    const dialog = page.getByRole('dialog');
+    await dialog
+      .getByLabel('Search for a duplicate company')
+      .fill('Merge E2E Conflict Duplicate');
+    await dialog
+      .getByText('Merge E2E Conflict Duplicate', { exact: true })
+      .click();
+
+    // Conflict step — Industry differs.
+    await expect(
+      dialog.getByText('Industry', { exact: true }),
+    ).toBeVisible();
+    await dialog
+      .getByRole('radio', { name: /merge e2e conflict duplicate: new industry/i })
+      .click();
+    await dialog.getByRole('button', { name: 'Continue' }).click();
+
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+    await expect(page.getByText('Companies merged')).toBeVisible();
+
+    await page.goto(`/companies/${canonical.id}`);
+    await expect(page.getByText('New Industry')).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+});
+
+// ── Duplicate suggestions (auto-detect) ────────────────────────────────────────
+
+test.describe('Duplicate suggestions banner', () => {
+  test('surfaces a near-duplicate pair and merges via Review', async ({
+    page,
+  }) => {
+    // "Ltd" and "Limited" both strip to the same normalized name (see
+    // backend/src/common/similarity.ts), giving a 1.0 name-similarity ratio.
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Suggestion E2E Widgets Ltd',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Suggestion E2E Widgets Limited',
+    });
+
+    await goToCompanies(page);
+
+    const banner = page.getByRole('region', {
+      name: 'Duplicate company suggestions',
+    });
+    await expect(
+      banner.getByText('Suggestion E2E Widgets Ltd'),
+    ).toBeVisible();
+    await expect(
+      banner.getByText('Suggestion E2E Widgets Limited'),
+    ).toBeVisible();
+    await expect(banner.getByText('similar name')).toBeVisible();
+
+    const row = banner.locator('li').filter({
+      hasText: 'Suggestion E2E Widgets Ltd',
+    });
+    await row.getByRole('button', { name: 'Review' }).click();
+
+    // Pre-seeded: dialog should skip straight past the search step.
+    const dialog = page.getByRole('dialog');
+    await expect(
+      dialog.getByText('Merge into Suggestion E2E Widgets Ltd'),
+    ).toBeVisible();
+    await expect(
+      dialog.getByLabel('Search for a duplicate company'),
+    ).not.toBeVisible();
+    await expect(
+      dialog.getByRole('button', { name: 'Merge companies' }),
+    ).toBeVisible();
+
+    await dialog.getByRole('button', { name: 'Merge companies' }).click();
+    await expect(page.getByText('Companies merged')).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Suggestion E2E Widgets Limited' }),
+    ).not.toBeVisible();
+    await expect(
+      page.getByRole('link', { name: 'Suggestion E2E Widgets Ltd' }),
+    ).toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+  });
+
+  test('dismissing a suggestion hides it for the rest of the session', async ({
+    page,
+  }) => {
+    const canonical = await createTestCompany(user.accessToken, {
+      name: 'Dismiss E2E Gadgets Ltd',
+    });
+    const duplicate = await createTestCompany(user.accessToken, {
+      name: 'Dismiss E2E Gadgets Limited',
+    });
+
+    await goToCompanies(page);
+
+    const banner = page.getByRole('region', {
+      name: 'Duplicate company suggestions',
+    });
+    const row = banner
+      .locator('li')
+      .filter({ hasText: 'Dismiss E2E Gadgets Ltd' });
+    await expect(row).toBeVisible();
+
+    await row.getByRole('button', { name: /dismiss suggestion/i }).click();
+    await expect(row).not.toBeVisible();
+
+    await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
+    await deleteTestCompany(user.accessToken, duplicate.id).catch(() => {});
+  });
+});
+
 // ── Search & filters ──────────────────────────────────────────────────────────
 
 test.describe('Search and filters', () => {
@@ -269,6 +446,40 @@ test.describe('Company detail page', () => {
 
     await expect(page).toHaveURL('/companies');
     await expect(page.getByText('Company deleted')).toBeVisible();
+  });
+
+  // Phase 6 (docs/specs/company-fk-phase6.md)
+  test('lists jobs linked to the company, each linking to its detail page', async ({
+    page,
+  }) => {
+    const jobA = await createTestJob(user.accessToken, {
+      company: 'Detail Target Co',
+      position: 'Backend Engineer',
+    });
+    const jobB = await createTestJob(user.accessToken, {
+      company: 'Detail Target Co',
+      position: 'Frontend Engineer',
+    });
+
+    await injectAuth(page, user);
+    await page.goto(`/companies/${company.id}`);
+    await expect(
+      page.getByRole('heading', { name: 'Detail Target Co' }),
+    ).toBeVisible();
+
+    const backendLink = page.getByRole('link', {
+      name: /backend engineer/i,
+    });
+    const frontendLink = page.getByRole('link', {
+      name: /frontend engineer/i,
+    });
+    await expect(backendLink).toBeVisible();
+    await expect(frontendLink).toBeVisible();
+    await expect(backendLink).toHaveAttribute('href', `/jobs/${jobA.id}`);
+    await expect(frontendLink).toHaveAttribute('href', `/jobs/${jobB.id}`);
+
+    await deleteTestJob(user.accessToken, jobA.id).catch(() => {});
+    await deleteTestJob(user.accessToken, jobB.id).catch(() => {});
   });
 });
 

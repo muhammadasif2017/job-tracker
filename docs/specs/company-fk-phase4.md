@@ -47,5 +47,12 @@ Every test file in the 20-file list (`jobs.service.spec.ts`, `enrichment.*.spec.
 - [ ] Split across 2 PRs if file count requires it, each ≤10 files
 
 ## Open Questions
-- Exact soak period before running the drop migration — one deploy cycle, one week, user's call at phase 3 completion time.
-- Does `enrichment.service.ts`/`enrichment.processor.ts` still have `CompanyProfile`-specific logic after phase 3, or was that already fully swapped to `Company` in phase 3's cutover? Needs re-grep at phase 4 start, not assumed now — file list above is provisional.
+None remaining.
+
+## Implementation Notes, 2026-08-15
+
+`enrichment.service.ts`/`enrichment.processor.ts`/`enrichment.controller.ts` were already deleted in phase 3b's own dead-code cleanup — not phase 4 work. Re-grepped at start (16 files, not the stale 20-file estimate); most were comment-only mentions. Real changes needed only 4 files: `schema.prisma` (drop model + relation), `jobs.service.ts` (`findOne()` simplified — no more fallback, `update()`'s two dead `companyProfile: true` includes dropped), `jobs.service.spec.ts` (matching test updates), plus the generated migration. Frontend needed zero changes — it only ever consumed the JSON `companyProfile` field/shape, never the Prisma model.
+
+**Before dropping: found and fixed a real gap the spec didn't anticipate.** A read-only prod check (done as part of phase 3b's step 4) showed all 29 real production jobs still depended on the legacy `company_profiles` table via `findOne()`'s fallback — none had been re-enriched under the new company-scoped pipeline yet. Dropping the table as originally planned would have silently blanked their displayed data. Fixed with a one-off copy script (not in the original spec): copied each of the 29 legacy `CompanyProfile` rows' fields into their linked `Company` row, verified via read-only query (`enriched: 29` afterward), *then* proceeded with the schema drop. This should be standard practice for any future "drop a table with a read-fallback" phase — check whether the fallback path still has live production dependents before dropping, don't just check that the code compiles.
+
+Migration `20260815185348_drop_company_profile` applied and verified against dev (full unit + e2e suites green, one e2e retry needed due to an unrelated Jest `afterAll` hook timeout flake — passed clean on rerun). Prod migration is a separate, explicitly-confirmed step from this PR.

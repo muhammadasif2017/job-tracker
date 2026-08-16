@@ -264,10 +264,9 @@ describe('JobsService', () => {
   });
 
   describe('findOne', () => {
-    it('includes companyProfile, companyLink, and resume in the Prisma query', async () => {
+    it('includes companyLink and resume in the Prisma query', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
-        companyProfile: null,
         companyLink: null,
         resume: null,
       });
@@ -277,7 +276,6 @@ describe('JobsService', () => {
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith({
         where: { id: 'job-1', userId: 'user-1' },
         include: {
-          companyProfile: true,
           companyLink: true,
           resume: true,
           interviewRounds: { orderBy: { scheduledAt: 'asc' } },
@@ -286,10 +284,9 @@ describe('JobsService', () => {
       });
     });
 
-    it('reshapes the linked Company into the companyProfile shape when it has been enriched at least once', async () => {
+    it('reshapes the linked Company into the companyProfile response shape', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
-        companyProfile: null,
         companyLink: {
           id: 'company-1',
           status: EnrichmentStatus.COMPLETED,
@@ -337,33 +334,23 @@ describe('JobsService', () => {
       expect(result).not.toHaveProperty('companyLink');
     });
 
-    it('falls back to the legacy CompanyProfile row when the linked Company has never been enriched', async () => {
+    it('defaults status to PENDING for a manually-added target company that has never had enrichment triggered', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
-        companyProfile: {
-          id: 'profile-1',
-          jobId: 'job-1',
-          status: EnrichmentStatus.COMPLETED,
-          industry: 'Old pipeline data',
-        },
         companyLink: { id: 'company-1', status: null },
         resume: null,
       });
 
       const result = await service.findOne('user-1', 'job-1');
 
-      expect(result.companyProfile).toEqual({
-        id: 'profile-1',
-        jobId: 'job-1',
-        status: EnrichmentStatus.COMPLETED,
-        industry: 'Old pipeline data',
+      expect(result.companyProfile).toMatchObject({
+        status: EnrichmentStatus.PENDING,
       });
     });
 
-    it('returns companyProfile: null when there is no linked Company and no legacy CompanyProfile row', async () => {
+    it('returns companyProfile: null when there is no linked Company', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
-        companyProfile: null,
         companyLink: null,
         resume: null,
       });
