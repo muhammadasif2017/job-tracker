@@ -174,22 +174,12 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /companies/:companyId/enrichment when Refresh is clicked and a company is linked', async () => {
+    it('calls POST /companies/:companyId/enrichment when Refresh is clicked', async () => {
       renderCard(makeProfile({ status: 'FAILED' }), 'job-xyz', 'company-xyz');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
           '/companies/company-xyz/enrichment',
-        );
-      });
-    });
-
-    it('falls back to POST /jobs/:id/enrichment when no company is linked', async () => {
-      renderCard(makeProfile({ status: 'FAILED' }), 'job-xyz', null);
-      fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
-      await waitFor(() => {
-        expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-          '/jobs/job-xyz/enrichment',
         );
       });
     });
@@ -367,7 +357,7 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('calls POST /companies/:companyId/enrichment when Refresh is clicked and a company is linked', async () => {
+    it('calls POST /companies/:companyId/enrichment when Refresh is clicked', async () => {
       renderCard(makeProfile(), 'job-abc', 'company-abc');
       fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
       await waitFor(() => {

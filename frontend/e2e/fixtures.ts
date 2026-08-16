@@ -100,6 +100,7 @@ export async function createTestCompany(
     name: string;
     city: string;
     priority: string;
+    industry: string;
   }> = {},
 ): Promise<TestCompany> {
   const res = await fetch(`${API}/companies`, {

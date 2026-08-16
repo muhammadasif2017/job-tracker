@@ -25,8 +25,19 @@ import {
   STATUS_LABELS,
   type Job,
   type MatchedCompany,
+  type Company,
+  type PaginatedCompanies,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
+
+function useDebounce<T>(value: T, delay = 300): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(t);
+  }, [value, delay]);
+  return debounced;
+}
 
 const schema = z.object({
   company: z.string().min(1, 'Company is required'),
@@ -83,6 +94,8 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -94,15 +107,50 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     },
   });
 
+  // Phase 6 (docs/specs/company-fk-phase6.md) — autocomplete on create only;
+  // reduces near-duplicate Company creation at the source. `companyFocused`
+  // gates the search effect so opening the modal (which programmatically
+  // sets `company` via reset()) never fires a spurious search — only actual
+  // typing in the field does.
+  const [companyFocused, setCompanyFocused] = useState(false);
+  const [companySuggestions, setCompanySuggestions] = useState<Company[]>([]);
+  const companyValue = watch('company') ?? '';
+  const debouncedCompany = useDebounce(companyValue);
+
+  useEffect(() => {
+    if (isEdit || !companyFocused || debouncedCompany.trim().length < 2) {
+      setCompanySuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const r = await api.get<PaginatedCompanies>('/companies', {
+          params: { search: debouncedCompany, limit: 5 },
+        });
+        if (!cancelled) setCompanySuggestions(r.data.data);
+      } catch {
+        if (!cancelled) setCompanySuggestions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedCompany, companyFocused, isEdit]);
+
   const handleClose = () => {
     setCreatedJobId(null);
     setMatchedCompany(null);
     setBannerDismissed(false);
+    setCompanyFocused(false);
+    setCompanySuggestions([]);
     onClose();
   };
 
   useEffect(() => {
     if (open) {
+      setCompanyFocused(false);
+      setCompanySuggestions([]);
       reset(
         job
           ? {
@@ -219,12 +267,41 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         noValidate
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            label="Company *"
-            placeholder="Google"
-            error={errors.company?.message}
-            {...register('company')}
-          />
+          <div className="relative">
+            <Input
+              label="Company *"
+              placeholder="Google"
+              error={errors.company?.message}
+              autoComplete="off"
+              {...register('company', {
+                onChange: () => setCompanyFocused(true),
+                // Delay so a suggestion's onMouseDown-driven select still
+                // fires before the list unmounts.
+                onBlur: () => setTimeout(() => setCompanyFocused(false), 150),
+              })}
+              onFocus={() => setCompanyFocused(true)}
+            />
+            {companyFocused && companySuggestions.length > 0 && (
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                {companySuggestions.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setValue('company', c.name, { shouldValidate: true });
+                        setCompanySuggestions([]);
+                        setCompanyFocused(false);
+                      }}
+                    >
+                      {c.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <Input
             label="Position *"
             placeholder="Senior Engineer"
