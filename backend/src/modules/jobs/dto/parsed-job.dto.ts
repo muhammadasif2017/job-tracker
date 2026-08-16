@@ -3,13 +3,13 @@ import { JobType, ApplicationChannel } from '@prisma/client';
 
 export class ParsedJobDto {
   @ApiPropertyOptional({ example: 'Acme Corp' })
-  company?: string;
+  company?: string | null;
 
   @ApiPropertyOptional({ example: 'Senior Engineer' })
-  position?: string;
+  position?: string | null;
 
   @ApiPropertyOptional({ example: 'Remote' })
-  location?: string;
+  location?: string | null;
 
   @ApiPropertyOptional({ example: 'https://jobs.example.com/123' })
   url?: string;
