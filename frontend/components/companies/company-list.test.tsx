@@ -32,6 +32,7 @@ function renderList(props: Partial<React.ComponentProps<typeof CompanyList>> = {
   const onRetry = props.onRetry ?? vi.fn();
   const onEdit = props.onEdit ?? vi.fn();
   const onDelete = props.onDelete ?? vi.fn();
+  const onMerge = props.onMerge ?? vi.fn();
   render(
     <CompanyList
       companies={[]}
@@ -40,10 +41,11 @@ function renderList(props: Partial<React.ComponentProps<typeof CompanyList>> = {
       onRetry={onRetry}
       onEdit={onEdit}
       onDelete={onDelete}
+      onMerge={onMerge}
       {...props}
     />,
   );
-  return { onRetry, onEdit, onDelete };
+  return { onRetry, onEdit, onDelete, onMerge };
 }
 
 describe('CompanyList', () => {
@@ -56,6 +58,7 @@ describe('CompanyList', () => {
         onRetry={vi.fn()}
         onEdit={vi.fn()}
         onDelete={vi.fn()}
+        onMerge={vi.fn()}
       />,
     );
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
@@ -100,6 +103,12 @@ describe('CompanyList', () => {
     const { onDelete } = renderList({ companies: [company] });
     fireEvent.click(screen.getByLabelText(/delete systems limited/i));
     expect(onDelete).toHaveBeenCalledWith(company);
+  });
+
+  it('calls onMerge when the merge icon is clicked', () => {
+    const { onMerge } = renderList({ companies: [company] });
+    fireEvent.click(screen.getByLabelText(/merge systems limited/i));
+    expect(onMerge).toHaveBeenCalledWith(company);
   });
 
   it('renders a website link when websiteUrl is set', () => {

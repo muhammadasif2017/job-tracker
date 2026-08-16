@@ -6,6 +6,7 @@ import type {
   Company,
   CompanyCity,
   CsvImportResult,
+  DuplicateSuggestion,
   JobPriority,
   PaginatedCompanies,
 } from '../../types';
@@ -73,6 +74,14 @@ export function useCompanyQuery(id: string) {
       const status = query.state.data?.status;
       return status === 'PENDING' || status === 'PROCESSING' ? 3000 : false;
     },
+  });
+}
+
+// Phase 5c (docs/specs/company-fk-phase5c.md)
+export function useDuplicateSuggestionsQuery() {
+  return useQuery<DuplicateSuggestion[]>({
+    queryKey: ['companies', 'duplicates'],
+    queryFn: () => api.get('/companies/duplicates').then((r) => r.data),
   });
 }
 
@@ -211,6 +220,59 @@ export function useRemoveCompanyContactMutation(
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to remove contact')),
     onSettled: () => onSettled?.(),
+  });
+}
+
+// Phase 5b (docs/specs/company-fk-phase5b.md) — the AI-enrichment field
+// subset the merge conflict picker can override. Absent key = keep
+// canonical's current value.
+export type MergeFieldOverrides = Partial<
+  Pick<
+    Company,
+    | 'industry'
+    | 'companySize'
+    | 'techStack'
+    | 'cultureSummary'
+    | 'workPolicy'
+    | 'workLifeBalance'
+    | 'headquarters'
+    | 'headquartersLowConfidence'
+    | 'address'
+    | 'addressLowConfidence'
+    | 'founded'
+  >
+>;
+
+export function useMergeCompaniesMutation(onMerged?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      canonicalId,
+      duplicateId,
+      fieldOverrides,
+    }: {
+      canonicalId: string;
+      duplicateId: string;
+      fieldOverrides?: MergeFieldOverrides;
+    }) =>
+      api
+        .post<Company>(`/companies/${canonicalId}/merge`, {
+          duplicateCompanyId: duplicateId,
+          ...(fieldOverrides &&
+            Object.keys(fieldOverrides).length > 0 && { fieldOverrides }),
+        })
+        .then((r) => r.data),
+    onSuccess: (_, { canonicalId }) => {
+      invalidateCompanyListCaches(qc);
+      qc.invalidateQueries({ queryKey: ['company', canonicalId] });
+      // Jobs/contacts moved off the duplicate onto the canonical company —
+      // both lists can now show stale companyId/company data until refetched.
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+      toast.success('Companies merged');
+      onMerged?.();
+    },
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, 'Failed to merge companies')),
   });
 }
 
