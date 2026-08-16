@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import { EnrichmentStatus } from '@prisma/client';
+import { EnrichmentStatus, type Company } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -147,7 +147,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       };
       for (const field of ['address', 'headquarters'] as const) {
         const value = data[field];
-        if (!value || value === 'Unknown') continue;
+        if (!value) continue;
         const tokens = this.normalize(value).split(' ').filter(Boolean);
         const hits = tokens.filter((t) => officialTokens.has(t)).length;
         if (!tokens.length || hits / tokens.length < guardThresholds[field]) {
@@ -175,7 +175,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
 
       await this.prisma.company.update({
         where: { id: companyId },
-        data: this.buildCompletedProfileData(extraction),
+        data: this.buildCompletedProfileData(extraction, stillExists),
       });
 
       this.logger.log('company_enrichment_completed', {
@@ -204,6 +204,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
           companyId,
           company,
           extraction,
+          stillExists,
           errorMessage,
           startedAt,
         );
@@ -218,6 +219,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     companyId: string,
     company: string,
     extraction: ExtractionResult | undefined,
+    previous: Company,
     errorMessage: string,
     startedAt: number,
   ): Promise<boolean> {
@@ -228,7 +230,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       if (extraction) {
         await this.prisma.company.update({
           where: { id: companyId },
-          data: this.buildCompletedProfileData(extraction),
+          data: this.buildCompletedProfileData(extraction, previous),
         });
         this.logger.log('company_enrichment_completed_after_late_failure', {
           companyId,
@@ -255,12 +257,39 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     }
   }
 
-  private buildCompletedProfileData(extraction: ExtractionResult) {
+  // A re-run's search/fetch context can be thinner than the run that first
+  // populated a field (rate-limited search, official site down, etc.) — the
+  // LLM then has nothing to extract and returns null for that field. Falling
+  // back to `previous` per-field means a weak run only fills gaps or
+  // overwrites fields it actually found something for, instead of wiping
+  // last-known-good data whenever any single field comes back empty.
+  private buildCompletedProfileData(
+    extraction: ExtractionResult,
+    previous: Company,
+  ) {
+    const { data } = extraction;
     return {
       status: EnrichmentStatus.COMPLETED,
-      ...extraction.data,
-      addressLowConfidence: extraction.lowConfidence.address,
-      headquartersLowConfidence: extraction.lowConfidence.headquarters,
+      industry: data.industry ?? previous.industry,
+      companySize: data.companySize ?? previous.companySize,
+      techStack: data.techStack.length ? data.techStack : previous.techStack,
+      cultureSummary: data.cultureSummary ?? previous.cultureSummary,
+      workPolicy: data.workPolicy ?? previous.workPolicy,
+      workLifeBalance: data.workLifeBalance ?? previous.workLifeBalance,
+      headquarters: data.headquarters ?? previous.headquarters,
+      address: data.address ?? previous.address,
+      founded: data.founded ?? previous.founded,
+      // Only trust this run's confidence verdict for a field it actually
+      // extracted — a field that fell back to `previous` keeps whatever
+      // confidence flag that previous value already had.
+      addressLowConfidence:
+        data.address !== null
+          ? extraction.lowConfidence.address
+          : previous.addressLowConfidence,
+      headquartersLowConfidence:
+        data.headquarters !== null
+          ? extraction.lowConfidence.headquarters
+          : previous.headquartersLowConfidence,
       enrichedAt: new Date(),
     };
   }

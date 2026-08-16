@@ -4,15 +4,15 @@ import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
 
 export interface CompanyData {
-  industry: string;
-  companySize: string;
+  industry: string | null;
+  companySize: string | null;
   techStack: string[];
-  cultureSummary: string;
-  workPolicy: string;
-  workLifeBalance: string;
-  headquarters: string;
-  address: string;
-  founded: string;
+  cultureSummary: string | null;
+  workPolicy: string | null;
+  workLifeBalance: string | null;
+  headquarters: string | null;
+  address: string | null;
+  founded: string | null;
 }
 
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
@@ -112,6 +112,15 @@ function optStr(val: unknown): string | undefined {
   return s === 'Unknown' ? undefined : s;
 }
 
+// Company profile fields are Prisma-nullable and written via a full-object
+// spread (see CompanyEnrichmentProcessor.buildCompletedProfileData) — an
+// explicit null clears a stale value on re-enrichment, whereas undefined
+// would just omit the key and leave the old value in place.
+function strOrNull(val: unknown): string | null {
+  const s = str(val);
+  return s === 'Unknown' ? null : s;
+}
+
 function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
   const jobType =
     raw.jobType === 'ONSITE' ||
@@ -140,19 +149,19 @@ function isToolUseFailedError(err: unknown): boolean {
 
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
-    industry: str(raw.industry),
-    companySize: str(raw.companySize),
+    industry: strOrNull(raw.industry),
+    companySize: strOrNull(raw.companySize),
     techStack: Array.isArray(raw.techStack)
       ? raw.techStack.filter(
           (t): t is string => typeof t === 'string' && !!t.trim(),
         )
       : [],
-    cultureSummary: str(raw.cultureSummary),
-    workPolicy: str(raw.workPolicy),
-    workLifeBalance: str(raw.workLifeBalance),
-    headquarters: str(raw.headquarters),
-    address: str(raw.address),
-    founded: str(raw.founded),
+    cultureSummary: strOrNull(raw.cultureSummary),
+    workPolicy: strOrNull(raw.workPolicy),
+    workLifeBalance: strOrNull(raw.workLifeBalance),
+    headquarters: strOrNull(raw.headquarters),
+    address: strOrNull(raw.address),
+    founded: strOrNull(raw.founded),
   };
 }
 
