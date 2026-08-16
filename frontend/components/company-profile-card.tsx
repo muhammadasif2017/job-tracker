@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
+import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
 import type { CompanyProfile } from '../types';
 
@@ -131,41 +132,41 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
-        {profile.industry && (
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-              Industry
-            </p>
-            <p className="break-words">{profile.industry}</p>
-          </div>
-        )}
-        {profile.companySize && (
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-              Size
-            </p>
-            <p className="break-words">{profile.companySize}</p>
-          </div>
-        )}
-        {profile.headquarters && (
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-              HQ
-            </p>
-            <p className="break-words">
-              {profile.headquarters}
-              {profile.headquartersLowConfidence && <UnverifiedBadge />}
-            </p>
-          </div>
-        )}
-        {profile.founded && (
-          <div>
-            <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-              Founded
-            </p>
-            <p>{profile.founded}</p>
-          </div>
-        )}
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+            Industry
+          </p>
+          <p className="break-words">
+            <FieldValue value={profile.industry} />
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+            Size
+          </p>
+          <p className="break-words">
+            <FieldValue value={profile.companySize} />
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+            HQ
+          </p>
+          <p className="break-words">
+            <FieldValue value={profile.headquarters} />
+            {profile.headquarters && profile.headquartersLowConfidence && (
+              <UnverifiedBadge />
+            )}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+            Founded
+          </p>
+          <p>
+            <FieldValue value={profile.founded} />
+          </p>
+        </div>
       </div>
 
       {profile.techStack.length > 0 && (
@@ -186,46 +187,44 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
         </div>
       )}
 
-      {profile.address && (
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Address
-          </p>
-          <p className="text-sm break-words">
-            {profile.address}
-            {profile.addressLowConfidence && <UnverifiedBadge />}
-          </p>
-        </div>
-      )}
+      <div>
+        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          Address
+        </p>
+        <p className="text-sm break-words">
+          <FieldValue value={profile.address} />
+          {profile.address && profile.addressLowConfidence && (
+            <UnverifiedBadge />
+          )}
+        </p>
+      </div>
 
-      {profile.workPolicy && (
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Work Policy
-          </p>
-          <p className="text-sm break-words">{profile.workPolicy}</p>
-        </div>
-      )}
+      <div>
+        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          Work Policy
+        </p>
+        <p className="text-sm break-words">
+          <FieldValue value={profile.workPolicy} />
+        </p>
+      </div>
 
-      {profile.workLifeBalance && (
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Work-Life Balance
-          </p>
-          <p className="text-sm break-words">{profile.workLifeBalance}</p>
-        </div>
-      )}
+      <div>
+        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          Work-Life Balance
+        </p>
+        <p className="text-sm break-words">
+          <FieldValue value={profile.workLifeBalance} />
+        </p>
+      </div>
 
-      {profile.cultureSummary && (
-        <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-            Culture
-          </p>
-          <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
-            {profile.cultureSummary}
-          </p>
-        </div>
-      )}
+      <div>
+        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          Culture
+        </p>
+        <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
+          <FieldValue value={profile.cultureSummary} />
+        </p>
+      </div>
     </>
   );
 }

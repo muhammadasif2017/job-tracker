@@ -4,15 +4,15 @@ import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
 
 export interface CompanyData {
-  industry: string;
-  companySize: string;
+  industry: string | null;
+  companySize: string | null;
   techStack: string[];
-  cultureSummary: string;
-  workPolicy: string;
-  workLifeBalance: string;
-  headquarters: string;
-  address: string;
-  founded: string;
+  cultureSummary: string | null;
+  workPolicy: string | null;
+  workLifeBalance: string | null;
+  headquarters: string | null;
+  address: string | null;
+  founded: string | null;
 }
 
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
@@ -75,9 +75,9 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
 };
 
 export interface ParsedJobData {
-  company?: string;
-  position?: string;
-  location?: string;
+  company?: string | null;
+  position?: string | null;
+  location?: string | null;
   jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
 }
 
@@ -107,9 +107,14 @@ function str(val: unknown): string {
   return typeof val === 'string' && val.trim() ? val.trim() : 'Unknown';
 }
 
-function optStr(val: unknown): string | undefined {
+// Both company-profile and job-posting fields are Prisma-nullable and can be
+// written via a full-object spread onto an existing row (see
+// CompanyEnrichmentProcessor.buildCompletedProfileData) — an explicit null
+// clears a stale value on re-write, whereas undefined would just omit the
+// key and leave the old value in place.
+function strOrNull(val: unknown): string | null {
   const s = str(val);
-  return s === 'Unknown' ? undefined : s;
+  return s === 'Unknown' ? null : s;
 }
 
 function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
@@ -120,9 +125,9 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
       ? raw.jobType
       : undefined;
   return {
-    company: optStr(raw.company),
-    position: optStr(raw.position),
-    location: optStr(raw.location),
+    company: strOrNull(raw.company),
+    position: strOrNull(raw.position),
+    location: strOrNull(raw.location),
     jobType,
   };
 }
@@ -140,19 +145,19 @@ function isToolUseFailedError(err: unknown): boolean {
 
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
-    industry: str(raw.industry),
-    companySize: str(raw.companySize),
+    industry: strOrNull(raw.industry),
+    companySize: strOrNull(raw.companySize),
     techStack: Array.isArray(raw.techStack)
       ? raw.techStack.filter(
           (t): t is string => typeof t === 'string' && !!t.trim(),
         )
       : [],
-    cultureSummary: str(raw.cultureSummary),
-    workPolicy: str(raw.workPolicy),
-    workLifeBalance: str(raw.workLifeBalance),
-    headquarters: str(raw.headquarters),
-    address: str(raw.address),
-    founded: str(raw.founded),
+    cultureSummary: strOrNull(raw.cultureSummary),
+    workPolicy: strOrNull(raw.workPolicy),
+    workLifeBalance: strOrNull(raw.workLifeBalance),
+    headquarters: strOrNull(raw.headquarters),
+    address: strOrNull(raw.address),
+    founded: strOrNull(raw.founded),
   };
 }
 
