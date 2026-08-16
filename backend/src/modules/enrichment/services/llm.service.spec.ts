@@ -185,15 +185,15 @@ describe('LlmService', () => {
     expect(result.techStack).toEqual(['TypeScript', 'React']);
   });
 
-  it('converts empty string and whitespace-only fields to Unknown', async () => {
+  it('converts empty string and whitespace-only fields to null', async () => {
     mockCreate.mockResolvedValue(
       groqResponse({ ...baseInput, industry: '', headquarters: '   ' }),
     );
 
     const result = await service.extract('Acme', 'context');
 
-    expect(result.industry).toBe('Unknown');
-    expect(result.headquarters).toBe('Unknown');
+    expect(result.industry).toBeNull();
+    expect(result.headquarters).toBeNull();
   });
 });
 

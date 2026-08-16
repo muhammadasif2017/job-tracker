@@ -41,7 +41,7 @@ const extracted = {
   workPolicy: 'Hybrid',
   workLifeBalance: 'Average',
   headquarters: 'Lahore, Pakistan',
-  address: 'Unknown',
+  address: null,
   founded: '1977',
 };
 const bullJob = {
@@ -243,6 +243,38 @@ describe('CompanyEnrichmentProcessor', () => {
     // Only the PROCESSING update should have happened — no FAILED/salvage
     // write against a company that no longer exists.
     expect(mockPrisma.company.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to the previous value for a field a weak re-run could not extract, instead of wiping it', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      industry: 'FinTech',
+      headquarters: 'Karachi, Pakistan',
+      headquartersLowConfidence: true,
+      techStack: ['Python'],
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockLlm.extract.mockResolvedValue({
+      ...extracted,
+      industry: null,
+      headquarters: null,
+      techStack: [],
+    });
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          industry: 'FinTech',
+          headquarters: 'Karachi, Pakistan',
+          headquartersLowConfidence: true,
+          techStack: ['Python'],
+        }),
+      }),
+    );
   });
 
   it('keeps a low-overlap address but flags it low-confidence instead of wiping it (same guard as job enrichment)', async () => {
