@@ -475,10 +475,10 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const ids = (c: { companyA: { id: string }; companyB: { id: string } }) => [
-        c.companyA.id,
-        c.companyB.id,
-      ];
+      const ids = (c: {
+        companyA: { id: string };
+        companyB: { id: string };
+      }) => [c.companyA.id, c.companyB.id];
       const websitePair = res.body.find(
         (s: { reason: string }) => s.reason === 'website',
       );
@@ -549,7 +549,9 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
       expect(
-        movedContacts.body.some((c: { id: string }) => c.id === contact.body.id),
+        movedContacts.body.some(
+          (c: { id: string }) => c.id === contact.body.id,
+        ),
       ).toBe(true);
 
       await agent
@@ -642,6 +644,70 @@ describe('Job Tracker (e2e)', () => {
         .delete(`/companies/${canonical.body.id}`)
         .set('Authorization', `Bearer ${accessToken}`);
     });
+  });
+
+  describe('DELETE /companies/:id', () => {
+    // Job.companyLink relies on Prisma's implicit onDelete: SetNull for an
+    // optional relation; Contact.company declares onDelete: Cascade
+    // explicitly. Neither was verified against a real DB before this test —
+    // see the /ship follow-up plan.
+    it("SetNulls a linked job's companyId and cascades-deletes a linked contact", async () => {
+      const company = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Delete Cascade Co', city: 'LAHORE' })
+        .expect(201);
+
+      const job = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          company: 'E2E Delete Cascade Co',
+          position: 'Cascade Test Role',
+        })
+        .expect(201);
+      expect(job.body.companyId).toBe(company.body.id);
+
+      await agent
+        .post(`/companies/${company.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Cascade Test Contact' })
+        .expect(201);
+
+      await agent
+        .delete(`/companies/${company.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const fetchedJob = await agent
+        .get(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(fetchedJob.body.companyId).toBeNull();
+      expect(fetchedJob.body.companyProfile).toBeNull();
+      // Job.company (the display string) is untouched — deleting the linked
+      // Company only clears the FK, it doesn't retroactively rewrite the
+      // job's own label.
+      expect(fetchedJob.body.company).toBe('E2E Delete Cascade Co');
+
+      // The contact belonged to the now-deleted company — Cascade means the
+      // company (and its contacts route) is gone, not orphaned or reachable
+      // any other way.
+      await agent
+        .get(`/companies/${company.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      await agent
+        .delete(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+
+    it('returns 404 for a company that does not belong to the user', () =>
+      agent
+        .delete('/companies/nonexistent-id')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
   });
 
   describe('PATCH /jobs/:id', () => {

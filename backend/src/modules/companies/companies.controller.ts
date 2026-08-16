@@ -78,6 +78,11 @@ export class CompaniesController {
   @Get('duplicates')
   // Must be registered before GET :id — otherwise "duplicates" would be
   // captured as an :id param instead of matching this literal route.
+  // O(n^2) pairwise scan over the user's own companies (intentional design,
+  // see docs/specs/company-fk-phase5c.md) — throttled independently of the
+  // generic 100/min limit since its per-call cost is far higher than a
+  // typical CRUD read.
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({
     summary:
       'Find likely-duplicate company pairs (websiteUrl match or fuzzy name match)',
@@ -141,9 +146,14 @@ export class CompaniesController {
     summary:
       'Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it',
   })
-  @ApiParam({ name: 'id', description: 'Canonical company ID (survives the merge)' })
+  @ApiParam({
+    name: 'id',
+    description: 'Canonical company ID (survives the merge)',
+  })
   @ApiOkResponse({ type: CompanyResponseDto })
-  @ApiNotFoundResponse({ description: 'Canonical or duplicate company not found' })
+  @ApiNotFoundResponse({
+    description: 'Canonical or duplicate company not found',
+  })
   @ApiConflictResponse({ description: 'Cannot merge a company with itself' })
   merge(
     @CurrentUser() user: { id: string },
@@ -159,6 +169,9 @@ export class CompaniesController {
   }
 
   @Post('import')
+  // A bulk CSV import is far costlier per call than a typical CRUD write —
+  // same rationale as the /duplicates throttle above.
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -192,6 +205,13 @@ export class CompaniesController {
     )
     file: Express.Multer.File,
   ) {
-    return this.companiesImport.import(user.id, file.buffer.toString('utf-8'));
+    // Excel/Google Sheets CSV exports commonly prepend a UTF-8 BOM (U+FEFF),
+    // which would otherwise land inside the first header cell and fail
+    // header validation on an otherwise-valid file. Compared by code point
+    // (not a regex literal) so the BOM itself never appears as a raw
+    // character in source.
+    const raw = file.buffer.toString('utf-8');
+    const content = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    return this.companiesImport.import(user.id, content);
   }
 }

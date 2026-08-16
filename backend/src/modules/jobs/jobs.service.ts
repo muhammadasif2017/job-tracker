@@ -33,51 +33,57 @@ export class JobsService {
     private logger: Logger,
   ) {}
 
+  // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
+  // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
+  // 6) — findFirst first, create only on a miss, and re-fetch on a
+  // unique-constraint race (two concurrent creates/updates racing the same
+  // new company name). Never overwrites an existing company's user-edited/
+  // enriched fields as a side effect of linking a job to it. CompanyCity.OTHER
+  // is used for auto-created rows since job create/update collects no city.
+  // `matched` is true only for a *pre-existing* company match — callers use
+  // it to distinguish "linked to a company you already saved" from "we
+  // silently auto-created this row."
+  private async resolveCompanyId(
+    userId: string,
+    trimmedName: string,
+  ): Promise<{
+    company: { id: string; name: string } | null;
+    matched: boolean;
+  }> {
+    if (!trimmedName) return { company: null, matched: false };
+
+    const existing = await this.prisma.company.findFirst({
+      where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+      select: { id: true, name: true },
+    });
+    if (existing) return { company: existing, matched: true };
+
+    try {
+      const created = await this.prisma.company.create({
+        data: { userId, name: trimmedName, city: CompanyCity.OTHER },
+        select: { id: true, name: true },
+      });
+      return { company: created, matched: false };
+    } catch (err: unknown) {
+      const raced = await this.prisma.company.findFirst({
+        where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+        select: { id: true, name: true },
+      });
+      if (!raced) throw err;
+      return { company: raced, matched: false };
+    }
+  }
+
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
-    // Find-or-create, backing a real Job.companyId FK. Case-insensitive
-    // exact match, no fuzzy matching (see docs/specs/target-companies.md
-    // Assumption 6) — findFirst first, create only on a miss, and re-fetch
-    // on a unique-constraint race (two concurrent creates of the same new
-    // company name). Never overwrites an existing company's user-edited/
-    // enriched fields as a side effect of creating a job. CompanyCity.OTHER
-    // is used for auto-created rows since job-create collects no city.
     const trimmedCompanyName = dto.company.trim();
-    // matchedCompany is only ever a *pre-existing* target company — it drives
-    // the "saved as a target company" banner in the response, which must not
-    // fire for a company row we silently auto-created just now. company is
-    // the row backing Job.companyId either way (found or newly created).
-    const matchedCompany = trimmedCompanyName
-      ? await this.prisma.company.findFirst({
-          where: {
-            userId,
-            name: { equals: trimmedCompanyName, mode: 'insensitive' },
-          },
-          select: { id: true, name: true },
-        })
-      : null;
-    let company = matchedCompany;
-
-    if (trimmedCompanyName && !company) {
-      try {
-        company = await this.prisma.company.create({
-          data: { userId, name: trimmedCompanyName, city: CompanyCity.OTHER },
-          select: { id: true, name: true },
-        });
-      } catch (err: unknown) {
-        // Unique-constraint race: another request created the same company
-        // between our findFirst and create. Re-fetch instead of failing
-        // job creation.
-        company = await this.prisma.company.findFirst({
-          where: {
-            userId,
-            name: { equals: trimmedCompanyName, mode: 'insensitive' },
-          },
-          select: { id: true, name: true },
-        });
-        if (!company) throw err;
-      }
-    }
+    const { company, matched } = await this.resolveCompanyId(
+      userId,
+      trimmedCompanyName,
+    );
+    // matchedCompany drives the "saved as a target company" banner in the
+    // response — must stay null for a row we just silently auto-created.
+    const matchedCompany = matched ? company : null;
 
     const job = await this.prisma.job.create({
       data: {
@@ -225,7 +231,22 @@ export class JobsService {
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
     const statusChanged = dto.status && dto.status !== existing.status;
-    const data = this.buildUpdateData(dto);
+    const baseData = this.buildUpdateData(dto);
+
+    // Re-link companyId whenever the caller actually sent a company name —
+    // otherwise `company` (the display string) and `companyId` (the FK) can
+    // drift apart with nothing to reconcile them. `Job.company` is the label
+    // as typed at link time; it deliberately does NOT get retroactively
+    // rewritten if the linked Company is later renamed or merged elsewhere —
+    // only an explicit edit of this job's company field re-resolves it.
+    let data = baseData as typeof baseData & { companyId?: string | null };
+    if (dto.company !== undefined) {
+      const { company } = await this.resolveCompanyId(
+        userId,
+        dto.company.trim(),
+      );
+      data = { ...baseData, companyId: company?.id ?? null };
+    }
 
     if (!statusChanged) {
       return this.prisma.job.update({

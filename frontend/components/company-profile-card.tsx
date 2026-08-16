@@ -1,18 +1,27 @@
 'use client';
 
 import { RefreshCw, Clock, WifiOff, KeyRound, AlertTriangle } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
-import type { CompanyProfile } from '../types';
+import type { Company, CompanyProfile } from '../types';
+
+// Company and CompanyProfile share the exact same enrichment-field subset
+// (status, industry, ..., enrichedAt) — Company is that subset plus identity
+// fields (name, city, priority, ...). Renders identically from either shape,
+// which is what lets the job-detail and company-detail pages share this one
+// component instead of each hand-maintaining their own field list.
+type EnrichmentFieldsSource = CompanyProfile | Company;
 
 interface Props {
-  profile: CompanyProfile | null | undefined;
-  jobId: string;
+  profile: EnrichmentFieldsSource | null | undefined;
   companyId?: string | null;
+  // Query key to invalidate after a successful Refresh — ['job', jobId] on
+  // the job-detail page, ['company', id] on the company-detail page.
+  invalidateKey: QueryKey;
 }
 
 type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG';
@@ -128,7 +137,7 @@ function FailureBanner({
   );
 }
 
-function ProfileFields({ profile }: { profile: CompanyProfile }) {
+function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
@@ -229,7 +238,7 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
   );
 }
 
-export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
+export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
@@ -240,7 +249,7 @@ export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
     mutationFn: () =>
       api.post(`/companies/${companyId}/enrichment`).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['job', jobId] });
+      qc.invalidateQueries({ queryKey: invalidateKey });
       toast.success('Enrichment queued');
     },
     onError: (err) =>

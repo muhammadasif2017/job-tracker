@@ -29,6 +29,11 @@ const MAX_CSV_ROWS = 1000;
 // is re-applied by hand here.
 const MAX_NAME_LENGTH = 200;
 
+// Matches CompaniesService's MAX_COMPANIES_PER_USER — the CSV path bypasses
+// CompaniesService.create entirely, so the per-user cap is re-applied by
+// hand here too.
+const MAX_COMPANIES_PER_USER = 2000;
+
 // Hand-rolled, deliberately minimal — no quoted-field/embedded-comma
 // support. See docs/specs/target-companies.md Assumption 5: escalate to
 // csv-parse only if a real-world export needs that, rather than building it
@@ -110,6 +115,7 @@ export class CompaniesImportService {
       select: { name: true },
     });
     const seenNames = new Set(existing.map((c) => c.name.toLowerCase()));
+    let projectedCount = existing.length;
 
     const errors: CsvImportError[] = [];
     const toCreate: {
@@ -172,7 +178,15 @@ export class CompaniesImportService {
         });
         return;
       }
+      if (projectedCount >= MAX_COMPANIES_PER_USER) {
+        errors.push({
+          row: rowNum,
+          message: `Skipped — you can have at most ${MAX_COMPANIES_PER_USER} target companies`,
+        });
+        return;
+      }
       seenNames.add(name.toLowerCase());
+      projectedCount++;
 
       toCreate.push({ userId, name, city, businessMode });
     });

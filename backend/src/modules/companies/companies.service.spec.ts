@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { EnrichmentStatus } from '@prisma/client';
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -10,6 +14,7 @@ const mockPrisma = {
   company: {
     create: jest.fn(),
     findFirst: jest.fn(),
+    findFirstOrThrow: jest.fn(),
     findMany: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
@@ -36,6 +41,7 @@ describe('CompaniesService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockCompanyEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+    mockPrisma.company.count.mockResolvedValue(0);
     const module = await Test.createTestingModule({
       providers: [
         CompaniesService,
@@ -48,6 +54,16 @@ describe('CompaniesService', () => {
   });
 
   describe('create', () => {
+    it('throws BadRequestException at the per-user company cap, before checking name uniqueness', async () => {
+      mockPrisma.company.count.mockResolvedValue(2000);
+
+      await expect(
+        service.create('user-1', { name: 'One More Co', city: 'LAHORE' }),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+    });
+
     it('throws ConflictException on a case-insensitive duplicate name', async () => {
       mockPrisma.company.findFirst.mockResolvedValue({ id: 'existing-1' });
 
@@ -233,19 +249,30 @@ describe('CompaniesService', () => {
 
     it('passes an explicit null through to clear a previously-set field', async () => {
       mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
-      mockPrisma.company.update.mockResolvedValue({
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.company.findFirstOrThrow.mockResolvedValue({
         id: 'company-1',
         businessMode: null,
       });
 
       await service.update('user-1', 'company-1', { businessMode: null });
 
-      expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { id: 'company-1' },
+          where: { id: 'company-1', userId: 'user-1' },
           data: expect.objectContaining({ businessMode: null }),
         }),
       );
+    });
+
+    it('throws NotFoundException when the no-rename write races a delete and matches nothing', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.update('user-1', 'company-1', { location: 'Remote' }),
+      ).rejects.toThrow(NotFoundException);
+      expect(mockPrisma.company.findFirstOrThrow).not.toHaveBeenCalled();
     });
 
     it('throws ConflictException when renaming to a case-insensitive duplicate of another company', async () => {
@@ -270,7 +297,10 @@ describe('CompaniesService', () => {
 
     it('does not check for duplicates when name is not being changed', async () => {
       mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
-      mockPrisma.company.update.mockResolvedValue({ id: 'company-1' });
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.company.findFirstOrThrow.mockResolvedValue({
+        id: 'company-1',
+      });
 
       await service.update('user-1', 'company-1', { location: 'Remote' });
 
@@ -382,6 +412,30 @@ describe('CompaniesService', () => {
         where: { id: 'duplicate-1' },
       });
       expect(result).toEqual({ id: 'canonical-1', name: 'Canonical Co' });
+    });
+
+    it('runs inside a Serializable transaction', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({ id: 'canonical-1', name: 'Canonical Co' })
+        .mockResolvedValueOnce({ id: 'duplicate-1', name: 'Duplicate Co' });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.contact.updateMany.mockResolvedValue({ count: 0 });
+      mockPrisma.company.delete.mockResolvedValue({ id: 'duplicate-1' });
+
+      await service.mergeCompanies('user-1', 'canonical-1', 'duplicate-1');
+
+      expect(mockPrisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ isolationLevel: 'Serializable' }),
+      );
+    });
+
+    it('throws ConflictException when a concurrent merge of the same duplicate is detected (P2034)', async () => {
+      mockPrisma.$transaction.mockRejectedValueOnce({ code: 'P2034' });
+
+      await expect(
+        service.mergeCompanies('user-1', 'canonical-1', 'duplicate-1'),
+      ).rejects.toThrow(ConflictException);
     });
 
     it('throws ConflictException when merging a company with itself, without touching the DB', async () => {

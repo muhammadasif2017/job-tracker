@@ -44,7 +44,11 @@ function renderCard(
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={qc}>
-      <CompanyProfileCard profile={profile} jobId={jobId} companyId={companyId} />
+      <CompanyProfileCard
+        profile={profile}
+        companyId={companyId}
+        invalidateKey={['job', jobId]}
+      />
     </QueryClientProvider>,
   );
 }

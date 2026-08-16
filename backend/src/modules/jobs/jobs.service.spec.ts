@@ -467,6 +467,93 @@ describe('JobsService', () => {
       ).rejects.toThrow('Job not found');
       expect(mockPrisma.job.update).not.toHaveBeenCalled();
     });
+
+    it('re-links companyId to a matching existing company when dto.company changes', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+      mockPrisma.company.findFirst.mockResolvedValueOnce({
+        id: 'company-2',
+        name: 'New Co',
+      }); // resolveCompanyId
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: 'New Co' });
+
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            company: 'New Co',
+            companyId: 'company-2',
+          }),
+        }),
+      );
+    });
+
+    it('creates a new Company and links companyId when dto.company matches nothing existing', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null); // resolveCompanyId: no match
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Brand New Co',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: 'Brand New Co' });
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          name: 'Brand New Co',
+          city: CompanyCity.OTHER,
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-new' }),
+        }),
+      );
+    });
+
+    it('unlinks companyId when dto.company is cleared to a blank string', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned only — resolveCompanyId short-circuits on blank name
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: '   ' });
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: null }),
+        }),
+      );
+    });
+
+    it('does not touch companyId when dto.company is omitted', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ companyId: expect.anything() }),
+        }),
+      );
+    });
   });
 
   describe('remove', () => {

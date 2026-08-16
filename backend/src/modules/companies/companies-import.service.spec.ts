@@ -118,6 +118,29 @@ describe('CompaniesImportService', () => {
     });
   });
 
+  it('reports a per-row error and skips rows once the per-user company cap is reached', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(
+      // 1999 already-saved companies — one row fits under the 2000 cap,
+      // the second doesn't.
+      Array.from({ length: 1999 }, (_, i) => ({ name: `Existing ${i}` })),
+    );
+    const csv =
+      'name,city,businessMode\n' +
+      'Fits Under Cap,LAHORE,SERVICES\n' +
+      'Over The Cap,LAHORE,SERVICES';
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(1);
+    expect(result.errors).toEqual([
+      { row: 3, message: expect.stringContaining('at most 2000') },
+    ]);
+    expect(mockPrisma.company.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ name: 'Fits Under Cap' })],
+      skipDuplicates: true,
+    });
+  });
+
   it('allows an empty businessMode column', async () => {
     const csv = 'name,city,businessMode\nUnknown Mode Co,ISLAMABAD,';
 

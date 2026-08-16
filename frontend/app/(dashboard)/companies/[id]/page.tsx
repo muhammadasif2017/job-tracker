@@ -12,7 +12,7 @@ import {
   PriorityBadge,
   BusinessModeBadge,
 } from '../../../../components/ui/badge';
-import { FieldValue } from '../../../../components/ui/field-value';
+import { CompanyProfileCard } from '../../../../components/company-profile-card';
 import { CompanyForm } from '../../../../components/companies/company-form';
 import { CompanyContacts } from '../../../../components/companies/company-contacts';
 import { CompanyJobs } from '../../../../components/companies/company-jobs';
@@ -100,46 +100,6 @@ export default function CompanyDetailPage() {
                   <p className="break-words">{company.location}</p>
                 </div>
               )}
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Industry
-                </p>
-                <p className="break-words">
-                  <FieldValue value={company.industry} />
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Size
-                </p>
-                <p className="break-words">
-                  <FieldValue value={company.companySize} />
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Founded
-                </p>
-                <p>
-                  <FieldValue value={company.founded} />
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Headquarters
-                </p>
-                <p className="break-words">
-                  <FieldValue value={company.headquarters} />
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                  Work Policy
-                </p>
-                <p className="break-words">
-                  <FieldValue value={company.workPolicy} />
-                </p>
-              </div>
               {company.websiteUrl && (
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
@@ -172,33 +132,6 @@ export default function CompanyDetailPage() {
               )}
             </div>
 
-            {company.techStack.length > 0 && (
-              <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
-                  Tech Stack
-                </p>
-                <div className="flex flex-wrap gap-1.5">
-                  {company.techStack.map((tech) => (
-                    <span
-                      key={tech}
-                      className="rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
-                    >
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                Culture
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
-                <FieldValue value={company.cultureSummary} />
-              </p>
-            </div>
-
             {company.personalNotes && (
               <div>
                 <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
@@ -210,6 +143,12 @@ export default function CompanyDetailPage() {
               </div>
             )}
           </div>
+
+          <CompanyProfileCard
+            profile={company}
+            companyId={id}
+            invalidateKey={['company', id]}
+          />
 
           <CompanyJobs jobs={company.jobs ?? []} />
 

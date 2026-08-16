@@ -88,7 +88,8 @@ export class MergeFieldOverridesDto {
 export class MergeCompanyDto {
   @ApiProperty({
     format: 'cuid',
-    description: 'The company to merge into the canonical company (:id in the URL) and delete',
+    description:
+      'The company to merge into the canonical company (:id in the URL) and delete',
   })
   @IsString()
   @IsNotEmpty()
@@ -97,7 +98,7 @@ export class MergeCompanyDto {
   @ApiPropertyOptional({
     type: () => MergeFieldOverridesDto,
     description:
-      'Per-field picks when canonical and duplicate have differing enrichment data — only include fields the user explicitly chose the duplicate\'s value for',
+      "Per-field picks when canonical and duplicate have differing enrichment data — only include fields the user explicitly chose the duplicate's value for",
   })
   @IsOptional()
   @ValidateNested()

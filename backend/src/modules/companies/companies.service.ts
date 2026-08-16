@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -17,6 +18,12 @@ import {
   similarityRatio,
 } from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+
+// Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
+// docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
+// can't be driven arbitrarily large via CSV import; also a sane ceiling for
+// a personal target-companies list regardless of the duplicate-detection cost.
+const MAX_COMPANIES_PER_USER = 2000;
 
 @Injectable()
 export class CompaniesService {
@@ -83,6 +90,15 @@ export class CompaniesService {
   // dozens of concurrent Tavily/Groq calls at once is a real rate-limit/cost
   // risk that a single manual add isn't.
   async create(userId: string, dto: CreateCompanyDto) {
+    const existingCount = await this.prisma.company.count({
+      where: { userId },
+    });
+    if (existingCount >= MAX_COMPANIES_PER_USER) {
+      throw new BadRequestException(
+        `You can have at most ${MAX_COMPANIES_PER_USER} target companies`,
+      );
+    }
+
     const company = await this.runNameCheckedWrite(dto.name, async (tx) => {
       await this.ensureNameAvailable(tx, userId, dto.name);
       return tx.company.create({
@@ -222,7 +238,14 @@ export class CompaniesService {
     };
 
     if (dto.name === undefined) {
-      return this.prisma.company.update({ where: { id: companyId }, data });
+      // Atomic ownership + write, same pattern as remove() — avoids relying
+      // solely on the separate findOwned check above.
+      const { count } = await this.prisma.company.updateMany({
+        where: { id: companyId, userId },
+        data,
+      });
+      if (count === 0) throw new NotFoundException('Company not found');
+      return this.prisma.company.findFirstOrThrow({ where: { id: companyId } });
     }
 
     return this.runNameCheckedWrite(dto.name, async (tx) => {
@@ -293,36 +316,58 @@ export class CompaniesService {
     if (canonicalId === duplicateId) {
       throw new ConflictException('Cannot merge a company with itself');
     }
-    return this.prisma.$transaction(async (tx) => {
-      const [canonical, duplicate] = await Promise.all([
-        tx.company.findFirst({ where: { id: canonicalId, userId } }),
-        tx.company.findFirst({
-          where: { id: duplicateId, userId },
-          select: { id: true, name: true },
-        }),
-      ]);
-      if (!canonical || !duplicate) {
-        throw new NotFoundException('Company not found');
-      }
+    try {
+      // Serializable, same as runNameCheckedWrite — two concurrent merges
+      // naming the same duplicateId (double-click, two tabs) would otherwise
+      // both pass the findFirst existence check under the default isolation
+      // level and race on the delete/reassignment below. Postgres aborts the
+      // loser with P2034 instead.
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const [canonical, duplicate] = await Promise.all([
+            tx.company.findFirst({ where: { id: canonicalId, userId } }),
+            tx.company.findFirst({
+              where: { id: duplicateId, userId },
+              select: { id: true, name: true },
+            }),
+          ]);
+          if (!canonical || !duplicate) {
+            throw new NotFoundException('Company not found');
+          }
 
-      await tx.job.updateMany({
-        where: { companyId: duplicateId },
-        data: { companyId: canonicalId },
-      });
-      await tx.contact.updateMany({
-        where: { companyId: duplicateId },
-        data: { companyId: canonicalId },
-      });
-      await tx.company.delete({ where: { id: duplicateId } });
+          await tx.job.updateMany({
+            where: { companyId: duplicateId },
+            data: { companyId: canonicalId },
+          });
+          await tx.contact.updateMany({
+            where: { companyId: duplicateId },
+            data: { companyId: canonicalId },
+          });
+          await tx.company.delete({ where: { id: duplicateId } });
 
-      if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
-        return tx.company.update({
-          where: { id: canonicalId },
-          data: fieldOverrides,
-        });
+          if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
+            return tx.company.update({
+              where: { id: canonicalId },
+              data: fieldOverrides,
+            });
+          }
+          return canonical;
+        },
+        { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
+      );
+    } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'code' in err &&
+        err.code === 'P2034'
+      ) {
+        throw new ConflictException(
+          'This company is being merged concurrently — refresh and try again',
+        );
       }
-      return canonical;
-    });
+      throw err;
+    }
   }
 
   // Phase 5c (docs/specs/company-fk-phase5c.md) — computed fresh on each

@@ -55,8 +55,8 @@ vi.mock('../../../../components/jobs/contacts', () => ({
 }));
 
 vi.mock('../../../../components/company-profile-card', () => ({
-  CompanyProfileCard: ({ jobId }: { jobId: string }) => (
-    <div data-testid="company-profile-card" data-job-id={jobId} />
+  CompanyProfileCard: ({ invalidateKey }: { invalidateKey: unknown[] }) => (
+    <div data-testid="company-profile-card" data-job-id={invalidateKey[1]} />
   ),
 }));
 
