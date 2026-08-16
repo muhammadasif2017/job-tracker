@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
+import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
 import type { CompanyProfile } from '../types';
 
@@ -124,18 +125,6 @@ function FailureBanner({
         {suffix}
       </p>
     </div>
-  );
-}
-
-// A field the LLM couldn't find still renders its row (label always shown),
-// with "Unknown" in muted/italic text standing in for the value — distinct
-// from the low-confidence "unverified" badge, which flags a value that *was*
-// found but couldn't be confirmed against the official site.
-function FieldValue({ value }: { value: string | null | undefined }) {
-  return value ? (
-    <>{value}</>
-  ) : (
-    <span className="text-slate-400 italic">Unknown</span>
   );
 }
 
