@@ -283,7 +283,7 @@ describe('CompanyProfileCard', () => {
         screen.queryByText(/Unexpected tool-call shape/),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText(/showing the last successful result/),
+        screen.getByText(/Showing your last successful result/),
       ).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: /refresh/i }),

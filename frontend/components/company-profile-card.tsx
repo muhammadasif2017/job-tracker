@@ -375,7 +375,7 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
         <FailureBanner
           errorMessage={profile.errorMessage}
           prefix="Last refresh failed: "
-          suffix=" — showing the last successful result."
+          suffix=" Showing your last successful result below."
         />
       )}
 
