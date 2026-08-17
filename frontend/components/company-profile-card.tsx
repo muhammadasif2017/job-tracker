@@ -1,18 +1,27 @@
 'use client';
 
 import { RefreshCw, Clock, WifiOff, KeyRound, AlertTriangle } from 'lucide-react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
-import type { CompanyProfile } from '../types';
+import type { Company, CompanyProfile } from '../types';
+
+// Company and CompanyProfile share the exact same enrichment-field subset
+// (status, industry, ..., enrichedAt) — Company is that subset plus identity
+// fields (name, city, priority, ...). Renders identically from either shape,
+// which is what lets the job-detail and company-detail pages share this one
+// component instead of each hand-maintaining their own field list.
+type EnrichmentFieldsSource = CompanyProfile | Company;
 
 interface Props {
-  profile: CompanyProfile | null | undefined;
-  jobId: string;
+  profile: EnrichmentFieldsSource | null | undefined;
   companyId?: string | null;
+  // Query key to invalidate after a successful Refresh — ['job', jobId] on
+  // the job-detail page, ['company', id] on the company-detail page.
+  invalidateKey: QueryKey;
 }
 
 type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG';
@@ -128,7 +137,7 @@ function FailureBanner({
   );
 }
 
-function ProfileFields({ profile }: { profile: CompanyProfile }) {
+function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   return (
     <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
@@ -169,7 +178,7 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
         </div>
       </div>
 
-      {profile.techStack.length > 0 && (
+      {profile.techStack?.length > 0 && (
         <div>
           <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
             Tech Stack
@@ -229,7 +238,7 @@ function ProfileFields({ profile }: { profile: CompanyProfile }) {
   );
 }
 
-export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
+export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
@@ -240,7 +249,7 @@ export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
     mutationFn: () =>
       api.post(`/companies/${companyId}/enrichment`).then((r) => r.data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['job', jobId] });
+      qc.invalidateQueries({ queryKey: invalidateKey });
       toast.success('Enrichment queued');
     },
     onError: (err) =>
@@ -249,12 +258,29 @@ export function CompanyProfileCard({ profile, jobId, companyId }: Props) {
 
   if (!profile) return null;
 
-  // A profile carries `enrichedAt` only after at least one COMPLETED run.
-  // Since a re-run no longer wipes the previous fields (see
-  // EnrichmentService.enqueueEnrichment), a PENDING/PROCESSING/FAILED status
-  // can still have real, last-known-good data attached — show that instead
-  // of hiding it behind a loading skeleton or a bare error card.
-  const hasData = Boolean(profile.enrichedAt);
+  // On the job-detail page a profile's fields are only ever populated by a
+  // COMPLETED enrichment run, so `enrichedAt` alone used to be a reliable
+  // "is there anything to show" check. On the company-detail page that's no
+  // longer true — these same columns are also directly user-editable
+  // (CompanyForm) and mergeable (fieldOverrides), independent of enrichment
+  // ever completing, so a fresh company sitting in PENDING/PROCESSING can
+  // still have a real, user-set industry/headquarters/etc. worth showing
+  // immediately rather than stuck behind a loading skeleton. Checking the
+  // fields themselves (not just `enrichedAt`) covers both contexts — on the
+  // job page these are equivalent, since enrichedAt and the fields are only
+  // ever written together in the same completed-run update.
+  const hasData = Boolean(
+    profile.enrichedAt ||
+      profile.industry ||
+      profile.companySize ||
+      profile.techStack?.length > 0 ||
+      profile.cultureSummary ||
+      profile.workPolicy ||
+      profile.workLifeBalance ||
+      profile.headquarters ||
+      profile.address ||
+      profile.founded,
+  );
   const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
 
   if (inFlight && !hasData) {

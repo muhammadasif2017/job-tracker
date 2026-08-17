@@ -27,6 +27,7 @@ npx prisma studio                             # GUI DB browser
   ```
 - `prisma.config.ts` at the backend root is Prisma 7's required config file — do not delete it.
 - Always run `prisma generate` after any schema change or migration.
+- **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) *are* wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
 
 ---
 
@@ -195,6 +196,36 @@ from the existing `['job', id]` query; no separate fetch.
 
 ---
 
+## Jobs/Companies: `companyId` FK Resolution
+
+`JobsService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
+path for turning a job's free-text `company` label into a real `Company` row
+and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
+for auto-created rows, run inside a `Serializable` transaction (same pattern as
+`CompaniesService.runNameCheckedWrite`) with a re-fetch fallback on `P2034`/
+`P2002` so a case-variant name race ("Google" vs "google") can't create two
+companies. Both
+`create` and `update` reject an explicit `company: null` with a 400 —
+`Job.company` is a required non-nullable column, so there's no "unlink" state
+for a client to clear it into (unlike the optional profile fields this repo's
+`T | null` convention normally applies to). `update` only re-resolves when the caller actually sends
+`dto.company`, so `Job.company` (the label as typed at link time) is never
+retroactively rewritten just because the linked `Company` was renamed or
+merged elsewhere. Don't reintroduce a separate inline find-or-create in
+either method — that's exactly the drift ADR-029 fixes. The CSV backfill
+script (`backend/scripts/backfill-company-fk.core.ts`) duplicates this same
+logic rather than importing it, since it runs standalone against a raw
+`PrismaClient` outside Nest's DI container.
+
+`JobResponseDto.companyProfile` is only populated by `findOne`'s reshaped
+response — `PATCH /jobs/:id` returns the raw Prisma update result, which
+doesn't include it. Don't add a new PATCH consumer that reads this field
+without checking `findOne` first; existing ones (e.g.
+`usePatchJobStatusMutation`) re-graft the previous `companyProfile` instead
+of trusting the PATCH response. See [ADR-029](../docs/decisions/029-company-fk-integrity-and-enrichment-card-unification.md).
+
+---
+
 ## Storage: Dual-Driver Pattern
 
 `StorageModule` is global. It exposes a single `STORAGE_SERVICE` injection token backed by either `LocalStorageService` (dev) or `OracleStorageService` (prod), selected at startup by `STORAGE_DRIVER`:
@@ -270,7 +301,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 
 Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route by default. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
 
-A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled.
+A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled. `POST /companies/import` (bulk CSV write) also caps at 10/min. `GET /companies/duplicates` (O(n²) pairwise scan) deliberately has **no** route-specific throttle — it's fetched passively on every companies-page mount, and a 10/min cap broke ordinary navigation in e2e; `MAX_COMPANIES_PER_USER` bounds its worst-case cost instead, so it relies on the generic 100/min guard. See ADR-029.
 
 ---
 

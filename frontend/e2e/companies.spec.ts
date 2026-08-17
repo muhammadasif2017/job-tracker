@@ -180,7 +180,7 @@ test.describe('Delete company', () => {
 // ── Merge companies ──────────────────────────────────────────────────────────
 
 test.describe('Merge companies', () => {
-  test('merges a duplicate into the canonical company via the row action', async ({
+  test('merges a duplicate into the canonical company via the row action, reassigning its job and contact', async ({
     page,
   }) => {
     const canonical = await createTestCompany(user.accessToken, {
@@ -188,6 +188,20 @@ test.describe('Merge companies', () => {
     });
     const duplicate = await createTestCompany(user.accessToken, {
       name: 'Merge E2E Duplicate',
+    });
+    // Linked to the duplicate before the merge — job create's find-or-create
+    // matches by exact (case-insensitive) name, so this lands on duplicate.id.
+    const job = await createTestJob(user.accessToken, {
+      company: 'Merge E2E Duplicate',
+      position: 'Merge E2E Reassigned Role',
+    });
+    await fetch(`http://localhost:3001/companies/${duplicate.id}/contacts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${user.accessToken}`,
+      },
+      body: JSON.stringify({ name: 'Merge E2E Reassigned Contact' }),
     });
 
     await goToCompanies(page);
@@ -218,6 +232,18 @@ test.describe('Merge companies', () => {
       page.getByRole('link', { name: 'Merge E2E Canonical' }),
     ).toBeVisible();
 
+    // The reassignment is already proven at the API level (app.e2e-spec.ts)
+    // — this confirms it actually renders through the real UI on the
+    // canonical company's own detail page, not just in the DB.
+    await page.goto(`/companies/${canonical.id}`);
+    await expect(
+      page.getByRole('link', { name: 'Merge E2E Reassigned Role' }),
+    ).toBeVisible();
+    await expect(
+      page.getByText('Merge E2E Reassigned Contact'),
+    ).toBeVisible();
+
+    await deleteTestJob(user.accessToken, job.id).catch(() => {});
     await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
   });
 

@@ -78,6 +78,13 @@ export class CompaniesController {
   @Get('duplicates')
   // Must be registered before GET :id — otherwise "duplicates" would be
   // captured as an :id param instead of matching this literal route.
+  // O(n^2) pairwise scan over the user's own companies (intentional design,
+  // see docs/specs/company-fk-phase5c.md), but no per-route throttle here —
+  // unlike /companies/import, this is fetched passively by
+  // DuplicateSuggestionsBanner on every companies-page mount, not a
+  // deliberate bulk action, so a 10/min cap breaks ordinary navigation (see
+  // the E2E flakiness this caused). MAX_COMPANIES_PER_USER already bounds
+  // the worst-case per-call cost; the generic 100/min guard is enough here.
   @ApiOperation({
     summary:
       'Find likely-duplicate company pairs (websiteUrl match or fuzzy name match)',
@@ -141,9 +148,14 @@ export class CompaniesController {
     summary:
       'Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it',
   })
-  @ApiParam({ name: 'id', description: 'Canonical company ID (survives the merge)' })
+  @ApiParam({
+    name: 'id',
+    description: 'Canonical company ID (survives the merge)',
+  })
   @ApiOkResponse({ type: CompanyResponseDto })
-  @ApiNotFoundResponse({ description: 'Canonical or duplicate company not found' })
+  @ApiNotFoundResponse({
+    description: 'Canonical or duplicate company not found',
+  })
   @ApiConflictResponse({ description: 'Cannot merge a company with itself' })
   merge(
     @CurrentUser() user: { id: string },
@@ -159,6 +171,11 @@ export class CompaniesController {
   }
 
   @Post('import')
+  // A bulk CSV import is far costlier per call than a typical CRUD write —
+  // same rationale as POST /jobs/parse and POST :id/enrichment above.
+  // (GET /duplicates, just above, deliberately has no throttle — see the
+  // comment on that route.)
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseInterceptors(
     FileInterceptor('file', {
       storage: memoryStorage(),
@@ -192,6 +209,13 @@ export class CompaniesController {
     )
     file: Express.Multer.File,
   ) {
-    return this.companiesImport.import(user.id, file.buffer.toString('utf-8'));
+    // Excel/Google Sheets CSV exports commonly prepend a UTF-8 BOM (U+FEFF),
+    // which would otherwise land inside the first header cell and fail
+    // header validation on an otherwise-valid file. Compared by code point
+    // (not a regex literal) so the BOM itself never appears as a raw
+    // character in source.
+    const raw = file.buffer.toString('utf-8');
+    const content = raw.charCodeAt(0) === 0xfeff ? raw.slice(1) : raw;
+    return this.companiesImport.import(user.id, content);
   }
 }

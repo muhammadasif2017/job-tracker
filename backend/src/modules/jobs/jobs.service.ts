@@ -2,10 +2,13 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
+  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
+import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -33,51 +36,111 @@ export class JobsService {
     private logger: Logger,
   ) {}
 
+  // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
+  // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
+  // 6). Runs the findFirst+create pair inside a Serializable transaction —
+  // same pattern as CompaniesService.runNameCheckedWrite — so two concurrent
+  // create/update calls racing the same *case-variant* new company name
+  // ("Google" vs "google") can't both pass the case-insensitive findFirst
+  // and both create: Postgres aborts the loser with P2034 (a plain
+  // create-vs-create collision on the exact same name would instead surface
+  // as P2002 from the DB's case-sensitive unique constraint). Either error
+  // means the other side won the race, so we re-fetch the now-committed row
+  // — same fallback shape as the original pre-transaction implementation.
+  // Never overwrites an existing company's user-edited/enriched fields as a
+  // side effect of linking a job to it. CompanyCity.OTHER is used for
+  // auto-created rows since job create/update collects no city. `matched` is
+  // true only for a *pre-existing* company match — callers use it to
+  // distinguish "linked to a company you already saved" from "we silently
+  // auto-created this row" (a race-resolved row counts as the latter, same
+  // as the loser of the race would have gotten via a plain, non-concurrent
+  // create).
+  //
+  // `name: { mode: 'insensitive' }` has no matching (userId, lower(name))
+  // index, so the findFirst predicate-locks the whole `userId` range of the
+  // `(userId, name)` unique index under Serializable isolation. Two
+  // concurrent creates for the SAME user always overlap that range, even
+  // with completely unrelated company names — Postgres aborts the loser
+  // with "could not serialize access due to read/write dependencies" no
+  // less often than a genuine same-name collision does. A conflict is
+  // therefore NOT reliable evidence that `trimmedName` itself now exists,
+  // so a re-fetch-by-name that comes up empty means "transient conflict,
+  // nothing to reuse" and must retry the whole transaction rather than
+  // rethrow — see the live-DB concurrency e2e added for ADR-029.
+  private async resolveCompanyId(
+    userId: string,
+    trimmedName: string,
+    attempt = 1,
+  ): Promise<{
+    company: { id: string; name: string } | null;
+    matched: boolean;
+  }> {
+    if (!trimmedName) return { company: null, matched: false };
+    const MAX_ATTEMPTS = 8;
+
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const existing = await tx.company.findFirst({
+            where: {
+              userId,
+              name: { equals: trimmedName, mode: 'insensitive' },
+            },
+            select: { id: true, name: true },
+          });
+          if (existing) return { company: existing, matched: true };
+
+          const created = await tx.company.create({
+            data: { userId, name: trimmedName, city: CompanyCity.OTHER },
+            select: { id: true, name: true },
+          });
+          return { company: created, matched: false };
+        },
+        { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
+      );
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? (err as { code?: unknown }).code
+          : undefined;
+      // isTransactionWriteConflict covers P2034 plus the raw
+      // DriverAdapterError shape a commit-time conflict surfaces as (see
+      // prisma-errors.ts) — P2002 (a same-name create-vs-create race) is a
+      // separate, normally-wrapped case checked alongside it.
+      if (code !== 'P2002' && !isTransactionWriteConflict(err)) throw err;
+
+      const raced = await this.prisma.company.findFirst({
+        where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+        select: { id: true, name: true },
+      });
+      if (raced) return { company: raced, matched: false };
+
+      // No row under this name — the conflict was against some other
+      // company's create in the same predicate-locked range, not a
+      // same-name race. Retry the whole transaction; only give up once
+      // MAX_ATTEMPTS is exhausted. Jittered backoff (not an immediate
+      // retry) matters here: several concurrent requests for the same user
+      // all lose to each other's predicate lock at once, so retrying in
+      // lockstep just re-collides — random delay desyncs the retries so
+      // contention actually clears.
+      if (attempt >= MAX_ATTEMPTS) throw err;
+      await new Promise((resolve) =>
+        setTimeout(resolve, 10 + Math.random() * 40 * attempt),
+      );
+      return this.resolveCompanyId(userId, trimmedName, attempt + 1);
+    }
+  }
+
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
-    // Find-or-create, backing a real Job.companyId FK. Case-insensitive
-    // exact match, no fuzzy matching (see docs/specs/target-companies.md
-    // Assumption 6) — findFirst first, create only on a miss, and re-fetch
-    // on a unique-constraint race (two concurrent creates of the same new
-    // company name). Never overwrites an existing company's user-edited/
-    // enriched fields as a side effect of creating a job. CompanyCity.OTHER
-    // is used for auto-created rows since job-create collects no city.
     const trimmedCompanyName = dto.company.trim();
-    // matchedCompany is only ever a *pre-existing* target company — it drives
-    // the "saved as a target company" banner in the response, which must not
-    // fire for a company row we silently auto-created just now. company is
-    // the row backing Job.companyId either way (found or newly created).
-    const matchedCompany = trimmedCompanyName
-      ? await this.prisma.company.findFirst({
-          where: {
-            userId,
-            name: { equals: trimmedCompanyName, mode: 'insensitive' },
-          },
-          select: { id: true, name: true },
-        })
-      : null;
-    let company = matchedCompany;
-
-    if (trimmedCompanyName && !company) {
-      try {
-        company = await this.prisma.company.create({
-          data: { userId, name: trimmedCompanyName, city: CompanyCity.OTHER },
-          select: { id: true, name: true },
-        });
-      } catch (err: unknown) {
-        // Unique-constraint race: another request created the same company
-        // between our findFirst and create. Re-fetch instead of failing
-        // job creation.
-        company = await this.prisma.company.findFirst({
-          where: {
-            userId,
-            name: { equals: trimmedCompanyName, mode: 'insensitive' },
-          },
-          select: { id: true, name: true },
-        });
-        if (!company) throw err;
-      }
-    }
+    const { company, matched } = await this.resolveCompanyId(
+      userId,
+      trimmedCompanyName,
+    );
+    // matchedCompany drives the "saved as a target company" banner in the
+    // response — must stay null for a row we just silently auto-created.
+    const matchedCompany = matched ? company : null;
 
     const job = await this.prisma.job.create({
       data: {
@@ -225,7 +288,33 @@ export class JobsService {
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
     const statusChanged = dto.status && dto.status !== existing.status;
-    const data = this.buildUpdateData(dto);
+    const baseData = this.buildUpdateData(dto);
+
+    // Re-link companyId whenever the caller actually sent a company name —
+    // otherwise `company` (the display string) and `companyId` (the FK) can
+    // drift apart with nothing to reconcile them. `Job.company` is the label
+    // as typed at link time; it deliberately does NOT get retroactively
+    // rewritten if the linked Company is later renamed or merged elsewhere —
+    // only an explicit edit of this job's company field re-resolves it.
+    let data = baseData as typeof baseData & { companyId?: string | null };
+    if (dto.company === null) {
+      // Job.company is a required, non-nullable column — unlike the
+      // optional profile fields this repo's convention lets a client clear
+      // with an explicit null, there is no "no company" state to unlink
+      // into. `IsOptional()` (added by PartialType) lets null past DTO
+      // validation, so this must be rejected explicitly rather than falling
+      // through to `.trim()` on null.
+      throw new BadRequestException(
+        'company cannot be cleared — omit the field to leave it unchanged',
+      );
+    }
+    if (dto.company !== undefined) {
+      const { company } = await this.resolveCompanyId(
+        userId,
+        dto.company.trim(),
+      );
+      data = { ...baseData, companyId: company?.id ?? null };
+    }
 
     if (!statusChanged) {
       return this.prisma.job.update({

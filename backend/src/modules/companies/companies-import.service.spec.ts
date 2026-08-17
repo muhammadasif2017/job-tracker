@@ -68,6 +68,19 @@ describe('CompaniesImportService', () => {
     expect(mockPrisma.company.createMany).not.toHaveBeenCalled();
   });
 
+  it('accepts a file at exactly the max row count', async () => {
+    const rows = Array.from(
+      { length: 1000 },
+      (_, i) => `Co ${i},LAHORE,SERVICES`,
+    ).join('\n');
+    const csv = `name,city,businessMode\n${rows}`;
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(1000);
+    expect(result.errors).toEqual([]);
+  });
+
   it('reports a row with the wrong number of columns without aborting the import', async () => {
     const csv =
       'name,city,businessMode\nGood Co,LAHORE,SERVICES\nBad Row,LAHORE';
@@ -114,6 +127,29 @@ describe('CompaniesImportService', () => {
           businessMode: 'PRODUCT',
         },
       ],
+      skipDuplicates: true,
+    });
+  });
+
+  it('reports a per-row error and skips rows once the per-user company cap is reached', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(
+      // 1999 already-saved companies — one row fits under the 2000 cap,
+      // the second doesn't.
+      Array.from({ length: 1999 }, (_, i) => ({ name: `Existing ${i}` })),
+    );
+    const csv =
+      'name,city,businessMode\n' +
+      'Fits Under Cap,LAHORE,SERVICES\n' +
+      'Over The Cap,LAHORE,SERVICES';
+
+    const result = await service.import('user-1', csv);
+
+    expect(result.imported).toBe(1);
+    expect(result.errors).toEqual([
+      { row: 3, message: expect.stringContaining('at most 2000') },
+    ]);
+    expect(mockPrisma.company.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ name: 'Fits Under Cap' })],
       skipDuplicates: true,
     });
   });

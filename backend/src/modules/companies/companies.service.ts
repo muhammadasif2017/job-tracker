@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -7,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
@@ -17,6 +19,12 @@ import {
   similarityRatio,
 } from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+
+// Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
+// docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
+// can't be driven arbitrarily large via CSV import; also a sane ceiling for
+// a personal target-companies list regardless of the duplicate-detection cost.
+const MAX_COMPANIES_PER_USER = 2000;
 
 @Injectable()
 export class CompaniesService {
@@ -54,9 +62,17 @@ export class CompaniesService {
 
   // Serializable isolation makes Postgres detect the read-write conflict
   // between two concurrent ensureNameAvailable+write pairs and abort one
-  // with P2034, rather than letting both pass the pre-check and both write —
-  // the case-insensitive check alone can't close that window since the DB's
-  // own unique constraint is case-sensitive.
+  // — rather than letting both pass the pre-check and both write — the
+  // case-insensitive check alone can't close that window since the DB's own
+  // unique constraint is case-sensitive. `create()` also runs its
+  // MAX_COMPANIES_PER_USER count check inside this same transaction, so a
+  // conflict here isn't always a name collision; the message stays generic
+  // rather than assuming which check lost the race. Use
+  // isTransactionWriteConflict, not a bare `err.code === 'P2034'` check — a
+  // conflict Postgres only detects at COMMIT time (common for a broad
+  // predicate like this count()) surfaces as a raw, differently-shaped
+  // DriverAdapterError instead of a PrismaClientKnownRequestError; see
+  // prisma-errors.ts for why both shapes matter.
   private async runNameCheckedWrite<T>(
     name: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -66,13 +82,10 @@ export class CompaniesService {
         isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel,
       });
     } catch (err: unknown) {
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        err.code === 'P2034'
-      ) {
-        throw new ConflictException(`A company named "${name}" already exists`);
+      if (isTransactionWriteConflict(err)) {
+        throw new ConflictException(
+          `Could not save "${name}" — a conflicting change happened at the same time. Please try again.`,
+        );
       }
       throw err;
     }
@@ -84,6 +97,15 @@ export class CompaniesService {
   // risk that a single manual add isn't.
   async create(userId: string, dto: CreateCompanyDto) {
     const company = await this.runNameCheckedWrite(dto.name, async (tx) => {
+      // Counted inside the same Serializable transaction as the write below
+      // (not as a separate pre-check) — otherwise two concurrent creates can
+      // both read a count just under the cap and both pass, landing over it.
+      const existingCount = await tx.company.count({ where: { userId } });
+      if (existingCount >= MAX_COMPANIES_PER_USER) {
+        throw new BadRequestException(
+          `You can have at most ${MAX_COMPANIES_PER_USER} target companies`,
+        );
+      }
       await this.ensureNameAvailable(tx, userId, dto.name);
       return tx.company.create({
         data: {
@@ -222,7 +244,14 @@ export class CompaniesService {
     };
 
     if (dto.name === undefined) {
-      return this.prisma.company.update({ where: { id: companyId }, data });
+      // Atomic ownership + write, same pattern as remove() — avoids relying
+      // solely on the separate findOwned check above.
+      const { count } = await this.prisma.company.updateMany({
+        where: { id: companyId, userId },
+        data,
+      });
+      if (count === 0) throw new NotFoundException('Company not found');
+      return this.prisma.company.findFirstOrThrow({ where: { id: companyId } });
     }
 
     return this.runNameCheckedWrite(dto.name, async (tx) => {
@@ -293,36 +322,57 @@ export class CompaniesService {
     if (canonicalId === duplicateId) {
       throw new ConflictException('Cannot merge a company with itself');
     }
-    return this.prisma.$transaction(async (tx) => {
-      const [canonical, duplicate] = await Promise.all([
-        tx.company.findFirst({ where: { id: canonicalId, userId } }),
-        tx.company.findFirst({
-          where: { id: duplicateId, userId },
-          select: { id: true, name: true },
-        }),
-      ]);
-      if (!canonical || !duplicate) {
-        throw new NotFoundException('Company not found');
-      }
+    try {
+      // Serializable, same as runNameCheckedWrite — two concurrent merges
+      // naming the same duplicateId (double-click, two tabs) would otherwise
+      // both pass the findFirst existence check under the default isolation
+      // level and race on the delete/reassignment below. Postgres aborts the
+      // loser with P2034 instead.
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const [canonical, duplicate] = await Promise.all([
+            tx.company.findFirst({ where: { id: canonicalId, userId } }),
+            tx.company.findFirst({
+              where: { id: duplicateId, userId },
+              select: { id: true, name: true },
+            }),
+          ]);
+          if (!canonical || !duplicate) {
+            throw new NotFoundException('Company not found');
+          }
 
-      await tx.job.updateMany({
-        where: { companyId: duplicateId },
-        data: { companyId: canonicalId },
-      });
-      await tx.contact.updateMany({
-        where: { companyId: duplicateId },
-        data: { companyId: canonicalId },
-      });
-      await tx.company.delete({ where: { id: duplicateId } });
+          // userId included as defense-in-depth, not the load-bearing check —
+          // duplicateId's ownership is already verified by the findFirst
+          // above. Guards against a future change ever making companyId
+          // client-settable on a Job/Contact write.
+          await tx.job.updateMany({
+            where: { companyId: duplicateId, userId },
+            data: { companyId: canonicalId },
+          });
+          await tx.contact.updateMany({
+            where: { companyId: duplicateId, company: { userId } },
+            data: { companyId: canonicalId },
+          });
+          await tx.company.delete({ where: { id: duplicateId } });
 
-      if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
-        return tx.company.update({
-          where: { id: canonicalId },
-          data: fieldOverrides,
-        });
+          if (fieldOverrides && Object.keys(fieldOverrides).length > 0) {
+            return tx.company.update({
+              where: { id: canonicalId },
+              data: fieldOverrides,
+            });
+          }
+          return canonical;
+        },
+        { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
+      );
+    } catch (err: unknown) {
+      if (isTransactionWriteConflict(err)) {
+        throw new ConflictException(
+          'This company is being merged concurrently — refresh and try again',
+        );
       }
-      return canonical;
-    });
+      throw err;
+    }
   }
 
   // Phase 5c (docs/specs/company-fk-phase5c.md) — computed fresh on each

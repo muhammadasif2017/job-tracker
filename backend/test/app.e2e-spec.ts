@@ -355,6 +355,43 @@ describe('Job Tracker (e2e)', () => {
       expect(first.body.companyId).toEqual(second.body.companyId);
     });
 
+    it('creates all jobs when several concurrent requests auto-create distinct new companies for the same user', async () => {
+      // Distinct company names for the same user still predicate-lock the
+      // same (userId, name) index range under Serializable isolation (no
+      // functional index backs the case-insensitive findFirst), so this
+      // reliably triggers "could not serialize access" write conflicts that
+      // are NOT same-name races — resolveCompanyId must retry rather than
+      // fail the request. See ADR-029 follow-up.
+      const names = Array.from(
+        { length: 6 },
+        (_, i) => `E2E Concurrent Co ${i} ${Date.now()}`,
+      );
+
+      const responses = await Promise.all(
+        names.map((company) =>
+          agent
+            .post('/jobs')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ company, position: 'Concurrent Role' }),
+        ),
+      );
+
+      responses.forEach((res) => expect(res.status).toBe(201));
+      const companyIds = responses.map((res) => res.body.companyId);
+      expect(new Set(companyIds).size).toBe(names.length);
+      companyIds.forEach((id) => expect(id).toBeTruthy());
+
+      // Cleanup — these companies would otherwise leak into later tests
+      // that assert on exact company counts/ordering (e.g. duplicate
+      // detection pagination).
+      await prisma.job.deleteMany({
+        where: { id: { in: responses.map((res) => res.body.id) } },
+      });
+      await prisma.company.deleteMany({
+        where: { id: { in: companyIds } },
+      });
+    });
+
     it('returns 401 without token', () =>
       agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
   });
@@ -475,10 +512,10 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const ids = (c: { companyA: { id: string }; companyB: { id: string } }) => [
-        c.companyA.id,
-        c.companyB.id,
-      ];
+      const ids = (c: {
+        companyA: { id: string };
+        companyB: { id: string };
+      }) => [c.companyA.id, c.companyB.id];
       const websitePair = res.body.find(
         (s: { reason: string }) => s.reason === 'website',
       );
@@ -549,7 +586,9 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
       expect(
-        movedContacts.body.some((c: { id: string }) => c.id === contact.body.id),
+        movedContacts.body.some(
+          (c: { id: string }) => c.id === contact.body.id,
+        ),
       ).toBe(true);
 
       await agent
@@ -642,6 +681,197 @@ describe('Job Tracker (e2e)', () => {
         .delete(`/companies/${canonical.body.id}`)
         .set('Authorization', `Bearer ${accessToken}`);
     });
+
+    // Real two-writer proof for ADR-029 §2 (the merge race fix), against
+    // live Postgres Serializable isolation — the existing test above only
+    // proves the P2034->409 mapping against a single canned rejection. Two
+    // different canonical companies both target the same duplicateId via
+    // Promise.all, so their transactions genuinely overlap. Exactly one
+    // request must win (201, duplicate actually reassigned/deleted); the
+    // loser gets either 409 (aborted mid-transaction by Postgres, the
+    // common case) or 404 (its own findFirst ran after the winner's delete
+    // already committed) — both are correct "you lost the race" outcomes,
+    // so both are accepted to keep this non-flaky against real scheduling
+    // variance.
+    it('lets exactly one of two concurrent merges targeting the same duplicate win', async () => {
+      const canonicalA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Canonical A', city: 'LAHORE' })
+        .expect(201);
+      const canonicalB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Canonical B', city: 'LAHORE' })
+        .expect(201);
+      const duplicate = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Duplicate', city: 'LAHORE' })
+        .expect(201);
+
+      try {
+        const [resA, resB] = await Promise.all([
+          agent
+            .post(`/companies/${canonicalA.body.id}/merge`)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ duplicateCompanyId: duplicate.body.id }),
+          agent
+            .post(`/companies/${canonicalB.body.id}/merge`)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ duplicateCompanyId: duplicate.body.id }),
+        ]);
+
+        // Classify by status, not array order — [201, 409].sort() sorts
+        // lexicographically ("201" < "409"), which happens to coincide with
+        // numeric order here but says nothing about which one *won*.
+        const results = [resA, resB];
+        const winners = results.filter((r) => r.status === 201);
+        const losers = results.filter(
+          (r) => r.status === 409 || r.status === 404,
+        );
+        expect(winners).toHaveLength(1);
+        expect(losers).toHaveLength(1);
+
+        // The duplicate must be gone regardless of which side won.
+        await agent
+          .get(`/companies/${duplicate.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(404);
+      } finally {
+        await agent
+          .delete(`/companies/${canonicalA.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+        await agent
+          .delete(`/companies/${canonicalB.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+      }
+    });
+  });
+
+  describe('POST /companies — concurrent per-user cap', () => {
+    // Real two-writer proof that the MAX_COMPANIES_PER_USER count check
+    // (companies.service.ts) is safe under concurrency now that it runs
+    // inside the same Serializable transaction as the write, not before it.
+    // Seeds straight through Prisma (not the API) to reach the 1999
+    // boundary quickly, then fires two concurrent creates via Promise.all —
+    // a real overlapping-transaction race against live Postgres, not a
+    // canned single-call rejection.
+    it('does not let two concurrent creates both land past the cap at the boundary', async () => {
+      // Computed, not hardcoded — this user may already own a few companies
+      // from earlier tests in this suite, and seeding a fixed 1999 on top of
+      // an unknown baseline would either land short of the boundary or (as
+      // happened during development of this test) already past it before
+      // the race even starts, invalidating the whole scenario.
+      const baseline = await prisma.company.count({ where: { userId } });
+      const fillerCount = 1999 - baseline;
+      expect(fillerCount).toBeGreaterThan(0); // sanity: earlier tests didn't already blow the budget
+      await prisma.company.createMany({
+        data: Array.from({ length: fillerCount }, (_, i) => ({
+          userId,
+          name: `Cap Filler ${i}`,
+          city: 'LAHORE' as const,
+        })),
+      });
+
+      try {
+        const [resA, resB] = await Promise.all([
+          agent
+            .post('/companies')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: 'Cap Race A', city: 'LAHORE' }),
+          agent
+            .post('/companies')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: 'Cap Race B', city: 'LAHORE' }),
+        ]);
+
+        // The loser can surface as either a clean 400 (its own count-check
+        // saw >=2000, i.e. it ran after the winner's commit) or a 409 (Postgres's
+        // Serializable machinery aborted it for conflicting with the winner's
+        // write on the same count-relevant predicate before it ever got to
+        // read a final count) — both are correct "you lost the race, cap
+        // still holds" outcomes. The runNameCheckedWrite catch block maps
+        // any P2034 to the name-conflict message regardless of real cause,
+        // so the 409 body text here is misleading, not the failure itself.
+        const results = [resA, resB];
+        expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+        expect(
+          results.filter((r) => r.status === 400 || r.status === 409),
+        ).toHaveLength(1);
+
+        const finalCount = await prisma.company.count({ where: { userId } });
+        expect(finalCount).toBe(2000);
+      } finally {
+        await prisma.company.deleteMany({
+          where: { userId, name: { startsWith: 'Cap ' } },
+        });
+      }
+    }, 30_000);
+  });
+
+  describe('DELETE /companies/:id', () => {
+    // Job.companyLink relies on Prisma's implicit onDelete: SetNull for an
+    // optional relation; Contact.company declares onDelete: Cascade
+    // explicitly. Neither was verified against a real DB before this test —
+    // see the /ship follow-up plan.
+    it("SetNulls a linked job's companyId and cascades-deletes a linked contact", async () => {
+      const company = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Delete Cascade Co', city: 'LAHORE' })
+        .expect(201);
+
+      const job = await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          company: 'E2E Delete Cascade Co',
+          position: 'Cascade Test Role',
+        })
+        .expect(201);
+      expect(job.body.companyId).toBe(company.body.id);
+
+      await agent
+        .post(`/companies/${company.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'Cascade Test Contact' })
+        .expect(201);
+
+      await agent
+        .delete(`/companies/${company.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const fetchedJob = await agent
+        .get(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(fetchedJob.body.companyId).toBeNull();
+      expect(fetchedJob.body.companyProfile).toBeNull();
+      // Job.company (the display string) is untouched — deleting the linked
+      // Company only clears the FK, it doesn't retroactively rewrite the
+      // job's own label.
+      expect(fetchedJob.body.company).toBe('E2E Delete Cascade Co');
+
+      // The contact belonged to the now-deleted company — Cascade means the
+      // company (and its contacts route) is gone, not orphaned or reachable
+      // any other way.
+      await agent
+        .get(`/companies/${company.body.id}/contacts`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      await agent
+        .delete(`/jobs/${job.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`);
+    });
+
+    it('returns 404 for a company that does not belong to the user', () =>
+      agent
+        .delete('/companies/nonexistent-id')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
   });
 
   describe('PATCH /jobs/:id', () => {

@@ -246,6 +246,36 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
+    it('retries the transaction when a write conflict is not a same-name race (different company predicate-locked the same range)', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce(null) // attempt 1: initial lookup, no match
+        .mockResolvedValueOnce(null) // re-fetch after conflict: not a same-name race
+        .mockResolvedValueOnce(null); // attempt 2: initial lookup, no match
+      mockPrisma.company.create
+        .mockRejectedValueOnce(
+          Object.assign(new Error('could not serialize access'), {
+            code: 'P2034',
+          }),
+        )
+        .mockResolvedValueOnce({ id: 'company-retried', name: 'Retry Co' });
+
+      const dto: CreateJobDto = { company: 'Retry Co', position: 'Engineer' };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(3);
+      expect(mockPrisma.company.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-retried' }),
+        }),
+      );
+      expect(result.matchedCompany).toBeNull();
+    });
+
     it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
@@ -466,6 +496,113 @@ describe('JobsService', () => {
         service.update('user-1', 'job-99', { status: JobStatus.OFFER }),
       ).rejects.toThrow('Job not found');
       expect(mockPrisma.job.update).not.toHaveBeenCalled();
+    });
+
+    it('re-links companyId to a matching existing company when dto.company changes', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+      mockPrisma.company.findFirst.mockResolvedValueOnce({
+        id: 'company-2',
+        name: 'New Co',
+      }); // resolveCompanyId
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: 'New Co' });
+
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            company: 'New Co',
+            companyId: 'company-2',
+          }),
+        }),
+      );
+    });
+
+    it('creates a new Company and links companyId when dto.company matches nothing existing', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null); // resolveCompanyId: no match
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Brand New Co',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: 'Brand New Co' });
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          name: 'Brand New Co',
+          city: CompanyCity.OTHER,
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-new' }),
+        }),
+      );
+    });
+
+    it('unlinks companyId when dto.company is cleared to a blank string', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned only — resolveCompanyId short-circuits on blank name
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: '   ' });
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: null }),
+        }),
+      );
+    });
+
+    it('rejects an explicit null company instead of crashing on .trim()', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+
+      await expect(
+        service.update(
+          'user-1',
+          'job-1',
+          // dto.company is typed `string | undefined`, but class-validator's
+          // IsOptional() lets an actual `null` past the ValidationPipe —
+          // this is the shape a client sending {"company": null} produces.
+          { company: null } as unknown as { company?: string },
+        ),
+      ).rejects.toThrow('company cannot be cleared');
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).not.toHaveBeenCalled();
+    });
+
+    it('does not touch companyId when dto.company is omitted', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ companyId: expect.anything() }),
+        }),
+      );
     });
   });
 

@@ -241,8 +241,8 @@ export default function JobDetailPage() {
           <Contacts jobId={id} contacts={job.contacts ?? []} />
           <CompanyProfileCard
             profile={job.companyProfile}
-            jobId={id}
             companyId={job.companyId}
+            invalidateKey={['job', id]}
           />
           <JobForm
             open={editOpen}

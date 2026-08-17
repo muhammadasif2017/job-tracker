@@ -73,6 +73,12 @@ export class JobResponseDto {
   @ApiPropertyOptional({ format: 'cuid' })
   companyId: string | null;
 
+  // Only findOne's reshaped response actually populates this — PATCH /jobs/:id
+  // returns the raw Prisma update result, which doesn't include companyLink.
+  // Frontend mutations that consume the PATCH response account for this
+  // (e.g. usePatchJobStatusMutation re-grafts the previous companyProfile
+  // rather than trusting the response) — don't add a new PATCH consumer that
+  // reads this field without checking findOne first.
   @ApiPropertyOptional({ type: () => CompanyProfileResponseDto })
   companyProfile: CompanyProfileResponseDto | null;
 
