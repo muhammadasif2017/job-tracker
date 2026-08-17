@@ -1,6 +1,13 @@
 'use client';
 
-import { RefreshCw, Clock, WifiOff, KeyRound, AlertTriangle } from 'lucide-react';
+import {
+  RefreshCw,
+  Clock,
+  WifiOff,
+  KeyRound,
+  AlertTriangle,
+  SearchX,
+} from 'lucide-react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -24,7 +31,12 @@ interface Props {
   invalidateKey: QueryKey;
 }
 
-type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG' | 'UNKNOWN';
+type FailureKind =
+  | 'RATE_LIMITED'
+  | 'UNAVAILABLE'
+  | 'CONFIG'
+  | 'NO_DATA'
+  | 'UNKNOWN';
 
 const FAILURE_COPY: Record<
   FailureKind,
@@ -47,6 +59,12 @@ const FAILURE_COPY: Record<
     tone: 'red',
     message:
       "Company research isn't configured correctly on the backend. Check the server logs for details.",
+  },
+  NO_DATA: {
+    icon: SearchX,
+    tone: 'amber',
+    message:
+      "We couldn't find any public information about this company. Adding a company website will let us pull details straight from their site.",
   },
   UNKNOWN: {
     icon: AlertTriangle,
@@ -91,6 +109,9 @@ function classifyFailure(message: string | null | undefined): FailureKind {
     /timeout|timed out|network|fetch failed|AbortError/i.test(message)
   ) {
     return 'UNAVAILABLE';
+  }
+  if (/no extractable content/i.test(message)) {
+    return 'NO_DATA';
   }
   return 'UNKNOWN';
 }

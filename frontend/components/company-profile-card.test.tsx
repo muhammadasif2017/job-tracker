@@ -186,6 +186,25 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
+    it('shows a friendly no-data message when there is nothing to extract from', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage:
+            'No extractable content: no website on file and web search returned nothing',
+        }),
+      );
+      expect(
+        screen.getByText(/couldn't find any public information/),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Adding a company website/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/No extractable content/),
+      ).not.toBeInTheDocument();
+    });
+
     it('shows a Refresh button', () => {
       renderCard(makeProfile({ status: 'FAILED' }));
       expect(
