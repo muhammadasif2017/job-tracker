@@ -101,20 +101,7 @@ Handles concurrent 401s without duplicate refresh calls:
 
 ## Types (`types/index.ts`)
 
-Single source of truth for all shared types and UI constants:
-
-| Export                                  | Type                                                                                     |
-| --------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `JobStatus`                             | Union: `'WISHLIST' \| 'APPLIED' \| 'INTERVIEWING' \| 'OFFER' \| 'REJECTED' \| 'GHOSTED'` |
-| `Job`, `JobEvent`, `User`, `AuthTokens` | Core domain interfaces (`Job` has an optional `resume?: Resume \| null` field)           |
-| `Resume`                                | `{ id, jobId, originalName, size, createdAt }` — storageKey is never sent to the client  |
-| `InterviewRound`, `InterviewOutcome`    | `Job.interviewRounds?` — embedded on the job, not a separate fetch (see `InterviewRounds` component) |
-| `JobStats`                              | `{ total, byStatus, thisMonth, responseRate }`                                           |
-| `PaginatedJobs`                         | `{ data: Job[], meta: { total, page, limit, totalPages } }`                              |
-| `JOB_STATUSES`                          | Ordered array of all statuses                                                            |
-| `STATUS_LABELS`                         | Human-readable labels per status                                                         |
-| `STATUS_COLORS`                         | Tailwind classes per status (for `<StatusBadge>`)                                        |
-| `STATUS_DOT_COLORS`                     | Hex colors per status (for Kanban column dots and charts)                                |
+Single source of truth for all shared types and UI constants — see the file directly for the current export list.
 
 `types/index.ts` stays hand-written — it mixes domain interfaces with UI-only constants (labels, Tailwind color maps) that have no OpenAPI equivalent.
 
@@ -166,11 +153,7 @@ See `frontend/COMPONENTS.md` for per-component reference (`JobForm`, `ResumeUplo
 
 ## Utility Functions (`lib/utils.ts`)
 
-| Function               | Usage                                                                   |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `cn(...classes)`       | Merge Tailwind classes with conflict resolution (clsx + tailwind-merge) |
-| `formatDate(date)`     | `'MMM d, yyyy'` — e.g. `Jun 9, 2026`                                    |
-| `formatRelative(date)` | `'2 days ago'` style (date-fns `formatDistanceToNow`)                   |
+`cn`, `formatDate`, `formatRelative` — see the file directly, names/usage are self-explanatory.
 
 ---
 
@@ -184,12 +167,7 @@ See `frontend/COMPONENTS.md` for per-component reference (`JobForm`, `ResumeUplo
 
 ## Adding a New Page
 
-1. Create `app/(dashboard)/your-page/page.tsx` (add `'use client'` if it uses hooks/state)
-2. Add a nav entry in `components/layout/sidebar.tsx` if it should appear in the sidebar
-3. Use `useQuery` for data fetching — define a new query key following the `['resource', filters]` pattern
-4. Use `useMutation` for writes — always invalidate affected query keys on `onSuccess`
-5. Show `<Skeleton>` components while loading, not spinners (keeps layout stable)
-6. The page is automatically protected by `proxy.ts` — no extra auth checks needed
+See the `add-frontend-page` skill for the step-by-step checklist.
 
 ---
 

@@ -165,14 +165,7 @@ import type { Request, Response } from 'express';
 
 ## Adding a New Feature Module
 
-1. `nest g module feature`
-2. `nest g controller feature`
-3. `nest g service feature`
-4. Add DTOs in `feature/dto/`
-5. Import `PrismaModule` if needed (it's global — no need to import it)
-6. Protect routes with `JwtAuthGuard` by default (already global); add `@Public()` only for truly public endpoints
-7. Use `@CurrentUser()` to get the authenticated user — never trust user IDs from the request body
-8. Add the new module to `AppModule.imports`
+See the `add-backend-module` skill for the step-by-step checklist.
 
 ## Jobs: nextInterviewAt Is Derived, Not User-Settable
 
