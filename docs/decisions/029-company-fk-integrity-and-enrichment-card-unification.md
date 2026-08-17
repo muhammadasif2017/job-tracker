@@ -78,10 +78,19 @@ already account for this (`usePatchJobStatusMutation` re-grafts the previous
 ### 2. Serializable transaction on merge, mapped to 409
 `merge` now runs its transaction at `Serializable` isolation — the same
 level `runNameCheckedWrite` already uses elsewhere in this service — so
-Postgres aborts the losing concurrent transaction with error code `P2034`
-instead of letting both proceed. The catch block maps `P2034` specifically
-to a `ConflictException` ("This company is being merged concurrently —
-refresh and try again"); any other error rethrows unchanged.
+Postgres aborts the losing concurrent transaction with a write-conflict
+error instead of letting both proceed. The catch block maps that conflict to
+a `ConflictException` ("This company is being merged concurrently — refresh
+and try again"); any other error rethrows unchanged. All four of this
+service's Serializable-transaction catch blocks (here, `runNameCheckedWrite`,
+`CompaniesImportService.runImportTransaction`, and `JobsService.resolveCompanyId`)
+share `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) instead of
+each checking `err.code === 'P2034'` independently — a conflict Postgres only
+detects at COMMIT time (the common case for the §3 count check below)
+surfaces as a differently-shaped, unwrapped `DriverAdapterError` that a bare
+`P2034` check misses entirely, discovered via a real two-writer e2e test
+against live Postgres (`test/app.e2e-spec.ts`); see `backend/CLAUDE.md`
+"Prisma 7 Quirks" for the full mechanism.
 
 ### 3. `MAX_COMPANIES_PER_USER = 2000` enforced independently in both write
 paths, plus cost-scaled throttles and BOM stripping

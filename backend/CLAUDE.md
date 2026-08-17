@@ -27,6 +27,7 @@ npx prisma studio                             # GUI DB browser
   ```
 - `prisma.config.ts` at the backend root is Prisma 7's required config file — do not delete it.
 - Always run `prisma generate` after any schema change or migration.
+- **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) *are* wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
 
 ---
 

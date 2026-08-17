@@ -6,6 +6,7 @@ import {
 import type { Prisma } from '@prisma/client';
 import { BusinessMode, CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 
 export interface CsvImportError {
   row: number;
@@ -91,12 +92,7 @@ export class CompaniesImportService {
         { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
       );
     } catch (err: unknown) {
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        err.code === 'P2034'
-      ) {
+      if (isTransactionWriteConflict(err)) {
         throw new ConflictException(
           'Another change happened at the same time — please retry the import',
         );

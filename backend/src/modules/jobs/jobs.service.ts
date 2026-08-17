@@ -8,6 +8,7 @@ import {
 import { Logger } from 'nestjs-pino';
 import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -88,7 +89,11 @@ export class JobsService {
         err && typeof err === 'object' && 'code' in err
           ? (err as { code?: unknown }).code
           : undefined;
-      if (code !== 'P2034' && code !== 'P2002') throw err;
+      // isTransactionWriteConflict covers P2034 plus the raw
+      // DriverAdapterError shape a commit-time conflict surfaces as (see
+      // prisma-errors.ts) — P2002 (a same-name create-vs-create race) is a
+      // separate, normally-wrapped case checked alongside it.
+      if (code !== 'P2002' && !isTransactionWriteConflict(err)) throw err;
 
       const raced = await this.prisma.company.findFirst({
         where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },

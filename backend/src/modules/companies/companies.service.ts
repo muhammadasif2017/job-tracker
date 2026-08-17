@@ -8,6 +8,7 @@ import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';
@@ -61,9 +62,17 @@ export class CompaniesService {
 
   // Serializable isolation makes Postgres detect the read-write conflict
   // between two concurrent ensureNameAvailable+write pairs and abort one
-  // with P2034, rather than letting both pass the pre-check and both write —
-  // the case-insensitive check alone can't close that window since the DB's
-  // own unique constraint is case-sensitive.
+  // — rather than letting both pass the pre-check and both write — the
+  // case-insensitive check alone can't close that window since the DB's own
+  // unique constraint is case-sensitive. `create()` also runs its
+  // MAX_COMPANIES_PER_USER count check inside this same transaction, so a
+  // conflict here isn't always a name collision; the message stays generic
+  // rather than assuming which check lost the race. Use
+  // isTransactionWriteConflict, not a bare `err.code === 'P2034'` check — a
+  // conflict Postgres only detects at COMMIT time (common for a broad
+  // predicate like this count()) surfaces as a raw, differently-shaped
+  // DriverAdapterError instead of a PrismaClientKnownRequestError; see
+  // prisma-errors.ts for why both shapes matter.
   private async runNameCheckedWrite<T>(
     name: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -73,13 +82,10 @@ export class CompaniesService {
         isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel,
       });
     } catch (err: unknown) {
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        err.code === 'P2034'
-      ) {
-        throw new ConflictException(`A company named "${name}" already exists`);
+      if (isTransactionWriteConflict(err)) {
+        throw new ConflictException(
+          `Could not save "${name}" — a conflicting change happened at the same time. Please try again.`,
+        );
       }
       throw err;
     }
@@ -360,12 +366,7 @@ export class CompaniesService {
         { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
       );
     } catch (err: unknown) {
-      if (
-        err &&
-        typeof err === 'object' &&
-        'code' in err &&
-        err.code === 'P2034'
-      ) {
+      if (isTransactionWriteConflict(err)) {
         throw new ConflictException(
           'This company is being merged concurrently — refresh and try again',
         );

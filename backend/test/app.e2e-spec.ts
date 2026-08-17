@@ -644,6 +644,133 @@ describe('Job Tracker (e2e)', () => {
         .delete(`/companies/${canonical.body.id}`)
         .set('Authorization', `Bearer ${accessToken}`);
     });
+
+    // Real two-writer proof for ADR-029 §2 (the merge race fix), against
+    // live Postgres Serializable isolation — the existing test above only
+    // proves the P2034->409 mapping against a single canned rejection. Two
+    // different canonical companies both target the same duplicateId via
+    // Promise.all, so their transactions genuinely overlap. Exactly one
+    // request must win (201, duplicate actually reassigned/deleted); the
+    // loser gets either 409 (aborted mid-transaction by Postgres, the
+    // common case) or 404 (its own findFirst ran after the winner's delete
+    // already committed) — both are correct "you lost the race" outcomes,
+    // so both are accepted to keep this non-flaky against real scheduling
+    // variance.
+    it('lets exactly one of two concurrent merges targeting the same duplicate win', async () => {
+      const canonicalA = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Canonical A', city: 'LAHORE' })
+        .expect(201);
+      const canonicalB = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Canonical B', city: 'LAHORE' })
+        .expect(201);
+      const duplicate = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Concurrent Merge Duplicate', city: 'LAHORE' })
+        .expect(201);
+
+      try {
+        const [resA, resB] = await Promise.all([
+          agent
+            .post(`/companies/${canonicalA.body.id}/merge`)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ duplicateCompanyId: duplicate.body.id }),
+          agent
+            .post(`/companies/${canonicalB.body.id}/merge`)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ duplicateCompanyId: duplicate.body.id }),
+        ]);
+
+        // Classify by status, not array order — [201, 409].sort() sorts
+        // lexicographically ("201" < "409"), which happens to coincide with
+        // numeric order here but says nothing about which one *won*.
+        const results = [resA, resB];
+        const winners = results.filter((r) => r.status === 201);
+        const losers = results.filter(
+          (r) => r.status === 409 || r.status === 404,
+        );
+        expect(winners).toHaveLength(1);
+        expect(losers).toHaveLength(1);
+
+        // The duplicate must be gone regardless of which side won.
+        await agent
+          .get(`/companies/${duplicate.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(404);
+      } finally {
+        await agent
+          .delete(`/companies/${canonicalA.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+        await agent
+          .delete(`/companies/${canonicalB.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+      }
+    });
+  });
+
+  describe('POST /companies — concurrent per-user cap', () => {
+    // Real two-writer proof that the MAX_COMPANIES_PER_USER count check
+    // (companies.service.ts) is safe under concurrency now that it runs
+    // inside the same Serializable transaction as the write, not before it.
+    // Seeds straight through Prisma (not the API) to reach the 1999
+    // boundary quickly, then fires two concurrent creates via Promise.all —
+    // a real overlapping-transaction race against live Postgres, not a
+    // canned single-call rejection.
+    it('does not let two concurrent creates both land past the cap at the boundary', async () => {
+      // Computed, not hardcoded — this user may already own a few companies
+      // from earlier tests in this suite, and seeding a fixed 1999 on top of
+      // an unknown baseline would either land short of the boundary or (as
+      // happened during development of this test) already past it before
+      // the race even starts, invalidating the whole scenario.
+      const baseline = await prisma.company.count({ where: { userId } });
+      const fillerCount = 1999 - baseline;
+      expect(fillerCount).toBeGreaterThan(0); // sanity: earlier tests didn't already blow the budget
+      await prisma.company.createMany({
+        data: Array.from({ length: fillerCount }, (_, i) => ({
+          userId,
+          name: `Cap Filler ${i}`,
+          city: 'LAHORE' as const,
+        })),
+      });
+
+      try {
+        const [resA, resB] = await Promise.all([
+          agent
+            .post('/companies')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: 'Cap Race A', city: 'LAHORE' }),
+          agent
+            .post('/companies')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ name: 'Cap Race B', city: 'LAHORE' }),
+        ]);
+
+        // The loser can surface as either a clean 400 (its own count-check
+        // saw >=2000, i.e. it ran after the winner's commit) or a 409 (Postgres's
+        // Serializable machinery aborted it for conflicting with the winner's
+        // write on the same count-relevant predicate before it ever got to
+        // read a final count) — both are correct "you lost the race, cap
+        // still holds" outcomes. The runNameCheckedWrite catch block maps
+        // any P2034 to the name-conflict message regardless of real cause,
+        // so the 409 body text here is misleading, not the failure itself.
+        const results = [resA, resB];
+        expect(results.filter((r) => r.status === 201)).toHaveLength(1);
+        expect(
+          results.filter((r) => r.status === 400 || r.status === 409),
+        ).toHaveLength(1);
+
+        const finalCount = await prisma.company.count({ where: { userId } });
+        expect(finalCount).toBe(2000);
+      } finally {
+        await prisma.company.deleteMany({
+          where: { userId, name: { startsWith: 'Cap ' } },
+        });
+      }
+    }, 30_000);
   });
 
   describe('DELETE /companies/:id', () => {
