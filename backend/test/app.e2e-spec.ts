@@ -355,6 +355,43 @@ describe('Job Tracker (e2e)', () => {
       expect(first.body.companyId).toEqual(second.body.companyId);
     });
 
+    it('creates all jobs when several concurrent requests auto-create distinct new companies for the same user', async () => {
+      // Distinct company names for the same user still predicate-lock the
+      // same (userId, name) index range under Serializable isolation (no
+      // functional index backs the case-insensitive findFirst), so this
+      // reliably triggers "could not serialize access" write conflicts that
+      // are NOT same-name races — resolveCompanyId must retry rather than
+      // fail the request. See ADR-029 follow-up.
+      const names = Array.from(
+        { length: 6 },
+        (_, i) => `E2E Concurrent Co ${i} ${Date.now()}`,
+      );
+
+      const responses = await Promise.all(
+        names.map((company) =>
+          agent
+            .post('/jobs')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .send({ company, position: 'Concurrent Role' }),
+        ),
+      );
+
+      responses.forEach((res) => expect(res.status).toBe(201));
+      const companyIds = responses.map((res) => res.body.companyId);
+      expect(new Set(companyIds).size).toBe(names.length);
+      companyIds.forEach((id) => expect(id).toBeTruthy());
+
+      // Cleanup — these companies would otherwise leak into later tests
+      // that assert on exact company counts/ordering (e.g. duplicate
+      // detection pagination).
+      await prisma.job.deleteMany({
+        where: { id: { in: responses.map((res) => res.body.id) } },
+      });
+      await prisma.company.deleteMany({
+        where: { id: { in: companyIds } },
+      });
+    });
+
     it('returns 401 without token', () =>
       agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
   });

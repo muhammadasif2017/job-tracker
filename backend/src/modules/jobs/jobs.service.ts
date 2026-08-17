@@ -55,14 +55,28 @@ export class JobsService {
   // auto-created this row" (a race-resolved row counts as the latter, same
   // as the loser of the race would have gotten via a plain, non-concurrent
   // create).
+  //
+  // `name: { mode: 'insensitive' }` has no matching (userId, lower(name))
+  // index, so the findFirst predicate-locks the whole `userId` range of the
+  // `(userId, name)` unique index under Serializable isolation. Two
+  // concurrent creates for the SAME user always overlap that range, even
+  // with completely unrelated company names — Postgres aborts the loser
+  // with "could not serialize access due to read/write dependencies" no
+  // less often than a genuine same-name collision does. A conflict is
+  // therefore NOT reliable evidence that `trimmedName` itself now exists,
+  // so a re-fetch-by-name that comes up empty means "transient conflict,
+  // nothing to reuse" and must retry the whole transaction rather than
+  // rethrow — see the live-DB concurrency e2e added for ADR-029.
   private async resolveCompanyId(
     userId: string,
     trimmedName: string,
+    attempt = 1,
   ): Promise<{
     company: { id: string; name: string } | null;
     matched: boolean;
   }> {
     if (!trimmedName) return { company: null, matched: false };
+    const MAX_ATTEMPTS = 8;
 
     try {
       return await this.prisma.$transaction(
@@ -99,8 +113,21 @@ export class JobsService {
         where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
         select: { id: true, name: true },
       });
-      if (!raced) throw err;
-      return { company: raced, matched: false };
+      if (raced) return { company: raced, matched: false };
+
+      // No row under this name — the conflict was against some other
+      // company's create in the same predicate-locked range, not a
+      // same-name race. Retry the whole transaction; only give up once
+      // MAX_ATTEMPTS is exhausted. Jittered backoff (not an immediate
+      // retry) matters here: several concurrent requests for the same user
+      // all lose to each other's predicate lock at once, so retrying in
+      // lockstep just re-collides — random delay desyncs the retries so
+      // contention actually clears.
+      if (attempt >= MAX_ATTEMPTS) throw err;
+      await new Promise((resolve) =>
+        setTimeout(resolve, 10 + Math.random() * 40 * attempt),
+      );
+      return this.resolveCompanyId(userId, trimmedName, attempt + 1);
     }
   }
 

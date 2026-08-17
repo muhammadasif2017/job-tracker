@@ -246,6 +246,36 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
+    it('retries the transaction when a write conflict is not a same-name race (different company predicate-locked the same range)', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce(null) // attempt 1: initial lookup, no match
+        .mockResolvedValueOnce(null) // re-fetch after conflict: not a same-name race
+        .mockResolvedValueOnce(null); // attempt 2: initial lookup, no match
+      mockPrisma.company.create
+        .mockRejectedValueOnce(
+          Object.assign(new Error('could not serialize access'), {
+            code: 'P2034',
+          }),
+        )
+        .mockResolvedValueOnce({ id: 'company-retried', name: 'Retry Co' });
+
+      const dto: CreateJobDto = { company: 'Retry Co', position: 'Engineer' };
+      const result = await service.create('user-1', dto);
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(3);
+      expect(mockPrisma.company.create).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.job.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ companyId: 'company-retried' }),
+        }),
+      );
+      expect(result.matchedCompany).toBeNull();
+    });
+
     it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
