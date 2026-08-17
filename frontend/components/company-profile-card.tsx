@@ -110,7 +110,10 @@ function classifyFailure(message: string | null | undefined): FailureKind {
   ) {
     return 'UNAVAILABLE';
   }
-  if (/no extractable content/i.test(message)) {
+  if (
+    /no extractable content/i.test(message) ||
+    /did not call a tool|tool_use_failed/i.test(message)
+  ) {
     return 'NO_DATA';
   }
   return 'UNKNOWN';
@@ -372,7 +375,7 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
         <FailureBanner
           errorMessage={profile.errorMessage}
           prefix="Last refresh failed: "
-          suffix=" — showing the last successful result."
+          suffix=" Showing your last successful result below."
         />
       )}
 

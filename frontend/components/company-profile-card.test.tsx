@@ -205,6 +205,22 @@ describe('CompanyProfileCard', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('shows the same friendly no-data message for a raw tool_use_failed error from an empty-context run', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage:
+            '400 {"error":{"message":"Tool choice is required, but model did not call a tool","type":"invalid_request_error","code":"tool_use_failed","failed_generation":"I\'m ready to extract the requested informa',
+        }),
+      );
+      expect(
+        screen.getByText(/couldn't find any public information/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Tool choice is required/),
+      ).not.toBeInTheDocument();
+    });
+
     it('shows a Refresh button', () => {
       renderCard(makeProfile({ status: 'FAILED' }));
       expect(
@@ -267,7 +283,7 @@ describe('CompanyProfileCard', () => {
         screen.queryByText(/Unexpected tool-call shape/),
       ).not.toBeInTheDocument();
       expect(
-        screen.getByText(/showing the last successful result/),
+        screen.getByText(/Showing your last successful result/),
       ).toBeInTheDocument();
       expect(
         screen.getByRole('button', { name: /refresh/i }),
