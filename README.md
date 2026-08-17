@@ -12,7 +12,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - **Application timeline** — automatic audit log of every status change per job
 - **Interview scheduling** — set a next-interview date on any application
 - **Dashboard** — stats cards (total, this month, response rate) + donut chart breakdown by status
-- **Company enrichment** — background queue (BullMQ + Redis) fetches company data (industry, tech stack, culture, remote policy) via Tavily search + Groq (llama-3.3-70b-versatile) tool calling
+- **Company enrichment** — background queue (BullMQ + Redis) fetches company data (industry, tech stack, culture, remote policy) via Tavily search + Groq (openai/gpt-oss-120b) tool calling
 - **Resume per job** — upload one PDF resume per application (max 8 MB), stored via a pluggable storage driver (local disk or Oracle Cloud Object Storage)
 - **CSV export** — download all applications (or filtered subset) as a spreadsheet
 - **Profile management** — update name, change password, view connected OAuth accounts, delete account
@@ -27,7 +27,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - PostgreSQL + Prisma 7 (driver adapter: `@prisma/adapter-pg`)
 - Passport.js — Local, JWT, JWT-Refresh, Google OAuth2, GitHub OAuth2
 - BullMQ + Redis — async company enrichment queue
-- Groq (llama-3.3-70b-versatile) — structured data extraction via tool calling
+- Groq (openai/gpt-oss-120b) — structured data extraction via tool calling
 - Tavily — AI-optimized web search for company enrichment (1000 req/month free tier)
 - helmet, nestjs-pino, @nestjs/throttler, class-validator
 

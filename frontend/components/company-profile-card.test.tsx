@@ -104,23 +104,38 @@ describe('CompanyProfileCard', () => {
   });
 
   describe('when status is FAILED', () => {
-    it('shows the raw errorMessage when it does not match a known failure kind', () => {
+    it('shows a generic friendly message, never the raw errorMessage, when it does not match a known failure kind', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
           errorMessage: 'Unexpected tool-call shape from LLM',
         }),
       );
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(
-        screen.getByText('Unexpected tool-call shape from LLM'),
-      ).toBeInTheDocument();
+        screen.queryByText(/Unexpected tool-call shape/),
+      ).not.toBeInTheDocument();
     });
 
-    it('shows fallback message when errorMessage is absent', () => {
-      renderCard(makeProfile({ status: 'FAILED' }));
+    it('shows a friendly config message for an unknown/nonexistent model error', () => {
+      renderCard(
+        makeProfile({
+          status: 'FAILED',
+          errorMessage:
+            '404 {"error":{"message":"The model llama-3.3-99b-nonexistent does not exist or you do not have access to it.","code":"model_not_found"}}',
+        }),
+      );
       expect(
-        screen.getByText('Enrichment failed. Try again.'),
+        screen.getByText(/isn't configured correctly/),
       ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/llama-3.3-99b-nonexistent/),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows the same generic friendly message when errorMessage is absent', () => {
+      renderCard(makeProfile({ status: 'FAILED' }));
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
     });
 
     it('shows a friendly rate-limit message for a 429', () => {
@@ -217,7 +232,7 @@ describe('CompanyProfileCard', () => {
       expect(screen.getByText('Queued…')).toBeInTheDocument();
     });
 
-    it('shows prior fields plus an inline failure banner (raw message) instead of the bare error card on FAILED', () => {
+    it('shows prior fields plus an inline failure banner (generic message, not raw) instead of the bare error card on FAILED', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
@@ -228,9 +243,10 @@ describe('CompanyProfileCard', () => {
       );
       expect(screen.getByText('Fintech')).toBeInTheDocument();
       expect(screen.getByText(/Last refresh failed/)).toBeInTheDocument();
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(
-        screen.getByText(/Unexpected tool-call shape from LLM/),
-      ).toBeInTheDocument();
+        screen.queryByText(/Unexpected tool-call shape/),
+      ).not.toBeInTheDocument();
       expect(
         screen.getByText(/showing the last successful result/),
       ).toBeInTheDocument();

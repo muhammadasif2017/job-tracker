@@ -30,7 +30,7 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 
 ## Tech Stack
 
-Existing stack, no new dependencies: NestJS + Prisma 7 + PostgreSQL + BullMQ/Redis (backend), Next.js 16 + TanStack Query + RHF/Zod (frontend). Reuses Groq (`llama-3.3-70b-versatile`) + Tavily already wired for job enrichment.
+Existing stack, no new dependencies: NestJS + Prisma 7 + PostgreSQL + BullMQ/Redis (backend), Next.js 16 + TanStack Query + RHF/Zod (frontend). Reuses Groq (`openai/gpt-oss-120b`) + Tavily already wired for job enrichment.
 
 ## Commands
 
