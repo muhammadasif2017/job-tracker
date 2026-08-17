@@ -73,48 +73,97 @@ test.describe('Company enrichment card', () => {
   });
 
   test('a second enrichment request while one is in progress is rejected', async () => {
-    // The job was just created, so its auto-queued run should still be
-    // PENDING/PROCESSING. In CI there's no real GROQ_API_KEY/TAVILY_API_KEY,
-    // so the worker's search+LLM calls fail fast (Tavily returns [] with no
-    // network call at all when unset; Groq rejects the placeholder key
-    // quickly) — the whole run can resolve to FAILED in well under 150ms,
-    // occasionally racing ahead of this request and leaving nothing to
-    // reject. That's a CI-environment timing artifact, not a bug in the
-    // guard being tested (in production, real extraction takes real
-    // seconds) — retry with a fresh job on a miss instead of asserting on
-    // wall-clock luck.
+    // Racing a single extra request against the auto-queued run from job
+    // creation isn't reliable in either direction: locally, a real search +
+    // LLM round trip takes real seconds, so the auto-queued run is still
+    // PENDING/PROCESSING for a while; in CI (or once the auto-queued run
+    // hits the empty-context fail-fast guard in
+    // company-enrichment.processor.ts), it can resolve in well under a
+    // millisecond, leaving nothing to conflict with by the time our request
+    // lands. Either way, betting on one extra request's timing against a
+    // run we don't control is a coin flip.
     //
-    // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md) —
-    // job creation now auto-queues via POST /companies/:companyId/enrichment,
-    // so a second request racing it must hit the same endpoint to observe
-    // the CAS conflict guard.
-    let res: Response | undefined;
-    for (let attempt = 0; attempt < 5; attempt++) {
-      const target =
-        attempt === 0
-          ? job
-          : await createTestJob(user.accessToken, { company: 'Enrich Co' });
-      res = await fetch(`${API}/companies/${target.companyId}/enrichment`, {
-        method: 'POST',
+    // Instead: wait for the auto-queued run to reach a terminal state first
+    // (same signal as "reaches a terminal state" above), then race two of
+    // *our own* requests against each other. triggerEnrichment's guard
+    // (companies.service.ts) is a single `updateMany` CAS on the Company
+    // row, and Postgres serializes two concurrent UPDATEs against the same
+    // row at the DB level — whichever commits first flips status to PENDING
+    // and gets 202, the second re-evaluates the WHERE clause against that
+    // now-updated row and gets 409. That's deterministic regardless of how
+    // fast either run actually processes.
+    for (let attempt = 0; attempt < 90; attempt++) {
+      const res = await fetch(`${API}/jobs/${job.id}`, {
         headers: { Authorization: `Bearer ${user.accessToken}` },
       });
-      if (target.id !== job.id) {
-        await deleteTestJob(user.accessToken, target.id).catch(() => {});
-      }
-      if (res.status === 409) break;
+      const body = (await res.json()) as {
+        companyProfile?: { status?: string } | null;
+      };
+      const status = body.companyProfile?.status;
+      if (status !== 'PENDING' && status !== 'PROCESSING') break;
+      await new Promise((r) => setTimeout(r, 500));
     }
-    expect(res?.status).toBe(409);
+
+    // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md).
+    const [res1, res2] = await Promise.all([
+      fetch(`${API}/companies/${job.companyId}/enrichment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      }),
+      fetch(`${API}/companies/${job.companyId}/enrichment`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${user.accessToken}` },
+      }),
+    ]);
+
+    expect([res1.status, res2.status].sort()).toEqual([202, 409]);
   });
 
   test('Refresh re-queues enrichment and returns to a queued state', async ({
     page,
   }) => {
+    // Deterministic like the FAILED-enrichment test below — real enrichment
+    // (especially the empty-context fail-fast path) can now resolve faster
+    // than the browser can observe the in-flight state, so this mocks the
+    // network boundary instead of racing a live run.
+    let profileStatus: 'COMPLETED' | 'PENDING' = 'COMPLETED';
+
+    await page.route(`${API}/jobs/${job.id}`, async (route) => {
+      if (route.request().method() !== 'GET') return route.continue();
+      const response = await route.fetch();
+      const body = await response.json();
+      body.companyProfile =
+        profileStatus === 'COMPLETED'
+          ? {
+              status: 'COMPLETED',
+              industry: 'Fintech',
+              enrichedAt: '2026-01-01T00:00:00Z',
+            }
+          : {
+              status: 'PENDING',
+              industry: 'Fintech',
+              enrichedAt: '2026-01-01T00:00:00Z',
+            };
+      await route.fulfill({ response, json: body });
+    });
+
+    // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md) —
+    // the Refresh button hits POST /companies/:companyId/enrichment.
+    await page.route(
+      `${API}/companies/${job.companyId}/enrichment`,
+      async (route) => {
+        profileStatus = 'PENDING';
+        await route.fulfill({
+          status: 202,
+          json: { message: 'Enrichment queued' },
+        });
+      },
+    );
+
     await goToJob(page, job);
 
-    // Wait for the auto-queued run to finish so Refresh is available and the
-    // manual trigger below is unambiguous (not just the original run).
     const refreshButton = page.getByRole('button', { name: 'Refresh' });
-    await expect(refreshButton).toBeVisible({ timeout: 45_000 });
+    await expect(refreshButton).toBeVisible();
 
     await refreshButton.click();
     await expect(page.getByText('Enrichment queued')).toBeVisible();
@@ -122,15 +171,9 @@ test.describe('Company enrichment card', () => {
     // enrichment.service.ts — re-runs no longer null out fields), so the
     // in-flight label here is "Refreshing…"/"Queued…", not "Researching…"
     // (that word is first-run-only, when there's no prior data to show
-    // alongside a skeleton). Real search + LLM extraction can also finish
-    // fast enough locally to land on a terminal state before this assertion
-    // runs — same class of timing race called out in the "second enrichment
-    // request" test above — so accept the Refresh button reappearing too.
-    await expect(
-      page
-        .getByText(/Queued…|Refreshing…/)
-        .or(page.getByRole('button', { name: 'Refresh' })),
-    ).toBeVisible();
+    // alongside a skeleton).
+    await expect(page.getByText(/Queued…|Refreshing…/)).toBeVisible();
+    await expect(page.getByText('Fintech')).toBeVisible();
   });
 
   test('FAILED enrichment shows a friendly failure message (never raw backend text) and Refresh re-queues it', async ({
