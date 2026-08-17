@@ -133,7 +133,7 @@ test.describe('Company enrichment card', () => {
     ).toBeVisible();
   });
 
-  test('FAILED enrichment shows the error message and Refresh re-queues it', async ({
+  test('FAILED enrichment shows a friendly failure message (never raw backend text) and Refresh re-queues it', async ({
     page,
   }) => {
     // Real enrichment rarely fails, so the FAILED branch is mocked at the
@@ -167,7 +167,11 @@ test.describe('Company enrichment card', () => {
 
     await goToJob(page, job);
 
-    await expect(page.getByText('No search results found')).toBeVisible();
+    // Raw backend error text must never reach the UI — an unrecognized
+    // failure shape (see company-profile-card.tsx's classifyFailure) always
+    // renders the generic friendly message instead.
+    await expect(page.getByText(/couldn't complete/)).toBeVisible();
+    await expect(page.getByText('No search results found')).not.toBeVisible();
     const refreshButton = page.getByRole('button', { name: 'Refresh' });
     await expect(refreshButton).toBeVisible();
 

@@ -231,7 +231,7 @@ export class LlmService {
       const response = await this.createWithRetry(
         () =>
           this.client.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             max_tokens: 2048,
             tools: [EXTRACT_TOOL],
             tool_choice: 'required',
@@ -257,7 +257,7 @@ export class LlmService {
               },
             ],
           }),
-        'llama-3.3-70b-versatile',
+        'openai/gpt-oss-120b',
       );
 
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];
@@ -282,7 +282,7 @@ export class LlmService {
       const response = await this.createWithRetry(
         () =>
           this.client.chat.completions.create({
-            model: 'llama-3.3-70b-versatile',
+            model: 'openai/gpt-oss-120b',
             max_tokens: 1024,
             tools: [JOB_POSTING_TOOL],
             tool_choice: 'required',
@@ -297,7 +297,7 @@ export class LlmService {
               },
             ],
           }),
-        'llama-3.3-70b-versatile',
+        'openai/gpt-oss-120b',
       );
 
       const toolCall = response.choices[0]?.message?.tool_calls?.[0];

@@ -24,7 +24,7 @@ interface Props {
   invalidateKey: QueryKey;
 }
 
-type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG';
+type FailureKind = 'RATE_LIMITED' | 'UNAVAILABLE' | 'CONFIG' | 'UNKNOWN';
 
 const FAILURE_COPY: Record<
   FailureKind,
@@ -46,7 +46,13 @@ const FAILURE_COPY: Record<
     icon: KeyRound,
     tone: 'red',
     message:
-      "Company research isn't configured correctly (API key issue). Check GROQ_API_KEY on the backend.",
+      "Company research isn't configured correctly on the backend. Check the server logs for details.",
+  },
+  UNKNOWN: {
+    icon: AlertTriangle,
+    tone: 'amber',
+    message:
+      "Company research couldn't complete. Try Refresh — if it keeps failing, check the server logs.",
   },
 };
 
@@ -62,14 +68,19 @@ function UnverifiedBadge() {
   );
 }
 
-function classifyFailure(message: string | null | undefined): FailureKind | null {
-  if (!message) return null;
+// Never falls through to displaying the raw message — an unrecognized shape
+// (e.g. a vendor error format nobody's seen yet) still gets a safe, generic
+// message via 'UNKNOWN' rather than leaking backend/vendor internals to the UI.
+function classifyFailure(message: string | null | undefined): FailureKind {
+  if (!message) return 'UNKNOWN';
   if (/rate.?limit/i.test(message) || /^429\b/.test(message)) {
     return 'RATE_LIMITED';
   }
   if (
-    /^40[13]\b/.test(message) ||
-    /invalid api key|unauthorized|forbidden/i.test(message)
+    /^40[134]\b/.test(message) ||
+    /invalid api key|unauthorized|forbidden|model_not_found|does not exist/i.test(
+      message,
+    )
   ) {
     return 'CONFIG';
   }
@@ -81,7 +92,7 @@ function classifyFailure(message: string | null | undefined): FailureKind | null
   ) {
     return 'UNAVAILABLE';
   }
-  return null;
+  return 'UNKNOWN';
 }
 
 function FailureBanner({
@@ -93,19 +104,7 @@ function FailureBanner({
   prefix?: string;
   suffix?: string;
 }) {
-  const kind = classifyFailure(errorMessage);
-  const copy = kind ? FAILURE_COPY[kind] : null;
-
-  if (!copy) {
-    return (
-      <p className="text-sm text-red-600 dark:text-red-400 break-words">
-        {prefix}
-        {errorMessage ?? 'Enrichment failed. Try again.'}
-        {suffix}
-      </p>
-    );
-  }
-
+  const copy = FAILURE_COPY[classifyFailure(errorMessage)];
   const Icon = copy.icon;
   return (
     <div
