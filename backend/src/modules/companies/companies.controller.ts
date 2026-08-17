@@ -172,7 +172,9 @@ export class CompaniesController {
 
   @Post('import')
   // A bulk CSV import is far costlier per call than a typical CRUD write —
-  // same rationale as the /duplicates throttle above.
+  // same rationale as POST /jobs/parse and POST :id/enrichment above.
+  // (GET /duplicates, just above, deliberately has no throttle — see the
+  // comment on that route.)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseInterceptors(
     FileInterceptor('file', {

@@ -90,16 +90,16 @@ export class CompaniesService {
   // dozens of concurrent Tavily/Groq calls at once is a real rate-limit/cost
   // risk that a single manual add isn't.
   async create(userId: string, dto: CreateCompanyDto) {
-    const existingCount = await this.prisma.company.count({
-      where: { userId },
-    });
-    if (existingCount >= MAX_COMPANIES_PER_USER) {
-      throw new BadRequestException(
-        `You can have at most ${MAX_COMPANIES_PER_USER} target companies`,
-      );
-    }
-
     const company = await this.runNameCheckedWrite(dto.name, async (tx) => {
+      // Counted inside the same Serializable transaction as the write below
+      // (not as a separate pre-check) — otherwise two concurrent creates can
+      // both read a count just under the cap and both pass, landing over it.
+      const existingCount = await tx.company.count({ where: { userId } });
+      if (existingCount >= MAX_COMPANIES_PER_USER) {
+        throw new BadRequestException(
+          `You can have at most ${MAX_COMPANIES_PER_USER} target companies`,
+        );
+      }
       await this.ensureNameAvailable(tx, userId, dto.name);
       return tx.company.create({
         data: {
@@ -335,12 +335,16 @@ export class CompaniesService {
             throw new NotFoundException('Company not found');
           }
 
+          // userId included as defense-in-depth, not the load-bearing check —
+          // duplicateId's ownership is already verified by the findFirst
+          // above. Guards against a future change ever making companyId
+          // client-settable on a Job/Contact write.
           await tx.job.updateMany({
-            where: { companyId: duplicateId },
+            where: { companyId: duplicateId, userId },
             data: { companyId: canonicalId },
           });
           await tx.contact.updateMany({
-            where: { companyId: duplicateId },
+            where: { companyId: duplicateId, company: { userId } },
             data: { companyId: canonicalId },
           });
           await tx.company.delete({ where: { id: duplicateId } });

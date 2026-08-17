@@ -263,6 +263,34 @@ describe('CompanyProfileCard', () => {
     });
   });
 
+  describe('when fields are set but enrichment has never completed (user-edited/merged, no enrichedAt)', () => {
+    // Regression test for ADR-029 §4: hasData used to check `enrichedAt`
+    // alone, which is only ever set by a COMPLETED run. On the
+    // company-detail page, fields can be set via CompanyForm or a merge's
+    // fieldOverrides with enrichedAt still null — that case must not be
+    // stuck behind the loading skeleton just because enrichment itself
+    // never ran. This suite would pass unchanged against the pre-fix
+    // `hasData = Boolean(profile.enrichedAt)` unless it drops enrichedAt
+    // entirely, unlike every other "prior data" test above.
+    it('shows fields instead of the loading skeleton while PENDING', () => {
+      renderCard(
+        makeProfile({ status: 'PENDING', industry: 'Fintech', enrichedAt: undefined }),
+      );
+      expect(screen.getByText('Fintech')).toBeInTheDocument();
+    });
+
+    it('shows fields instead of the loading skeleton while PROCESSING', () => {
+      renderCard(
+        makeProfile({
+          status: 'PROCESSING',
+          headquarters: 'Austin, TX',
+          enrichedAt: undefined,
+        }),
+      );
+      expect(screen.getByText('Austin, TX')).toBeInTheDocument();
+    });
+  });
+
   describe('when status is COMPLETED', () => {
     it('shows industry when present', () => {
       renderCard(makeProfile({ industry: 'Fintech' }));

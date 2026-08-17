@@ -166,5 +166,76 @@ describe('runBackfill', () => {
       expect(summary.matchedExisting).toBe(0);
       expect(summary.createdNew).toBe(0);
     });
+
+    it('is idempotent: a second run against the post-first-run DB state finds no candidates and writes nothing', async () => {
+      // Idempotency rests entirely on `job.findMany`'s `where: { companyId:
+      // null }` filter excluding rows the first run already linked — this
+      // pins that down instead of only relying on reading the source. Not a
+      // literal two-call harness (the mock has no real persistence between
+      // calls), but simulates it: the "second run" query reflects the
+      // post-apply DB state a real Postgres would return.
+      const prisma = makeMockPrisma();
+      prisma.job.findMany.mockResolvedValueOnce([
+        { id: 'job-1', userId: 'user-1', company: 'Systems Limited' },
+      ]);
+      prisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
+
+      const firstRun = await runBackfill(prisma, true, noop, noop);
+      expect(firstRun.matchedExisting).toBe(1);
+      expect(prisma.job.update).toHaveBeenCalledTimes(1);
+
+      prisma.job.update.mockClear();
+      prisma.company.findFirst.mockClear();
+      // job-1 no longer appears — a real Postgres query for
+      // `companyId: null` would exclude it after the first run's update.
+      prisma.job.findMany.mockResolvedValueOnce([]);
+
+      const secondRun = await runBackfill(prisma, true, noop, noop);
+
+      expect(secondRun).toEqual({
+        totalCandidates: 0,
+        blank: 0,
+        matchedExisting: 0,
+        createdNew: 0,
+        unmatched: [],
+      });
+      expect(prisma.company.findFirst).not.toHaveBeenCalled();
+      expect(prisma.job.update).not.toHaveBeenCalled();
+    });
+
+    it('stops immediately on a mid-loop job.update failure, leaving earlier rows in this run already applied and later rows untouched', async () => {
+      // Pins down current behavior: the per-row loop has no try/catch around
+      // `job.update`, so a failure on any row after the first aborts the
+      // whole run — rows before it keep their (already-committed) update,
+      // rows after it are never attempted, and no summary is logged. This is
+      // intentional-by-omission today, not verified safe; this test exists
+      // so a future change to that behavior is a deliberate, visible diff
+      // here rather than a silent regression.
+      const prisma = makeMockPrisma();
+      prisma.job.findMany.mockResolvedValue([
+        { id: 'job-1', userId: 'user-1', company: 'First Co' },
+        { id: 'job-2', userId: 'user-1', company: 'Second Co' },
+        { id: 'job-3', userId: 'user-1', company: 'Third Co' },
+      ]);
+      prisma.company.findFirst.mockResolvedValue({ id: 'company-match' });
+      prisma.job.update
+        .mockResolvedValueOnce(undefined) // job-1 succeeds
+        .mockRejectedValueOnce(new Error('DB connection lost')); // job-2 fails
+
+      await expect(runBackfill(prisma, true, noop, noop)).rejects.toThrow(
+        'DB connection lost',
+      );
+
+      expect(prisma.job.update).toHaveBeenCalledTimes(2);
+      expect(prisma.job.update).toHaveBeenNthCalledWith(1, {
+        where: { id: 'job-1' },
+        data: { companyId: 'company-match' },
+      });
+      expect(prisma.job.update).toHaveBeenNthCalledWith(2, {
+        where: { id: 'job-2' },
+        data: { companyId: 'company-match' },
+      });
+      // job-3 never reached — the throw on job-2 aborted the loop.
+    });
   });
 });

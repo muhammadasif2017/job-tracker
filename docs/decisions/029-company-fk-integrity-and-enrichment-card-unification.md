@@ -52,17 +52,26 @@ stay visually consistent.
 ## Decision
 
 ### 1. Shared `resolveCompanyId` helper, called from both create and update
-Extracted the find-or-create-with-race-retry logic (case-insensitive exact
-match, `CompanyCity.OTHER` for auto-created rows, never overwrites an
-existing company's fields) into `JobsService.resolveCompanyId`.
-`update` now calls it whenever the caller actually sends `dto.company`,
-setting `companyId` to the resolved id (or `null` for a blanked-out company
-field) alongside the existing label write. `Job.company` deliberately still
-does **not** get retroactively rewritten if the linked `Company` is later
-renamed or merged elsewhere — only an explicit edit of *this job's* company
-field re-resolves the FK. `JobResponseDto.companyProfile` now documents that
-only `findOne`'s reshaped response populates it; the raw `PATCH` result
-doesn't include it, and frontend mutations consuming the PATCH response
+Extracted the find-or-create logic (case-insensitive exact match,
+`CompanyCity.OTHER` for auto-created rows, never overwrites an existing
+company's fields) into `JobsService.resolveCompanyId`, run inside a
+`Serializable` transaction with a re-fetch fallback on `P2034`/`P2002` — the same
+race-closing pattern as `CompaniesService.runNameCheckedWrite` — so two
+concurrent create/update calls racing a case-variant company name ("Google"
+vs "google") can't create two companies for the same user. `update` now
+calls it whenever the caller actually sends `dto.company`, setting
+`companyId` to the resolved id alongside the existing label write. An
+explicit `company: null` is rejected with a 400 rather than treated as
+"unlink" — `Job.company` is a required non-nullable column, so unlike this
+repo's usual `T | null`-clears-the-field convention for optional profile
+fields, there is no unlinked state to clear it into; `class-validator`'s
+`IsOptional()` (added by `PartialType` on the update DTO) lets `null` past
+validation, so the service layer must reject it explicitly. `Job.company`
+deliberately still does **not** get retroactively rewritten if the linked
+`Company` is later renamed or merged elsewhere — only an explicit edit of
+*this job's* company field re-resolves the FK. `JobResponseDto.companyProfile`
+now documents that only `findOne`'s reshaped response populates it; the raw
+`PATCH` result doesn't include it, and frontend mutations consuming the PATCH response
 already account for this (`usePatchJobStatusMutation` re-grafts the previous
 `companyProfile` rather than trusting the response).
 
@@ -76,17 +85,25 @@ refresh and try again"); any other error rethrows unchanged.
 
 ### 3. `MAX_COMPANIES_PER_USER = 2000` enforced independently in both write
 paths, plus cost-scaled throttles and BOM stripping
-`CompaniesService.create` counts existing rows and throws `BadRequestException`
-at the cap. `CompaniesImportService` re-declares the same constant and tracks
-a running `projectedCount` across the batch (since it writes directly and
-never calls `create`) — the two constants must be kept in sync by hand; there
-is no shared source of truth for the value. `GET /companies/duplicates` and
-`POST /companies/import` each get `@Throttle({ ttl: 60000, limit: 10 })`,
-separate from the global 100/min default, matching the existing pattern for
-`POST /jobs/parse` (`backend/CLAUDE.md` "Rate Limiting") — both are far
-costlier per call than a typical CRUD request. CSV import strips a leading
-BOM by comparing `charCodeAt(0) === 0xfeff` (not a regex literal, so the BOM
-character itself never appears in source) before header parsing.
+`CompaniesService.create` counts existing rows *inside* the same `Serializable`
+transaction as the name-uniqueness check and the insert (closing the same
+class of TOCTOU race fixed in §1/§2 — an earlier version of this fix counted
+outside the transaction, letting concurrent creates both pass the check at
+the 1999/2000 boundary). `CompaniesImportService` re-declares the same
+constant and tracks a running `projectedCount` across the batch inside its
+own `Serializable` transaction (since it writes directly and never calls
+`create`) — the two constants must be kept in sync by hand; there is no
+shared source of truth for the value. `POST /companies/import` gets
+`@Throttle({ ttl: 60000, limit: 10 })`, separate from the global 100/min
+default, matching the existing pattern for `POST /jobs/parse` (`backend/
+CLAUDE.md` "Rate Limiting") — a bulk CSV write is far costlier per call than
+a typical CRUD request. `GET /companies/duplicates` deliberately does **not**
+get a route-specific throttle: it's fetched passively on every companies-page
+mount, and a 10/min cap broke ordinary navigation (E2E flakiness) rather than
+just blocking abuse — `MAX_COMPANIES_PER_USER` already bounds its O(n²)
+worst-case cost, so the generic 100/min guard is enough. CSV import strips a
+leading BOM by comparing `charCodeAt(0) === 0xfeff` (not a regex literal, so
+the BOM character itself never appears in source) before header parsing.
 
 ### 4. Shared `CompanyProfileCard`, generalized over `Company | CompanyProfile`
 `company-profile-card.tsx` now accepts `EnrichmentFieldsSource = CompanyProfile

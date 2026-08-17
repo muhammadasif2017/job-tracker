@@ -538,6 +538,26 @@ describe('JobsService', () => {
       );
     });
 
+    it('rejects an explicit null company instead of crashing on .trim()', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      }); // findOwned
+
+      await expect(
+        service.update(
+          'user-1',
+          'job-1',
+          // dto.company is typed `string | undefined`, but class-validator's
+          // IsOptional() lets an actual `null` past the ValidationPipe —
+          // this is the shape a client sending {"company": null} produces.
+          { company: null } as unknown as { company?: string },
+        ),
+      ).rejects.toThrow('company cannot be cleared');
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).not.toHaveBeenCalled();
+    });
+
     it('does not touch companyId when dto.company is omitted', async () => {
       mockPrisma.job.findFirst.mockResolvedValueOnce({
         id: 'job-1',

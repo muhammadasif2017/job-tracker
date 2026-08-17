@@ -200,8 +200,14 @@ from the existing `['job', id]` query; no separate fetch.
 `JobsService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
 path for turning a job's free-text `company` label into a real `Company` row
 and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
-for auto-created rows, unique-constraint-race retry. Both `create` and
-`update` call it; `update` only re-resolves when the caller actually sends
+for auto-created rows, run inside a `Serializable` transaction (same pattern as
+`CompaniesService.runNameCheckedWrite`) with a re-fetch fallback on `P2034`/
+`P2002` so a case-variant name race ("Google" vs "google") can't create two
+companies. Both
+`create` and `update` reject an explicit `company: null` with a 400 —
+`Job.company` is a required non-nullable column, so there's no "unlink" state
+for a client to clear it into (unlike the optional profile fields this repo's
+`T | null` convention normally applies to). `update` only re-resolves when the caller actually sends
 `dto.company`, so `Job.company` (the label as typed at link time) is never
 retroactively rewritten just because the linked `Company` was renamed or
 merged elsewhere. Don't reintroduce a separate inline find-or-create in
@@ -294,7 +300,7 @@ Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User 
 
 Global `ThrottlerGuard` (`app.module.ts`, `ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }])`): 100 requests per 60s window per client, applied to every route by default. Hardcoded, not env-configurable. A client (including a test suite hammering the API) that exceeds this gets a 429 — if you see unexplained 429s in local testing or e2e runs, this is why.
 
-A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled. `GET /companies/duplicates` (O(n²) pairwise scan) and `POST /companies/import` (bulk CSV write) also cap at 10/min — see ADR-029.
+A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LLM/search cost per call) caps at 10/min in every environment. `POST /auth/token/exchange` (unauthenticated, brute-forceable) caps at 10/min in production only — 100/min in dev, so local testing isn't throttled. `POST /companies/import` (bulk CSV write) also caps at 10/min. `GET /companies/duplicates` (O(n²) pairwise scan) deliberately has **no** route-specific throttle — it's fetched passively on every companies-page mount, and a 10/min cap broke ordinary navigation in e2e; `MAX_COMPANIES_PER_USER` bounds its worst-case cost instead, so it relies on the generic 100/min guard. See ADR-029.
 
 ---
 

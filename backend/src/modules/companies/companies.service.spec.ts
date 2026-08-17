@@ -401,11 +401,11 @@ describe('CompaniesService', () => {
       );
 
       expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
-        where: { companyId: 'duplicate-1' },
+        where: { companyId: 'duplicate-1', userId: 'user-1' },
         data: { companyId: 'canonical-1' },
       });
       expect(mockPrisma.contact.updateMany).toHaveBeenCalledWith({
-        where: { companyId: 'duplicate-1' },
+        where: { companyId: 'duplicate-1', company: { userId: 'user-1' } },
         data: { companyId: 'canonical-1' },
       });
       expect(mockPrisma.company.delete).toHaveBeenCalledWith({
