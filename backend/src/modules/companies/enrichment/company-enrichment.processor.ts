@@ -126,6 +126,19 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         context,
       });
 
+      // No official-site text and no search snippets — the LLM would see an
+      // empty "Web content:" section and (correctly) refuse to call the
+      // required extraction tool, which Groq surfaces as a 400
+      // tool_use_failed. Fail fast with a clear reason instead of burning an
+      // LLM call (and its built-in retry) on a request that can't succeed.
+      if (!context.trim()) {
+        throw new Error(
+          domain
+            ? 'No extractable content: official site fetch and web search both returned nothing'
+            : 'No extractable content: no website on file and web search returned nothing',
+        );
+      }
+
       const data = await this.llm.extract(company, context, {
         domain,
         location,

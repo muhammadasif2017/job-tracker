@@ -101,7 +101,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
@@ -138,12 +138,55 @@ describe('CompanyEnrichmentProcessor', () => {
       websiteUrl: null,
     });
     mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
+    mockSearch.search.mockResolvedValue(['culture snippet']);
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
 
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+  });
+
+  it('fails fast without calling the LLM when there is no website and search returns nothing', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      websiteUrl: null,
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+
+    await expect(processor.process(bullJob)).rejects.toThrow(
+      'No extractable content: no website on file and web search returned nothing',
+    );
+
+    expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+    expect(mockLlm.extract).not.toHaveBeenCalled();
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: EnrichmentStatus.FAILED,
+          errorMessage:
+            'No extractable content: no website on file and web search returned nothing',
+        }),
+      }),
+    );
+  });
+
+  it('fails fast without calling the LLM when the official site fetch and search both come back empty', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+
+    await expect(processor.process(bullJob)).rejects.toThrow(
+      'No extractable content: official site fetch and web search both returned nothing',
+    );
+
+    expect(mockLlm.extract).not.toHaveBeenCalled();
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: EnrichmentStatus.FAILED }),
+      }),
+    );
   });
 
   it('returns early without touching the company when it is not found', async () => {
@@ -177,7 +220,7 @@ describe('CompanyEnrichmentProcessor', () => {
       .mockResolvedValueOnce(null); // still-exists re-check, post-extraction
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
@@ -205,7 +248,7 @@ describe('CompanyEnrichmentProcessor', () => {
       .mockResolvedValueOnce(null); // still-exists re-check: this id no longer exists
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
@@ -229,7 +272,7 @@ describe('CompanyEnrichmentProcessor', () => {
   it('salvages extracted data on a late failure (write succeeds, later step throws) and does not rethrow', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue(extracted);
     // First update (PROCESSING) succeeds; the completed-profile write throws
     // (simulating a late failure after extraction succeeded); the salvage
@@ -255,7 +298,7 @@ describe('CompanyEnrichmentProcessor', () => {
   it('rethrows for BullMQ retry when both the completed write and the salvage retry fail', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue(extracted);
     mockPrisma.company.update
       .mockResolvedValueOnce({}) // PROCESSING
@@ -289,7 +332,7 @@ describe('CompanyEnrichmentProcessor', () => {
     });
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockResolvedValue({
       ...extracted,
       industry: null,
@@ -343,7 +386,7 @@ describe('CompanyEnrichmentProcessor', () => {
       websiteUrl: 'https://pk.linkedin.com/company/acme',
     });
     mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
+    mockSearch.search.mockResolvedValue(['culture snippet']);
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
@@ -435,7 +478,7 @@ describe('CompanyEnrichmentProcessor', () => {
       websiteUrl: 'https://pk.linkedin.com/company/acme',
     });
     mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
+    mockSearch.search.mockResolvedValue(['culture snippet']);
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
@@ -577,7 +620,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('');
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
     mockLlm.extract.mockRejectedValue(new Error('LLM timeout'));
 
     await expect(processor.process(bullJob)).rejects.toThrow('LLM timeout');
