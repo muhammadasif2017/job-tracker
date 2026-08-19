@@ -2,21 +2,26 @@
 
 ![Deploy](https://github.com/muhammadasif2017/job-tracker/actions/workflows/deploy.yml/badge.svg)
 
-A full-stack job application tracker with AI-powered company intelligence. Track every application from wishlist to offer with a kanban board, dashboard analytics, and a full application timeline. Background workers automatically enrich company profiles using web search and LLM extraction.
+A full-stack job application tracker with AI-powered company intelligence. Track every application from wishlist to offer with a kanban board, dashboard analytics, and a full application timeline. Background workers enrich company profiles via web search + LLM extraction and send interview-reminder / stale-application digest emails.
 
 ## Features
 
-- **Authentication** — email/password + Google & GitHub OAuth, JWT access tokens (15 min) + refresh tokens (7 days)
-- **Job CRUD** — create, read, update, delete with search, status filter, and date range filtering
+- **Authentication** — email/password + Google & GitHub OAuth, JWT access tokens (15 min) + refresh tokens (7 days), plus scoped personal access tokens for the browser extension
+- **Job CRUD** — create, read, update, delete with search, status filter, and date range filtering; discovery source (LinkedIn, Indeed, referral, …) tracked separately from application channel
+- **Browser extension** (`browser-extension/`) — capture a job posting from any site straight into the tracker via a PAT; see its own README
 - **Kanban board** — drag-and-drop status columns powered by `@hello-pangea/dnd`
 - **Application timeline** — automatic audit log of every status change per job
-- **Interview scheduling** — set a next-interview date on any application
-- **Dashboard** — stats cards (total, this month, response rate) + donut chart breakdown by status
+- **Interview rounds** — schedule multiple rounds per job, auto-derived "next interview" date, per-round `.ics` calendar export
+- **Contacts** — track recruiters/hiring managers per job or per company (name, role, email, phone, LinkedIn, notes)
+- **Companies** — deduped company directory with fuzzy-duplicate detection, manual merge, and CSV import
+- **Dashboard** — stats cards (total, this month, response rate), donut chart by status, funnel and trend views, "needs attention" list
+- **Notifications** — cron-driven interview reminder + digest emails (Resend), deduped and timezone-aware per user
+- **Admin panel** — role-gated user list/lookup/delete for operators
 - **Company enrichment** — background queue (BullMQ + Redis) fetches company data (industry, tech stack, culture, remote policy) via Tavily search + Groq (openai/gpt-oss-120b) tool calling
 - **Resume per job** — upload one PDF resume per application (max 8 MB), stored via a pluggable storage driver (local disk or Oracle Cloud Object Storage)
 - **CSV export** — download all applications (or filtered subset) as a spreadsheet
-- **Profile management** — update name, change password, view connected OAuth accounts, delete account
-- **Security** — helmet HTTP headers, rate limiting (10 req/min on auth routes), bcrypt password hashing, hashed refresh tokens in DB
+- **Profile management** — update name, change password, notification preferences, timezone, view connected OAuth accounts, delete account
+- **Security** — helmet HTTP headers, rate limiting, bcrypt password hashing, hashed refresh tokens in DB, scoped PATs
 - **Structured logging** — pino JSON logging (pretty-print in dev, JSON in production)
 - **API docs** — Swagger/OpenAPI at `/api/docs`
 
@@ -29,6 +34,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - BullMQ + Redis — async company enrichment queue
 - Groq (openai/gpt-oss-120b) — structured data extraction via tool calling
 - Tavily — AI-optimized web search for company enrichment (1000 req/month free tier)
+- Resend + @nestjs/schedule — cron-driven reminder/digest emails
 - helmet, nestjs-pino, @nestjs/throttler, class-validator
 
 **Frontend**
@@ -118,6 +124,10 @@ GROQ_API_KEY=
 TAVILY_API_KEY=
 REDIS_URL="redis://localhost:6379"
 
+# Optional — notification emails (app starts and no-ops without these)
+RESEND_API_KEY=
+EMAIL_FROM="onboarding@resend.dev"
+
 # Optional — only needed for OAuth
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
@@ -134,6 +144,8 @@ OCI_SECRET_ACCESS_KEY=
 ```
 
 > Generate secrets with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+>
+> Full variable reference (required/optional, defaults): [backend/CLAUDE.md](backend/CLAUDE.md#environment-variables).
 
 **`frontend/.env.local`**
 ```
@@ -182,12 +194,17 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 | POST | `/auth/refresh` | Refresh access token |
 | POST | `/auth/logout` | Invalidate refresh token |
 | POST | `/auth/exchange-code` | Exchange OAuth one-time code for tokens |
+| POST | `/auth/token/exchange` | Exchange a personal access token for a scoped access JWT (extension) |
 | GET | `/auth/me` | Current user (from JWT) |
 | GET | `/auth/google` | Start Google OAuth |
 | GET | `/auth/github` | Start GitHub OAuth |
 | GET | `/jobs` | List jobs (search, filter, paginate) |
-| POST | `/jobs` | Create job |
+| POST | `/jobs` | Create job (PAT-accessible) |
+| POST | `/jobs/parse` | Parse a job posting URL/text into a draft job (PAT-accessible) |
 | GET | `/jobs/stats` | Dashboard stats |
+| GET | `/jobs/stats/funnel` | Funnel + response-rate-by-channel stats |
+| GET | `/jobs/stats/trend` | Applications-over-time stats |
+| GET | `/jobs/attention` | Jobs needing attention (stale, upcoming interview) |
 | GET | `/jobs/export` | Download CSV |
 | GET | `/jobs/:id` | Job detail |
 | GET | `/jobs/:id/events` | Application timeline |
@@ -198,8 +215,22 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 | GET | `/jobs/:jobId/resumes` | Resume metadata |
 | GET | `/jobs/:jobId/resumes/url` | Presigned download URL (oracle driver only) |
 | DELETE | `/jobs/:jobId/resumes` | Delete resume |
+| POST/GET/PATCH/DELETE | `/jobs/:jobId/contacts` | Per-job contact CRUD |
+| POST/GET/PATCH/DELETE | `/companies/:companyId/contacts` | Per-company contact CRUD |
+| POST/GET/PATCH/DELETE | `/jobs/:jobId/interview-rounds` | Interview round CRUD |
+| GET | `/jobs/:jobId/interview-rounds/:roundId/ics` | Download round as `.ics` calendar event |
+| GET | `/companies` | List companies (search, paginate) |
+| GET | `/companies/duplicates` | Fuzzy-duplicate candidate pairs |
+| POST | `/companies/:id/merge` | Merge duplicate company into another |
+| POST | `/companies/import` | Bulk CSV import |
+| POST | `/tokens` | Create a personal access token (raw value shown once) |
+| GET | `/tokens` | List active personal access tokens |
+| DELETE | `/tokens/:id` | Revoke a personal access token |
+| GET | `/admin/users` | List/search users (admin only) |
+| DELETE | `/admin/users/:id` | Delete a user (admin only) |
 | GET | `/users/me` | Full user profile |
 | PATCH | `/users/me` | Update profile |
+| PATCH | `/users/me/notifications` | Update notification preferences / timezone |
 | PATCH | `/users/me/password` | Change password |
 | DELETE | `/users/me` | Delete account |
 
@@ -211,24 +242,32 @@ job-tracker/
 │   ├── prisma/              # Schema + migrations
 │   ├── src/
 │   │   ├── modules/
-│   │   │   ├── auth/        # JWT, OAuth strategies, guards
-│   │   │   ├── jobs/        # Job CRUD, timeline, CSV export
-│   │   │   ├── users/       # Profile management
-│   │   │   ├── resumes/     # Resume upload/download per job
-│   │   │   ├── enrichment/  # BullMQ queue, processor, AI/search services
-│   │   │   └── health/      # /health endpoint
+│   │   │   ├── auth/             # JWT, OAuth strategies, guards
+│   │   │   ├── jobs/             # Job CRUD, timeline, CSV export
+│   │   │   ├── companies/        # Company directory, dedup/merge, CSV import
+│   │   │   ├── contacts/         # Per-job / per-company contact CRUD
+│   │   │   ├── interview-rounds/ # Interview round CRUD, ICS export
+│   │   │   ├── notifications/    # Reminder/digest email queue + scheduler
+│   │   │   ├── tokens/           # Personal access tokens (browser extension)
+│   │   │   ├── admin/            # Role-gated user admin
+│   │   │   ├── users/            # Profile management
+│   │   │   ├── resumes/          # Resume upload/download per job
+│   │   │   ├── enrichment/       # BullMQ queue, processor, AI/search services
+│   │   │   └── health/           # /health endpoint
 │   │   ├── storage/         # Storage drivers (local disk, Oracle Object Storage)
 │   │   ├── prisma/          # PrismaService
 │   │   └── common/          # Guards, filters, decorators
 │   └── test/                # E2E tests (supertest)
-└── frontend/
-    ├── app/
-    │   ├── (auth)/      # /login, /register, /callback
-    │   └── (dashboard)/ # /, /jobs, /jobs/[id], /profile
-    ├── components/      # UI primitives + feature components
-    ├── lib/             # Axios instance, token storage
-    ├── store/           # Zustand auth store
-    └── types/           # Shared TypeScript interfaces
+├── frontend/
+│   ├── app/
+│   │   ├── (auth)/      # /login, /register, /callback
+│   │   └── (dashboard)/ # /, /jobs, /jobs/[id], /companies, /admin, /profile
+│   ├── components/      # UI primitives + feature components
+│   ├── features/        # TanStack Query hooks per feature (jobs, profile, admin, dashboard, …)
+│   ├── lib/              # Axios instance, token storage
+│   ├── store/             # Zustand auth store
+│   └── types/             # Shared TypeScript interfaces
+└── browser-extension/   # Manifest V3 extension — captures a job posting via PAT (own README)
 ```
 
 ## Deployment
@@ -240,7 +279,15 @@ Production runs the backend on a single VM behind Caddy (automatic HTTPS), with 
 - **File storage** — Oracle Cloud Object Storage (`STORAGE_DRIVER=oracle`).
 - **Frontend** — deployed separately from the backend stack; point `NEXT_PUBLIC_API_URL` at the backend's public URL (a `frontend/Dockerfile.prod` is provided for containerized hosting).
 
-CI/CD (`.github/workflows/deploy.yml`): every PR runs typecheck + unit tests; on push to `main` it additionally builds and pushes the backend image, then SSHes into the VM and runs:
+CI/CD:
+
+- `deploy.yml` — every PR runs typecheck + unit tests; on push to `main` it additionally builds and pushes the backend image, then deploys (below).
+- `e2e-pr.yml` — Playwright e2e, path-filtered to `frontend/**`/`backend/**` changes, **merge-blocking** (not just nightly) since ADR-025.
+- `e2e-nightly.yml` — full e2e suite on a schedule.
+- `frontend-ci.yml` — frontend lint/typecheck/build.
+- `extension-ci.yml` — browser extension lint/test.
+
+On push to `main`, `deploy.yml` SSHes into the VM and runs:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env pull
