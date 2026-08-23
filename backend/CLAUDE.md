@@ -201,11 +201,16 @@ companies. Both
 `create` and `update` reject an explicit `company: null` with a 400 —
 `Job.company` is a required non-nullable column, so there's no "unlink" state
 for a client to clear it into (unlike the optional profile fields this repo's
-`T | null` convention normally applies to). `update` only re-resolves when the caller actually sends
-`dto.company`, so `Job.company` (the label as typed at link time) is never
-retroactively rewritten just because the linked `Company` was renamed or
-merged elsewhere. Don't reintroduce a separate inline find-or-create in
-either method — that's exactly the drift ADR-029 fixes. The CSV backfill
+`T | null` convention normally applies to). `update` only re-resolves when the
+submitted label actually differs (case-insensitively) from the job's current
+stored label — not merely because `dto.company` is present in the payload,
+since `JobForm` resends the current label on every submit whether or not the
+user touched it. This guard is what keeps `Job.company` (the label as typed
+at link time) from being retroactively rewritten just because the linked
+`Company` was renamed or merged elsewhere; see ADR-030 for the bug this
+replaced (the "only when sent" check alone wasn't sufficient). Don't
+reintroduce a separate inline find-or-create in either method — that's
+exactly the drift ADR-029 and ADR-030 fix. The CSV backfill
 script (`backend/scripts/backfill-company-fk.core.ts`) duplicates this same
 logic rather than importing it, since it runs standalone against a raw
 `PrismaClient` outside Nest's DI container.
