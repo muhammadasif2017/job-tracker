@@ -34,8 +34,10 @@ jobs:
     name: Backend Tests
     needs: changes
     if: |
-      github.event_name == 'workflow_dispatch' ||
-      needs.changes.outputs.relevant == 'true'
+      always() && !failure() && !cancelled() && (
+        github.event_name == 'workflow_dispatch' ||
+        needs.changes.outputs.relevant == 'true'
+      )
     runs-on: ubuntu-latest
     defaults:
       run:
