@@ -117,7 +117,7 @@ describe('CompanyProfileCard', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('shows a friendly config message for an unknown/nonexistent model error', () => {
+    it('shows the same generic message for a vendor-specific error (e.g. an unknown/nonexistent model), never the raw text', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
@@ -125,9 +125,7 @@ describe('CompanyProfileCard', () => {
             '404 {"error":{"message":"The model llama-3.3-99b-nonexistent does not exist or you do not have access to it.","code":"model_not_found"}}',
         }),
       );
-      expect(
-        screen.getByText(/isn't configured correctly/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(
         screen.queryByText(/llama-3.3-99b-nonexistent/),
       ).not.toBeInTheDocument();
@@ -138,7 +136,7 @@ describe('CompanyProfileCard', () => {
       expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
     });
 
-    it('shows a friendly rate-limit message for a 429', () => {
+    it('shows the same generic message for a rate-limit error, never the raw text', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
@@ -146,44 +144,39 @@ describe('CompanyProfileCard', () => {
             '429 {"error":{"message":"Rate limit reached for model..."}}',
         }),
       );
-      expect(
-        screen.getByText(/Daily quota reached for company research/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(screen.queryByText(/429/)).not.toBeInTheDocument();
     });
 
-    it('shows a friendly unavailable message for a timeout', () => {
+    it('shows the same generic message for a timeout, never the raw text', () => {
       renderCard(
         makeProfile({ status: 'FAILED', errorMessage: 'API timeout' }),
       );
-      expect(
-        screen.getByText(/temporarily unreachable/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(screen.queryByText('API timeout')).not.toBeInTheDocument();
     });
 
-    it('shows a friendly unavailable message for a connection error', () => {
+    it('shows the same generic message for a connection error', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
           errorMessage: 'connect ECONNREFUSED 127.0.0.1:443',
         }),
       );
-      expect(
-        screen.getByText(/temporarily unreachable/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
     });
 
-    it('shows a friendly config message for an auth error', () => {
+    it('shows the same generic message for an auth error, never the raw text', () => {
       renderCard(
         makeProfile({
           status: 'FAILED',
           errorMessage: '401 Invalid API Key provided',
         }),
       );
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(
-        screen.getByText(/isn't configured correctly/),
-      ).toBeInTheDocument();
+        screen.queryByText(/Invalid API Key provided/),
+      ).not.toBeInTheDocument();
     });
 
     it('shows a friendly no-data message when there is nothing to extract from', () => {
@@ -299,11 +292,10 @@ describe('CompanyProfileCard', () => {
           enrichedAt: '2026-01-01T00:00:00Z',
         }),
       );
-      // "API timeout" classifies as UNAVAILABLE — the friendly message
-      // should be shown, not the raw string, same as the !hasData FAILED card
-      expect(
-        screen.getByText(/temporarily unreachable/),
-      ).toBeInTheDocument();
+      // Non-NO_DATA errors all collapse to the same generic message — the
+      // friendly message should be shown, not the raw string, same as the
+      // !hasData FAILED card
+      expect(screen.getByText(/couldn't complete/)).toBeInTheDocument();
       expect(screen.queryByText(/API timeout/)).not.toBeInTheDocument();
     });
 
