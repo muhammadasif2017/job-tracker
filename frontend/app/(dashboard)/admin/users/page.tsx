@@ -5,7 +5,7 @@ import { Search, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
-import { formatDate, cn } from '../../../../lib/utils';
+import { formatDateTime, cn } from '../../../../lib/utils';
 import type { AdminUser } from '../../../../types';
 import {
   useAdminUsersQuery,
@@ -138,7 +138,7 @@ export default function AdminUsersPage() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{u.jobCount}</td>
                   <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
-                    {formatDate(u.createdAt)}
+                    {formatDateTime(u.createdAt)}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end">
