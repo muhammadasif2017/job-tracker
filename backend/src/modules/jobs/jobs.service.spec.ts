@@ -396,6 +396,8 @@ describe('JobsService', () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
       });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -403,7 +405,7 @@ describe('JobsService', () => {
 
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          select: { id: true, status: true },
+          select: { id: true, status: true, company: true, companyId: true },
         }),
       );
       expect(mockPrisma.job.findFirst).not.toHaveBeenCalledWith(
@@ -502,6 +504,8 @@ describe('JobsService', () => {
       mockPrisma.job.findFirst.mockResolvedValueOnce({
         id: 'job-1',
         status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
       }); // findOwned
       mockPrisma.company.findFirst.mockResolvedValueOnce({
         id: 'company-2',
@@ -526,6 +530,8 @@ describe('JobsService', () => {
       mockPrisma.job.findFirst.mockResolvedValueOnce({
         id: 'job-1',
         status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
       }); // findOwned
       mockPrisma.company.findFirst.mockResolvedValueOnce(null); // resolveCompanyId: no match
       mockPrisma.company.create.mockResolvedValue({
@@ -555,6 +561,8 @@ describe('JobsService', () => {
       mockPrisma.job.findFirst.mockResolvedValueOnce({
         id: 'job-1',
         status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
       }); // findOwned only — resolveCompanyId short-circuits on blank name
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -564,6 +572,31 @@ describe('JobsService', () => {
       expect(mockPrisma.job.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ companyId: null }),
+        }),
+      );
+    });
+
+    it('does not re-resolve company when dto.company matches the currently linked label (case-insensitive)', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Google',
+        companyId: 'company-1',
+      }); // findOwned
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      // Simulates JobForm resending the pre-filled, unchanged label
+      // (differing only in case) alongside an edit to some other field.
+      await service.update('user-1', 'job-1', {
+        company: 'google',
+        position: 'Staff Engineer',
+      });
+
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.company.create).not.toHaveBeenCalled();
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.not.objectContaining({ companyId: expect.anything() }),
         }),
       );
     });

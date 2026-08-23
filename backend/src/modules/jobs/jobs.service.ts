@@ -262,7 +262,7 @@ export class JobsService {
   private async findOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      select: { id: true, status: true },
+      select: { id: true, status: true, company: true, companyId: true },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;
@@ -309,11 +309,25 @@ export class JobsService {
       );
     }
     if (dto.company !== undefined) {
-      const { company } = await this.resolveCompanyId(
-        userId,
-        dto.company.trim(),
-      );
-      data = { ...baseData, companyId: company?.id ?? null };
+      const trimmedCompany = dto.company.trim();
+      // JobForm always resends the pre-filled `company` label on every
+      // submit, even when the user only touched an unrelated field — so
+      // "dto.company !== undefined" alone can't mean "user edited it". If
+      // the trimmed label still matches the current label and a companyId
+      // is already linked, treat it as a no-op instead of re-resolving:
+      // re-resolving a stale label after the linked Company was renamed or
+      // merged elsewhere would silently re-link to (or recreate) a
+      // different company, undoing that rename/merge on an unrelated edit.
+      const matchesCurrentLabel =
+        existing.companyId !== null &&
+        trimmedCompany.toLowerCase() === existing.company.toLowerCase();
+      if (!matchesCurrentLabel) {
+        const { company } = await this.resolveCompanyId(
+          userId,
+          trimmedCompany,
+        );
+        data = { ...baseData, companyId: company?.id ?? null };
+      }
     }
 
     if (!statusChanged) {

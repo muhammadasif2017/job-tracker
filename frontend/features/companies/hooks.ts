@@ -110,7 +110,11 @@ export function useUpdateCompanyMutation(
     mutationFn: (dto: CompanyWritePayload) =>
       api.patch<Company>(`/companies/${id}`, dto).then((r) => r.data),
     onSuccess: (company) => {
-      qc.setQueryData(['company', id], company);
+      // The PATCH response is a bare Company row (no contacts/jobs
+      // includes — only GET /companies/:id has those), so replacing the
+      // cache outright would wipe both sections until the next refetch.
+      // Invalidate instead, matching every other mutation on this key.
+      qc.invalidateQueries({ queryKey: ['company', id] });
       invalidateCompanyListCaches(qc);
       toast.success('Company updated');
       onUpdated?.(company);
