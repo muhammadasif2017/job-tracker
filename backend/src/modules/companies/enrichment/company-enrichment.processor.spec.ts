@@ -3,7 +3,10 @@ import { EnrichmentStatus } from '@prisma/client';
 import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
-import { SearchService } from '../../enrichment/services/search.service.js';
+import {
+  SearchService,
+  SearchUnavailableError,
+} from '../../enrichment/services/search.service.js';
 import { LlmService } from '../../enrichment/services/llm.service.js';
 
 // Mirrors enrichment.processor.spec.ts's mock shape — same three injectable
@@ -167,6 +170,54 @@ describe('CompanyEnrichmentProcessor', () => {
           errorMessage:
             'No extractable content: no website on file and web search returned nothing',
         }),
+      }),
+    );
+  });
+
+  it('surfaces the real quota-exceeded reason instead of a generic no-extractable-content message when search is the only content source and it is out of quota', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      websiteUrl: null,
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(
+      new SearchUnavailableError(
+        'Search quota exceeded (Tavily returned 432) — rate limit reached for this billing period; resets automatically.',
+        432,
+      ),
+    );
+
+    await expect(processor.process(bullJob)).rejects.toThrow(
+      /rate limit reached for this billing period/,
+    );
+
+    expect(mockLlm.extract).not.toHaveBeenCalled();
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: EnrichmentStatus.FAILED,
+          errorMessage: expect.stringContaining('rate limit reached'),
+        }),
+      }),
+    );
+  });
+
+  it('ignores a quota-exceeded search failure and still completes when the official site has enough content', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(
+      new SearchUnavailableError('Search quota exceeded', 432),
+    );
+    mockWebFetch.fetchPageText.mockResolvedValue(
+      'A'.repeat(400), // clears the 300-char shouldFallbackSearch threshold
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: EnrichmentStatus.COMPLETED }),
       }),
     );
   });

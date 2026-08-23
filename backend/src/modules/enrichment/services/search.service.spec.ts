@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
-import { SearchService } from './search.service.js';
+import { SearchService, SearchUnavailableError } from './search.service.js';
 
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
@@ -85,18 +85,54 @@ describe('SearchService', () => {
     expect(snippets).toEqual([]);
   });
 
-  it('returns empty array when API response is not ok', async () => {
+  it('returns empty array when API response is not ok (non-account error)', async () => {
     mockConfigService.get.mockReturnValue('test-key');
     fetchSpy.mockResolvedValue({
       ok: false,
-      status: 429,
-      json: () => Promise.resolve({ error: 'rate limited' }),
+      status: 500,
+      json: () => Promise.resolve({ error: 'server error' }),
     });
 
     const snippets = await service.search('Acme Corp');
 
     expect(snippets).toEqual([]);
   });
+
+  it.each([429, 432])(
+    'throws SearchUnavailableError classifiable as rate-limited when Tavily returns %i',
+    async (status) => {
+      mockConfigService.get.mockReturnValue('test-key');
+      fetchSpy.mockResolvedValue({
+        ok: false,
+        status,
+        json: () => Promise.resolve({ error: 'quota exceeded' }),
+      });
+
+      await expect(service.search('Acme Corp')).rejects.toMatchObject({
+        constructor: SearchUnavailableError,
+        status,
+        message: expect.stringMatching(/rate.?limit/i),
+      });
+    },
+  );
+
+  it.each([401, 403])(
+    'throws SearchUnavailableError classifiable as a config problem when Tavily returns %i',
+    async (status) => {
+      mockConfigService.get.mockReturnValue('test-key');
+      fetchSpy.mockResolvedValue({
+        ok: false,
+        status,
+        json: () => Promise.resolve({ error: 'bad key' }),
+      });
+
+      await expect(service.search('Acme Corp')).rejects.toMatchObject({
+        constructor: SearchUnavailableError,
+        status,
+        message: expect.stringMatching(/unauthorized/i),
+      });
+    },
+  );
 
   it('appends Tavily synthesized answer as last snippet', async () => {
     mockConfigService.get.mockReturnValue('test-key');

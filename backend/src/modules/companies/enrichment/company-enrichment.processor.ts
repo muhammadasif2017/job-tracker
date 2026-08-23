@@ -5,7 +5,10 @@ import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
-import { SearchService } from '../../enrichment/services/search.service.js';
+import {
+  SearchService,
+  SearchUnavailableError,
+} from '../../enrichment/services/search.service.js';
 import {
   LlmService,
   type CompanyData,
@@ -51,6 +54,25 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     this.logger.log('company_enrichment_started', { companyId, company });
 
     let extraction: ExtractionResult | undefined;
+    // Set only when a search call fails for an account-level reason (quota
+    // exhausted, bad key) rather than genuinely finding nothing. Read only
+    // if the run ends up with zero context — a search failure that still
+    // leaves the official-site fetch usable shouldn't hard-fail the run.
+    let searchUnavailableReason: string | undefined;
+    const search = async (
+      q: string,
+      opts?: { includeDomains?: string[] },
+    ): Promise<string[]> => {
+      try {
+        return await this.search.search(q, opts);
+      } catch (err) {
+        if (err instanceof SearchUnavailableError) {
+          searchUnavailableReason = err.message;
+          return [];
+        }
+        throw err;
+      }
+    };
 
     try {
       await this.prisma.company.update({
@@ -60,7 +82,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
 
       const locationSuffix = location ? ` ${location}` : '';
       const generalQuery = `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`;
-      const snippets = await this.search.search(generalQuery);
+      const snippets = await search(generalQuery);
 
       // No job-posting page to fetch here (unlike EnrichmentProcessor) —
       // a target Company has no associated posting URL. Official-site
@@ -89,7 +111,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       const shouldFallbackSearch =
         domain !== undefined && newOfficialText.length < 300;
       const domainSnippets = shouldFallbackSearch
-        ? await this.search.search(generalQuery, {
+        ? await search(generalQuery, {
             includeDomains: [domain],
           })
         : [];
@@ -133,9 +155,10 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       // LLM call (and its built-in retry) on a request that can't succeed.
       if (!context.trim()) {
         throw new Error(
-          domain
-            ? 'No extractable content: official site fetch and web search both returned nothing'
-            : 'No extractable content: no website on file and web search returned nothing',
+          searchUnavailableReason ??
+            (domain
+              ? 'No extractable content: official site fetch and web search both returned nothing'
+              : 'No extractable content: no website on file and web search returned nothing'),
         );
       }
 

@@ -2,7 +2,10 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationChannel } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
-import { SearchService } from '../enrichment/services/search.service.js';
+import {
+  SearchService,
+  SearchUnavailableError,
+} from '../enrichment/services/search.service.js';
 import {
   LlmService,
   type ParsedJobData,
@@ -73,7 +76,17 @@ export class JobParsingService {
     // worth retrying when we have a URL to search for - a bare failed-text
     // extraction gives us nothing to search with.
     if (!parsed && dto.url) {
-      const snippets = (await this.search.search(dto.url)) ?? [];
+      let snippets: string[];
+      try {
+        snippets = (await this.search.search(dto.url)) ?? [];
+      } catch (err: unknown) {
+        if (!(err instanceof SearchUnavailableError)) throw err;
+        this.logger.warn('parse_job_search_unavailable', {
+          url: dto.url,
+          error: err.message,
+        });
+        snippets = [];
+      }
       const searchContent = snippets.filter(Boolean).join('\n\n');
       parsed = await this.tryExtractJobPosting(searchContent);
       if (parsed) {
