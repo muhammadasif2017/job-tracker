@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
-import { useDuplicateSuggestionsQuery } from './hooks';
+import {
+  useDuplicateSuggestionsQuery,
+  useUpdateCompanyMutation,
+  type CompanyWritePayload,
+} from './hooks';
 import type { Company, DuplicateSuggestion } from '../../types';
 
 vi.mock('sonner', () => ({
@@ -56,5 +60,61 @@ describe('useDuplicateSuggestionsQuery', () => {
     await waitFor(() => expect(result.current.data).toEqual([suggestion]));
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/companies/duplicates');
     expect(qc.getQueryData(['companies', 'duplicates'])).toEqual([suggestion]);
+  });
+});
+
+describe('useUpdateCompanyMutation', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  const writePayload: CompanyWritePayload = {
+    name: 'Renamed Co',
+    city: 'LAHORE',
+    location: null,
+    priority: 'HIGH',
+    personalNotes: null,
+    websiteUrl: null,
+    linkedinUrl: null,
+    businessMode: null,
+    productDescription: null,
+    industry: null,
+    companySize: null,
+    techStack: [],
+    cultureSummary: null,
+    workPolicy: null,
+    workLifeBalance: null,
+    headquarters: null,
+    address: null,
+    founded: null,
+  };
+
+  it('invalidates the company cache instead of overwriting it with the bare PATCH response', async () => {
+    const { qc, wrapper } = makeWrapper();
+    // PATCH /companies/:id returns a bare Company row — no contacts/jobs
+    // includes, unlike GET /companies/:id — so the pre-existing cache
+    // (seeded here as if a prior GET had populated it) carries relations
+    // the PATCH response does not.
+    const withRelations = {
+      ...companyA,
+      jobs: [{ id: 'job-1' }],
+      contacts: [{ id: 'contact-1' }],
+    };
+    qc.setQueryData(['company', 'a'], withRelations);
+
+    vi.mocked(api.patch).mockResolvedValue({
+      data: { ...companyA, name: 'Renamed Co' },
+    });
+    const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
+
+    const { result } = renderHook(() => useUpdateCompanyMutation('a'), {
+      wrapper,
+    });
+    result.current.mutate(writePayload);
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['company', 'a'] });
+    // The cache must not have been clobbered with the relation-less PATCH
+    // response — invalidation (not setQueryData) is what should have run.
+    expect(qc.getQueryData(['company', 'a'])).toEqual(withRelations);
   });
 });
