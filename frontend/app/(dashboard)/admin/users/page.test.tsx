@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminUsersPage from './page';
-import { formatDate } from '../../../../lib/utils';
+import { formatDateTime } from '../../../../lib/utils';
 import type { AdminUser, PaginatedAdminUsers } from '../../../../types';
 
 vi.mock('sonner', () => ({
@@ -111,7 +111,7 @@ describe('AdminUsersPage', () => {
       expect(screen.getByText('jane@example.com')).toBeInTheDocument();
       expect(screen.getByText('ADMIN')).toBeInTheDocument();
       expect(screen.getByText('12')).toBeInTheDocument();
-      expect(screen.getByText(formatDate('2026-06-01T00:00:00Z'))).toBeInTheDocument();
+      expect(screen.getByText(formatDateTime('2026-06-01T00:00:00Z'))).toBeInTheDocument();
       expect(screen.getByText('Bob Smith')).toBeInTheDocument();
       expect(screen.getByText('USER')).toBeInTheDocument();
       expect(screen.getByText('2 registered users')).toBeInTheDocument();

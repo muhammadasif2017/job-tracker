@@ -27,3 +27,7 @@ export function formatDateOnly(date: string | Date) {
 export function formatRelative(date: string | Date) {
   return formatDistanceToNow(new Date(date), { addSuffix: true });
 }
+
+export function formatDateTime(date: string | Date) {
+  return format(new Date(date), 'MMM d, yyyy h:mm a');
+}

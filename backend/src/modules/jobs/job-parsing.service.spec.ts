@@ -3,7 +3,10 @@ import { BadRequestException } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { JobParsingService } from './job-parsing.service.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
-import { SearchService } from '../enrichment/services/search.service.js';
+import {
+  SearchService,
+  SearchUnavailableError,
+} from '../enrichment/services/search.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 
 const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
@@ -202,6 +205,22 @@ describe('JobParsingService', () => {
       // Only the primary content attempt should reach the LLM — an empty
       // fallback snippet list must not trigger a second, pointless call.
       expect(mockLlm.extractJobPosting).toHaveBeenCalledTimes(1);
+      expect(result).toEqual({ url: 'https://www.linkedin.com/jobs/view/123' });
+    });
+
+    it('falls back to a partial result instead of throwing when the Tavily fallback is out of quota', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('some page content');
+      mockLlm.extractJobPosting.mockRejectedValue(
+        new Error('Groq unavailable'),
+      );
+      mockSearch.search.mockRejectedValue(
+        new SearchUnavailableError('Search quota exceeded', 432),
+      );
+
+      const result = await service.parseJobPosting({
+        url: 'https://www.linkedin.com/jobs/view/123',
+      });
+
       expect(result).toEqual({ url: 'https://www.linkedin.com/jobs/view/123' });
     });
 

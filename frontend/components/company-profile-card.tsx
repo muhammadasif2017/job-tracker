@@ -1,13 +1,6 @@
 'use client';
 
-import {
-  RefreshCw,
-  Clock,
-  WifiOff,
-  KeyRound,
-  AlertTriangle,
-  SearchX,
-} from 'lucide-react';
+import { RefreshCw, AlertTriangle, SearchX } from 'lucide-react';
 import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
@@ -31,42 +24,26 @@ interface Props {
   invalidateKey: QueryKey;
 }
 
-type FailureKind =
-  | 'RATE_LIMITED'
-  | 'UNAVAILABLE'
-  | 'CONFIG'
-  | 'NO_DATA'
-  | 'UNKNOWN';
+// Only NO_DATA carries a distinct, actionable message (add a website) — it's
+// not really a failure. Every other cause (rate limit, bad key, vendor
+// outage, ...) reduces to the same action for this app's single technical
+// user: retry, and check server logs yourself if it keeps happening.
+// Deliberately not a vendor-error-text classifier anymore — that regex-based
+// approach previously misclassified Tavily quota exhaustion as a false
+// "not configured correctly" message.
+type FailureKind = 'NO_DATA' | 'FAILED';
 
 const FAILURE_COPY: Record<
   FailureKind,
-  { icon: typeof Clock; tone: 'amber' | 'red'; message: string }
+  { icon: typeof AlertTriangle; tone: 'amber' | 'red'; message: string }
 > = {
-  RATE_LIMITED: {
-    icon: Clock,
-    tone: 'amber',
-    message:
-      'Daily quota reached for company research. This resets automatically — try Refresh again in a few hours.',
-  },
-  UNAVAILABLE: {
-    icon: WifiOff,
-    tone: 'amber',
-    message:
-      'Company research service is temporarily unreachable. Try Refresh again in a few minutes.',
-  },
-  CONFIG: {
-    icon: KeyRound,
-    tone: 'red',
-    message:
-      "Company research isn't configured correctly on the backend. Check the server logs for details.",
-  },
   NO_DATA: {
     icon: SearchX,
     tone: 'amber',
     message:
       "We couldn't find any public information about this company. Adding a company website will let us pull details straight from their site.",
   },
-  UNKNOWN: {
+  FAILED: {
     icon: AlertTriangle,
     tone: 'amber',
     message:
@@ -88,35 +65,16 @@ function UnverifiedBadge() {
 
 // Never falls through to displaying the raw message — an unrecognized shape
 // (e.g. a vendor error format nobody's seen yet) still gets a safe, generic
-// message via 'UNKNOWN' rather than leaking backend/vendor internals to the UI.
+// message via 'FAILED' rather than leaking backend/vendor internals to the UI.
 function classifyFailure(message: string | null | undefined): FailureKind {
-  if (!message) return 'UNKNOWN';
-  if (/rate.?limit/i.test(message) || /^429\b/.test(message)) {
-    return 'RATE_LIMITED';
-  }
   if (
-    /^40[134]\b/.test(message) ||
-    /invalid api key|unauthorized|forbidden|model_not_found|does not exist/i.test(
-      message,
-    )
-  ) {
-    return 'CONFIG';
-  }
-  if (
-    /^50[0234]\b/.test(message) ||
-    /internal server error|service unavailable|bad gateway/i.test(message) ||
-    /ECONNREFUSED|ENOTFOUND|ETIMEDOUT|ECONNRESET/i.test(message) ||
-    /timeout|timed out|network|fetch failed|AbortError/i.test(message)
-  ) {
-    return 'UNAVAILABLE';
-  }
-  if (
-    /no extractable content/i.test(message) ||
-    /did not call a tool|tool_use_failed/i.test(message)
+    message &&
+    (/no extractable content/i.test(message) ||
+      /did not call a tool|tool_use_failed/i.test(message))
   ) {
     return 'NO_DATA';
   }
-  return 'UNKNOWN';
+  return 'FAILED';
 }
 
 function FailureBanner({

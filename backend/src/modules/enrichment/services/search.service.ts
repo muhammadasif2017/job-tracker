@@ -4,6 +4,21 @@ import { Logger } from 'nestjs-pino';
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
+// Thrown only for account-level Tavily failures (quota exhausted, bad key) —
+// the kind of error a caller needs the real reason for, as opposed to a
+// transient network/5xx blip that's fine to silently degrade to []. Callers
+// that don't care (e.g. Quick Add's best-effort fallback search) catch and
+// swallow this same as any other search failure.
+export class SearchUnavailableError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message);
+    this.name = 'SearchUnavailableError';
+  }
+}
+
 interface TavilyResult {
   title?: string;
   url?: string;
@@ -48,6 +63,23 @@ export class SearchService {
       });
       if (!res.ok) {
         this.logger.warn('tavily_search_error', { query, status: res.status });
+        // 429/432: Tavily's rate-limit and monthly-quota-exceeded statuses.
+        // Worded to match the frontend's RATE_LIMITED classifier regardless
+        // of which of the two Tavily actually sends.
+        if (res.status === 429 || res.status === 432) {
+          throw new SearchUnavailableError(
+            `Search quota exceeded (Tavily returned ${res.status}) — rate limit reached for this billing period; resets automatically.`,
+            res.status,
+          );
+        }
+        // 401/403: bad/revoked key — a real config problem, not a transient
+        // blip. Worded to match the frontend's CONFIG classifier.
+        if (res.status === 401 || res.status === 403) {
+          throw new SearchUnavailableError(
+            `Search provider rejected the request (Tavily returned ${res.status}): unauthorized — check TAVILY_API_KEY.`,
+            res.status,
+          );
+        }
         return [];
       }
 
@@ -69,6 +101,7 @@ export class SearchService {
       if (data.answer) snippets.push(`[Summary] ${data.answer}`);
       return snippets;
     } catch (err) {
+      if (err instanceof SearchUnavailableError) throw err;
       this.logger.warn('tavily_search_failed', {
         query,
         error: err instanceof Error ? err.message : String(err),
