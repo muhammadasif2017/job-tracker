@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy-backend
+  group: deploy-backend-${{ github.ref }}
   cancel-in-progress: false
 
 env:
