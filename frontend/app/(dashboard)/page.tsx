@@ -20,16 +20,18 @@ import {
 } from '../../features/dashboard/hooks';
 
 // Charts: code-split out of the initial dashboard bundle, gated behind their queries anyway.
+// All three point at the same module so Turbopack resolves the shared Recharts
+// vendor dependency once instead of duplicating it across three chunks.
 const StatusChart = dynamic(
-  () => import('../../components/dashboard/status-chart').then((m) => m.StatusChart),
+  () => import('../../components/dashboard/dashboard-charts').then((m) => m.StatusChart),
   { ssr: false },
 );
 const FunnelChart = dynamic(
-  () => import('../../components/dashboard/funnel-chart').then((m) => m.FunnelChart),
+  () => import('../../components/dashboard/dashboard-charts').then((m) => m.FunnelChart),
   { ssr: false },
 );
 const TrendChart = dynamic(
-  () => import('../../components/dashboard/trend-chart').then((m) => m.TrendChart),
+  () => import('../../components/dashboard/dashboard-charts').then((m) => m.TrendChart),
   { ssr: false },
 );
 
