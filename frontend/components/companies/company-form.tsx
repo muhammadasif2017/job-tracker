@@ -199,7 +199,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               </select>
             </div>
             <Input
-              label="Location detail"
+              label="Office Location"
               placeholder="DHA Phase 5, Lahore"
               {...register('location')}
             />

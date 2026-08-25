@@ -95,7 +95,7 @@ export default function CompanyDetailPage() {
               {company.location && (
                 <div>
                   <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
-                    Location
+                    Office Location
                   </p>
                   <p className="break-words">{company.location}</p>
                 </div>
