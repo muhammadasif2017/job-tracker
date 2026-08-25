@@ -6,7 +6,6 @@ import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays, Ghost } from 'lu
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
-import { StatusChart } from '../../components/dashboard/status-chart';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -20,7 +19,11 @@ import {
   useRecentJobsQuery,
 } from '../../features/dashboard/hooks';
 
-// Below-the-fold charts: code-split out of the initial dashboard bundle.
+// Charts: code-split out of the initial dashboard bundle, gated behind their queries anyway.
+const StatusChart = dynamic(
+  () => import('../../components/dashboard/status-chart').then((m) => m.StatusChart),
+  { ssr: false },
+);
 const FunnelChart = dynamic(
   () => import('../../components/dashboard/funnel-chart').then((m) => m.FunnelChart),
   { ssr: false },
