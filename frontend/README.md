@@ -5,9 +5,11 @@ Next.js 16 (App Router) frontend for the Job Tracker project. See the [root READ
 ## Commands
 
 ```bash
-npm run dev      # dev server on :3000
-npm run build    # production build
-npm run lint     # ESLint
+npm run dev        # dev server on :3000
+npm run build      # production build
+npm run lint       # ESLint
+npm test           # Vitest unit tests (components/*.test.tsx)
+npm run test:e2e   # Playwright e2e (requires both dev servers running)
 ```
 
 ## Environment
