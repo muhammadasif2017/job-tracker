@@ -53,17 +53,27 @@ export function CompanyList({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+        <tbody
+          className="divide-y divide-slate-100 dark:divide-slate-800"
+          aria-busy={isLoading}
+        >
           {isLoading ? (
-            [...Array(5)].map((_, i) => (
-              <tr key={i}>
-                {COLUMNS.map((_, j) => (
-                  <td key={j} className="px-4 py-3">
-                    <Skeleton className="h-4 w-full" />
-                  </td>
-                ))}
+            <>
+              <tr>
+                <td colSpan={COLUMNS.length} className="sr-only" role="status">
+                  Loading companies
+                </td>
               </tr>
-            ))
+              {[...Array(5)].map((_, i) => (
+                <tr key={i}>
+                  {COLUMNS.map((_, j) => (
+                    <td key={j} className="px-4 py-3">
+                      <Skeleton className="h-4 w-full" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </>
           ) : isError ? (
             <tr>
               <td colSpan={COLUMNS.length} className="py-16 text-center">

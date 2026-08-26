@@ -8,7 +8,7 @@ import {
   type DropResult,
 } from '@hello-pangea/dnd';
 import { Pencil, ExternalLink } from 'lucide-react';
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import { formatDateOnly } from '../../lib/utils';
 import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../../types';
@@ -53,7 +53,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
 
   if (isLoading) {
     return (
-      <div className="flex gap-4 overflow-x-auto pb-4">
+      <LoadingStatus label="Loading jobs" className="flex gap-4 overflow-x-auto pb-4">
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0 space-y-3">
             <Skeleton className="h-6 w-32" />
@@ -62,7 +62,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
             ))}
           </div>
         ))}
-      </div>
+      </LoadingStatus>
     );
   }
 

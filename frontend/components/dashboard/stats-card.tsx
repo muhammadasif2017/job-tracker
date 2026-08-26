@@ -1,5 +1,5 @@
 import { cn } from '../../lib/utils';
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton, LoadingStatus } from '../ui/skeleton';
 
 interface StatsCardProps {
   label: string;
@@ -32,7 +32,9 @@ export function StatsCard({
         </div>
       </div>
       {loading ? (
-        <Skeleton className="mt-3 h-8 w-20" />
+        <LoadingStatus label={`Loading ${label}`}>
+          <Skeleton className="mt-3 h-8 w-20" />
+        </LoadingStatus>
       ) : (
         <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
       )}

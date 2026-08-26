@@ -13,6 +13,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');
     const isPassword = type === 'password';
     const [visible, setVisible] = useState(false);
+    const errorId = error && inputId ? `${inputId}-error` : undefined;
+    const hintId = hint && !error && inputId ? `${inputId}-hint` : undefined;
     return (
       <div className="flex flex-col gap-1">
         {label && (
@@ -28,6 +30,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             id={inputId}
             type={isPassword && visible ? 'text' : type}
+            aria-invalid={!!error}
+            aria-describedby={errorId ?? hintId}
             className={cn(
               'h-9 w-full rounded-lg border bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400',
               'transition-colors outline-none',
@@ -55,9 +59,15 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           )}
         </div>
         {error && (
-          <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+          <p id={errorId} className="text-xs text-red-600 dark:text-red-400">
+            {error}
+          </p>
         )}
-        {hint && !error && <p className="text-xs text-slate-500">{hint}</p>}
+        {hint && !error && (
+          <p id={hintId} className="text-xs text-slate-500">
+            {hint}
+          </p>
+        )}
       </div>
     );
   },

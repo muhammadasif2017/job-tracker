@@ -1,4 +1,4 @@
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton, LoadingStatus } from '../ui/skeleton';
 
 export function ChartCard({
   title,
@@ -19,7 +19,9 @@ export function ChartCard({
     <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
       <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       {loading ? (
-        <Skeleton className={skeletonClassName} />
+        <LoadingStatus label={`Loading ${title}`}>
+          <Skeleton className={skeletonClassName} />
+        </LoadingStatus>
       ) : error ? (
         <p className="text-sm text-red-500">{errorMessage}</p>
       ) : (

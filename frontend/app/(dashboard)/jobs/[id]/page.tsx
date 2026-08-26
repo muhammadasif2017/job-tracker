@@ -13,7 +13,7 @@ import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
 import { SourceBadge, StatusBadge } from '../../../../components/ui/badge';
-import { Skeleton } from '../../../../components/ui/skeleton';
+import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
 import { ResumeUpload } from '../../../../components/jobs/resume-upload';
 import { InterviewRounds } from '../../../../components/jobs/interview-rounds';
@@ -111,11 +111,14 @@ export default function JobDetailPage() {
       </Link>
 
       {isLoading ? (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
+        <LoadingStatus
+          label="Loading job"
+          className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900"
+        >
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-5 w-32" />
-        </div>
+        </LoadingStatus>
       ) : job ? (
         <>
           <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
