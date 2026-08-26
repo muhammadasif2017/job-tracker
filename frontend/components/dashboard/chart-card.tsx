@@ -19,7 +19,7 @@ export function ChartCard({
     <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
       <h2 className="mb-4 text-sm font-semibold">{title}</h2>
       {loading ? (
-        <LoadingStatus label={`Loading ${title}`}>
+        <LoadingStatus label="Loading chart">
           <Skeleton className={skeletonClassName} />
         </LoadingStatus>
       ) : error ? (

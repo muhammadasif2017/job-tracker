@@ -32,7 +32,7 @@ export function StatsCard({
         </div>
       </div>
       {loading ? (
-        <LoadingStatus label={`Loading ${label}`}>
+        <LoadingStatus label="Loading stat">
           <Skeleton className="mt-3 h-8 w-20" />
         </LoadingStatus>
       ) : (
