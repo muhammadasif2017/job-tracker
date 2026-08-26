@@ -8,7 +8,7 @@ import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
-import { Skeleton } from '../../components/ui/skeleton';
+import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
 import { formatDateOnly } from '../../lib/utils';
 import type { DashboardRange } from '../../types';
@@ -128,11 +128,11 @@ export default function DashboardPage() {
         <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
           <h2 className="mb-4 text-sm font-semibold">Recent Activity</h2>
           {recentLoading ? (
-            <div className="space-y-3">
+            <LoadingStatus label="Loading recent activity" className="space-y-3">
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
-            </div>
+            </LoadingStatus>
           ) : recentError && !recent ? (
             <p className="text-sm text-red-500">Failed to load recent jobs.</p>
           ) : recent?.data.length === 0 ? (

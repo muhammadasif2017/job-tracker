@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { CalendarClock, Clock, MailQuestion } from 'lucide-react';
-import { Skeleton } from '../ui/skeleton';
+import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { formatRelative } from '../../lib/utils';
 import { useAttentionQuery } from '../../features/dashboard/hooks';
 import type { AttentionType } from '../../types';
@@ -34,11 +34,11 @@ export function AttentionCard() {
     <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
       <h2 className="mb-4 text-sm font-semibold">Needs Attention</h2>
       {isLoading ? (
-        <div className="space-y-3">
+        <LoadingStatus label="Loading" className="space-y-3">
           {[...Array(2)].map((_, i) => (
             <Skeleton key={i} className="h-10 w-full" />
           ))}
-        </div>
+        </LoadingStatus>
       ) : !items || items.length === 0 ? (
         <p className="text-sm text-slate-400">
           All caught up — nothing needs action right now.

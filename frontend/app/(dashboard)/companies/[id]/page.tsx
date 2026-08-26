@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ArrowLeft, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { Button } from '../../../../components/ui/button';
-import { Skeleton } from '../../../../components/ui/skeleton';
+import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
 import {
   CityBadge,
   PriorityBadge,
@@ -47,11 +47,14 @@ export default function CompanyDetailPage() {
       </Link>
 
       {isLoading ? (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
+        <LoadingStatus
+          label="Loading company"
+          className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900"
+        >
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-5 w-64" />
           <Skeleton className="h-5 w-32" />
-        </div>
+        </LoadingStatus>
       ) : company ? (
         <>
           <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">

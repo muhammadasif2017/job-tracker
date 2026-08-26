@@ -271,7 +271,11 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
           <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
             Company Profile
           </h2>
-          <span className="text-xs text-slate-400 animate-pulse">
+          <span
+            role="status"
+            aria-live="polite"
+            className="text-xs text-slate-400 animate-pulse"
+          >
             {profile.status === 'PROCESSING' ? 'Researching…' : 'Queued…'}
           </span>
         </div>

@@ -76,17 +76,27 @@ export default function AdminUsersPage() {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+          <tbody
+            className="divide-y divide-slate-100 dark:divide-slate-800"
+            aria-busy={isLoading}
+          >
             {isLoading ? (
-              [...Array(5)].map((_, i) => (
-                <tr key={i}>
-                  {[...Array(6)].map((_, j) => (
-                    <td key={j} className="px-4 py-3">
-                      <Skeleton className="h-4 w-full" />
-                    </td>
-                  ))}
+              <>
+                <tr>
+                  <td colSpan={6} className="sr-only" role="status">
+                    Loading users
+                  </td>
                 </tr>
-              ))
+                {[...Array(5)].map((_, i) => (
+                  <tr key={i}>
+                    {[...Array(6)].map((_, j) => (
+                      <td key={j} className="px-4 py-3">
+                        <Skeleton className="h-4 w-full" />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </>
             ) : isError && !data ? (
               <tr>
                 <td colSpan={6} className="py-16 text-center">
