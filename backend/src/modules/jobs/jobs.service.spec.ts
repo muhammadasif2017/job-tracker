@@ -3,6 +3,7 @@ import { ConflictException } from '@nestjs/common';
 import {
   CompanyCity,
   EnrichmentStatus,
+  InterviewOutcome,
   JobStatus,
   JobType,
 } from '@prisma/client';
@@ -299,6 +300,7 @@ describe('JobsService', () => {
         id: 'job-1',
         companyLink: null,
         resume: null,
+        interviewRounds: [],
       });
 
       await service.findOne('user-1', 'job-1');
@@ -337,6 +339,7 @@ describe('JobsService', () => {
           updatedAt: new Date('2026-01-01'),
         },
         resume: null,
+        interviewRounds: [],
       });
 
       const result = await service.findOne('user-1', 'job-1');
@@ -369,6 +372,7 @@ describe('JobsService', () => {
         id: 'job-1',
         companyLink: { id: 'company-1', status: null },
         resume: null,
+        interviewRounds: [],
       });
 
       const result = await service.findOne('user-1', 'job-1');
@@ -383,11 +387,43 @@ describe('JobsService', () => {
         id: 'job-1',
         companyLink: null,
         resume: null,
+        interviewRounds: [],
       });
 
       const result = await service.findOne('user-1', 'job-1');
 
       expect(result.companyProfile).toBeNull();
+    });
+
+    it('attaches derivedStatus to each interview round', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyLink: null,
+        resume: null,
+        interviewRounds: [
+          {
+            id: 'round-1',
+            outcome: InterviewOutcome.PENDING,
+            scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+          },
+          {
+            id: 'round-2',
+            outcome: InterviewOutcome.PASSED,
+            scheduledAt: new Date(),
+          },
+        ],
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.interviewRounds[0]).toMatchObject({
+        id: 'round-1',
+        derivedStatus: 'POSSIBLY_GHOSTED',
+      });
+      expect(result.interviewRounds[1]).toMatchObject({
+        id: 'round-2',
+        derivedStatus: 'PASSED',
+      });
     });
   });
 
