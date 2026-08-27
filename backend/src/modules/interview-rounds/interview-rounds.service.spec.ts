@@ -434,4 +434,60 @@ describe('InterviewRoundsService', () => {
       expect(result).toEqual([{ id: 'r1' }]);
     });
   });
+
+  describe('derivedStatus', () => {
+    // Real thresholding is covered by interview-round-status.util.spec.ts —
+    // these just confirm every read/write path attaches the field.
+    it('is attached to a freshly created round', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.create.mockResolvedValue({
+        id: 'round-1',
+        outcome: InterviewOutcome.PENDING,
+        scheduledAt: new Date('2099-01-01T00:00:00.000Z'),
+      });
+
+      const result = await service.create('user-1', 'job-1', {
+        stage: 'Phone Screen',
+        scheduledAt: '2099-01-01',
+      });
+
+      expect(result.derivedStatus).toBe('SCHEDULED');
+    });
+
+    it('is attached to every round in findAllForJob', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findMany.mockResolvedValue([
+        {
+          id: 'r1',
+          outcome: InterviewOutcome.PENDING,
+          scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+        },
+        { id: 'r2', outcome: InterviewOutcome.PASSED, scheduledAt: new Date() },
+      ]);
+
+      const result = await service.findAllForJob('user-1', 'job-1');
+
+      expect(result[0].derivedStatus).toBe('POSSIBLY_GHOSTED');
+      expect(result[1].derivedStatus).toBe('PASSED');
+    });
+
+    it('is attached after an outcome update', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        outcome: InterviewOutcome.PENDING,
+      });
+      mockPrisma.interviewRound.update.mockResolvedValue({
+        id: 'round-1',
+        outcome: InterviewOutcome.FAILED,
+        scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+
+      const result = await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.FAILED,
+      });
+
+      expect(result.derivedStatus).toBe('FAILED');
+    });
+  });
 });

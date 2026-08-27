@@ -32,6 +32,7 @@ const round: InterviewRound = {
   stage: 'Phone Screen',
   scheduledAt: '2026-06-10T14:00:00Z',
   outcome: 'PENDING',
+  derivedStatus: 'SCHEDULED',
   notes: 'Ask about on-call rotation',
   createdAt: '2026-06-01T00:00:00Z',
   updatedAt: '2026-06-01T00:00:00Z',
@@ -78,6 +79,27 @@ describe('InterviewRounds', () => {
       expect(
         screen.queryByText('Ask about on-call rotation'),
       ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('derived status badge', () => {
+    it('shows "Awaiting response" for a round past its date with no outcome yet', () => {
+      renderRounds([{ ...round, derivedStatus: 'AWAITING_RESPONSE' }]);
+      expect(screen.getByText('Awaiting response')).toBeInTheDocument();
+    });
+
+    it('shows "Possibly ghosted" once a week has passed with no outcome', () => {
+      renderRounds([{ ...round, derivedStatus: 'POSSIBLY_GHOSTED' }]);
+      expect(screen.getByText('Possibly ghosted')).toBeInTheDocument();
+    });
+
+    it('omits the badge once the round is resolved', () => {
+      renderRounds([
+        { ...round, outcome: 'PASSED', derivedStatus: 'PASSED' },
+      ]);
+      expect(screen.queryByText('Scheduled')).not.toBeInTheDocument();
+      expect(screen.queryByText('Awaiting response')).not.toBeInTheDocument();
+      expect(screen.queryByText('Possibly ghosted')).not.toBeInTheDocument();
     });
   });
 

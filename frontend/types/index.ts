@@ -92,12 +92,24 @@ export interface Resume {
 
 export type InterviewOutcome = 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
 
+// Computed by the backend, not stored — splits PENDING into three states
+// based on scheduledAt vs now (see backend interview-round-status.util.ts).
+// A resolved outcome (PASSED/FAILED/CANCELLED) passes through unchanged.
+export type InterviewRoundDerivedStatus =
+  | 'SCHEDULED'
+  | 'AWAITING_RESPONSE'
+  | 'POSSIBLY_GHOSTED'
+  | 'PASSED'
+  | 'FAILED'
+  | 'CANCELLED';
+
 export interface InterviewRound {
   id: string;
   jobId: string;
   stage: string;
   scheduledAt: string;
   outcome: InterviewOutcome;
+  derivedStatus: InterviewRoundDerivedStatus;
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -370,6 +382,27 @@ export const STATUS_COLORS: Record<JobStatus, string> = {
     'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   REJECTED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
   GHOSTED:
+    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+};
+
+// Only SCHEDULED/AWAITING_RESPONSE/POSSIBLY_GHOSTED need a badge in the
+// interview rounds list — PASSED/FAILED/CANCELLED are already shown via the
+// outcome <select>.
+export const DERIVED_STATUS_LABELS: Partial<
+  Record<InterviewRoundDerivedStatus, string>
+> = {
+  SCHEDULED: 'Scheduled',
+  AWAITING_RESPONSE: 'Awaiting response',
+  POSSIBLY_GHOSTED: 'Possibly ghosted',
+};
+
+export const DERIVED_STATUS_COLORS: Partial<
+  Record<InterviewRoundDerivedStatus, string>
+> = {
+  SCHEDULED: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  AWAITING_RESPONSE:
+    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  POSSIBLY_GHOSTED:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
 };
 

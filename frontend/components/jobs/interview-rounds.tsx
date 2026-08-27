@@ -12,6 +12,10 @@ import {
   useInterviewRoundOutcomeMutation,
   useRemoveInterviewRoundMutation,
 } from '../../features/jobs/interview-rounds.hooks';
+import {
+  DERIVED_STATUS_COLORS,
+  DERIVED_STATUS_LABELS,
+} from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
 const OUTCOMES: InterviewOutcome[] = [
@@ -169,6 +173,13 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                 </p>
                 {round.notes && (
                   <p className="mt-1 text-xs text-slate-500">{round.notes}</p>
+                )}
+                {DERIVED_STATUS_LABELS[round.derivedStatus] && (
+                  <span
+                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
+                  >
+                    {DERIVED_STATUS_LABELS[round.derivedStatus]}
+                  </span>
                 )}
               </div>
 

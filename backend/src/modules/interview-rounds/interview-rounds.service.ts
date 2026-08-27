@@ -12,6 +12,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
+import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
 
 // Soft cap, not a real-world limit — a legitimate job search doesn't produce
 // hundreds of rounds for one job. Guards against unbounded InterviewRound/
@@ -22,6 +23,18 @@ const MAX_ROUNDS_PER_JOB = 50;
 @Injectable()
 export class InterviewRoundsService {
   constructor(private prisma: PrismaService) {}
+
+  private withDerivedStatus<
+    T extends { outcome: InterviewOutcome; scheduledAt: Date },
+  >(round: T) {
+    return {
+      ...round,
+      derivedStatus: deriveInterviewRoundStatus(
+        round.outcome,
+        round.scheduledAt,
+      ),
+    };
+  }
 
   private async ensureJobOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
@@ -142,16 +155,17 @@ export class InterviewRoundsService {
       });
       await this.logRoundEvent(tx, jobId, dto.stage);
       await this.recomputeNextInterviewAt(tx, jobId);
-      return round;
+      return this.withDerivedStatus(round);
     });
   }
 
   async findAllForJob(userId: string, jobId: string) {
     await this.ensureJobOwned(userId, jobId);
-    return this.prisma.interviewRound.findMany({
+    const rounds = await this.prisma.interviewRound.findMany({
       where: { jobId },
       orderBy: { scheduledAt: 'asc' },
     });
+    return rounds.map((round) => this.withDerivedStatus(round));
   }
 
   async update(
@@ -187,7 +201,7 @@ export class InterviewRoundsService {
         },
       });
       await this.recomputeNextInterviewAt(tx, jobId);
-      return round;
+      return this.withDerivedStatus(round);
     });
   }
 
