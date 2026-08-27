@@ -195,7 +195,10 @@ export class JobsService {
     const [jobs, total] = await Promise.all([
       this.prisma.job.findMany({
         where,
-        orderBy: { [sortBy]: sortOrder },
+        orderBy:
+          sortBy === 'createdAt'
+            ? { createdAt: sortOrder }
+            : [{ [sortBy]: sortOrder }, { createdAt: sortOrder }],
         skip: (page - 1) * limit,
         take: limit,
       }),
