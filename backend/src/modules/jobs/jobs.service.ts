@@ -26,6 +26,7 @@ import {
   type IStorageService,
 } from '../../storage/storage.service.js';
 import { buildJobWhere } from './jobs.constants.js';
+import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
 @Injectable()
 export class JobsService {
@@ -225,9 +226,22 @@ export class JobsService {
     });
     if (!job) throw new NotFoundException('Job not found');
 
-    const { companyLink, ...rest } = job;
+    const { companyLink, interviewRounds, ...rest } = job;
     return {
       ...rest,
+      // InterviewRoundsService attaches this same field for its own
+      // create/findAll/update responses — this include bypasses that
+      // service entirely, so it must be computed here too (see the "no
+      // effect for Liquid Technologies" bug this fixes: the job detail page
+      // renders job.interviewRounds from this response, never the
+      // /jobs/:jobId/interview-rounds endpoints).
+      interviewRounds: interviewRounds.map((round) => ({
+        ...round,
+        derivedStatus: deriveInterviewRoundStatus(
+          round.outcome,
+          round.scheduledAt,
+        ),
+      })),
       // Company is the sole source of enrichment data (CompanyProfile
       // dropped in phase 4, docs/specs/company-fk-phase4.md) — reshaped into
       // the companyProfile response shape the frontend already expects.
