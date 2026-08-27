@@ -24,24 +24,24 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <Dialog.Content
           className={cn(
             'fixed left-1/2 top-1/2 z-50 flex w-full max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col',
-            'max-h-[85vh] rounded-xl bg-white shadow-xl dark:bg-slate-900',
+            'max-h-[85vh] rounded-lg border border-line bg-paper-raised shadow-xl',
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             className,
           )}
         >
-          <div className="flex shrink-0 items-start justify-between gap-4 p-6 pb-4">
+          <div className="flex shrink-0 items-start justify-between gap-4 border-b border-line p-6 pb-4">
             <div className="min-w-0">
-              <Dialog.Title className="text-base font-semibold text-slate-900 dark:text-slate-100 break-words">
+              <Dialog.Title className="font-display text-base font-semibold text-ink break-words">
                 {title}
               </Dialog.Title>
               {description && (
-                <Dialog.Description className="mt-0.5 text-sm text-slate-500 break-words">
+                <Dialog.Description className="mt-0.5 text-sm text-muted break-words">
                   {description}
                 </Dialog.Description>
               )}
@@ -49,7 +49,7 @@ export function Modal({
             <Dialog.Close asChild>
               <button
                 aria-label="Close"
-                className="rounded-md p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="rounded-md p-1 text-muted hover:text-ink"
               >
                 <X className="h-4 w-4" />
               </button>

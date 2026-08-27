@@ -41,7 +41,7 @@ export default function CompanyDetailPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
         href="/companies"
-        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Companies
       </Link>
@@ -49,7 +49,7 @@ export default function CompanyDetailPage() {
       {isLoading ? (
         <LoadingStatus
           label="Loading company"
-          className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900"
+          className="space-y-4 rounded-md border border-line bg-paper p-6"
         >
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-5 w-64" />
@@ -57,10 +57,10 @@ export default function CompanyDetailPage() {
         </LoadingStatus>
       ) : company ? (
         <>
-          <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
+          <div className="rounded-md border border-line bg-paper p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-xl font-bold break-words">{company.name}</h1>
+                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">{company.name}</h1>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <CityBadge city={company.city} />
                   <PriorityBadge priority={company.priority} />
@@ -89,7 +89,7 @@ export default function CompanyDetailPage() {
             </div>
 
             {company.productDescription && (
-              <p className="text-sm text-slate-600 dark:text-slate-400 break-words">
+              <p className="text-sm text-muted break-words">
                 {company.productDescription}
               </p>
             )}
@@ -97,22 +97,22 @@ export default function CompanyDetailPage() {
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               {company.location && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Office Location
                   </p>
-                  <p className="break-words">{company.location}</p>
+                  <p className="break-words text-ink">{company.location}</p>
                 </div>
               )}
               {company.websiteUrl && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Website
                   </p>
                   <a
                     href={company.websiteUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-accent hover:underline"
                   >
                     Visit <ExternalLink className="h-3 w-3" />
                   </a>
@@ -120,14 +120,14 @@ export default function CompanyDetailPage() {
               )}
               {company.linkedinUrl && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     LinkedIn
                   </p>
                   <a
                     href={company.linkedinUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-accent hover:underline"
                   >
                     Open <ExternalLink className="h-3 w-3" />
                   </a>
@@ -137,10 +137,10 @@ export default function CompanyDetailPage() {
 
             {company.personalNotes && (
               <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
+                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-2">
                   Your Notes
                 </p>
-                <p className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
+                <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">
                   {company.personalNotes}
                 </p>
               </div>
@@ -164,9 +164,9 @@ export default function CompanyDetailPage() {
           />
         </>
       ) : isError && !isNotFound ? (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
-          <p className="text-red-500">Failed to load company.</p>
-          <p className="text-sm text-slate-400">
+        <div className="space-y-4 rounded-md border border-line bg-paper p-6">
+          <p className="text-danger">Failed to load company.</p>
+          <p className="text-sm text-muted-2">
             Check your connection and try again.
           </p>
           <div className="flex items-center gap-3">
@@ -175,18 +175,18 @@ export default function CompanyDetailPage() {
             </Button>
             <Link
               href="/companies"
-              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+              className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
             >
               <ArrowLeft className="h-4 w-4" /> Back to Companies
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
-          <p className="text-slate-500">Company not found.</p>
+        <div className="space-y-4 rounded-md border border-line bg-paper p-6">
+          <p className="text-muted">Company not found.</p>
           <Link
             href="/companies"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Companies
           </Link>

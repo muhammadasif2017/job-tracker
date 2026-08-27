@@ -25,13 +25,13 @@ export function TimezoneField({
     <div className="flex flex-col gap-1">
       <label
         htmlFor="notification-timezone"
-        className="text-sm font-medium text-slate-700 dark:text-slate-300"
+        className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
       >
         Timezone
       </label>
       <select
         id="notification-timezone"
-        className="h-9 w-full max-w-xs rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+        className="h-9 w-full max-w-xs rounded-md border border-line bg-paper px-3 text-sm text-ink"
         {...registerProps}
       >
         {IANA_TIMEZONES.map((tz) => (
@@ -41,12 +41,12 @@ export function TimezoneField({
         ))}
       </select>
       <div className="flex items-center justify-between">
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted">
           Used to time interview reminder and digest emails.
         </p>
         <button
           type="button"
-          className="text-xs text-indigo-600 hover:underline dark:text-indigo-400"
+          className="text-xs text-accent hover:underline"
           onClick={() => onUseBrowserTimezone(BROWSER_TIMEZONE)}
         >
           Use my timezone ({BROWSER_TIMEZONE})

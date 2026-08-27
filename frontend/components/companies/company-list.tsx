@@ -39,14 +39,14 @@ export function CompanyList({
   onMerge,
 }: CompanyListProps) {
   return (
-    <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-x-auto">
+    <div className="rounded-md border border-line bg-paper overflow-x-auto">
       <table className="w-full text-sm">
-        <thead className="border-b bg-slate-50 dark:bg-slate-800/50">
+        <thead className="border-b border-line bg-paper-raised">
           <tr>
             {COLUMNS.map((h) => (
               <th
                 key={h}
-                className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide"
+                className="px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide"
               >
                 {h}
               </th>
@@ -54,7 +54,7 @@ export function CompanyList({
           </tr>
         </thead>
         <tbody
-          className="divide-y divide-slate-100 dark:divide-slate-800"
+          className="divide-y divide-line"
           aria-busy={isLoading}
         >
           {isLoading ? (
@@ -77,10 +77,10 @@ export function CompanyList({
           ) : isError ? (
             <tr>
               <td colSpan={COLUMNS.length} className="py-16 text-center">
-                <p className="text-base font-medium text-red-500">
+                <p className="text-base font-medium text-danger">
                   Failed to load companies
                 </p>
-                <p className="mt-1 text-sm text-slate-400">
+                <p className="mt-1 text-sm text-muted-2">
                   Check your connection and try again.
                 </p>
                 <Button
@@ -97,7 +97,7 @@ export function CompanyList({
             <tr>
               <td
                 colSpan={COLUMNS.length}
-                className="py-16 text-center text-slate-400"
+                className="py-16 text-center text-muted-2"
               >
                 <p className="text-base font-medium">No target companies yet</p>
                 <p className="mt-1 text-sm">
@@ -109,18 +109,18 @@ export function CompanyList({
             companies.map((company) => (
               <tr
                 key={company.id}
-                className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                className="transition-colors hover:bg-paper-raised"
               >
                 <td className="px-4 py-3">
                   <Link
                     href={`/companies/${company.id}`}
-                    className="font-medium text-slate-900 hover:text-indigo-600 dark:text-slate-100"
+                    className="font-medium text-ink hover:text-accent"
                   >
                     {company.name}
                   </Link>
                   {company.businessMode === null &&
                     company.productDescription && (
-                      <p className="mt-0.5 text-xs text-slate-500">
+                      <p className="mt-0.5 text-xs text-muted">
                         {company.productDescription}
                       </p>
                     )}
@@ -135,7 +135,7 @@ export function CompanyList({
                   {company.businessMode ? (
                     <BusinessModeBadge businessMode={company.businessMode} />
                   ) : (
-                    <span className="text-slate-400">—</span>
+                    <span className="text-muted-2">—</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
@@ -149,7 +149,7 @@ export function CompanyList({
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={`Visit ${company.name} website`}
-                        className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                        className="rounded p-1.5 text-muted-2 hover:text-accent"
                       >
                         <Globe className="h-3.5 w-3.5" />
                       </a>
@@ -157,21 +157,21 @@ export function CompanyList({
                     <button
                       onClick={() => onMerge(company)}
                       aria-label={`Merge ${company.name} with another company`}
-                      className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                      className="rounded p-1.5 text-muted-2 hover:text-accent"
                     >
                       <GitMerge className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => onEdit(company)}
                       aria-label={`Edit ${company.name}`}
-                      className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                      className="rounded p-1.5 text-muted-2 hover:text-accent"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       onClick={() => onDelete(company)}
                       aria-label={`Delete ${company.name}`}
-                      className="rounded p-1.5 text-slate-400 hover:text-red-600"
+                      className="rounded p-1.5 text-muted-2 hover:text-danger"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>

@@ -37,44 +37,44 @@ function Timeline({ events }: { events: JobEvent[] }) {
   if (events.length === 0) return null;
 
   return (
-    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-4">
-      <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+    <div className="rounded-md border border-line bg-paper p-6 space-y-4">
+      <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
         Timeline
       </h2>
       <ol className="space-y-0">
         {events.map((event, i) => (
           <li key={event.id} className="flex gap-3">
             <div className="flex flex-col items-center">
-              <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-indigo-500 shrink-0" />
+              <span className="mt-1.5 h-2.5 w-2.5 rounded-full bg-accent shrink-0" />
               {i < events.length - 1 && (
-                <span className="w-px flex-1 bg-slate-200 dark:bg-slate-700 my-1" />
+                <span className="w-px flex-1 bg-line my-1" />
               )}
             </div>
             <div className="pb-4">
               {event.type === 'CREATED' ? (
-                <p className="text-sm">
+                <p className="text-sm text-ink">
                   Application created <StatusBadge status={event.toStatus} />
                 </p>
               ) : event.type === 'STATUS_CHANGE' ? (
                 <>
-                  <p className="text-sm flex flex-wrap items-center gap-1">
+                  <p className="text-sm flex flex-wrap items-center gap-1 text-ink">
                     Status changed from{' '}
                     <StatusBadge status={event.fromStatus!} /> to{' '}
                     <StatusBadge status={event.toStatus} />
                   </p>
                   {event.note && (
-                    <p className="text-sm text-slate-500">→ {event.note}</p>
+                    <p className="text-sm text-muted">→ {event.note}</p>
                   )}
                 </>
               ) : (
                 <>
-                  <p className="text-sm">Interview round scheduled</p>
+                  <p className="text-sm text-ink">Interview round scheduled</p>
                   {event.note && (
-                    <p className="text-sm text-slate-500">→ {event.note}</p>
+                    <p className="text-sm text-muted">→ {event.note}</p>
                   )}
                 </>
               )}
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-muted-2 mt-0.5">
                 {formatDate(event.createdAt)}
               </p>
             </div>
@@ -105,7 +105,7 @@ export default function JobDetailPage() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
         href="/jobs"
-        className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Jobs
       </Link>
@@ -113,7 +113,7 @@ export default function JobDetailPage() {
       {isLoading ? (
         <LoadingStatus
           label="Loading job"
-          className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900"
+          className="space-y-4 rounded-md border border-line bg-paper p-6"
         >
           <Skeleton className="h-7 w-48" />
           <Skeleton className="h-5 w-64" />
@@ -121,11 +121,11 @@ export default function JobDetailPage() {
         </LoadingStatus>
       ) : job ? (
         <>
-          <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
+          <div className="rounded-md border border-line bg-paper p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="text-xl font-bold break-words">{job.company}</h1>
-                <p className="mt-0.5 text-slate-500 break-words">
+                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">{job.company}</h1>
+                <p className="mt-0.5 text-muted break-words">
                   {job.position}
                 </p>
               </div>
@@ -150,7 +150,7 @@ export default function JobDetailPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                   Status
                 </p>
                 <select
@@ -158,7 +158,7 @@ export default function JobDetailPage() {
                   onChange={(e) =>
                     patchStatus.mutate(e.target.value as JobStatus)
                   }
-                  className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm dark:border-slate-700 dark:bg-slate-900"
+                  className="h-8 rounded-md border border-line bg-paper px-2 text-sm text-ink"
                 >
                   {JOB_STATUSES.map((s) => (
                     <option key={s} value={s}>
@@ -168,17 +168,17 @@ export default function JobDetailPage() {
                 </select>
               </div>
               <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                   Applied
                 </p>
-                <p>{formatDateOnly(job.appliedAt)}</p>
+                <p className="text-ink">{formatDateOnly(job.appliedAt)}</p>
               </div>
               {job.nextInterviewAt && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Next Interview
                   </p>
-                  <p className="inline-flex items-center gap-1.5 text-violet-600 dark:text-violet-400 font-medium">
+                  <p className="inline-flex items-center gap-1.5 text-accent-2 font-medium">
                     <CalendarDays className="h-3.5 w-3.5" />
                     {formatDateOnly(job.nextInterviewAt)}
                   </p>
@@ -186,15 +186,15 @@ export default function JobDetailPage() {
               )}
               {job.location && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Location
                   </p>
-                  <p className="break-words">{job.location}</p>
+                  <p className="break-words text-ink">{job.location}</p>
                 </div>
               )}
               {job.discoverySource && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Discovery Source
                   </p>
                   <SourceBadge kind="discovery" source={job.discoverySource} />
@@ -202,7 +202,7 @@ export default function JobDetailPage() {
               )}
               {job.applicationChannel && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Application Channel
                   </p>
                   <SourceBadge kind="channel" source={job.applicationChannel} />
@@ -210,14 +210,14 @@ export default function JobDetailPage() {
               )}
               {job.url && (
                 <div>
-                  <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
                     Job Posting
                   </p>
                   <a
                     href={job.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-indigo-600 hover:underline"
+                    className="inline-flex items-center gap-1 text-accent hover:underline"
                   >
                     Open link <ExternalLink className="h-3 w-3" />
                   </a>
@@ -227,10 +227,10 @@ export default function JobDetailPage() {
 
             {job.notes && (
               <div>
-                <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
+                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-2">
                   Notes
                 </p>
-                <p className="whitespace-pre-wrap break-words rounded-lg bg-slate-50 p-3 text-sm dark:bg-slate-800">
+                <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">
                   {job.notes}
                 </p>
               </div>
@@ -254,9 +254,9 @@ export default function JobDetailPage() {
           />
         </>
       ) : isError && !job && !isNotFound ? (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
-          <p className="text-red-500">Failed to load job.</p>
-          <p className="text-sm text-slate-400">
+        <div className="space-y-4 rounded-md border border-line bg-paper p-6">
+          <p className="text-danger">Failed to load job.</p>
+          <p className="text-sm text-muted-2">
             Check your connection and try again.
           </p>
           <div className="flex items-center gap-3">
@@ -265,18 +265,18 @@ export default function JobDetailPage() {
             </Button>
             <Link
               href="/jobs"
-              className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+              className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
             >
               <ArrowLeft className="h-4 w-4" /> Back to Jobs
             </Link>
           </div>
         </div>
       ) : (
-        <div className="space-y-4 rounded-xl border bg-white p-6 dark:bg-slate-900">
-          <p className="text-slate-500">Job not found.</p>
+        <div className="space-y-4 rounded-md border border-line bg-paper p-6">
+          <p className="text-muted">Job not found.</p>
           <Link
             href="/jobs"
-            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+            className="inline-flex items-center gap-2 text-sm text-muted hover:text-ink"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Jobs
           </Link>

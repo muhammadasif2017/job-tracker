@@ -45,9 +45,9 @@ export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
               accept=".csv,text/csv"
               aria-label="CSV file"
               onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
-              className="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200 dark:text-slate-400 dark:file:bg-slate-800 dark:file:text-slate-300"
+              className="block w-full text-sm text-muted file:mr-4 file:rounded-md file:border-0 file:bg-paper-raised file:px-4 file:py-2 file:text-sm file:font-medium file:text-ink hover:file:brightness-95"
             />
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-muted-2">
               Example: <code>Systems Limited,LAHORE,SERVICES</code>
             </p>
             <div className="flex justify-end gap-3 pt-2">
@@ -86,22 +86,22 @@ export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
             </p>
 
             {result.errors.length > 0 && (
-              <div className="max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700">
+              <div className="max-h-64 overflow-y-auto rounded-md border border-line">
                 <table className="w-full text-xs">
-                  <thead className="border-b bg-slate-50 dark:bg-slate-800/50">
+                  <thead className="border-b border-line bg-paper-raised">
                     <tr>
-                      <th className="px-3 py-2 text-left font-medium text-slate-500">
+                      <th className="px-3 py-2 text-left font-medium text-muted">
                         Row
                       </th>
-                      <th className="px-3 py-2 text-left font-medium text-slate-500">
+                      <th className="px-3 py-2 text-left font-medium text-muted">
                         Error
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  <tbody className="divide-y divide-line">
                     {result.errors.map((e) => (
                       <tr key={e.row}>
-                        <td className="px-3 py-2 text-slate-500">{e.row}</td>
+                        <td className="px-3 py-2 text-muted">{e.row}</td>
                         <td className="px-3 py-2 break-words">{e.message}</td>
                       </tr>
                     ))}

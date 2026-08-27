@@ -92,8 +92,8 @@ function FailureBanner({
     <div
       className={
         copy.tone === 'amber'
-          ? 'flex items-start gap-2 rounded-lg bg-amber-50 p-3 dark:bg-amber-950/30'
-          : 'flex items-start gap-2 rounded-lg bg-red-50 p-3 dark:bg-red-950/30'
+          ? 'flex items-start gap-2 rounded-md bg-amber-50 p-3 dark:bg-amber-950/30'
+          : 'flex items-start gap-2 rounded-md bg-red-50 p-3 dark:bg-red-950/30'
       }
     >
       <Icon
@@ -123,7 +123,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
     <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
             Industry
           </p>
           <p className="break-words">
@@ -131,7 +131,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
             Size
           </p>
           <p className="break-words">
@@ -139,7 +139,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
             HQ
           </p>
           <p className="break-words">
@@ -150,7 +150,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
           </p>
         </div>
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
             Founded
           </p>
           <p>
@@ -161,14 +161,14 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
 
       {profile.techStack?.length > 0 && (
         <div>
-          <p className="text-xs text-slate-400 uppercase tracking-wide mb-2">
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-2">
             Tech Stack
           </p>
           <div className="flex flex-wrap gap-1.5">
             {[...new Set(profile.techStack)].map((tech) => (
               <span
                 key={tech}
-                className="max-w-full break-words rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300"
+                className="max-w-full break-words rounded-sm border border-line/70 bg-paper-raised px-2.5 py-0.5 font-mono text-xs font-medium uppercase tracking-wide text-ink"
               >
                 {tech}
               </span>
@@ -178,7 +178,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
       )}
 
       <div>
-        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
           Address
         </p>
         <p className="text-sm break-words">
@@ -190,7 +190,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
           Work Policy
         </p>
         <p className="text-sm break-words">
@@ -199,7 +199,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
           Work-Life Balance
         </p>
         <p className="text-sm break-words">
@@ -208,10 +208,10 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
       </div>
 
       <div>
-        <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">
+        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
           Culture
         </p>
-        <p className="text-sm text-slate-600 dark:text-slate-300 break-words">
+        <p className="text-sm text-muted break-words">
           <FieldValue value={profile.cultureSummary} />
         </p>
       </div>
@@ -266,15 +266,15 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
 
   if (inFlight && !hasData) {
     return (
-      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-4">
+      <div className="rounded-md border border-line bg-paper p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
             Company Profile
           </h2>
           <span
             role="status"
             aria-live="polite"
-            className="text-xs text-slate-400 animate-pulse"
+            className="text-xs text-muted-2 animate-pulse"
           >
             {profile.status === 'PROCESSING' ? 'Researching…' : 'Queued…'}
           </span>
@@ -291,9 +291,9 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
 
   if (profile.status === 'FAILED' && !hasData) {
     return (
-      <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-3">
+      <div className="rounded-md border border-line bg-paper p-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
             Company Profile
           </h2>
           <Button
@@ -312,13 +312,13 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
 
   // COMPLETED, or PENDING/PROCESSING/FAILED with last-known-good data to show.
   return (
-    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900 space-y-5">
+    <div className="rounded-md border border-line bg-paper p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-sm uppercase tracking-wide text-slate-500">
+        <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
           Company Profile
         </h2>
         {inFlight ? (
-          <span className="text-xs text-slate-400 animate-pulse">
+          <span className="text-xs text-muted-2 animate-pulse">
             {profile.status === 'PROCESSING' ? 'Refreshing…' : 'Queued…'}
           </span>
         ) : (

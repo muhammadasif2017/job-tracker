@@ -2,15 +2,11 @@ import { cn } from '../../lib/utils';
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 const variants = {
-  primary:
-    'bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:ring-indigo-500',
-  secondary:
-    'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700',
-  ghost:
-    'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800',
-  danger: 'bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-500',
-  outline:
-    'border border-slate-300 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800/50',
+  primary: 'bg-accent text-accent-fg hover:brightness-110 focus-visible:ring-accent',
+  secondary: 'bg-paper-raised text-ink border border-line hover:border-muted-2',
+  ghost: 'text-muted hover:bg-paper-raised hover:text-ink',
+  danger: 'bg-danger text-white hover:brightness-110 focus-visible:ring-danger',
+  outline: 'border border-line text-ink hover:bg-paper-raised',
 };
 
 const sizes = {
@@ -44,8 +40,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       type={type}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        'inline-flex items-center justify-center gap-2 rounded-md font-medium tracking-tight transition-colors',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         sizes[size],

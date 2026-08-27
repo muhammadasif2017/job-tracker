@@ -103,8 +103,8 @@ export default function JobsPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Jobs</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Jobs</h1>
+          <p className="text-sm text-muted">
             {isError && !data
               ? 'Failed to load'
               : `${data?.meta.total ?? 0} applications tracked`}
@@ -125,10 +125,10 @@ export default function JobsPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
           <input
             aria-label="Search jobs"
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+            className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             placeholder="Search company or position…"
             value={search}
             onChange={(e) => {
@@ -139,7 +139,7 @@ export default function JobsPage() {
         </div>
         <select
           aria-label="Filter by status"
-          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
           value={statusFilter}
           onChange={(e) => {
             setStatusFilter(e.target.value as JobStatus | '');
@@ -155,7 +155,7 @@ export default function JobsPage() {
         </select>
         <select
           aria-label="Filter by priority"
-          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
           value={priorityFilter}
           onChange={(e) => {
             setPriorityFilter(e.target.value as JobPriority | '');
@@ -169,18 +169,18 @@ export default function JobsPage() {
             </option>
           ))}
         </select>
-        <div className="flex rounded-lg border border-slate-300 dark:border-slate-700">
+        <div className="flex rounded-md border border-line">
           <button
             onClick={() => setView('list')}
             aria-pressed={view === 'list'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-l-lg transition-colors ${view === 'list' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-1.5 rounded-l-[5px] px-3 py-1.5 font-mono text-xs uppercase tracking-wide transition-colors ${view === 'list' ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-paper-raised'}`}
           >
             <List className="h-3.5 w-3.5" /> List
           </button>
           <button
             onClick={() => setView('kanban')}
             aria-pressed={view === 'kanban'}
-            className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-r-lg transition-colors ${view === 'kanban' ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800'}`}
+            className={`flex items-center gap-1.5 rounded-r-[5px] px-3 py-1.5 font-mono text-xs uppercase tracking-wide transition-colors ${view === 'kanban' ? 'bg-accent text-accent-fg' : 'text-muted hover:bg-paper-raised'}`}
           >
             <LayoutGrid className="h-3.5 w-3.5" /> Board
           </button>
@@ -190,9 +190,9 @@ export default function JobsPage() {
       {view === 'kanban' ? (
         <KanbanBoard onEdit={openEdit} />
       ) : (
-        <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-x-auto">
+        <div className="rounded-md border border-line bg-paper overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="border-b bg-slate-50 dark:bg-slate-800/50">
+            <thead className="border-b border-line bg-paper-raised">
               <tr>
                 {[
                   'Company',
@@ -207,7 +207,7 @@ export default function JobsPage() {
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide"
+                    className="px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide"
                   >
                     {h}
                   </th>
@@ -215,7 +215,7 @@ export default function JobsPage() {
               </tr>
             </thead>
             <tbody
-              className="divide-y divide-slate-100 dark:divide-slate-800"
+              className="divide-y divide-line"
               aria-busy={isLoading}
             >
               {isLoading ? (
@@ -238,10 +238,10 @@ export default function JobsPage() {
               ) : isError && !data ? (
                 <tr>
                   <td colSpan={9} className="py-16 text-center">
-                    <p className="text-base font-medium text-red-500">
+                    <p className="text-base font-medium text-danger">
                       Failed to load jobs
                     </p>
-                    <p className="mt-1 text-sm text-slate-400">
+                    <p className="mt-1 text-sm text-muted-2">
                       Check your connection and try again.
                     </p>
                     <Button
@@ -256,7 +256,7 @@ export default function JobsPage() {
                 </tr>
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={9} className="py-16 text-center text-muted-2">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -267,15 +267,15 @@ export default function JobsPage() {
                 data?.data.map((job) => (
                   <tr
                     key={job.id}
-                    className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                    className="transition-colors hover:bg-paper-raised"
                   >
-                    <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                    <td className="px-4 py-3 text-muted">
                       {job.company}
                     </td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/jobs/${job.id}`}
-                        className="font-medium text-slate-900 hover:text-indigo-600 dark:text-slate-100"
+                        className="font-medium text-ink hover:text-accent"
                       >
                         {job.position}
                       </Link>
@@ -296,13 +296,13 @@ export default function JobsPage() {
                           source={job.applicationChannel}
                         />
                       ) : (
-                        <span className="text-slate-500">—</span>
+                        <span className="text-muted">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                    <td className="px-4 py-3 text-muted whitespace-nowrap">
                       {formatDateOnly(job.appliedAt)}
                     </td>
-                    <td className="px-4 py-3 text-slate-500">
+                    <td className="px-4 py-3 text-muted">
                       {job.location ?? '—'}
                     </td>
                     <td className="px-4 py-3">
@@ -313,7 +313,7 @@ export default function JobsPage() {
                             target="_blank"
                             rel="noopener noreferrer"
                             aria-label={`View job posting for ${job.company}`}
-                            className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                            className="rounded p-1.5 text-muted-2 hover:text-accent"
                           >
                             <ExternalLink className="h-3.5 w-3.5" />
                           </a>
@@ -321,14 +321,14 @@ export default function JobsPage() {
                         <button
                           onClick={() => openEdit(job)}
                           aria-label={`Edit ${job.company}`}
-                          className="rounded p-1.5 text-slate-400 hover:text-indigo-600"
+                          className="rounded p-1.5 text-muted-2 hover:text-accent"
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           onClick={() => setDeleteTarget(job)}
                           aria-label={`Delete ${job.company}`}
-                          className="rounded p-1.5 text-slate-400 hover:text-red-600"
+                          className="rounded p-1.5 text-muted-2 hover:text-danger"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </button>
@@ -341,7 +341,7 @@ export default function JobsPage() {
           </table>
 
           {data && data.meta.totalPages > 1 && (
-            <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-slate-500">
+            <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-muted">
               <span>
                 Page {page} of {data.meta.totalPages}
               </span>

@@ -141,19 +141,19 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Profile</h1>
-        <p className="text-sm text-slate-500">Manage your account</p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Profile</h1>
+        <p className="text-sm text-muted">Manage your account</p>
       </div>
 
-      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
-        <h2 className="font-medium">Personal Info</h2>
+      <div className="rounded-md border border-line bg-paper p-5 space-y-4">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Personal Info</h2>
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-100 text-lg font-bold text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft font-mono text-lg font-bold text-accent">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
-            <p className="font-medium break-words">{user?.name}</p>
-            <p className="text-sm text-slate-500 break-words">{user?.email}</p>
+            <p className="font-medium break-words text-ink">{user?.name}</p>
+            <p className="text-sm text-muted break-words">{user?.email}</p>
           </div>
         </div>
         <form
@@ -172,18 +172,18 @@ export default function ProfilePage() {
         </form>
       </div>
 
-      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
-        <h2 className="font-medium">Email Notifications</h2>
+      <div className="rounded-md border border-line bg-paper p-5 space-y-4">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Email Notifications</h2>
         <form
           onSubmit={notificationsForm.handleSubmit((d) =>
             updateNotifications.mutate(d),
           )}
           className="space-y-4"
         >
-          <label className="flex items-center gap-2 text-sm">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 dark:border-slate-700"
+              className="h-4 w-4 rounded border-line accent-accent"
               {...notificationsForm.register('interviewRemindersEnabled')}
             />
             Email me a reminder before scheduled interviews
@@ -192,13 +192,13 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="digest-frequency"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Email digest
             </label>
             <select
               id="digest-frequency"
-              className="h-9 w-full max-w-[200px] rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full max-w-[200px] rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...notificationsForm.register('digestFrequency')}
             >
               {DIGEST_FREQUENCIES.map((f) => (
@@ -207,7 +207,7 @@ export default function ProfilePage() {
                 </option>
               ))}
             </select>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted">
               A summary of upcoming interviews and stalled applications that
               need your attention.
             </p>
@@ -231,19 +231,19 @@ export default function ProfilePage() {
       </div>
 
       {user?.connectedProviders && user.connectedProviders.length > 0 && (
-        <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-3">
-          <h2 className="font-medium">Connected Accounts</h2>
+        <div className="rounded-md border border-line bg-paper p-5 space-y-3">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Connected Accounts</h2>
           {['github'].map((provider) => {
             const connected = user.connectedProviders!.includes(provider);
             return (
               <div key={provider} className="flex items-center justify-between">
-                <div className="flex items-center gap-2 capitalize text-sm">
+                <div className="flex items-center gap-2 capitalize text-sm text-ink">
                   <span
-                    className={`h-2 w-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                    className={`h-2 w-2 rounded-full ${connected ? 'bg-accent-2' : 'bg-muted-2'}`}
                   />
                   {provider}
                 </div>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-muted-2">
                   {connected ? 'Connected' : 'Not connected'}
                 </span>
               </div>
@@ -253,8 +253,8 @@ export default function ProfilePage() {
       )}
 
       {hasPassword && (
-        <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
-          <h2 className="font-medium">Change Password</h2>
+        <div className="rounded-md border border-line bg-paper p-5 space-y-4">
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Change Password</h2>
           <form
             onSubmit={passwordForm.handleSubmit((d) =>
               changePassword.mutate(d),
@@ -286,11 +286,11 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className="rounded-xl border bg-white p-5 dark:bg-slate-900 space-y-4">
+      <div className="rounded-md border border-line bg-paper p-5 space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-medium">Personal access tokens</h2>
-            <p className="text-sm text-slate-500">
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Personal access tokens</h2>
+            <p className="text-sm text-muted">
               Used by the browser extension to import job postings.
             </p>
           </div>
@@ -304,19 +304,19 @@ export default function ProfilePage() {
         </div>
 
         {tokens && tokens.length === 0 && (
-          <p className="text-sm text-slate-500">No tokens yet.</p>
+          <p className="text-sm text-muted">No tokens yet.</p>
         )}
 
         {tokens && tokens.length > 0 && (
-          <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+          <ul className="divide-y divide-line">
             {tokens.map((t) => (
               <li
                 key={t.id}
                 className="flex items-center justify-between gap-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{t.name}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="truncate text-sm font-medium text-ink">{t.name}</p>
+                  <p className="text-xs text-muted">
                     Created {formatDate(t.createdAt)} &middot;{' '}
                     {t.lastUsedAt
                       ? `Last used ${formatRelative(t.lastUsedAt)}`
@@ -338,11 +338,11 @@ export default function ProfilePage() {
         )}
       </div>
 
-      <div className="rounded-xl border border-red-200 bg-white p-5 dark:border-red-900 dark:bg-slate-900 space-y-3">
-        <h2 className="font-medium text-red-600 dark:text-red-400">
+      <div className="rounded-md border border-danger/40 bg-paper p-5 space-y-3">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-danger">
           Danger Zone
         </h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted">
           This will permanently delete your account and all job data.
         </p>
         <Button variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
@@ -406,7 +406,7 @@ export default function ProfilePage() {
         {createdToken ? (
           <div className="space-y-4 pt-2">
             <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 select-all break-all rounded-lg border bg-slate-50 px-3 py-2 text-xs dark:border-slate-700 dark:bg-slate-800">
+              <code className="min-w-0 flex-1 select-all break-all rounded-md border border-line bg-paper-raised px-3 py-2 text-xs text-ink">
                 {createdToken.token}
               </code>
               <Button

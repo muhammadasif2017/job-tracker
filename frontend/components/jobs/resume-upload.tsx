@@ -87,23 +87,23 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
+      <label className="font-mono text-xs font-medium uppercase tracking-wide text-muted">
         Resume
       </label>
 
       {resume ? (
-        <div className="flex flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/50 sm:flex-row sm:items-center">
-          <FileText className="hidden h-5 w-5 shrink-0 text-red-500 sm:block" />
+        <div className="flex flex-col gap-2 rounded-md border border-line bg-paper-raised px-3 py-2 sm:flex-row sm:items-center">
+          <FileText className="hidden h-5 w-5 shrink-0 text-danger sm:block" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">
+            <p className="truncate text-sm font-medium text-ink">
               {resume.originalName}
             </p>
-            <p className="text-xs text-slate-500">{formatBytes(resume.size)}</p>
+            <p className="text-xs text-muted">{formatBytes(resume.size)}</p>
           </div>
 
           {confirming ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-slate-600 dark:text-slate-400">
+              <span className="text-sm text-muted">
                 Remove resume?
               </span>
               <Button
@@ -149,7 +149,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
                 type="button"
                 variant="ghost"
                 size="sm"
-                className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                className="text-danger hover:bg-danger-soft hover:text-danger"
                 onClick={() => setConfirming(true)}
               >
                 <Trash2 className="h-4 w-4" />

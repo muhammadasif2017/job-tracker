@@ -31,14 +31,14 @@ export default function GlobalError({
         <h2 style={{ fontSize: '1.125rem', fontWeight: 600 }}>
           Something went wrong
         </h2>
-        <p style={{ fontSize: '0.875rem', color: '#64748b' }}>
+        <p style={{ fontSize: '0.875rem', color: '#8b97a3' }}>
           The application hit an unexpected error. Try reloading.
         </p>
         <button
           onClick={() => unstable_retry()}
           style={{
-            borderRadius: '0.5rem',
-            background: '#4f46e5',
+            borderRadius: '0.375rem',
+            background: '#ff9f45',
             color: 'white',
             padding: '0.5rem 1rem',
             fontSize: '0.875rem',

@@ -2,33 +2,91 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+:root {
+  color-scheme: light dark;
+
+  --surface: #f7f8fa;
+  --paper: #ffffff;
+  --paper-raised: #ffffff;
+  --line: #e2e5ea;
+  --ink: #10151b;
+  --muted: #626d7a;
+  --muted-2: #96a1ac;
+
+  --accent: #d9740c;
+  --accent-fg: #ffffff;
+  --accent-soft: #fdf1e3;
+  --accent-2: #0f8a7c;
+  --accent-2-soft: #e5f6f3;
+  --danger: #d64545;
+  --danger-soft: #fbeaea;
+}
+
+.dark {
+  --surface: #0a0d11;
+  --paper: #12171d;
+  --paper-raised: #171d24;
+  --line: #232b34;
+  --ink: #f2f4f6;
+  --muted: #8b97a3;
+  --muted-2: #5a6570;
+
+  --accent: #ff9f45;
+  --accent-fg: #100a04;
+  --accent-soft: rgba(255, 159, 69, 0.12);
+  --accent-2: #38d4c6;
+  --accent-2-soft: rgba(56, 212, 198, 0.12);
+  --danger: #ff5d5d;
+  --danger-soft: rgba(255, 93, 93, 0.12);
+}
+
 @theme inline {
-  --font-sans: var(--font-geist);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-mono);
+
+  --color-surface: var(--surface);
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-muted-2: var(--muted-2);
+
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-2: var(--accent-2);
+  --color-accent-2-soft: var(--accent-2-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
 }
 
 @layer base {
-  :root {
-    color-scheme: light dark;
-  }
   * {
-    border-color: theme(colors.slate.200);
+    border-color: var(--line);
   }
-  .dark * {
-    border-color: theme(colors.slate.800);
+  body {
+    font-feature-settings: 'ss01' 1;
   }
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px white inset;
-    -webkit-text-fill-color: theme(colors.slate.900);
-    caret-color: theme(colors.slate.900);
+    -webkit-box-shadow: 0 0 0 1000px var(--paper) inset;
+    -webkit-text-fill-color: var(--ink);
+    caret-color: var(--ink);
     transition: background-color 9999s ease-in-out 0s;
   }
-  .dark input:-webkit-autofill,
-  .dark input:-webkit-autofill:hover,
-  .dark input:-webkit-autofill:focus {
-    -webkit-box-shadow: 0 0 0 1000px theme(colors.slate.900) inset;
-    -webkit-text-fill-color: theme(colors.slate.100);
-    caret-color: theme(colors.slate.100);
+}
+
+@layer utilities {
+  .signal-trace {
+    background-image: repeating-linear-gradient(
+      to right,
+      var(--line) 0,
+      var(--line) 4px,
+      transparent 4px,
+      transparent 10px
+    );
   }
 }

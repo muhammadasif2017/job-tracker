@@ -17,10 +17,9 @@ export function OAuthButton({ provider, className }: OAuthButtonProps) {
     <a
       href={`${API}/auth/${provider}`}
       className={cn(
-        'flex h-10 w-full items-center justify-center gap-3 rounded-lg border',
-        'border-slate-300 bg-white text-sm font-medium text-slate-700',
-        'transition-colors hover:bg-slate-50',
-        'dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800',
+        'flex h-10 w-full items-center justify-center gap-3 rounded-md border',
+        'border-line bg-paper text-sm font-medium text-ink',
+        'transition-colors hover:bg-paper-raised',
         className,
       )}
     >

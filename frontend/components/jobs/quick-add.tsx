@@ -59,7 +59,7 @@ export function QuickAdd({ open, onClose }: QuickAddProps) {
           rows={6}
           autoFocus
           placeholder="https://... or paste the job description"
-          className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
           value={input}
           onChange={(e) => setInput(e.target.value)}
         />

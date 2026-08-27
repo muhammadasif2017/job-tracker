@@ -408,11 +408,11 @@ export const DERIVED_STATUS_COLORS: Partial<
 
 export const STATUS_DOT_COLORS: Record<JobStatus, string> = {
   WISHLIST: '#94a3b8',
-  APPLIED: '#3b82f6',
-  INTERVIEWING: '#8b5cf6',
-  OFFER: '#10b981',
+  APPLIED: '#38d4c6',
+  INTERVIEWING: '#ff9f45',
+  OFFER: '#22c55e',
   REJECTED: '#ef4444',
-  GHOSTED: '#f59e0b',
+  GHOSTED: '#71717a',
 };
 
 // --- Target Companies ---

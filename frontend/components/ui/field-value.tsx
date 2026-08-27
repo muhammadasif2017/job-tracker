@@ -6,6 +6,6 @@ export function FieldValue({ value }: { value: string | null | undefined }) {
   return value ? (
     <>{value}</>
   ) : (
-    <span className="text-slate-400 italic">Unknown</span>
+    <span className="text-muted-2 italic">Unknown</span>
   );
 }
