@@ -193,6 +193,7 @@ describe('JobDetailPage', () => {
             stage: 'Screen',
             scheduledAt: '2026-06-05T00:00:00Z',
             outcome: 'PENDING',
+            derivedStatus: 'SCHEDULED',
             createdAt: '2026-06-01T00:00:00Z',
             updatedAt: '2026-06-01T00:00:00Z',
           },
