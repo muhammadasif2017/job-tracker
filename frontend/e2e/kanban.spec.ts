@@ -26,54 +26,33 @@ async function goToBoard(page: Page) {
   await page.getByRole('button', { name: 'Board' }).click();
 }
 
-// @hello-pangea/dnd renders `data-rfd-*` attributes on draggables/droppables.
-// Its sensors need real, stepped mouse movement (not a single jump) plus a
-// short pause after mousedown to register the drag — a plain click-and-move
-// does not trigger it.
+// @hello-pangea/dnd ships full keyboard drag support (Space to lift, arrow
+// keys to move, Space to drop) specifically because raw mouse simulation is
+// unreliable in headless CI: its sensor's requestAnimationFrame-batched
+// collision detection can silently miss synthetic pointer moves, so the lift
+// and/or the final drop never register even though every event looks
+// correct (confirmed here — a hardened mouse sequence still consistently
+// timed out waiting for the resulting PATCH). Keyboard driving is
+// deterministic and is the pattern the library's own docs recommend for
+// tests. `columnsToTheRight` is how many columns over from the card's
+// current column (KANBAN_COLS order in kanban-board.tsx) — WISHLIST →
+// APPLIED is 1.
 async function dragJobToColumn(
   page: Page,
   jobId: string,
-  targetStatus: string,
+  columnsToTheRight: number,
 ) {
-  const source = page.locator(
+  const handle = page.locator(
     `[data-rfd-drag-handle-draggable-id="${jobId}"]`,
   );
-  const target = page.locator(`[data-rfd-droppable-id="${targetStatus}"]`);
-
-  const sourceBox = await source.boundingBox();
-  const targetBox = await target.boundingBox();
-  if (!sourceBox || !targetBox) throw new Error('drag source/target not found');
-
-  await page.mouse.move(
-    sourceBox.x + sourceBox.width / 2,
-    sourceBox.y + sourceBox.height / 2,
-  );
-  await page.mouse.down();
-  // The sensor only arms the drag once it sees real movement past mousedown
-  // — a single blind move-then-wait sequence is what makes this test flaky
-  // in headless CI (the lift silently never registers, so onDragEnd never
-  // fires and the PATCH never happens). Move a little, then confirm the
-  // card actually entered its dragging state (kanban-board.tsx applies
-  // `rotate-1` via `snap.isDragging`) before continuing toward the target.
-  await page.mouse.move(
-    sourceBox.x + sourceBox.width / 2 + 10,
-    sourceBox.y + sourceBox.height / 2 + 10,
-    { steps: 5 },
-  );
-  await expect(source).toHaveClass(/rotate-1/, { timeout: 5000 });
-  await page.mouse.move(
-    sourceBox.x + sourceBox.width / 2 + 10,
-    targetBox.y + targetBox.height / 2,
-    { steps: 10 },
-  );
-  await page.waitForTimeout(100);
-  await page.mouse.move(
-    targetBox.x + targetBox.width / 2,
-    targetBox.y + targetBox.height / 2,
-    { steps: 10 },
-  );
+  await handle.focus();
+  await page.keyboard.press('Space');
   await page.waitForTimeout(200);
-  await page.mouse.up();
+  for (let i = 0; i < columnsToTheRight; i++) {
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(200);
+  }
+  await page.keyboard.press('Space');
 }
 
 // ── Columns ───────────────────────────────────────────────────────────────────
@@ -233,7 +212,7 @@ test.describe('Kanban drag and drop', () => {
           r.request().method() === 'PATCH' &&
           r.url().includes(`/jobs/${job.id}`),
       ),
-      dragJobToColumn(page, job.id, 'APPLIED'),
+      dragJobToColumn(page, job.id, 1),
     ]);
     expect(patchResponse.ok()).toBe(true);
 
