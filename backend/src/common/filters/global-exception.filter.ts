@@ -47,7 +47,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       const original = exception.getResponse();
       const base =
         typeof original === 'string' ? { message: original } : original;
-      return { statusCode: status, timestamp, path, ...base };
+      // base last-in-wins on shared keys would let a validation-pipe body's
+      // own statusCode/timestamp silently override the real HTTP status,
+      // desyncing the JSON body from response.status(). Ours must win.
+      return { ...base, statusCode: status, timestamp, path };
     }
 
     if (exception?.code === PRISMA_UNIQUE_VIOLATION) {
