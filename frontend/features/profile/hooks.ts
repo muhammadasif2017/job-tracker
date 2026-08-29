@@ -43,7 +43,8 @@ export function useUpdateNotificationsMutation() {
       qc.invalidateQueries({ queryKey: ['profile'] });
       toast.success('Notification preferences updated');
     },
-    onError: () => toast.error('Failed to update notification preferences'),
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, 'Failed to update notification preferences')),
   });
 }
 
