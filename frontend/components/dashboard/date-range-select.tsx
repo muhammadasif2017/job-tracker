@@ -11,7 +11,7 @@ export function DateRangeSelect({
   onChange: (range: DashboardRange) => void;
 }) {
   return (
-    <div className="inline-flex rounded-lg border bg-white p-0.5 dark:bg-slate-900">
+    <div className="inline-flex rounded-md border border-line bg-paper p-0.5">
       {DASHBOARD_RANGES.map((option) => (
         <button
           key={option.value}
@@ -19,10 +19,10 @@ export function DateRangeSelect({
           aria-pressed={value === option.value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'rounded-md px-3 py-1 text-sm font-medium transition-colors',
+            'rounded-[5px] px-3 py-1 font-mono text-xs font-medium uppercase tracking-wide transition-colors',
             value === option.value
-              ? 'bg-indigo-600 text-white'
-              : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100',
+              ? 'bg-accent text-accent-fg'
+              : 'text-muted hover:text-ink',
           )}
         >
           {option.label}

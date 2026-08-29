@@ -214,9 +214,9 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       <Modal open={open} onClose={handleClose} title="Job Added">
         <div className="space-y-4">
           {matchedCompany && !bannerDismissed && (
-            <div className="flex items-start gap-2 rounded-lg bg-indigo-50 p-3 dark:bg-indigo-950/30">
-              <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-indigo-600 dark:text-indigo-400" />
-              <p className="flex-1 text-sm text-indigo-700 dark:text-indigo-300">
+            <div className="flex items-start gap-2 rounded-md bg-accent-soft p-3">
+              <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
+              <p className="flex-1 text-sm text-accent">
                 You already saved{' '}
                 <Link
                   href={`/companies/${matchedCompany.id}`}
@@ -230,13 +230,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
                 type="button"
                 aria-label="Dismiss"
                 onClick={() => setBannerDismissed(true)}
-                className="shrink-0 text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-200"
+                className="shrink-0 text-accent/70 hover:text-accent"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
           )}
-          <p className="text-sm text-slate-600 dark:text-slate-400">
+          <p className="text-sm text-muted">
             Job added successfully. Optionally attach a resume before closing.
           </p>
           <ResumeUpload jobId={createdJobId} initialResume={null} />
@@ -282,12 +282,12 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
               onFocus={() => setCompanyFocused(true)}
             />
             {companyFocused && companySuggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg dark:border-slate-700 dark:bg-slate-900">
+              <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-line bg-paper shadow-lg">
                 {companySuggestions.map((c) => (
                   <li key={c.id}>
                     <button
                       type="button"
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-paper-raised"
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setValue('company', c.name, { shouldValidate: true });
@@ -318,13 +318,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-status"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Status
             </label>
             <select
               id="job-status"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...register('status')}
             >
               {JOB_STATUSES.map((s) => (
@@ -337,13 +337,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-priority"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Priority
             </label>
             <select
               id="job-priority"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...register('priority')}
             >
               {JOB_PRIORITIES.map((p) => (
@@ -356,13 +356,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-type"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Job Type
             </label>
             <select
               id="job-type"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...register('jobType')}
             >
               {JOB_TYPES.map((t) => (
@@ -375,13 +375,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-discovery-source"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Discovery Source
             </label>
             <select
               id="job-discovery-source"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...register('discoverySource')}
             >
               <option value="">—</option>
@@ -395,13 +395,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-application-channel"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Application Channel
             </label>
             <select
               id="job-application-channel"
-              className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...register('applicationChannel')}
             >
               <option value="">—</option>
@@ -424,7 +424,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         <div className="flex flex-col gap-1">
           <label
             htmlFor="job-notes"
-            className="text-sm font-medium text-slate-700 dark:text-slate-300"
+            className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
           >
             Notes
           </label>
@@ -432,7 +432,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
             id="job-notes"
             rows={3}
             placeholder="Recruiter contact, notes…"
-            className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+            className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
             {...register('notes')}
           />
         </div>

@@ -21,24 +21,27 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        'rounded-xl border bg-white p-5 dark:bg-slate-900',
+        'relative overflow-hidden rounded-md border border-line bg-paper p-5',
         className,
       )}
     >
-      <div className="flex items-start justify-between">
-        <p className="text-sm font-medium text-slate-500">{label}</p>
-        <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400">
-          {icon}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-wide text-muted">
+          {label}
+        </p>
+        <div className="text-muted-2">{icon}</div>
       </div>
       {loading ? (
         <LoadingStatus label="Loading stat">
           <Skeleton className="mt-3 h-8 w-20" />
         </LoadingStatus>
       ) : (
-        <p className="mt-3 text-3xl font-bold tracking-tight">{value}</p>
+        <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink">
+          {value}
+        </p>
       )}
-      {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+      {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
+      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-accent-2/60" aria-hidden="true" />
     </div>
   );
 }

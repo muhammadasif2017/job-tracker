@@ -40,8 +40,8 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-xl font-semibold">Admin — Users</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Admin — Users</h1>
+        <p className="text-sm text-muted">
           {isError && !data
             ? 'Failed to load'
             : `${data?.meta.total ?? 0} registered users`}
@@ -49,10 +49,10 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
         <input
           aria-label="Search users"
-          className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+          className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           placeholder="Search name or email…"
           value={search}
           onChange={(e) => {
@@ -62,14 +62,14 @@ export default function AdminUsersPage() {
         />
       </div>
 
-      <div className="rounded-xl border bg-white dark:bg-slate-900 overflow-x-auto">
+      <div className="rounded-md border border-line bg-paper overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="border-b bg-slate-50 dark:bg-slate-800/50">
+          <thead className="border-b border-line bg-paper-raised">
             <tr>
               {['Name', 'Email', 'Role', 'Jobs', 'Joined', ''].map((h) => (
                 <th
                   key={h}
-                  className="px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wide"
+                  className="px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide"
                 >
                   {h}
                 </th>
@@ -77,7 +77,7 @@ export default function AdminUsersPage() {
             </tr>
           </thead>
           <tbody
-            className="divide-y divide-slate-100 dark:divide-slate-800"
+            className="divide-y divide-line"
             aria-busy={isLoading}
           >
             {isLoading ? (
@@ -100,10 +100,10 @@ export default function AdminUsersPage() {
             ) : isError && !data ? (
               <tr>
                 <td colSpan={6} className="py-16 text-center">
-                  <p className="text-base font-medium text-red-500">
+                  <p className="text-base font-medium text-danger">
                     Failed to load users
                   </p>
-                  <p className="mt-1 text-sm text-slate-400">
+                  <p className="mt-1 text-sm text-muted-2">
                     Check your connection and try again.
                   </p>
                   <Button
@@ -118,7 +118,7 @@ export default function AdminUsersPage() {
               </tr>
             ) : data?.data.length === 0 ? (
               <tr>
-                <td colSpan={6} className="py-16 text-center text-slate-400">
+                <td colSpan={6} className="py-16 text-center text-muted-2">
                   <p className="text-base font-medium">No users found</p>
                 </td>
               </tr>
@@ -126,28 +126,28 @@ export default function AdminUsersPage() {
               data?.data.map((u) => (
                 <tr
                   key={u.id}
-                  className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                  className="transition-colors hover:bg-paper-raised"
                 >
-                  <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">
+                  <td className="px-4 py-3 font-medium text-ink">
                     {u.name}
                   </td>
-                  <td className="px-4 py-3 text-slate-600 dark:text-slate-400">
+                  <td className="px-4 py-3 text-muted">
                     {u.email}
                   </td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
-                        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+                        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
                         u.role === 'ADMIN'
-                          ? 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
-                          : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+                          ? 'bg-accent-soft text-accent'
+                          : 'bg-paper-raised text-muted',
                       )}
                     >
                       {u.role}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{u.jobCount}</td>
-                  <td className="px-4 py-3 text-slate-500 whitespace-nowrap">
+                  <td className="px-4 py-3 text-muted">{u.jobCount}</td>
+                  <td className="px-4 py-3 text-muted whitespace-nowrap">
                     {formatDateTime(u.createdAt)}
                   </td>
                   <td className="px-4 py-3">
@@ -155,7 +155,7 @@ export default function AdminUsersPage() {
                       <button
                         onClick={() => setDeleteTarget(u)}
                         aria-label={`Delete ${u.email}`}
-                        className="rounded p-1.5 text-slate-400 hover:text-red-600"
+                        className="rounded p-1.5 text-muted-2 hover:text-danger"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -168,7 +168,7 @@ export default function AdminUsersPage() {
         </table>
 
         {data && data.meta.totalPages > 1 && (
-          <div className="flex items-center justify-between border-t px-4 py-3 text-sm text-slate-500">
+          <div className="flex items-center justify-between border-t border-line px-4 py-3 text-sm text-muted">
             <span>
               Page {page} of {data.meta.totalPages}
             </span>

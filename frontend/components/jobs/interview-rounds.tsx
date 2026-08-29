@@ -86,9 +86,9 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   }
 
   return (
-    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900">
+    <div className="rounded-md border border-line bg-paper p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Interview Rounds</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Interview Rounds</h2>
         {!adding && (
           <Button
             type="button"
@@ -108,7 +108,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       {adding && (
         <form
           onSubmit={handleAdd}
-          className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700"
+          className="mb-4 flex flex-col gap-3 rounded-md border border-line p-3"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
@@ -156,11 +156,11 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       )}
 
       {rounds.length === 0 ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-2">
           No interview rounds logged yet.
         </p>
       ) : (
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        <ul className="divide-y divide-line">
           {rounds.map((round) => (
             <li
               key={round.id}
@@ -168,15 +168,15 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">{round.stage}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted">
                   {formatDateOnly(round.scheduledAt)}
                 </p>
                 {round.notes && (
-                  <p className="mt-1 text-xs text-slate-500">{round.notes}</p>
+                  <p className="mt-1 text-xs text-muted">{round.notes}</p>
                 )}
                 {DERIVED_STATUS_LABELS[round.derivedStatus] && (
                   <span
-                    className={`mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
+                    className={`mt-1 inline-block rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
                   >
                     {DERIVED_STATUS_LABELS[round.derivedStatus]}
                   </span>
@@ -185,7 +185,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
 
               {confirmingId === round.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600 dark:text-slate-400">
+                  <span className="text-sm text-muted">
                     Remove?
                   </span>
                   <Button
@@ -216,7 +216,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                         outcome: e.target.value as InterviewOutcome,
                       })
                     }
-                    className="h-8 rounded-lg border border-slate-300 bg-white px-2 text-sm text-slate-900 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                    className="h-8 rounded-md border border-line bg-paper px-2 text-sm text-ink"
                   >
                     {OUTCOMES.map((o) => (
                       <option key={o} value={o}>
@@ -238,7 +238,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                     variant="ghost"
                     size="sm"
                     title="Remove round"
-                    className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
                     onClick={() => setConfirmingId(round.id)}
                   >
                     <Trash2 className="h-4 w-4" />

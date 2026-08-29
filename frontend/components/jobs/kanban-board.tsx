@@ -68,11 +68,11 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
 
   if (isError && !data) {
     return (
-      <div className="flex flex-col items-center gap-3 rounded-xl border bg-white py-16 text-center dark:bg-slate-900">
-        <p className="text-base font-medium text-red-500">
+      <div className="flex flex-col items-center gap-3 rounded-md border border-line bg-paper py-16 text-center">
+        <p className="text-base font-medium text-danger">
           Failed to load board
         </p>
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-2">
           Check your connection and try again.
         </p>
         <Button variant="secondary" size="sm" onClick={() => refetch()}>
@@ -87,13 +87,15 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       <div className="flex gap-4 overflow-x-auto pb-4">
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0">
-            <div className="mb-3 flex items-center gap-2">
+            <div className="relative mb-3 flex items-center gap-2 border-b-2 border-dashed border-line pb-3">
               <span
-                className="h-2 w-2 rounded-full"
+                className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-surface"
                 style={{ background: STATUS_DOT_COLORS[col] }}
               />
-              <span className="text-sm font-medium">{STATUS_LABELS[col]}</span>
-              <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+              <span className="font-mono text-xs font-medium uppercase tracking-wide text-ink">
+                {STATUS_LABELS[col]}
+              </span>
+              <span className="ml-auto rounded-sm border border-line bg-paper px-1.5 py-0.5 font-mono text-[11px] text-muted">
                 {jobsByStatus[col].length}
               </span>
             </div>
@@ -102,7 +104,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                 <div
                   ref={provided.innerRef}
                   {...provided.droppableProps}
-                  className={`min-h-20 space-y-2 rounded-xl p-2 transition-colors ${snapshot.isDraggingOver ? 'bg-indigo-50 dark:bg-indigo-950/30' : 'bg-slate-100/50 dark:bg-slate-800/30'}`}
+                  className={`min-h-20 space-y-2 rounded-md p-2 transition-colors ${snapshot.isDraggingOver ? 'bg-accent-soft' : ''}`}
                 >
                   {jobsByStatus[col].map((job, idx) => (
                     <Draggable key={job.id} draggableId={job.id} index={idx}>
@@ -111,16 +113,17 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                           ref={drag.innerRef}
                           {...drag.draggableProps}
                           {...drag.dragHandleProps}
-                          className={`rounded-lg border bg-white p-3 shadow-sm dark:bg-slate-900 ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
+                          className={`rounded-md border border-line bg-paper p-3 shadow-sm ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
+                          style={{ borderLeft: `3px solid ${STATUS_DOT_COLORS[col]}` }}
                         >
-                          <p className="text-sm font-medium leading-tight break-words">
+                          <p className="text-sm font-medium leading-tight break-words text-ink">
                             {job.company}
                           </p>
-                          <p className="mt-0.5 text-xs text-slate-500 break-words">
+                          <p className="mt-0.5 text-xs text-muted break-words">
                             {job.position}
                           </p>
                           <div className="mt-2 flex items-center justify-between">
-                            <span className="text-xs text-slate-400">
+                            <span className="font-mono text-[11px] text-muted-2">
                               {formatDateOnly(job.appliedAt)}
                             </span>
                             <div className="flex gap-1">
@@ -130,7 +133,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   aria-label={`View job posting for ${job.company}`}
-                                  className="rounded p-1 text-slate-400 hover:text-indigo-600"
+                                  className="rounded p-1 text-muted-2 hover:text-accent"
                                 >
                                   <ExternalLink className="h-3 w-3" />
                                 </a>
@@ -138,7 +141,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
                               <button
                                 onClick={() => onEdit(job)}
                                 aria-label={`Edit ${job.company}`}
-                                className="rounded p-1 text-slate-400 hover:text-indigo-600"
+                                className="rounded p-1 text-muted-2 hover:text-accent"
                               >
                                 <Pencil className="h-3 w-3" />
                               </button>

@@ -70,8 +70,8 @@ export default function CompaniesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Target Companies</h1>
-          <p className="text-sm text-slate-500">
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Target Companies</h1>
+          <p className="text-sm text-muted">
             {isError && !data
               ? 'Failed to load'
               : `${data?.meta.total ?? 0} companies saved`}
@@ -89,10 +89,10 @@ export default function CompaniesPage() {
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
           <input
             aria-label="Search companies"
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+            className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
             placeholder="Search company name…"
             value={search}
             onChange={(e) => {
@@ -103,7 +103,7 @@ export default function CompaniesPage() {
         </div>
         <select
           aria-label="Filter by city"
-          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
           value={cityFilter}
           onChange={(e) => {
             setCityFilter(e.target.value as CompanyCity | '');
@@ -119,7 +119,7 @@ export default function CompaniesPage() {
         </select>
         <select
           aria-label="Filter by priority"
-          className="h-9 rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
           value={priorityFilter}
           onChange={(e) => {
             setPriorityFilter(e.target.value as JobPriority | '');
@@ -153,7 +153,7 @@ export default function CompaniesPage() {
       />
 
       {data && data.meta.totalPages > 1 && (
-        <div className="flex items-center justify-between px-1 text-sm text-slate-500">
+        <div className="flex items-center justify-between px-1 text-sm text-muted">
           <span>
             Page {page} of {data.meta.totalPages}
           </span>

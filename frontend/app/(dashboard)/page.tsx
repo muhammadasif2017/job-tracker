@@ -66,8 +66,8 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">Dashboard</h1>
-          <p className="text-sm text-slate-500">Your job search at a glance</p>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Dashboard</h1>
+          <p className="text-sm text-muted">Your job search at a glance</p>
         </div>
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
@@ -125,8 +125,10 @@ export default function DashboardPage() {
           {stats && <StatusChart stats={stats} />}
         </ChartCard>
 
-        <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
-          <h2 className="mb-4 text-sm font-semibold">Recent Activity</h2>
+        <div className="rounded-md border border-line bg-paper p-5">
+          <h2 className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Recent Activity
+          </h2>
           {recentLoading ? (
             <LoadingStatus label="Loading recent activity" className="space-y-3">
               {[...Array(4)].map((_, i) => (
@@ -134,13 +136,13 @@ export default function DashboardPage() {
               ))}
             </LoadingStatus>
           ) : recentError && !recent ? (
-            <p className="text-sm text-red-500">Failed to load recent jobs.</p>
+            <p className="text-sm text-danger">Failed to load recent jobs.</p>
           ) : recent?.data.length === 0 ? (
             <div className="flex flex-col items-center py-8 text-center">
-              <p className="text-sm text-slate-400">No jobs tracked yet.</p>
+              <p className="text-sm text-muted-2">No jobs tracked yet.</p>
               <Link
                 href="/jobs"
-                className="mt-2 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+                className="mt-2 text-sm font-medium text-accent hover:underline"
               >
                 Add your first application →
               </Link>
@@ -153,16 +155,16 @@ export default function DashboardPage() {
                   className="flex items-center justify-between gap-3"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-sm font-medium text-ink">
                       {job.company}
                     </p>
-                    <p className="truncate text-xs text-slate-500">
+                    <p className="truncate text-xs text-muted">
                       {job.position}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={job.status} />
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-muted-2">
                       {formatDateOnly(job.appliedAt)}
                     </span>
                   </div>

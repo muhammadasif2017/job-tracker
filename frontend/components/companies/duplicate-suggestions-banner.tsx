@@ -30,7 +30,7 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
     <div
       role="region"
       aria-label="Duplicate company suggestions"
-      className="space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+      className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
     >
       <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
         Possible duplicate {visible.length === 1 ? 'company' : 'companies'}
@@ -41,12 +41,12 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
           return (
             <li
               key={key}
-              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-white/70 px-3 py-2 text-sm dark:bg-slate-900/40"
+              className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-paper/70 px-3 py-2 text-sm"
             >
               <span>
                 <strong>{s.companyA.name}</strong> and{' '}
                 <strong>{s.companyB.name}</strong>
-                <span className="ml-1.5 text-xs text-slate-500">
+                <span className="ml-1.5 text-xs text-muted">
                   ({s.reason === 'website' ? 'same website' : 'similar name'})
                 </span>
               </span>
@@ -60,7 +60,7 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
                 </Button>
                 <button
                   aria-label={`Dismiss suggestion: ${s.companyA.name} and ${s.companyB.name}`}
-                  className="rounded p-1 text-slate-400 hover:bg-slate-200/60 hover:text-slate-600 dark:hover:bg-slate-800"
+                  className="rounded p-1 text-muted-2 hover:bg-paper-raised hover:text-muted"
                   onClick={() =>
                     setDismissed((prev) => new Set(prev).add(key))
                   }

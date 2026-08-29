@@ -46,7 +46,7 @@ export function TrendChart({ data }: { data: TrendStats }) {
           yAxisId="count"
           dataKey="count"
           name="New applications"
-          fill="#3b82f6"
+          fill="#38d4c6"
           radius={4}
         />
         <Line
@@ -54,7 +54,7 @@ export function TrendChart({ data }: { data: TrendStats }) {
           type="monotone"
           dataKey="cumulative"
           name="Cumulative total"
-          stroke="#10b981"
+          stroke="#ff9f45"
           strokeWidth={2}
           dot={false}
         />

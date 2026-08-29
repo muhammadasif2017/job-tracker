@@ -182,13 +182,13 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-city"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
               >
                 City
               </label>
               <select
                 id="company-city"
-                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                 {...register('city')}
               >
                 {COMPANY_CITIES.map((c) => (
@@ -206,13 +206,13 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-priority"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
               >
                 Priority
               </label>
               <select
                 id="company-priority"
-                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                 {...register('priority')}
               >
                 {JOB_PRIORITIES.map((p) => (
@@ -225,13 +225,13 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-business-mode"
-                className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
               >
                 Business Mode
               </label>
               <select
                 id="company-business-mode"
-                className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                 {...register('businessMode')}
               >
                 <option value="">—</option>
@@ -270,10 +270,10 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
           />
 
           {isEdit && (
-            <div className="rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+            <div className="rounded-md border border-line p-3">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  <span className="font-mono text-xs font-medium uppercase tracking-wide text-muted">
                     AI Research
                   </span>
                   <EnrichmentStatusBadge status={company!.status} />
@@ -313,13 +313,13 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   htmlFor="company-tech-stack"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
                 >
                   Tech Stack (comma-separated)
                 </label>
                 <input
                   id="company-tech-stack"
-                  className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                   placeholder="React, Node.js, AWS"
                   {...register('techStack')}
                 />
@@ -327,14 +327,14 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   htmlFor="company-culture"
-                  className="text-sm font-medium text-slate-700 dark:text-slate-300"
+                  className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
                 >
                   Culture Summary
                 </label>
                 <textarea
                   id="company-culture"
                   rows={2}
-                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+                  className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
                   {...register('cultureSummary')}
                 />
               </div>
@@ -344,7 +344,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="company-notes"
-              className="text-sm font-medium text-slate-700 dark:text-slate-300"
+              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
             >
               Your notes
             </label>
@@ -352,7 +352,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               id="company-notes"
               rows={3}
               placeholder="Why you'd want to work here, impressions, contacts you know…"
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100"
+              className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
               {...register('personalNotes')}
             />
           </div>

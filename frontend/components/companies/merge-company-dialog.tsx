@@ -182,26 +182,26 @@ export function MergeCompanyDialog({
           <input
             aria-label="Search for a duplicate company"
             autoFocus
-            className="h-9 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm dark:border-slate-700 dark:bg-slate-900"
+            className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
             placeholder="Search company name…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-800">
+          <div className="max-h-56 overflow-y-auto rounded-md border border-line">
             {loading ? (
-              <p className="p-3 text-sm text-slate-400">Searching…</p>
+              <p className="p-3 text-sm text-muted-2">Searching…</p>
             ) : !debouncedSearch.trim() ? (
-              <p className="p-3 text-sm text-slate-400">
+              <p className="p-3 text-sm text-muted-2">
                 Type a company name to search.
               </p>
             ) : results.length === 0 ? (
-              <p className="p-3 text-sm text-slate-400">No matches found.</p>
+              <p className="p-3 text-sm text-muted-2">No matches found.</p>
             ) : (
-              <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+              <ul className="divide-y divide-line">
                 {results.map((c) => (
                   <li key={c.id}>
                     <button
-                      className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-paper-raised"
                       onClick={() => selectDuplicate(c)}
                     >
                       {c.name}
@@ -227,9 +227,9 @@ export function MergeCompanyDialog({
               return (
                 <fieldset
                   key={field.key}
-                  className="rounded-lg border border-slate-200 p-3 dark:border-slate-800"
+                  className="rounded-md border border-line p-3"
                 >
-                  <legend className="px-1 text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <legend className="px-1 font-mono text-xs font-medium uppercase tracking-wide text-muted">
                     {field.label}
                   </legend>
                   <div className="space-y-1.5">
@@ -245,7 +245,7 @@ export function MergeCompanyDialog({
                         }
                       />
                       <span>
-                        <span className="text-slate-400">{company.name}: </span>
+                        <span className="text-muted-2">{company.name}: </span>
                         {formatValue(company[field.key])}
                       </span>
                     </label>
@@ -261,7 +261,7 @@ export function MergeCompanyDialog({
                         }
                       />
                       <span>
-                        <span className="text-slate-400">{duplicate.name}: </span>
+                        <span className="text-muted-2">{duplicate.name}: </span>
                         {formatValue(duplicate[field.key])}
                       </span>
                     </label>
@@ -281,7 +281,7 @@ export function MergeCompanyDialog({
 
       {step === 'confirm' && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 dark:text-slate-300">
+          <p className="text-sm text-muted">
             <strong>{duplicate?.name}</strong> will be merged into{' '}
             <strong>{company.name}</strong>. All of its jobs and contacts move
             to {company.name}, and {duplicate?.name} is permanently deleted.

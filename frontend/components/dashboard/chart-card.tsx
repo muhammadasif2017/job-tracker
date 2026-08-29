@@ -16,14 +16,16 @@ export function ChartCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
-      <h2 className="mb-4 text-sm font-semibold">{title}</h2>
+    <div className="rounded-md border border-line bg-paper p-5">
+      <h2 className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+        {title}
+      </h2>
       {loading ? (
         <LoadingStatus label="Loading chart">
           <Skeleton className={skeletonClassName} />
         </LoadingStatus>
       ) : error ? (
-        <p className="text-sm text-red-500">{errorMessage}</p>
+        <p className="text-sm text-danger">{errorMessage}</p>
       ) : (
         children
       )}

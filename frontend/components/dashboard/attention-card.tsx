@@ -22,17 +22,19 @@ const ICONS: Record<AttentionType, typeof Clock> = {
 };
 
 const ICON_COLORS: Record<AttentionType, string> = {
-  UPCOMING_INTERVIEW: 'text-violet-500',
-  STALE_INTERVIEWING: 'text-amber-500',
-  STALE_APPLIED: 'text-slate-400',
+  UPCOMING_INTERVIEW: 'text-accent-2',
+  STALE_INTERVIEWING: 'text-accent',
+  STALE_APPLIED: 'text-muted-2',
 };
 
 export function AttentionCard() {
   const { data: items, isLoading } = useAttentionQuery();
 
   return (
-    <div className="rounded-xl border bg-white p-5 dark:bg-slate-900">
-      <h2 className="mb-4 text-sm font-semibold">Needs Attention</h2>
+    <div className="rounded-md border border-line bg-paper p-5">
+      <h2 className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+        Needs Attention
+      </h2>
       {isLoading ? (
         <LoadingStatus label="Loading" className="space-y-3">
           {[...Array(2)].map((_, i) => (
@@ -40,30 +42,30 @@ export function AttentionCard() {
           ))}
         </LoadingStatus>
       ) : !items || items.length === 0 ? (
-        <p className="text-sm text-slate-400">
+        <p className="text-sm text-muted-2">
           All caught up — nothing needs action right now.
         </p>
       ) : (
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        <ul className="divide-y divide-line">
           {items.map((item) => {
             const Icon = ICONS[item.type];
             return (
               <li key={item.job.id}>
                 <Link
                   href={`/jobs/${item.job.id}`}
-                  className="flex items-center gap-3 py-2.5 -mx-2 px-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors"
+                  className="-mx-2 flex items-center gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-paper-raised"
                 >
                   <Icon
                     className={`h-4 w-4 shrink-0 ${ICON_COLORS[item.type]}`}
                   />
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">
+                    <p className="truncate text-sm font-medium text-ink">
                       {item.job.company}{' '}
-                      <span className="font-normal text-slate-500">
+                      <span className="font-normal text-muted">
                         — {item.job.position}
                       </span>
                     </p>
-                    <p className="truncate text-xs text-slate-500">
+                    <p className="truncate text-xs text-muted">
                       {MESSAGES[item.type](item.since)}
                     </p>
                   </div>

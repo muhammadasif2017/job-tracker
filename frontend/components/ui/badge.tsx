@@ -43,7 +43,7 @@ export function StatusBadge({ status, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         STATUS_COLORS[status],
         className,
       )}
@@ -57,7 +57,7 @@ export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         PRIORITY_COLORS[priority],
         className,
       )}
@@ -71,7 +71,7 @@ export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         JOB_TYPE_COLORS[jobType],
         className,
       )}
@@ -93,7 +93,7 @@ export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         colors[source as keyof typeof colors],
         className,
       )}
@@ -113,7 +113,7 @@ export function CityBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         CITY_COLORS[city],
         className,
       )}
@@ -133,7 +133,7 @@ export function BusinessModeBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         BUSINESS_MODE_COLORS[businessMode],
         className,
       )}
@@ -151,8 +151,7 @@ const ENRICHMENT_STATUS_LABELS: Record<EnrichmentStatus, string> = {
 };
 
 const ENRICHMENT_STATUS_COLORS: Record<EnrichmentStatus, string> = {
-  PENDING:
-    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  PENDING: 'bg-paper-raised text-muted',
   PROCESSING:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   COMPLETED:
@@ -171,8 +170,8 @@ export function EnrichmentStatusBadge({
     return (
       <span
         className={cn(
-          'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
-          'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400',
+          'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
+          'bg-paper-raised text-muted-2',
           className,
         )}
       >
@@ -183,7 +182,7 @@ export function EnrichmentStatusBadge({
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
         ENRICHMENT_STATUS_COLORS[status],
         className,
       )}

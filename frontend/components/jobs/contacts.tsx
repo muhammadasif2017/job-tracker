@@ -117,9 +117,9 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
   const saving = createMutation.isPending || updateMutation.isPending;
 
   return (
-    <div className="rounded-xl border bg-white p-6 dark:bg-slate-900">
+    <div className="rounded-md border border-line bg-paper p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-sm font-semibold">Contacts</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Contacts</h2>
         {!formOpen && (
           <Button type="button" variant="outline" size="sm" onClick={startAdd}>
             <Plus className="h-4 w-4" />
@@ -131,7 +131,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       {formOpen && (
         <form
           onSubmit={handleSubmit}
-          className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200 p-3 dark:border-slate-700"
+          className="mb-4 flex flex-col gap-3 rounded-md border border-line p-3"
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <Input
@@ -196,25 +196,25 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       )}
 
       {contacts.length === 0 ? (
-        <p className="text-sm text-slate-400">No contacts added yet.</p>
+        <p className="text-sm text-muted-2">No contacts added yet.</p>
       ) : (
-        <ul className="divide-y divide-slate-100 dark:divide-slate-800">
+        <ul className="divide-y divide-line">
           {contacts.map((contact) => (
             <li key={contact.id} className="flex flex-wrap items-start gap-3 py-3">
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">
+                <p className="text-sm font-medium text-ink">
                   {contact.name}
                   {contact.role && (
-                    <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-normal text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    <span className="ml-2 rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-normal uppercase tracking-wide text-muted">
                       {contact.role}
                     </span>
                   )}
                 </p>
-                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-muted">
                   {contact.email && (
                     <a
                       href={`mailto:${contact.email}`}
-                      className="inline-flex items-center gap-1 hover:text-indigo-600"
+                      className="inline-flex items-center gap-1 hover:text-accent"
                     >
                       <Mail className="h-3 w-3" /> {contact.email}
                     </a>
@@ -222,7 +222,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                   {contact.phone && (
                     <a
                       href={`tel:${contact.phone}`}
-                      className="inline-flex items-center gap-1 hover:text-indigo-600"
+                      className="inline-flex items-center gap-1 hover:text-accent"
                     >
                       <Phone className="h-3 w-3" /> {contact.phone}
                     </a>
@@ -232,20 +232,20 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                       href={contact.linkedinUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 hover:text-indigo-600"
+                      className="inline-flex items-center gap-1 hover:text-accent"
                     >
                       <ExternalLink className="h-3 w-3" /> LinkedIn
                     </a>
                   )}
                 </div>
                 {contact.notes && (
-                  <p className="mt-1 text-xs text-slate-500">{contact.notes}</p>
+                  <p className="mt-1 text-xs text-muted">{contact.notes}</p>
                 )}
               </div>
 
               {confirmingId === contact.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-600 dark:text-slate-400">
+                  <span className="text-sm text-muted">
                     Remove?
                   </span>
                   <Button
@@ -283,7 +283,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="text-red-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30"
+                    className="text-danger hover:bg-danger-soft hover:text-danger"
                     aria-label={`Remove ${contact.name}`}
                     onClick={() => setConfirmingId(contact.id)}
                   >
