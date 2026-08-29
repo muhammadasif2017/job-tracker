@@ -8,6 +8,7 @@ const mockResponse = {
 const mockHost = {
   switchToHttp: jest.fn().mockReturnValue({
     getResponse: jest.fn().mockReturnValue(mockResponse),
+    getRequest: jest.fn().mockReturnValue({ url: '/test-path' }),
   }),
 };
 
@@ -53,8 +54,30 @@ describe('GlobalExceptionFilter', () => {
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
     filter.catch(new Error('pg: connection refused'), mockHost as never);
     expect(mockResponse.status).toHaveBeenCalledWith(500);
+    const body = mockResponse.json.mock.calls[0][0] as {
+      message: string;
+      timestamp: string;
+      path: string;
+    };
+    expect(body.message).toBe('Internal server error');
+    expect(body.path).toBe('/test-path');
+    expect(typeof body.timestamp).toBe('string');
+    expect(body).not.toHaveProperty('stack');
+  });
+
+  it('falls back to a bare 500 when building the response itself throws', () => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+    const brokenHost = {
+      switchToHttp: jest.fn().mockReturnValue({
+        getResponse: jest.fn().mockReturnValue(mockResponse),
+        getRequest: jest.fn().mockImplementation(() => {
+          throw new Error('request context unavailable');
+        }),
+      }),
+    };
+    filter.catch(new Error('boom'), brokenHost as never);
+    expect(mockResponse.status).toHaveBeenCalledWith(500);
     const body = mockResponse.json.mock.calls[0][0] as { message: string };
     expect(body.message).toBe('Internal server error');
-    expect(body).not.toHaveProperty('stack');
   });
 });
