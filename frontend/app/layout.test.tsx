@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('next/font/google', () => ({
-  Geist: () => ({ variable: 'font-geist-mock' }),
+  Space_Grotesk: () => ({ variable: 'font-display-mock' }),
+  IBM_Plex_Mono: () => ({ variable: 'font-mono-mock' }),
+  Inter: () => ({ variable: 'font-body-mock' }),
 }));
 
 import RootLayout, { metadata } from './layout';
@@ -57,7 +59,8 @@ describe('RootLayout structure', () => {
     const el = renderTree();
     const body = findByType(el.props.children, 'body')!;
     expect(body.props.className).toContain('antialiased');
-    expect(body.props.className).toContain('dark:bg-slate-950');
+    expect(body.props.className).toContain('bg-surface');
+    expect(body.props.className).toContain('text-ink');
   });
 
   it('includes a preconnect link to the API when NEXT_PUBLIC_API_URL is set', () => {
