@@ -47,10 +47,10 @@ test.describe('Dashboard', () => {
     await page.goto('/');
 
     // The "Total Applications" card value — scoped to the card's own
-    // container (`.rounded-xl`), not a generic `div`, since "This Month"
+    // container (`.rounded-md`), not a generic `div`, since "This Month"
     // also reads 1 here (job's appliedAt defaults to today).
     const totalCard = page
-      .locator('.rounded-xl')
+      .locator('.rounded-md')
       .filter({ hasText: /^Total Applications/ })
       .first();
     await expect(totalCard.getByText('1')).toBeVisible();
@@ -121,21 +121,21 @@ test.describe('Dashboard', () => {
     const ninetyDay = page.getByRole('button', { name: '90d' });
     const all = page.getByRole('button', { name: 'All' });
     const totalCard = page
-      .locator('.rounded-xl')
+      .locator('.rounded-md')
       .filter({ hasText: /^Total Applications/ })
       .first();
     const totalValue = totalCard.locator('.text-3xl');
 
     // Defaults to 90d — A + B = 2
-    await expect(ninetyDay).toHaveClass(/bg-indigo/);
+    await expect(ninetyDay).toHaveClass(/bg-accent/);
     await expect(totalValue).toHaveText('2');
 
     await thirtyDay.click();
-    await expect(thirtyDay).toHaveClass(/bg-indigo/);
+    await expect(thirtyDay).toHaveClass(/bg-accent/);
     await expect(totalValue).toHaveText('1');
 
     await all.click();
-    await expect(all).toHaveClass(/bg-indigo/);
+    await expect(all).toHaveClass(/bg-accent/);
     await expect(totalValue).toHaveText('3');
 
     await deleteTestJob(user.accessToken, jobA.id);
@@ -149,7 +149,7 @@ test.describe('Dashboard', () => {
 
     // The sidebar "Dashboard" link should have the active class
     const dashboardLink = page.getByRole('link', { name: 'Dashboard' });
-    await expect(dashboardLink).toHaveClass(/bg-indigo/);
+    await expect(dashboardLink).toHaveClass(/bg-accent/);
   });
 
   test('sidebar shows logged-in user name and email', async ({ page }) => {

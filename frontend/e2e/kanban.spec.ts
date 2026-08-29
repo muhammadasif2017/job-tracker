@@ -49,12 +49,24 @@ async function dragJobToColumn(
     sourceBox.y + sourceBox.height / 2,
   );
   await page.mouse.down();
-  await page.waitForTimeout(200);
+  // The sensor only arms the drag once it sees real movement past mousedown
+  // — a single blind move-then-wait sequence is what makes this test flaky
+  // in headless CI (the lift silently never registers, so onDragEnd never
+  // fires and the PATCH never happens). Move a little, then confirm the
+  // card actually entered its dragging state (kanban-board.tsx applies
+  // `rotate-1` via `snap.isDragging`) before continuing toward the target.
   await page.mouse.move(
     sourceBox.x + sourceBox.width / 2 + 10,
-    sourceBox.y + sourceBox.height / 2,
+    sourceBox.y + sourceBox.height / 2 + 10,
     { steps: 5 },
   );
+  await expect(source).toHaveClass(/rotate-1/, { timeout: 5000 });
+  await page.mouse.move(
+    sourceBox.x + sourceBox.width / 2 + 10,
+    targetBox.y + targetBox.height / 2,
+    { steps: 10 },
+  );
+  await page.waitForTimeout(100);
   await page.mouse.move(
     targetBox.x + targetBox.width / 2,
     targetBox.y + targetBox.height / 2,
