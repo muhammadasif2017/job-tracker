@@ -63,7 +63,9 @@ export class CompaniesController {
   @ApiOperation({ summary: 'Add a target company' })
   @ApiCreatedResponse({ type: CompanyResponseDto })
   @ApiBadRequestResponse({ description: 'Company limit reached' })
-  @ApiConflictResponse({ description: 'A company with this name already exists' })
+  @ApiConflictResponse({
+    description: 'A company with this name already exists',
+  })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateCompanyDto) {
     return this.companiesService.create(user.id, dto);
   }
@@ -111,7 +113,9 @@ export class CompaniesController {
   @ApiParam({ name: 'id', description: 'Company ID' })
   @ApiOkResponse({ type: CompanyResponseDto })
   @ApiNotFoundResponse({ description: 'Company not found' })
-  @ApiConflictResponse({ description: 'A company with this name already exists' })
+  @ApiConflictResponse({
+    description: 'A company with this name already exists',
+  })
   update(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
