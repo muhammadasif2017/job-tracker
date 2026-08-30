@@ -94,6 +94,46 @@ describe('useResumeQuery', () => {
     const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
+
+  // The real app runs under the global retry: 1 default (components/providers.tsx),
+  // not the retry: false used by makeWrapper() above — verify the 404-swallowing
+  // .catch doesn't interact badly with an actual retried attempt.
+  describe('under the app-wide retry: 1 default', () => {
+    function makeRetryWrapper() {
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: 1, retryDelay: 0 } },
+      });
+      const wrapper = ({ children }: { children: ReactNode }) => (
+        <QueryClientProvider client={qc}>{children}</QueryClientProvider>
+      );
+      return { qc, wrapper };
+    }
+
+    it('resolves cleanly when a transient non-404 failure succeeds on retry', async () => {
+      vi.mocked(api.get)
+        .mockRejectedValueOnce({ isAxiosError: true, response: { status: 500 } })
+        .mockResolvedValueOnce({ data: resume });
+      const { wrapper } = makeRetryWrapper();
+      const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
+
+      await waitFor(() => expect(result.current.data).toEqual(resume));
+      expect(result.current.isError).toBe(false);
+      expect(vi.mocked(api.get)).toHaveBeenCalledTimes(2);
+    });
+
+    it('still lands in isError after exhausting the retry on a persistent non-404 failure', async () => {
+      vi.mocked(api.get).mockRejectedValue({
+        isAxiosError: true,
+        response: { status: 500 },
+      });
+      const { wrapper } = makeRetryWrapper();
+      const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
+
+      await waitFor(() => expect(result.current.isError).toBe(true));
+      expect(result.current.data).toBeUndefined();
+      expect(vi.mocked(api.get)).toHaveBeenCalledTimes(2);
+    });
+  });
 });
 
 describe('useUploadResumeMutation', () => {
