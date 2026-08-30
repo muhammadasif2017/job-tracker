@@ -339,10 +339,7 @@ export class JobsService {
         existing.companyId !== null &&
         trimmedCompany.toLowerCase() === existing.company.toLowerCase();
       if (!matchesCurrentLabel) {
-        const { company } = await this.resolveCompanyId(
-          userId,
-          trimmedCompany,
-        );
+        const { company } = await this.resolveCompanyId(userId, trimmedCompany);
         data = { ...baseData, companyId: company?.id ?? null };
       }
     }
@@ -416,11 +413,20 @@ export class JobsService {
 
   async getEvents(userId: string, jobId: string, page = 1, limit = 50) {
     await this.findOwned(userId, jobId);
-    return this.prisma.jobEvent.findMany({
-      where: { jobId },
-      orderBy: { createdAt: 'asc' },
-      skip: (page - 1) * limit,
-      take: Math.min(limit, 200),
-    });
+    const take = Math.min(limit, 200);
+    const [events, total] = await Promise.all([
+      this.prisma.jobEvent.findMany({
+        where: { jobId },
+        orderBy: { createdAt: 'asc' },
+        skip: (page - 1) * limit,
+        take,
+      }),
+      this.prisma.jobEvent.count({ where: { jobId } }),
+    ]);
+
+    return {
+      data: events,
+      meta: { total, page, limit: take, totalPages: Math.ceil(total / take) },
+    };
   }
 }

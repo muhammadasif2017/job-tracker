@@ -34,7 +34,7 @@ import { ParseJobDto } from './dto/parse-job.dto.js';
 import { ParsedJobDto } from './dto/parsed-job.dto.js';
 import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
-import { JobEventDto } from './dto/job-event.dto.js';
+import { PaginatedJobEventsDto } from './dto/paginated-job-events.dto.js';
 import { JobEventsQueryDto } from './dto/job-events-query.dto.js';
 import { JobStatsDto } from './dto/job-stats.dto.js';
 import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
@@ -168,7 +168,8 @@ export class JobsController {
   @Get(':id/events')
   @ApiOperation({ summary: 'Get timeline events for a job' })
   @ApiParam({ name: 'id', description: 'Job ID' })
-  @ApiOkResponse({ type: JobEventDto, isArray: true })
+  @ApiOkResponse({ type: PaginatedJobEventsDto })
+  @ApiNotFoundResponse({ description: 'Job not found' })
   getEvents(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,

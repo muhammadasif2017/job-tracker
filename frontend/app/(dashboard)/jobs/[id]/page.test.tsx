@@ -92,7 +92,12 @@ function mockJobAndEvents(jobData: Job | undefined, events: JobEvent[] = []) {
         : Promise.reject({ isAxiosError: true, response: { status: 404 } });
     }
     if (url === '/jobs/j-1/events') {
-      return Promise.resolve({ data: events });
+      return Promise.resolve({
+        data: {
+          data: events,
+          meta: { total: events.length, page: 1, limit: 50, totalPages: 1 },
+        },
+      });
     }
     return Promise.reject(new Error(`unexpected GET ${url}`));
   });
@@ -137,7 +142,10 @@ describe('JobDetailPage', () => {
     it('shows "Failed to load job." (not "Job not found.") on a non-404 failure', async () => {
       vi.mocked(api.get).mockImplementation((url: string) => {
         if (url === '/jobs/j-1') return Promise.reject(new Error('network down'));
-        if (url === '/jobs/j-1/events') return Promise.resolve({ data: [] });
+        if (url === '/jobs/j-1/events')
+          return Promise.resolve({
+            data: { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } },
+          });
         return Promise.reject(new Error(`unexpected GET ${url}`));
       });
       renderPage();

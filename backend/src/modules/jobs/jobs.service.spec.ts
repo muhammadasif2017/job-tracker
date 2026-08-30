@@ -26,7 +26,7 @@ const mockPrisma = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
-  jobEvent: { findMany: jest.fn(), create: jest.fn() },
+  jobEvent: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
   resume: { findFirst: jest.fn() },
   company: { findFirst: jest.fn(), create: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
@@ -738,10 +738,11 @@ describe('JobsService', () => {
       });
       const events = [{ id: 'e1' }, { id: 'e2' }];
       mockPrisma.jobEvent.findMany.mockResolvedValue(events);
+      mockPrisma.jobEvent.count.mockResolvedValue(2);
 
       const result = await service.getEvents('user-1', 'job-1');
 
-      expect(result).toBe(events);
+      expect(result.data).toBe(events);
     });
 
     it('defaults to page 1 with limit 50', async () => {
@@ -750,12 +751,19 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
       });
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(0);
 
-      await service.getEvents('user-1', 'job-1');
+      const result = await service.getEvents('user-1', 'job-1');
 
       expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 50 }),
       );
+      expect(result.meta).toEqual({
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0,
+      });
     });
 
     it('caps limit at 200 regardless of the requested value', async () => {
@@ -764,6 +772,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
       });
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(0);
 
       await service.getEvents('user-1', 'job-1', 1, 500);
 
