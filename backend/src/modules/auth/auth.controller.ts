@@ -21,7 +21,7 @@ import {
   ApiOkResponse,
   ApiUnauthorizedResponse,
   ApiForbiddenResponse,
-  ApiConflictResponse,
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
@@ -76,7 +76,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiOkResponse({ type: AuthTokensDto })
-  @ApiConflictResponse({ description: 'Email already in use' })
+  @ApiBadRequestResponse({ description: 'Email already in use' })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -152,6 +152,7 @@ export class AuthController {
   @Post('exchange-code')
   @ApiOperation({ summary: 'Exchange short-lived OAuth code for tokens' })
   @ApiOkResponse({ type: AuthTokensDto })
+  @ApiForbiddenResponse({ description: 'OAuth code expired or already used' })
   async exchangeCode(
     @Body() dto: ExchangeCodeDto,
     @Res({ passthrough: true }) res: Response,
