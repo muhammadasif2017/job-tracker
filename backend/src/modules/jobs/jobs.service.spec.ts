@@ -774,11 +774,56 @@ describe('JobsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
       mockPrisma.jobEvent.count.mockResolvedValue(0);
 
-      await service.getEvents('user-1', 'job-1', 1, 500);
+      const result = await service.getEvents('user-1', 'job-1', 1, 500);
 
       expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 200 }),
       );
+      // meta.limit reports the capped take, not the raw requested limit.
+      expect(result.meta.limit).toBe(200);
+    });
+
+    it('rounds totalPages up for a non-exact division', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(105);
+
+      const result = await service.getEvents('user-1', 'job-1', 1, 50);
+
+      expect(result.meta.totalPages).toBe(3);
+    });
+
+    it('does not round up totalPages for an exact division', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(100);
+
+      const result = await service.getEvents('user-1', 'job-1', 1, 50);
+
+      expect(result.meta.totalPages).toBe(2);
+    });
+
+    it('returns an empty page with the true total when paging past the last page', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      // findMany legitimately returns [] once skip exceeds the row count —
+      // count() is independent and still reports the real total.
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(2);
+
+      const result = await service.getEvents('user-1', 'job-1', 5, 50);
+
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(2);
+      expect(result.meta.totalPages).toBe(1);
     });
 
     it('throws NotFoundException when job does not belong to the user', async () => {

@@ -414,11 +414,18 @@ export class JobsService {
   async getEvents(userId: string, jobId: string, page = 1, limit = 50) {
     await this.findOwned(userId, jobId);
     const take = Math.min(limit, 200);
+    // skip is derived from `take` (the capped page size), not the raw
+    // `limit` — pages must be contiguous even if a caller bypasses the
+    // controller's @Max(200) DTO validation with a raw internal call.
+    // findMany and count are independent, unsynchronized reads — under a
+    // concurrent event write mid-request, `data` and `meta.total` can
+    // reflect different snapshots. Acceptable here since this only backs a
+    // read-only timeline display, not a CAS-guarded write.
     const [events, total] = await Promise.all([
       this.prisma.jobEvent.findMany({
         where: { jobId },
         orderBy: { createdAt: 'asc' },
-        skip: (page - 1) * limit,
+        skip: (page - 1) * take,
         take,
       }),
       this.prisma.jobEvent.count({ where: { jobId } }),
