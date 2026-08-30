@@ -179,11 +179,12 @@ describe('ResumesService', () => {
   });
 
   describe('findByJob', () => {
-    it('returns null when no resume exists for the job (or job is not owned by user)', async () => {
+    it('throws NotFoundException when no resume exists for the job (or job is not owned by user)', async () => {
       mockPrisma.resume.findFirst.mockResolvedValue(null);
 
-      const result = await service.findByJob('u-1', 'j-1');
-      expect(result).toBeNull();
+      await expect(service.findByJob('u-1', 'j-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('queries by jobId and userId in a single Prisma call', async () => {

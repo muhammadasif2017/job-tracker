@@ -927,7 +927,7 @@ describe('Job Tracker (e2e)', () => {
         .get(`/jobs/${raceJobId}/events`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-      const statusChangeEvents = events.body.filter(
+      const statusChangeEvents = events.body.data.filter(
         (e: { type: string }) => e.type === 'STATUS_CHANGE',
       );
       expect(statusChangeEvents).toHaveLength(1);
@@ -943,12 +943,18 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      expect(res.body).toBeInstanceOf(Array);
-      expect(res.body.length).toBe(2);
-      expect(res.body[0].type).toBe('CREATED');
-      expect(res.body[1].type).toBe('STATUS_CHANGE');
-      expect(res.body[1].fromStatus).toBe('APPLIED');
-      expect(res.body[1].toStatus).toBe('INTERVIEWING');
+      expect(res.body.data).toBeInstanceOf(Array);
+      expect(res.body.data.length).toBe(2);
+      expect(res.body.data[0].type).toBe('CREATED');
+      expect(res.body.data[1].type).toBe('STATUS_CHANGE');
+      expect(res.body.data[1].fromStatus).toBe('APPLIED');
+      expect(res.body.data[1].toStatus).toBe('INTERVIEWING');
+      expect(res.body.meta).toEqual({
+        total: 2,
+        page: 1,
+        limit: 50,
+        totalPages: 1,
+      });
     });
 
     it('rejects page=0 with 400 instead of a raw 500', () =>
@@ -962,6 +968,26 @@ describe('Job Tracker (e2e)', () => {
         .get(`/jobs/${jobId}/events?limit=500`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(400));
+
+    it('accepts the max allowed limit and echoes it back in meta', async () => {
+      const res = await agent
+        .get(`/jobs/${jobId}/events?limit=200`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.meta.limit).toBe(200);
+    });
+
+    it('returns an empty page with the true total when paging past the last page', async () => {
+      const res = await agent
+        .get(`/jobs/${jobId}/events?page=5&limit=50`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.data).toEqual([]);
+      expect(res.body.meta.total).toBe(2);
+      expect(res.body.meta.totalPages).toBe(1);
+    });
   });
 
   // ── Interview Rounds ────────────────────────────────────────────────────────
@@ -995,7 +1021,7 @@ describe('Job Tracker (e2e)', () => {
         .get(`/jobs/${promoJobId}/events`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-      expect(events.body).toEqual(
+      expect(events.body.data).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             type: 'STATUS_CHANGE',
@@ -1015,7 +1041,7 @@ describe('Job Tracker (e2e)', () => {
         .get(`/jobs/${promoJobId}/events`)
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-      expect(eventsAfterSecondRound.body).toEqual(
+      expect(eventsAfterSecondRound.body.data).toEqual(
         expect.arrayContaining([
           expect.objectContaining({
             type: 'INTERVIEW_ROUND_ADDED',

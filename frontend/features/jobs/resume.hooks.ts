@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type { Resume } from '../../types';
@@ -11,7 +12,16 @@ export function useResumeQuery(jobId: string | null, initialResume?: Resume | nu
 
   return useQuery<Resume | null>({
     queryKey: ['resume', jobId],
-    queryFn: () => api.get(`/jobs/${jobId}/resumes`).then((r) => r.data),
+    // Backend 404s when a job has no resume (matches its sibling
+    // resume routes) — map that back to null rather than surfacing an error.
+    queryFn: () =>
+      api
+        .get(`/jobs/${jobId}/resumes`)
+        .then((r) => r.data)
+        .catch((err: unknown) => {
+          if (isAxiosError(err) && err.response?.status === 404) return null;
+          throw err;
+        }),
     initialData: initialResume !== undefined ? initialResume : undefined,
     initialDataUpdatedAt: initialTimestamp,
     enabled: !!jobId,

@@ -82,19 +82,21 @@ describe('ResumesController', () => {
 
   describe('findByJob', () => {
     it('delegates to service with userId and jobId', async () => {
-      mockService.findByJob.mockResolvedValue(null);
+      mockService.findByJob.mockResolvedValue({ id: 'r-1' });
 
       await controller.findByJob(user, 'j-1');
 
       expect(mockService.findByJob).toHaveBeenCalledWith('u-1', 'j-1');
     });
 
-    it('returns null when the job has no resume', async () => {
-      mockService.findByJob.mockResolvedValue(null);
+    it('propagates NotFoundException when the job has no resume', async () => {
+      mockService.findByJob.mockRejectedValue(
+        new NotFoundException('No resume found for this job'),
+      );
 
-      const result = await controller.findByJob(user, 'j-1');
-
-      expect(result).toBeNull();
+      await expect(controller.findByJob(user, 'j-1')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

@@ -76,7 +76,9 @@ export function useJobQuery(id: string) {
 export function useJobEventsQuery(id: string) {
   return useQuery<JobEvent[]>({
     queryKey: ['job-events', id],
-    queryFn: () => api.get(`/jobs/${id}/events`).then((r) => r.data),
+    // Backend returns { data, meta } (paginated) — no pagination UI here yet,
+    // so unwrap to the flat array callers expect.
+    queryFn: () => api.get(`/jobs/${id}/events`).then((r) => r.data.data),
     enabled: !!id,
   });
 }

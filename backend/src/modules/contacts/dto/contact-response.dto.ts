@@ -4,8 +4,23 @@ export class ContactResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
 
-  @ApiProperty({ format: 'cuid' })
-  jobId: string;
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'cuid',
+    nullable: true,
+    description:
+      'Set when this contact belongs to a job, null for a company contact',
+  })
+  jobId: string | null;
+
+  @ApiPropertyOptional({
+    type: 'string',
+    format: 'cuid',
+    nullable: true,
+    description:
+      'Set when this contact belongs to a company, null for a job contact',
+  })
+  companyId: string | null;
 
   @ApiProperty({ example: 'Jane Doe' })
   name: string;

@@ -26,7 +26,7 @@ const mockPrisma = {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   },
-  jobEvent: { findMany: jest.fn(), create: jest.fn() },
+  jobEvent: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
   resume: { findFirst: jest.fn() },
   company: { findFirst: jest.fn(), create: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
@@ -738,10 +738,11 @@ describe('JobsService', () => {
       });
       const events = [{ id: 'e1' }, { id: 'e2' }];
       mockPrisma.jobEvent.findMany.mockResolvedValue(events);
+      mockPrisma.jobEvent.count.mockResolvedValue(2);
 
       const result = await service.getEvents('user-1', 'job-1');
 
-      expect(result).toBe(events);
+      expect(result.data).toBe(events);
     });
 
     it('defaults to page 1 with limit 50', async () => {
@@ -750,12 +751,19 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
       });
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(0);
 
-      await service.getEvents('user-1', 'job-1');
+      const result = await service.getEvents('user-1', 'job-1');
 
       expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ skip: 0, take: 50 }),
       );
+      expect(result.meta).toEqual({
+        total: 0,
+        page: 1,
+        limit: 50,
+        totalPages: 0,
+      });
     });
 
     it('caps limit at 200 regardless of the requested value', async () => {
@@ -764,12 +772,58 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
       });
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(0);
 
-      await service.getEvents('user-1', 'job-1', 1, 500);
+      const result = await service.getEvents('user-1', 'job-1', 1, 500);
 
       expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
         expect.objectContaining({ take: 200 }),
       );
+      // meta.limit reports the capped take, not the raw requested limit.
+      expect(result.meta.limit).toBe(200);
+    });
+
+    it('rounds totalPages up for a non-exact division', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(105);
+
+      const result = await service.getEvents('user-1', 'job-1', 1, 50);
+
+      expect(result.meta.totalPages).toBe(3);
+    });
+
+    it('does not round up totalPages for an exact division', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(100);
+
+      const result = await service.getEvents('user-1', 'job-1', 1, 50);
+
+      expect(result.meta.totalPages).toBe(2);
+    });
+
+    it('returns an empty page with the true total when paging past the last page', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      // findMany legitimately returns [] once skip exceeds the row count —
+      // count() is independent and still reports the real total.
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(2);
+
+      const result = await service.getEvents('user-1', 'job-1', 5, 50);
+
+      expect(result.data).toEqual([]);
+      expect(result.meta.total).toBe(2);
+      expect(result.meta.totalPages).toBe(1);
     });
 
     it('throws NotFoundException when job does not belong to the user', async () => {
