@@ -111,14 +111,12 @@ export class ResumesService {
     return { url, originalName: resume.originalName, expiresAt };
   }
 
-  async findByJob(
-    userId: string,
-    jobId: string,
-  ): Promise<ResumeResponseDto | null> {
+  async findByJob(userId: string, jobId: string): Promise<ResumeResponseDto> {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
     });
-    return resume ? this.toDto(resume) : null;
+    if (!resume) throw new NotFoundException('No resume found for this job');
+    return this.toDto(resume);
   }
 
   // Internal use only (never sent to clients): lets the local-driver file-serve

@@ -116,6 +116,7 @@ export class ResumesController {
   @ApiOperation({ summary: 'Get resume metadata for a job' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
   @ApiOkResponse({ type: ResumeResponseDto })
+  @ApiNotFoundResponse({ description: 'No resume found for this job' })
   findByJob(
     @CurrentUser() user: { id: string },
     @Param('jobId') jobId: string,
