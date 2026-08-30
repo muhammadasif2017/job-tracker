@@ -29,6 +29,7 @@ import {
   ApiAcceptedResponse,
   ApiNotFoundResponse,
   ApiConflictResponse,
+  ApiBadRequestResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service.js';
@@ -61,6 +62,10 @@ export class CompaniesController {
   @Post()
   @ApiOperation({ summary: 'Add a target company' })
   @ApiCreatedResponse({ type: CompanyResponseDto })
+  @ApiBadRequestResponse({ description: 'Company limit reached' })
+  @ApiConflictResponse({
+    description: 'A company with this name already exists',
+  })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateCompanyDto) {
     return this.companiesService.create(user.id, dto);
   }
@@ -108,6 +113,9 @@ export class CompaniesController {
   @ApiParam({ name: 'id', description: 'Company ID' })
   @ApiOkResponse({ type: CompanyResponseDto })
   @ApiNotFoundResponse({ description: 'Company not found' })
+  @ApiConflictResponse({
+    description: 'A company with this name already exists',
+  })
   update(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
@@ -133,7 +141,7 @@ export class CompaniesController {
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Queue AI company research for a target company' })
   @ApiParam({ name: 'id', description: 'Company ID' })
-  @ApiAcceptedResponse({ description: 'Enrichment queued' })
+  @ApiAcceptedResponse({ type: MessageDto, description: 'Enrichment queued' })
   @ApiNotFoundResponse({ description: 'Company not found' })
   @ApiConflictResponse({ description: 'Enrichment already in progress' })
   triggerEnrichment(
