@@ -72,6 +72,28 @@ describe('useResumeQuery', () => {
     await waitFor(() => expect(result.current.data).toEqual(resume));
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/j-1/resumes');
   });
+
+  it('resolves to null instead of erroring when the backend 404s (no resume for this job)', async () => {
+    vi.mocked(api.get).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 404 },
+    });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+    expect(result.current.isError).toBe(false);
+  });
+
+  it('still surfaces a non-404 failure as an error', async () => {
+    vi.mocked(api.get).mockRejectedValue({
+      isAxiosError: true,
+      response: { status: 500 },
+    });
+    const { wrapper } = makeWrapper();
+    const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
 });
 
 describe('useUploadResumeMutation', () => {
