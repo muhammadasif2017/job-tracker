@@ -56,6 +56,10 @@ export class AdminController {
   @ApiOperation({ summary: 'Delete a user account' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiOkResponse({ type: MessageDto })
+  @ApiForbiddenResponse({
+    description:
+      'Requires ADMIN role, or attempting to delete your own account',
+  })
   @ApiNotFoundResponse({ description: 'User not found' })
   remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.adminService.deleteUser(user.id, id);
