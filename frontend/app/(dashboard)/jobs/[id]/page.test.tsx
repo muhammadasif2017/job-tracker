@@ -95,7 +95,12 @@ function mockJobAndEvents(jobData: Job | undefined, events: JobEvent[] = []) {
       return Promise.resolve({
         data: {
           data: events,
-          meta: { total: events.length, page: 1, limit: 50, totalPages: 1 },
+          meta: {
+            total: events.length,
+            page: 1,
+            limit: 50,
+            totalPages: events.length > 0 ? 1 : 0,
+          },
         },
       });
     }
