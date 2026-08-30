@@ -13,6 +13,8 @@ import {
   ApiOperation,
   ApiOkResponse,
   ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { UsersService } from './users.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
@@ -39,6 +41,7 @@ export class UsersController {
   @Patch('me')
   @ApiOperation({ summary: 'Update name or email' })
   @ApiOkResponse({ type: UserProfileDto })
+  @ApiBadRequestResponse({ description: 'Email already in use' })
   updateProfile(
     @CurrentUser() user: { id: string },
     @Body() dto: UpdateUserDto,
@@ -59,6 +62,10 @@ export class UsersController {
   @Patch('me/password')
   @ApiOperation({ summary: 'Change password' })
   @ApiOkResponse({ type: MessageDto })
+  @ApiForbiddenResponse({
+    description: 'Account uses social login — no password set',
+  })
+  @ApiBadRequestResponse({ description: 'Current password is incorrect' })
   changePassword(
     @CurrentUser() user: { id: string },
     @Body() dto: ChangePasswordDto,
