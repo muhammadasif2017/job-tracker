@@ -38,6 +38,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [029](./029-company-fk-integrity-and-enrichment-card-unification.md) | Company/job FK integrity fixes, merge race, CSV import cap, and shared enrichment card | Accepted |
 | [030](./030-job-edit-company-label-resend-guard.md) | Guard unrelated job edits from re-resolving a resent company label; stop overwriting the company-detail cache with a partial PATCH response | Accepted |
 | [031](./031-enrichment-failure-classification.md) | Company enrichment failure classification — surface account-level errors, collapse everything else to two user-facing states | Accepted |
+| [032](./032-system-design-concepts-catalog.md) | Catalog of system design concepts in use | Accepted |
 
 ## How to read an ADR
 
