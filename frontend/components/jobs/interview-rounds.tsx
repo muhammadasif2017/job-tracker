@@ -209,6 +209,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
               ) : (
                 <div className="flex items-center gap-2">
                   <select
+                    aria-label={`Outcome for ${round.stage}`}
                     value={round.outcome}
                     onChange={(e) =>
                       outcomeMutation.mutate({

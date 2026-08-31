@@ -58,6 +58,7 @@ export function QuickAdd({ open, onClose }: QuickAddProps) {
         <textarea
           rows={6}
           autoFocus
+          aria-label="Job posting URL or description"
           placeholder="https://... or paste the job description"
           className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
           value={input}

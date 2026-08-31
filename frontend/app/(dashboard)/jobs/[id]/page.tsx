@@ -150,10 +150,14 @@ export default function JobDetailPage() {
 
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               <div>
-                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                <label
+                  htmlFor="job-detail-status"
+                  className="block font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1"
+                >
                   Status
-                </p>
+                </label>
                 <select
+                  id="job-detail-status"
                   value={job.status}
                   onChange={(e) =>
                     patchStatus.mutate(e.target.value as JobStatus)
