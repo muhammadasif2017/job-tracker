@@ -9,7 +9,10 @@ import {
   InterviewOutcome,
   Prisma,
 } from '@prisma/client';
+import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
+import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
@@ -22,7 +25,22 @@ const MAX_ROUNDS_PER_JOB = 50;
 
 @Injectable()
 export class InterviewRoundsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private llm: LlmService,
+    private timelineSummary: TimelineSummaryService,
+    private logger: Logger,
+  ) {}
+
+  // Best-effort, mirrors JobsService.enqueueTimelineSummary — a queue/LLM
+  // hiccup must never fail the round mutation that triggered it.
+  private async enqueueTimelineSummary(jobId: string): Promise<void> {
+    try {
+      await this.timelineSummary.enqueue(jobId);
+    } catch (err: unknown) {
+      this.logger.warn('Timeline summary enqueue failed', { jobId, err });
+    }
+  }
 
   private withDerivedStatus<
     T extends { outcome: InterviewOutcome; scheduledAt: Date },
@@ -144,7 +162,7 @@ export class InterviewRoundsService {
     // The round insert, event log, and nextInterviewAt recompute share one
     // transaction — a mid-sequence failure must not leave an orphaned round
     // with no Timeline event, or a stale nextInterviewAt.
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const round = await tx.interviewRound.create({
         data: {
           jobId,
@@ -157,6 +175,9 @@ export class InterviewRoundsService {
       await this.recomputeNextInterviewAt(tx, jobId);
       return this.withDerivedStatus(round);
     });
+
+    await this.enqueueTimelineSummary(jobId);
+    return result;
   }
 
   async findAllForJob(userId: string, jobId: string) {
@@ -175,7 +196,7 @@ export class InterviewRoundsService {
     dto: UpdateInterviewRoundDto,
   ) {
     await this.ensureJobOwned(userId, jobId);
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.interviewRound.findFirst({
         where: { id: roundId, jobId },
         select: { id: true, outcome: true },
@@ -202,6 +223,72 @@ export class InterviewRoundsService {
       });
       await this.recomputeNextInterviewAt(tx, jobId);
       return this.withDerivedStatus(round);
+    });
+
+    // Awaited (not fire-and-forget), but outside the transaction — no
+    // network calls while holding the DB transaction open. A debrief just
+    // written for a completed round is the trigger to prep the job's next
+    // round; running it in-request means the suggestion is there as soon as
+    // the save completes, matching the "auto, immediate" trigger this
+    // feature was built for. Only PASSED/FAILED carry real debrief content;
+    // PENDING/CANCELLED have nothing to react to. Failure here must never
+    // fail the notes-save request itself.
+    if (
+      dto.notes?.trim() &&
+      (result.outcome === InterviewOutcome.PASSED ||
+        result.outcome === InterviewOutcome.FAILED)
+    ) {
+      try {
+        await this.maybeGenerateNextRoundPrep(jobId, result);
+      } catch (err: unknown) {
+        this.logger.warn('round_prep_generation_failed', { jobId, err });
+      }
+    }
+
+    return result;
+  }
+
+  // Looks up the job's next not-yet-happened round and, if one exists,
+  // generates and persists suggested prep for it from this round's debrief.
+  // Can still throw on a genuine LLM failure — the caller (update, above)
+  // wraps this call in try/catch so that never fails the notes-save request
+  // itself. The final persist uses updateMany (not update) specifically so a
+  // concurrent delete of the next round between the lookup above and here
+  // (benign, not a generation failure) resolves as a silent no-op count
+  // instead of a P2025 exception that would otherwise get logged as
+  // round_prep_generation_failed alongside real failures.
+  private async maybeGenerateNextRoundPrep(
+    jobId: string,
+    completedRound: { id: string; stage: string; notes: string | null },
+  ): Promise<void> {
+    const nextRound = await this.prisma.interviewRound.findFirst({
+      where: {
+        jobId,
+        id: { not: completedRound.id },
+        outcome: InterviewOutcome.PENDING,
+        scheduledAt: { gte: new Date() },
+      },
+      orderBy: { scheduledAt: 'asc' },
+    });
+    if (!nextRound || !completedRound.notes) return;
+
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+      select: { company: true, position: true },
+    });
+    if (!job) return;
+
+    const prepSuggestions = await this.llm.generateRoundPrep({
+      company: job.company,
+      position: job.position,
+      completedStage: completedRound.stage,
+      completedNotes: completedRound.notes,
+      nextStage: nextRound.stage,
+    });
+
+    await this.prisma.interviewRound.updateMany({
+      where: { id: nextRound.id },
+      data: { prepSuggestions, prepGeneratedAt: new Date() },
     });
   }
 

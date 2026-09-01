@@ -180,6 +180,11 @@ model Job {
   // in a couple of days and has its own dedicated reminder email already.
   staleAppliedDigestedAt      DateTime?
   staleInterviewingDigestedAt DateTime?
+  // LLM-generated one-line plain-English summary of this job's JobEvent
+  // timeline, regenerated asynchronously (TimelineSummaryProcessor) whenever
+  // a new event is written. null until the first background run completes.
+  timelineSummary             String?
+  timelineSummaryAt           DateTime?
   createdAt                   DateTime         @default(now())
   updatedAt                   DateTime         @updatedAt
   userId                      String
@@ -266,6 +271,12 @@ model InterviewRound {
   outcome        InterviewOutcome @default(PENDING)
   notes          String?
   reminderSentAt DateTime?
+  // LLM-generated talking points/questions for THIS round, produced from the
+  // debrief notes on the previously-completed round for the same job (see
+  // InterviewRoundsService.maybeGenerateNextRoundPrep). null until generated;
+  // never regenerated automatically once set.
+  prepSuggestions String?
+  prepGeneratedAt DateTime?
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 

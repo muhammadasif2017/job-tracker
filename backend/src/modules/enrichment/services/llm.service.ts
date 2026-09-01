@@ -315,4 +315,94 @@ export class LlmService {
       throw err;
     }
   }
+
+  // Free-text completions (no tool schema) — output here is prose, not
+  // structured fields, so there's nothing for a tool call to extract. The
+  // tool_use_failed retry in createWithRetry doesn't apply to this path;
+  // Groq's own SDK-level retry (maxRetries: 1, set in the constructor)
+  // still covers transient network/5xx failures.
+  async generateRoundPrep(input: {
+    company: string;
+    position: string;
+    completedStage: string;
+    completedNotes: string;
+    nextStage: string;
+  }): Promise<string> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: 'openai/gpt-oss-120b',
+        max_tokens: 512,
+        messages: [
+          {
+            role: 'user',
+            content:
+              `A job applicant for "${input.position}" at "${input.company}" just finished ` +
+              `the "${input.completedStage}" interview round and left these debrief notes:\n\n` +
+              `${input.completedNotes}\n\n` +
+              `Their next round is "${input.nextStage}". Based on the debrief notes, suggest ` +
+              `3-5 concise talking points or questions to prepare for that next round. Plain ` +
+              `text, short bullet points, no preamble.`,
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (!content) throw new Error('Empty response from Groq');
+      return content;
+    } catch (err) {
+      this.logger.warn('llm_generate_round_prep_failed', {
+        company: input.company,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  }
+
+  async summarizeEvents(
+    events: {
+      type: string;
+      fromStatus: string | null;
+      toStatus: string;
+      note: string | null;
+      createdAt: Date;
+    }[],
+    context: { company: string; position: string },
+  ): Promise<string> {
+    try {
+      const timeline = events
+        .map((e) => {
+          const parts = [e.createdAt.toISOString().slice(0, 10), e.type];
+          if (e.fromStatus) parts.push(`${e.fromStatus} -> ${e.toStatus}`);
+          else parts.push(e.toStatus);
+          if (e.note) parts.push(`(${e.note})`);
+          return parts.join(' ');
+        })
+        .join('\n');
+
+      const response = await this.client.chat.completions.create({
+        model: 'openai/gpt-oss-120b',
+        max_tokens: 128,
+        messages: [
+          {
+            role: 'user',
+            content:
+              `Here is the event timeline for a job application to "${context.company}" for ` +
+              `the "${context.position}" position:\n\n${timeline}\n\n` +
+              `Summarize what happened in ONE short plain-English sentence, suitable for a ` +
+              `dashboard caption. No preamble, no quotes around the sentence.`,
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content?.trim();
+      if (!content) throw new Error('Empty response from Groq');
+      return content;
+    } catch (err) {
+      this.logger.warn('llm_summarize_events_failed', {
+        company: context.company,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      throw err;
+    }
+  }
 }

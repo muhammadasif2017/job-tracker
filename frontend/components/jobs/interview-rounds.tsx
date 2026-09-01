@@ -11,6 +11,7 @@ import {
   useCreateInterviewRoundMutation,
   useInterviewRoundOutcomeMutation,
   useRemoveInterviewRoundMutation,
+  useSaveRoundDebriefMutation,
 } from '../../features/jobs/interview-rounds.hooks';
 import {
   DERIVED_STATUS_COLORS,
@@ -37,6 +38,10 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [notes, setNotes] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | undefined>();
+  const [editingDebriefId, setEditingDebriefId] = useState<string | null>(
+    null,
+  );
+  const [debriefText, setDebriefText] = useState('');
 
   const createMutation = useCreateInterviewRoundMutation(jobId, () => {
     setStage('');
@@ -49,6 +54,19 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const removeMutation = useRemoveInterviewRoundMutation(jobId, () =>
     setConfirmingId(null),
   );
+  const saveDebriefMutation = useSaveRoundDebriefMutation(jobId);
+
+  function startDebrief(round: InterviewRound) {
+    setEditingDebriefId(round.id);
+    setDebriefText(round.notes ?? '');
+  }
+
+  function handleSaveDebrief(round: InterviewRound) {
+    saveDebriefMutation.mutate(
+      { roundId: round.id, outcome: round.outcome, notes: debriefText },
+      { onSuccess: () => setEditingDebriefId(null) },
+    );
+  }
 
   function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -161,93 +179,155 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
         </p>
       ) : (
         <ul className="divide-y divide-line">
-          {rounds.map((round) => (
-            <li
-              key={round.id}
-              className="flex flex-wrap items-center gap-3 py-3"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{round.stage}</p>
-                <p className="text-xs text-muted">
-                  {formatDateOnly(round.scheduledAt)}
-                </p>
-                {round.notes && (
-                  <p className="mt-1 text-xs text-muted">{round.notes}</p>
-                )}
-                {DERIVED_STATUS_LABELS[round.derivedStatus] && (
-                  <span
-                    className={`mt-1 inline-block rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
-                  >
-                    {DERIVED_STATUS_LABELS[round.derivedStatus]}
-                  </span>
-                )}
-              </div>
+          {rounds.map((round) => {
+            const canDebrief =
+              round.outcome === 'PASSED' || round.outcome === 'FAILED';
+            return (
+              <li key={round.id} className="flex flex-col gap-2 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{round.stage}</p>
+                    <p className="text-xs text-muted">
+                      {formatDateOnly(round.scheduledAt)}
+                    </p>
+                    {round.notes && (
+                      <p className="mt-1 text-xs text-muted">{round.notes}</p>
+                    )}
+                    {DERIVED_STATUS_LABELS[round.derivedStatus] && (
+                      <span
+                        className={`mt-1 inline-block rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
+                      >
+                        {DERIVED_STATUS_LABELS[round.derivedStatus]}
+                      </span>
+                    )}
+                  </div>
 
-              {confirmingId === round.id ? (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted">
-                    Remove?
-                  </span>
-                  <Button
-                    type="button"
-                    variant="danger"
-                    size="sm"
-                    loading={removeMutation.isPending}
-                    onClick={() => removeMutation.mutate(round.id)}
-                  >
-                    Yes
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setConfirmingId(null)}
-                  >
-                    No
-                  </Button>
+                  {confirmingId === round.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted">
+                        Remove?
+                      </span>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        loading={removeMutation.isPending}
+                        onClick={() => removeMutation.mutate(round.id)}
+                      >
+                        Yes
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmingId(null)}
+                      >
+                        No
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <select
+                        aria-label={`Outcome for ${round.stage}`}
+                        value={round.outcome}
+                        onChange={(e) =>
+                          outcomeMutation.mutate({
+                            roundId: round.id,
+                            outcome: e.target.value as InterviewOutcome,
+                          })
+                        }
+                        className="h-8 rounded-md border border-line bg-paper px-2 text-sm text-ink"
+                      >
+                        {OUTCOMES.map((o) => (
+                          <option key={o} value={o}>
+                            {o.charAt(0) + o.slice(1).toLowerCase()}
+                          </option>
+                        ))}
+                      </select>
+                      {canDebrief && editingDebriefId !== round.id && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startDebrief(round)}
+                        >
+                          {round.notes ? 'Edit debrief' : 'Add debrief'}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        title="Add to calendar"
+                        onClick={() => handleDownloadIcs(round.id)}
+                      >
+                        <CalendarPlus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        title="Remove round"
+                        className="text-danger hover:bg-danger-soft hover:text-danger"
+                        onClick={() => setConfirmingId(round.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <select
-                    aria-label={`Outcome for ${round.stage}`}
-                    value={round.outcome}
-                    onChange={(e) =>
-                      outcomeMutation.mutate({
-                        roundId: round.id,
-                        outcome: e.target.value as InterviewOutcome,
-                      })
-                    }
-                    className="h-8 rounded-md border border-line bg-paper px-2 text-sm text-ink"
-                  >
-                    {OUTCOMES.map((o) => (
-                      <option key={o} value={o}>
-                        {o.charAt(0) + o.slice(1).toLowerCase()}
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    title="Add to calendar"
-                    onClick={() => handleDownloadIcs(round.id)}
-                  >
-                    <CalendarPlus className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    title="Remove round"
-                    className="text-danger hover:bg-danger-soft hover:text-danger"
-                    onClick={() => setConfirmingId(round.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </li>
-          ))}
+
+                {editingDebriefId === round.id && (
+                  <div className="flex flex-col gap-2 rounded-md border border-line p-3">
+                    <label
+                      htmlFor={`debrief-${round.id}`}
+                      className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                    >
+                      Debrief notes for {round.stage}
+                    </label>
+                    <textarea
+                      id={`debrief-${round.id}`}
+                      value={debriefText}
+                      onChange={(e) => setDebriefText(e.target.value)}
+                      maxLength={5000}
+                      rows={3}
+                      placeholder="What came up, how it went, anything to prep for next time..."
+                      className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink placeholder:text-muted-2 outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/20"
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        loading={saveDebriefMutation.isPending}
+                        onClick={() => handleSaveDebrief(round)}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingDebriefId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {round.prepSuggestions && (
+                  <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
+                    <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-wide text-accent">
+                      Suggested prep for this round
+                    </p>
+                    <p className="whitespace-pre-line text-sm text-ink">
+                      {round.prepSuggestions}
+                    </p>
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

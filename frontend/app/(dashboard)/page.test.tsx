@@ -160,6 +160,40 @@ describe('DashboardPage', () => {
     expect(screen.getByText('Jan 5, 2026')).toBeInTheDocument();
   });
 
+  it('shows the timeline summary caption when present', async () => {
+    mockApiRoutes({
+      recent: makeRecent([
+        makeJob({
+          id: 'j-1',
+          company: 'Acme Corp',
+          position: 'Backend Engineer',
+          timelineSummary: 'Applied, then moved to interviewing.',
+        }),
+      ]),
+    });
+    renderPage();
+
+    await waitFor(() =>
+      expect(
+        screen.getByText('Applied, then moved to interviewing.'),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it('omits the timeline summary caption when not yet generated', async () => {
+    mockApiRoutes({
+      recent: makeRecent([
+        makeJob({ id: 'j-1', company: 'Acme Corp', position: 'Backend Engineer' }),
+      ]),
+    });
+    renderPage();
+
+    await waitFor(() => expect(screen.getByText('Acme Corp')).toBeInTheDocument());
+    expect(
+      screen.queryByText('Applied, then moved to interviewing.'),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows a failure message for recent activity when that call fails, independent of stats', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
       if (url.startsWith('/jobs?')) return Promise.reject(new Error('network error'));

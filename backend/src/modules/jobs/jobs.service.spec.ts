@@ -11,6 +11,7 @@ import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
+import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 
@@ -38,6 +39,10 @@ const mockCompanyEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
   CompanyEnrichmentService,
   'enqueueEnrichment'
 >;
+const mockTimelineSummary = { enqueue: jest.fn() } satisfies Pick<
+  TimelineSummaryService,
+  'enqueue'
+>;
 const mockStorage = {
   upload: jest.fn(),
   getPresignedUrl: jest.fn(),
@@ -56,6 +61,7 @@ describe('JobsService', () => {
         JobsService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
+        { provide: TimelineSummaryService, useValue: mockTimelineSummary },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
         { provide: Logger, useValue: mockLogger },
       ],
@@ -277,6 +283,25 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
+    it('enqueues a timeline-summary regen after job creation', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      // Explicit, not relying on the default from beforeEach — a prior test
+      // in this file leaves company.create's persistent mock rejecting with
+      // P2002, and jest.clearAllMocks() doesn't reset mockRejectedValue.
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+
+      const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
+      await service.create('user-1', dto);
+
+      expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-new');
+    });
+
     it('skips the matchedCompany lookup for a whitespace-only company name', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
@@ -489,6 +514,34 @@ describe('JobsService', () => {
       ).rejects.toThrow(ConflictException);
       expect(mockPrisma.jobEvent.create).not.toHaveBeenCalled();
       expect(mockPrisma.job.update).not.toHaveBeenCalled();
+      expect(mockTimelineSummary.enqueue).not.toHaveBeenCalled();
+    });
+
+    it('enqueues a timeline-summary regen after a status change', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.INTERVIEWING,
+      });
+
+      expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');
+    });
+
+    it('does not enqueue a timeline-summary regen when the status is unchanged', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockTimelineSummary.enqueue).not.toHaveBeenCalled();
     });
 
     it('does not create an event when the new status equals the existing status', async () => {

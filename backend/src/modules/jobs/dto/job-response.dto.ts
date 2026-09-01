@@ -61,6 +61,17 @@ export class JobResponseDto {
   @ApiPropertyOptional({ format: 'date-time' })
   nextInterviewAt: Date | null;
 
+  @ApiPropertyOptional({
+    example: 'Applied, then moved to interviewing.',
+    description:
+      "LLM-generated one-line summary of this job's event timeline, " +
+      'regenerated asynchronously after each status change.',
+  })
+  timelineSummary: string | null;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  timelineSummaryAt: Date | null;
+
   @ApiProperty({ format: 'date-time' })
   createdAt: Date;
 
