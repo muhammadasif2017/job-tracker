@@ -10,6 +10,7 @@ import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
+import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -33,9 +34,21 @@ export class JobsService {
   constructor(
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
+    private timelineSummary: TimelineSummaryService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
+
+  // Timeline-summary regen is best-effort — a queue/LLM hiccup must never
+  // fail the job mutation that triggered it. Same shape as the
+  // companyEnrichment.enqueueEnrichment try/catch below in create().
+  private async enqueueTimelineSummary(jobId: string): Promise<void> {
+    try {
+      await this.timelineSummary.enqueue(jobId);
+    } catch (err: unknown) {
+      this.logger.warn('Timeline summary enqueue failed', { jobId, err });
+    }
+  }
 
   // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
   // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
@@ -179,6 +192,8 @@ export class JobsService {
         });
       }
     }
+
+    await this.enqueueTimelineSummary(job.id);
 
     return { ...job, matchedCompany };
   }
@@ -362,7 +377,7 @@ export class JobsService {
     // (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't
     // carry a nested create, so both statements run inside one transaction
     // instead.
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.job.updateMany({
         where: { id: jobId, status: existing.status },
         data: { status: dto.status },
@@ -386,6 +401,9 @@ export class JobsService {
         data,
       });
     });
+
+    await this.enqueueTimelineSummary(jobId);
+    return result;
   }
 
   async remove(userId: string, jobId: string) {

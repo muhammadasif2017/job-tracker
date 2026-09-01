@@ -1,12 +1,26 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
+import { Logger } from 'nestjs-pino';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
+import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
+
+const mockLlm = {
+  generateRoundPrep: jest.fn(),
+};
+
+const mockTimelineSummary = {
+  enqueue: jest.fn().mockResolvedValue(undefined),
+};
+
+const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 const mockPrisma = {
   job: {
     findFirst: jest.fn(),
+    findUnique: jest.fn(),
     updateMany: jest.fn(),
     findUniqueOrThrow: jest.fn(),
   },
@@ -16,6 +30,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     findMany: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     deleteMany: jest.fn(),
   },
   jobEvent: {
@@ -62,6 +77,9 @@ describe('InterviewRoundsService', () => {
       providers: [
         InterviewRoundsService,
         { provide: PrismaService, useValue: mockPrisma },
+        { provide: LlmService, useValue: mockLlm },
+        { provide: TimelineSummaryService, useValue: mockTimelineSummary },
+        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(InterviewRoundsService);
@@ -488,6 +506,197 @@ describe('InterviewRoundsService', () => {
       });
 
       expect(result.derivedStatus).toBe('FAILED');
+    });
+  });
+
+  describe('round prep generation', () => {
+    it('generates and persists prep suggestions on the next round after a debrief', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst
+        // existing-round lookup inside the update transaction
+        .mockResolvedValueOnce({
+          id: 'round-1',
+          outcome: InterviewOutcome.PENDING,
+        })
+        // next-round lookup in maybeGenerateNextRoundPrep
+        .mockResolvedValueOnce({
+          id: 'round-2',
+          stage: 'Onsite',
+          scheduledAt: new Date('2099-01-01T00:00:00.000Z'),
+        });
+      mockPrisma.interviewRound.update.mockResolvedValueOnce({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well, they asked about React',
+        scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+      mockPrisma.job.findUnique.mockResolvedValue({
+        company: 'Acme',
+        position: 'Engineer',
+      });
+      mockLlm.generateRoundPrep.mockResolvedValue('Ask about on-call rotation');
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well, they asked about React',
+      });
+
+      expect(mockLlm.generateRoundPrep).toHaveBeenCalledWith({
+        company: 'Acme',
+        position: 'Engineer',
+        completedStage: 'Phone Screen',
+        completedNotes: 'Went well, they asked about React',
+        nextStage: 'Onsite',
+      });
+      expect(mockPrisma.interviewRound.updateMany).toHaveBeenCalledWith({
+        where: { id: 'round-2' },
+        data: {
+          prepSuggestions: 'Ask about on-call rotation',
+          prepGeneratedAt: expect.any(Date),
+        },
+      });
+    });
+
+    it('does not log a failure when the next round is deleted concurrently before the persist', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst
+        .mockResolvedValueOnce({
+          id: 'round-1',
+          outcome: InterviewOutcome.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'round-2',
+          stage: 'Onsite',
+          scheduledAt: new Date('2099-01-01T00:00:00.000Z'),
+        });
+      mockPrisma.interviewRound.update.mockResolvedValueOnce({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well',
+        scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+      mockPrisma.job.findUnique.mockResolvedValue({
+        company: 'Acme',
+        position: 'Engineer',
+      });
+      mockLlm.generateRoundPrep.mockResolvedValue('Ask about on-call rotation');
+      // round-2 was deleted between the lookup and the persist — updateMany
+      // matches zero rows instead of throwing P2025.
+      mockPrisma.interviewRound.updateMany.mockResolvedValue({ count: 0 });
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well',
+      });
+
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        'round_prep_generation_failed',
+        expect.anything(),
+      );
+    });
+
+    it('does not generate prep when no upcoming pending round exists', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst
+        .mockResolvedValueOnce({
+          id: 'round-1',
+          outcome: InterviewOutcome.PENDING,
+        })
+        .mockResolvedValueOnce(null);
+      mockPrisma.interviewRound.update.mockResolvedValueOnce({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well',
+        scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.PASSED,
+        notes: 'Went well',
+      });
+
+      expect(mockLlm.generateRoundPrep).not.toHaveBeenCalled();
+      expect(mockPrisma.interviewRound.update).toHaveBeenCalledTimes(1);
+      expect(mockPrisma.interviewRound.updateMany).not.toHaveBeenCalled();
+    });
+
+    it.each([InterviewOutcome.PENDING, InterviewOutcome.CANCELLED])(
+      'does not generate prep when the resulting outcome is %s',
+      async (outcome) => {
+        mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+        mockPrisma.interviewRound.findFirst.mockResolvedValueOnce({
+          id: 'round-1',
+          outcome: InterviewOutcome.PENDING,
+        });
+        mockPrisma.interviewRound.update.mockResolvedValueOnce({
+          id: 'round-1',
+          stage: 'Phone Screen',
+          outcome,
+          notes: 'Some debrief notes',
+          scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+        });
+
+        await service.update('user-1', 'job-1', 'round-1', {
+          outcome,
+          notes: 'Some debrief notes',
+        });
+
+        expect(mockLlm.generateRoundPrep).not.toHaveBeenCalled();
+      },
+    );
+
+    it('does not fail the update when prep generation throws', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst
+        .mockResolvedValueOnce({
+          id: 'round-1',
+          outcome: InterviewOutcome.PENDING,
+        })
+        .mockResolvedValueOnce({
+          id: 'round-2',
+          stage: 'Onsite',
+          scheduledAt: new Date('2099-01-01T00:00:00.000Z'),
+        });
+      mockPrisma.interviewRound.update.mockResolvedValueOnce({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        outcome: InterviewOutcome.FAILED,
+        notes: 'Did not go well',
+        scheduledAt: new Date('2020-01-01T00:00:00.000Z'),
+      });
+      mockPrisma.job.findUnique.mockResolvedValue({
+        company: 'Acme',
+        position: 'Engineer',
+      });
+      mockLlm.generateRoundPrep.mockRejectedValue(new Error('Groq down'));
+
+      const result = await service.update('user-1', 'job-1', 'round-1', {
+        outcome: InterviewOutcome.FAILED,
+        notes: 'Did not go well',
+      });
+
+      expect(result.id).toBe('round-1');
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'round_prep_generation_failed',
+        expect.objectContaining({ jobId: 'job-1' }),
+      );
+    });
+  });
+
+  describe('timeline summary enqueue', () => {
+    it('enqueues a timeline-summary regen after a round is created', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Phone Screen',
+        scheduledAt: '2026-08-01',
+      });
+
+      expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');
     });
   });
 });

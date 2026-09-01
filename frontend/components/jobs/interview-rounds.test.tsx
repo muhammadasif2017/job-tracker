@@ -243,6 +243,90 @@ describe('InterviewRounds', () => {
     });
   });
 
+  describe('debrief', () => {
+    it('does not show a debrief button for a PENDING round', () => {
+      renderRounds([round]);
+      expect(
+        screen.queryByRole('button', { name: /add debrief/i }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /edit debrief/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows "Add debrief" for a PASSED round with no notes yet', () => {
+      renderRounds([{ ...round, outcome: 'PASSED', notes: null }]);
+      expect(
+        screen.getByRole('button', { name: /add debrief/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('shows "Edit debrief" for a FAILED round that already has notes', () => {
+      renderRounds([{ ...round, outcome: 'FAILED' }]);
+      expect(
+        screen.getByRole('button', { name: /edit debrief/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('opens the editor pre-filled with existing notes and saves outcome + notes together', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: {} });
+      renderRounds([{ ...round, outcome: 'PASSED' }]);
+
+      fireEvent.click(screen.getByRole('button', { name: /edit debrief/i }));
+      const textarea = screen.getByLabelText(/debrief notes for phone screen/i);
+      expect(textarea).toHaveValue('Ask about on-call rotation');
+
+      fireEvent.change(textarea, {
+        target: { value: 'Went well, discussed React deeply' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+
+      await waitFor(() =>
+        expect(vi.mocked(api.patch)).toHaveBeenCalledWith(
+          '/jobs/j-1/interview-rounds/r-1',
+          { outcome: 'PASSED', notes: 'Went well, discussed React deeply' },
+          { timeout: 60_000 },
+        ),
+      );
+      expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Debrief saved');
+    });
+
+    it('closes the editor without saving on Cancel', () => {
+      renderRounds([{ ...round, outcome: 'PASSED' }]);
+      fireEvent.click(screen.getByRole('button', { name: /edit debrief/i }));
+      expect(
+        screen.getByLabelText(/debrief notes for phone screen/i),
+      ).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+      expect(
+        screen.queryByLabelText(/debrief notes for phone screen/i),
+      ).not.toBeInTheDocument();
+      expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('prep suggestions', () => {
+    it('renders the suggested-prep block when prepSuggestions is set', () => {
+      renderRounds([
+        { ...round, prepSuggestions: 'Review React hooks before the onsite' },
+      ]);
+      expect(
+        screen.getByText('Suggested prep for this round'),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('Review React hooks before the onsite'),
+      ).toBeInTheDocument();
+    });
+
+    it('omits the block when prepSuggestions is null', () => {
+      renderRounds([{ ...round, prepSuggestions: null }]);
+      expect(
+        screen.queryByText('Suggested prep for this round'),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe('delete flow', () => {
     it('toggles a confirm prompt and reverts on No', () => {
       renderRounds([round]);

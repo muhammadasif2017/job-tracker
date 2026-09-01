@@ -111,6 +111,10 @@ export interface InterviewRound {
   outcome: InterviewOutcome;
   derivedStatus: InterviewRoundDerivedStatus;
   notes?: string | null;
+  // LLM-generated talking points/questions for this round, produced from the
+  // debrief notes on the previously-completed round for the same job.
+  prepSuggestions?: string | null;
+  prepGeneratedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -150,6 +154,10 @@ export interface Job {
   notes?: string;
   appliedAt: string;
   nextInterviewAt?: string;
+  // LLM-generated one-line plain-English summary of this job's event
+  // timeline, regenerated asynchronously after each status change.
+  timelineSummary?: string | null;
+  timelineSummaryAt?: string | null;
   createdAt: string;
   updatedAt: string;
   userId: string;

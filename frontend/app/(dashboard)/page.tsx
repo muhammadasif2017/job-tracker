@@ -161,6 +161,11 @@ export default function DashboardPage() {
                     <p className="truncate text-xs text-muted">
                       {job.position}
                     </p>
+                    {job.timelineSummary && (
+                      <p className="truncate text-xs text-muted-2">
+                        {job.timelineSummary}
+                      </p>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={job.status} />

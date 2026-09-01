@@ -281,3 +281,155 @@ describe('LlmService.extractJobPosting', () => {
     expect(result.jobType).toBeUndefined();
   });
 });
+
+function plainResponse(content: string) {
+  return { choices: [{ message: { content } }] };
+}
+
+describe('LlmService.generateRoundPrep', () => {
+  let service: LlmService;
+
+  const baseInput = {
+    company: 'Acme Corp',
+    position: 'Senior Engineer',
+    completedStage: 'Phone Screen',
+    completedNotes: 'They asked a lot about React and state management.',
+    nextStage: 'Onsite',
+  };
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('test-api-key');
+    const module = await Test.createTestingModule({
+      providers: [
+        LlmService,
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: Logger, useValue: mockLogger },
+      ],
+    }).compile();
+    service = module.get(LlmService);
+  });
+
+  it('returns the trimmed plain-text response', async () => {
+    mockCreate.mockResolvedValue(
+      plainResponse('  - Review React hooks\n- Ask about on-call  '),
+    );
+
+    const result = await service.generateRoundPrep(baseInput);
+
+    expect(result).toBe('- Review React hooks\n- Ask about on-call');
+  });
+
+  it('includes the completed round notes and next stage in the prompt', async () => {
+    mockCreate.mockResolvedValue(plainResponse('Some prep'));
+
+    await service.generateRoundPrep(baseInput);
+
+    const call = mockCreate.mock.calls[0][0] as {
+      messages: { role: string; content: string }[];
+    };
+    const prompt = call.messages[0].content;
+    expect(prompt).toContain(baseInput.completedNotes);
+    expect(prompt).toContain(baseInput.nextStage);
+  });
+
+  it('does not use a tool call (plain completion)', async () => {
+    mockCreate.mockResolvedValue(plainResponse('Some prep'));
+
+    await service.generateRoundPrep(baseInput);
+
+    const call = mockCreate.mock.calls[0][0] as { tools?: unknown };
+    expect(call.tools).toBeUndefined();
+  });
+
+  it('throws on an empty response', async () => {
+    mockCreate.mockResolvedValue(plainResponse('   '));
+
+    await expect(service.generateRoundPrep(baseInput)).rejects.toThrow(
+      'Empty response from Groq',
+    );
+  });
+
+  it('re-throws when Groq SDK throws', async () => {
+    mockCreate.mockRejectedValue(new Error('API unavailable'));
+
+    await expect(service.generateRoundPrep(baseInput)).rejects.toThrow(
+      'API unavailable',
+    );
+  });
+});
+
+describe('LlmService.summarizeEvents', () => {
+  let service: LlmService;
+
+  const context = { company: 'Acme Corp', position: 'Senior Engineer' };
+  const events = [
+    {
+      type: 'CREATED',
+      fromStatus: null,
+      toStatus: 'APPLIED',
+      note: null,
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+    },
+    {
+      type: 'STATUS_CHANGE',
+      fromStatus: 'APPLIED',
+      toStatus: 'INTERVIEWING',
+      note: null,
+      createdAt: new Date('2026-01-05T00:00:00.000Z'),
+    },
+  ];
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockConfigService.get.mockReturnValue('test-api-key');
+    const module = await Test.createTestingModule({
+      providers: [
+        LlmService,
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: Logger, useValue: mockLogger },
+      ],
+    }).compile();
+    service = module.get(LlmService);
+  });
+
+  it('returns the trimmed plain-text response', async () => {
+    mockCreate.mockResolvedValue(
+      plainResponse('  Applied, then moved to interviewing.  '),
+    );
+
+    const result = await service.summarizeEvents(events, context);
+
+    expect(result).toBe('Applied, then moved to interviewing.');
+  });
+
+  it('includes the company, position, and event timeline in the prompt', async () => {
+    mockCreate.mockResolvedValue(plainResponse('Summary'));
+
+    await service.summarizeEvents(events, context);
+
+    const call = mockCreate.mock.calls[0][0] as {
+      messages: { role: string; content: string }[];
+    };
+    const prompt = call.messages[0].content;
+    expect(prompt).toContain('Acme Corp');
+    expect(prompt).toContain('Senior Engineer');
+    expect(prompt).toContain('STATUS_CHANGE');
+  });
+
+  it('throws on an empty response', async () => {
+    mockCreate.mockResolvedValue(plainResponse(''));
+
+    await expect(service.summarizeEvents(events, context)).rejects.toThrow(
+      'Empty response from Groq',
+    );
+  });
+
+  it('re-throws when Groq SDK throws', async () => {
+    mockCreate.mockRejectedValue(new Error('API unavailable'));
+
+    await expect(service.summarizeEvents(events, context)).rejects.toThrow(
+      'API unavailable',
+    );
+  });
+});

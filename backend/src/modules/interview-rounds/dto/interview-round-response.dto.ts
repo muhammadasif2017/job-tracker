@@ -29,6 +29,17 @@ export class InterviewRoundResponseDto {
   @ApiPropertyOptional({ example: 'Ask about on-call rotation' })
   notes: string | null;
 
+  @ApiPropertyOptional({
+    example: '- Review React hooks\n- Ask about on-call rotation',
+    description:
+      'LLM-generated talking points for this round, produced from the ' +
+      'debrief notes on the previously-completed round for the same job.',
+  })
+  prepSuggestions: string | null;
+
+  @ApiPropertyOptional({ format: 'date-time' })
+  prepGeneratedAt: Date | null;
+
   @ApiProperty({ format: 'date-time' })
   createdAt: Date;
 

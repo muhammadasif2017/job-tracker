@@ -69,6 +69,40 @@ export function useInterviewRoundOutcomeMutation(jobId: string) {
   });
 }
 
+// Saving debrief notes together with the outcome (rather than notes alone)
+// lets the backend trigger next-round prep generation off this single call —
+// see InterviewRoundsService.update's PASSED/FAILED + notes check.
+export function useSaveRoundDebriefMutation(jobId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      roundId,
+      outcome,
+      notes,
+    }: {
+      roundId: string;
+      outcome: InterviewOutcome;
+      notes: string;
+    }) =>
+      api
+        .patch(
+          `/jobs/${jobId}/interview-rounds/${roundId}`,
+          { outcome, notes },
+          // Backend awaits LLM round-prep generation synchronously when this
+          // save triggers it (PASSED/FAILED + a next round) — same bounded
+          // override as Quick Add's /jobs/parse for the same reason.
+          { timeout: 60_000 },
+        )
+        .then((r) => r.data),
+    onSuccess: () => {
+      invalidateInterviewRoundCaches(qc, jobId);
+      toast.success('Debrief saved');
+    },
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, 'Failed to save debrief')),
+  });
+}
+
 export function useRemoveInterviewRoundMutation(
   jobId: string,
   onSettled?: () => void,
