@@ -275,7 +275,7 @@ job-tracker/
 Production runs the backend on a single VM behind Caddy (automatic HTTPS), with managed services for the rest:
 
 - **Backend** — Docker image built from `backend/Dockerfile.prod`, published to GHCR, run via `docker-compose.prod.yml` (Caddy + Redis + backend; ports 80/443 only). Migrations (`prisma migrate deploy`) run automatically on container startup.
-- **Database** — Neon managed PostgreSQL (`DATABASE_URL` with `?sslmode=require`).
+- **Database** — Neon managed PostgreSQL (`DATABASE_URL` with `?sslmode=verify-full`).
 - **File storage** — Oracle Cloud Object Storage (`STORAGE_DRIVER=oracle`).
 - **Frontend** — deployed separately from the backend stack; point `NEXT_PUBLIC_API_URL` at the backend's public URL (a `frontend/Dockerfile.prod` is provided for containerized hosting).
 

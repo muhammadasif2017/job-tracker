@@ -124,7 +124,7 @@ newgrp docker   # or log out / back in
 ## 5. Create the Neon database
 
 1. Sign up at <https://neon.tech> and create a project (pick a region near your VM).
-2. Copy the **connection string** from _Connection Details_ — it ends with `?sslmode=require`.
+2. Copy the **connection string** from _Connection Details_ — it ends with `?sslmode=require`; change that to `?sslmode=verify-full` (see the note in `.env.deploy.example`).
    For one long-running server, the **direct** (non-pooled) string is fine.
 3. You'll paste it as `DATABASE_URL` in the next step.
 
@@ -151,7 +151,7 @@ docker compose -f docker-compose.prod.yml logs -f
 
 ### `.env` notes
 
-- `DATABASE_URL` — the Neon connection string, ending in `?sslmode=require`.
+- `DATABASE_URL` — the Neon connection string, ending in `?sslmode=verify-full`.
 - `BACKEND_DOMAIN` — hostname only, **no** `https://` (Caddy uses it to provision TLS).
 - `FRONTEND_URL` — the full Vercel URL **with** `https://` and **no** trailing slash. This is
   the backend's CORS allowlist and OAuth redirect target. You'll know it after the Vercel deploy
