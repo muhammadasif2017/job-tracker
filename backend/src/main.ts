@@ -1,4 +1,5 @@
 import { NestFactory, Reflector } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -12,10 +13,26 @@ import { PatScopeGuard } from './common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+  });
   app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService);
+
+  // Caddy fronts the API in production (docker-compose.prod.yml). Without
+  // this, Express resolves req.ip to Caddy's container address for every
+  // request, so ThrottlerGuard (whose default tracker is req.ip) buckets the
+  // entire internet together — the per-IP @Throttle limits on /auth/login and
+  // /auth/register would be a single global 10/min instead of 10/min each.
+  // Exactly one hop: Caddy appends the real client to X-Forwarded-For, so
+  // trusting one proxy makes req.ip that client, while a client-supplied
+  // X-Forwarded-For entry sits further left in the list and stays untrusted.
+  // Deliberately not enabled outside production, where the app is reached
+  // directly and a forged X-Forwarded-For would otherwise become req.ip.
+  if (config.get('NODE_ENV') === 'production') {
+    app.set('trust proxy', 1);
+  }
 
   app.use(helmet());
   app.use(cookieParser());
