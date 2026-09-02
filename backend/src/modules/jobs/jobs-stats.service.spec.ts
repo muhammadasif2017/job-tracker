@@ -236,6 +236,66 @@ describe('JobsStatsService', () => {
       expect(result.responseRateBySource).toEqual([]);
     });
 
+    it('counts skipped funnel stages as reached when a job is created past APPLIED', async () => {
+      // Single CREATED event landing straight on OFFER. Before the rollup
+      // this produced OFFER: 1 with APPLIED: 0 — a funnel bar wider at the
+      // bottom than the top, and conversion above 100%.
+      mockPrisma.jobEvent.findMany.mockResolvedValue([
+        {
+          jobId: 'jX',
+          toStatus: JobStatus.OFFER,
+          createdAt: new Date('2026-01-01T00:00:00Z'),
+        },
+      ]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      const result = await service.getFunnel('u1', 'all');
+
+      expect(result.funnel).toEqual([
+        // WISHLIST stays literal — an optional pre-stage, not implied.
+        { status: JobStatus.WISHLIST, reached: 0 },
+        { status: JobStatus.APPLIED, reached: 1 },
+        { status: JobStatus.INTERVIEWING, reached: 1 },
+        { status: JobStatus.OFFER, reached: 1 },
+      ]);
+      // The rollup must not invent events: one event means no closed
+      // interval, so no stage has a measurable duration.
+      expect(result.avgTimeInStageDays).toEqual({});
+    });
+
+    it('counts a kanban APPLIED -> OFFER drag as having reached INTERVIEWING', async () => {
+      const day = 86_400_000;
+      const t0 = new Date('2026-01-01T00:00:00Z').getTime();
+      // The board's columns sit next to each other, so dragging a card two
+      // columns right skips INTERVIEWING entirely — the daily-use path into
+      // the same bug.
+      mockPrisma.jobEvent.findMany.mockResolvedValue([
+        {
+          jobId: 'jY',
+          toStatus: JobStatus.APPLIED,
+          createdAt: new Date(t0),
+        },
+        {
+          jobId: 'jY',
+          toStatus: JobStatus.OFFER,
+          createdAt: new Date(t0 + 3 * day),
+        },
+      ]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      const result = await service.getFunnel('u1', 'all');
+
+      expect(result.funnel).toEqual([
+        { status: JobStatus.WISHLIST, reached: 0 },
+        { status: JobStatus.APPLIED, reached: 1 },
+        { status: JobStatus.INTERVIEWING, reached: 1 },
+        { status: JobStatus.OFFER, reached: 1 },
+      ]);
+      // Duration still comes from the two real events — the implied
+      // INTERVIEWING stage has no timestamps and so no entry.
+      expect(result.avgTimeInStageDays).toEqual({ [JobStatus.APPLIED]: 3 });
+    });
+
     it('computes reached counts, dropoff, closed-interval avg time, and per-source response rate', async () => {
       const day = 86_400_000;
       const t0 = new Date('2026-01-01T00:00:00Z').getTime();

@@ -103,6 +103,35 @@ export class JobsStatsService {
       }
     }
 
+    // An event records only the stage a job *landed on*, never the ones it
+    // passed through: a job created directly as OFFER, or dragged
+    // APPLIED -> OFFER on the kanban board (whose columns let you skip
+    // INTERVIEWING), writes one event for the destination and nothing else.
+    // Without this rollup `reached` isn't monotonic — OFFER can out-count
+    // APPLIED and the funnel bar renders upside down, with stage-to-stage
+    // conversion above 100%.
+    //
+    // Done at read time over the sets rather than by backfilling synthetic
+    // JobEvents: this also corrects rows already in the DB, and a synthetic
+    // event would need an invented timestamp that would then feed
+    // avgTimeInStageDays and corrupt a second metric. Union, not count
+    // arithmetic, so a job that genuinely hit both APPLIED and OFFER is
+    // still counted once.
+    //
+    // WISHLIST is deliberately outside the spine — it's an optional "saved
+    // for later" pre-stage, not a step every application passes through, so
+    // reaching APPLIED must not imply it. FUNNEL_STAGES being in funnel
+    // order is load-bearing below; the compile-time guard in
+    // jobs.constants.ts checks membership only, not ordering.
+    const FUNNEL_SPINE = FUNNEL_STAGES.slice(
+      FUNNEL_STAGES.indexOf(JobStatus.APPLIED),
+    );
+    for (let i = FUNNEL_SPINE.length - 1; i > 0; i--) {
+      for (const jobId of reached[FUNNEL_SPINE[i]]) {
+        reached[FUNNEL_SPINE[i - 1]].add(jobId);
+      }
+    }
+
     // stageDurationsMs[stage] = closed-interval gaps (ms spent in that funnel
     // stage before the job's next event). Computed per job so one job's
     // events never leak into another's intervals.
