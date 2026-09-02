@@ -12,6 +12,7 @@ import {
   appliedAtRangeFilter,
   computeTrendBuckets,
   buildJobWhere,
+  SENT_APPLICATION_FILTER,
 } from './jobs.constants.js';
 
 @Injectable()
@@ -25,14 +26,23 @@ export class JobsStatsService {
     const rangeWhere = { userId, ...appliedAtRangeFilter(range) };
 
     const [counts, total, thisMonth] = await Promise.all([
+      // byStatus alone keeps WISHLIST — it backs the status pie chart, which
+      // renders a Wishlist slice. Every other number below is an
+      // "applications sent" metric and excludes it.
       this.prisma.job.groupBy({
         by: ['status'],
         where: rangeWhere,
         _count: { _all: true },
       }),
-      this.prisma.job.count({ where: rangeWhere }),
       this.prisma.job.count({
-        where: { userId, appliedAt: { gte: startOfMonth } },
+        where: { ...rangeWhere, ...SENT_APPLICATION_FILTER },
+      }),
+      this.prisma.job.count({
+        where: {
+          userId,
+          appliedAt: { gte: startOfMonth },
+          ...SENT_APPLICATION_FILTER,
+        },
       }),
     ]);
 
@@ -75,7 +85,7 @@ export class JobsStatsService {
         by: ['applicationChannel', 'status'],
         where: {
           userId,
-          status: { not: JobStatus.WISHLIST },
+          ...SENT_APPLICATION_FILTER,
           ...jobRangeFilter,
         },
         _count: { _all: true },
@@ -90,6 +100,35 @@ export class JobsStatsService {
     for (const event of events) {
       if ((TRACKED_STAGES as readonly JobStatus[]).includes(event.toStatus)) {
         reached[event.toStatus].add(event.jobId);
+      }
+    }
+
+    // An event records only the stage a job *landed on*, never the ones it
+    // passed through: a job created directly as OFFER, or dragged
+    // APPLIED -> OFFER on the kanban board (whose columns let you skip
+    // INTERVIEWING), writes one event for the destination and nothing else.
+    // Without this rollup `reached` isn't monotonic — OFFER can out-count
+    // APPLIED and the funnel bar renders upside down, with stage-to-stage
+    // conversion above 100%.
+    //
+    // Done at read time over the sets rather than by backfilling synthetic
+    // JobEvents: this also corrects rows already in the DB, and a synthetic
+    // event would need an invented timestamp that would then feed
+    // avgTimeInStageDays and corrupt a second metric. Union, not count
+    // arithmetic, so a job that genuinely hit both APPLIED and OFFER is
+    // still counted once.
+    //
+    // WISHLIST is deliberately outside the spine — it's an optional "saved
+    // for later" pre-stage, not a step every application passes through, so
+    // reaching APPLIED must not imply it. FUNNEL_STAGES being in funnel
+    // order is load-bearing below; the compile-time guard in
+    // jobs.constants.ts checks membership only, not ordering.
+    const FUNNEL_SPINE = FUNNEL_STAGES.slice(
+      FUNNEL_STAGES.indexOf(JobStatus.APPLIED),
+    );
+    for (let i = FUNNEL_SPINE.length - 1; i > 0; i--) {
+      for (const jobId of reached[FUNNEL_SPINE[i]]) {
+        reached[FUNNEL_SPINE[i - 1]].add(jobId);
       }
     }
 
@@ -156,8 +195,15 @@ export class JobsStatsService {
   }
 
   async getTrend(userId: string, range: StatsRange) {
+    // Same WISHLIST exclusion as getStats — the chart is labelled "New
+    // applications", and `cumulative` at the last bucket is meant to line up
+    // with getStats's range-filtered total (see computeTrendBuckets' contract).
     const jobs = await this.prisma.job.findMany({
-      where: { userId, ...appliedAtRangeFilter(range) },
+      where: {
+        userId,
+        ...appliedAtRangeFilter(range),
+        ...SENT_APPLICATION_FILTER,
+      },
       select: { appliedAt: true },
     });
 

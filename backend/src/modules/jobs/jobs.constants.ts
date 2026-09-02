@@ -22,6 +22,20 @@ const _allStagesCovered: UncoveredStages extends never
   : [uncovered: UncoveredStages] = true;
 void _allStagesCovered;
 
+// A WISHLIST job is saved-for-later — never applied to — but `Job.appliedAt`
+// is `@default(now())`, so it still carries a date and lands in every
+// appliedAt-scoped metric unless excluded on purpose. Every stat that means
+// "applications sent" (total, thisMonth, the response/ghost-rate denominator,
+// trend volume, per-channel response rate) spreads this. Centralized so those
+// call sites can't drift apart on what counts as an application.
+//
+// `byStatus` is the deliberate exception: the status pie chart renders a
+// Wishlist slice, so it groups over every status. That makes
+// sum(byStatus) >= total by design whenever wishlist jobs exist.
+export const SENT_APPLICATION_FILTER = {
+  status: { not: JobStatus.WISHLIST },
+} as const;
+
 export const RESPONDED_STATUSES = [
   JobStatus.INTERVIEWING,
   JobStatus.OFFER,
