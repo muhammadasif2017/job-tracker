@@ -150,12 +150,16 @@ export class AuthService implements OnModuleDestroy {
   async exchangeOAuthCode(
     code: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const key = OAUTH_CODE_PREFIX + code;
-    const raw = await this.redis.get(key);
+    // GETDEL (Redis 6.2+; prod runs 7.4) reads and removes the key in one
+    // atomic command, so exactly one caller can ever be handed a given code.
+    // A GET followed by a separate DEL let two concurrent requests both read
+    // the value before either deleted it, and both walked away with a full
+    // token pair minted from one single-use code — the same replay window
+    // the refresh-token rotation CAS in refresh() above exists to close.
+    const raw = await this.redis.getdel(OAUTH_CODE_PREFIX + code);
     if (!raw) {
       throw new ForbiddenException('OAuth code expired or already used');
     }
-    await this.redis.del(key);
     return JSON.parse(raw) as { accessToken: string; refreshToken: string };
   }
 

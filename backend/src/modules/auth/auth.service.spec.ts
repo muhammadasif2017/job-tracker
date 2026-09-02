@@ -16,6 +16,12 @@ jest.mock('ioredis', () => {
         return Promise.resolve('OK');
       }),
       get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+      // Mirrors the real GETDEL: one command that both reads and removes.
+      getdel: jest.fn((key: string) => {
+        const value = store.get(key) ?? null;
+        store.delete(key);
+        return Promise.resolve(value);
+      }),
       del: jest.fn((key: string) => {
         store.delete(key);
         return Promise.resolve(1);
@@ -463,6 +469,29 @@ describe('AuthService', () => {
       await expect(service.exchangeOAuthCode(code)).rejects.toThrow(
         ForbiddenException,
       );
+    });
+
+    // Single-use has to hold under concurrency, not just in sequence. A GET
+    // followed by a separate DEL leaves a window where two simultaneous
+    // requests both read the code before either clears it, and both receive
+    // tokens. Asserted at the command level because a mocked store cannot
+    // reproduce the interleaving: reading and deleting must be ONE command.
+    it('claims the code with a single atomic GETDEL, never a separate GET then DEL', async () => {
+      const redis = (service as unknown as { redis: Record<string, jest.Mock> })
+        .redis;
+      const code = await service.storeOAuthCode({
+        accessToken: 'at',
+        refreshToken: 'rt',
+      });
+      redis.get.mockClear();
+      redis.del.mockClear();
+      redis.getdel.mockClear();
+
+      await service.exchangeOAuthCode(code);
+
+      expect(redis.getdel).toHaveBeenCalledTimes(1);
+      expect(redis.get).not.toHaveBeenCalled();
+      expect(redis.del).not.toHaveBeenCalled();
     });
   });
 });
