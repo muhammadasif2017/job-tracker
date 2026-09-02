@@ -3,6 +3,12 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { createHash } from 'crypto';
+
+// The service stores a plain SHA-256 of the refresh token, so tests build the
+// stored hash the same way rather than mocking the comparison away — that
+// keeps them honest about what actually has to match.
+const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 import { AuthService } from './auth.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 
@@ -145,10 +151,23 @@ describe('AuthService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             userId: 'u-1',
-            tokenHash: 'hashed',
+            // The signed token the JWT mock returns, digested whole.
+            tokenHash: sha256('token'),
           }),
         }),
       );
+    });
+
+    it('stores a digest of the refresh token, never the token itself', async () => {
+      await service.login('u-1', 'a@b.com');
+
+      const { tokenHash } = (
+        mockPrisma.refreshToken.create.mock.calls[0][0] as {
+          data: { tokenHash: string };
+        }
+      ).data;
+      expect(tokenHash).not.toBe('token');
+      expect(tokenHash).toMatch(/^[0-9a-f]{64}$/);
     });
   });
 
@@ -298,10 +317,9 @@ describe('AuthService', () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         id: 'jti-1',
         userId: '1',
-        tokenHash: 'oldhash',
+        tokenHash: sha256('the-real-token'),
         expiresAt: new Date(Date.now() + 10_000),
       });
-      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
       await expect(service.refresh('1', 'wrong', 'jti-1')).rejects.toThrow(
         ForbiddenException,
       );
@@ -323,11 +341,10 @@ describe('AuthService', () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         id: 'jti-1',
         userId: '1',
-        tokenHash: 'oldhash',
+        tokenHash: sha256('rawtoken'),
         expiresAt: new Date(Date.now() + 10_000),
         revokedAt: null,
       });
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
       // DB-fresh email, deliberately different from whatever the refresh
       // token's own (potentially stale) payload might have carried — the
@@ -349,15 +366,51 @@ describe('AuthService', () => {
       );
     });
 
+    // The defect this replaced: bcrypt truncates at 72 bytes, and a JWT's
+    // first 72 bytes are the header plus the start of the payload — identical
+    // across every token issued to one user. Two distinct tokens sharing that
+    // prefix hashed equal, so the stored hash bound nothing.
+    it('rejects a different token that shares the first 72 bytes of the stored one', async () => {
+      const issued = 'a'.repeat(72) + '.signature-one';
+      const forged = 'a'.repeat(72) + '.signature-two';
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: sha256(issued),
+        expiresAt: new Date(Date.now() + 10_000),
+        revokedAt: null,
+      });
+
+      await expect(service.refresh('1', forged, 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(mockPrisma.refreshToken.updateMany).not.toHaveBeenCalled();
+    });
+
+    // Rows written by the old code hold a bcrypt string, which is not valid
+    // hex — the compare must reject them rather than throw.
+    it('rejects a legacy bcrypt-format hash without throwing', async () => {
+      mockPrisma.refreshToken.findUnique.mockResolvedValue({
+        id: 'jti-1',
+        userId: '1',
+        tokenHash: '$2b$10$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMN',
+        expiresAt: new Date(Date.now() + 10_000),
+        revokedAt: null,
+      });
+
+      await expect(service.refresh('1', 'rawtoken', 'jti-1')).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+
     it('revokes every session for the user when a rotated (already-used) token is replayed', async () => {
       mockPrisma.refreshToken.findUnique.mockResolvedValue({
         id: 'jti-1',
         userId: '1',
-        tokenHash: 'oldhash',
+        tokenHash: sha256('rawtoken'),
         expiresAt: new Date(Date.now() + 10_000),
         revokedAt: new Date(Date.now() - 5_000),
       });
-      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       // Already revoked, so the conditional update matches nothing.
       mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 0 });
 

@@ -5,7 +5,7 @@ import {
   Logger,
   OnModuleDestroy,
 } from '@nestjs/common';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -22,6 +22,32 @@ import {
 
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
+
+// Refresh tokens are signed JWTs — long, high-entropy secrets, not
+// user-chosen passwords — so a fast digest is the right primitive here.
+// bcrypt was not merely unnecessary, it was actively wrong: it silently
+// truncates its input at 72 bytes, and a JWT's first 72 bytes are the header
+// plus the opening of the payload. Every refresh token issued to the same
+// user therefore shared its hashed prefix and compared equal to every other,
+// so the stored hash bound nothing at all — only the signature check in
+// JwtRefreshStrategy stood between a forged token and the row lookup. SHA-256
+// covers the whole token, including the jti and the signature.
+//
+// A slow KDF buys nothing on top of that: there is no low-entropy secret to
+// brute-force, and an attacker who can read this column has the database.
+function hashRefreshToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+// Constant-time, and fails closed on anything that isn't a 32-byte hex digest
+// — which includes the bcrypt-format hashes written before this change, so
+// rows issued by the old code are rejected rather than crashing the compare.
+function refreshTokenMatches(rawToken: string, storedHash: string): boolean {
+  const expected = Buffer.from(hashRefreshToken(rawToken), 'hex');
+  const actual = Buffer.from(storedHash, 'hex');
+  if (actual.length !== expected.length) return false;
+  return timingSafeEqual(actual, expected);
+}
 
 @Injectable()
 export class AuthService implements OnModuleDestroy {
@@ -92,8 +118,7 @@ export class AuthService implements OnModuleDestroy {
       throw new ForbiddenException('Refresh token invalid or expired');
     }
 
-    const valid = await bcrypt.compare(rawRefreshToken, stored.tokenHash);
-    if (!valid) {
+    if (!refreshTokenMatches(rawRefreshToken, stored.tokenHash)) {
       throw new ForbiddenException('Refresh token invalid or expired');
     }
 
@@ -280,7 +305,7 @@ export class AuthService implements OnModuleDestroy {
       ),
     ]);
 
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    const tokenHash = hashRefreshToken(refreshToken);
     const refreshExpiry =
       this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
     const expiresAt = new Date(Date.now() + ms(refreshExpiry as StringValue));
