@@ -320,7 +320,7 @@ export const DISCOVERY_SOURCE_LABELS: Record<DiscoverySource, string> = {
   ROZEE: 'Rozee.pk',
   REFERRAL: 'Referral',
   CAREER_EMAIL: 'Career Email',
-  JOBLEADS: 'Jobleads',
+  JOBLEADS: 'JobLeads',
   TARAKI: 'Taraki',
   OTHER: 'Other',
 };
