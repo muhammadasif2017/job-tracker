@@ -72,6 +72,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/auth/token/exchange': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued) */
+    post: operations['AuthController_exchangeApiToken'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/auth/logout': {
     parameters: {
       query?: never;
@@ -246,6 +263,147 @@ export interface paths {
     head?: never;
     /** Update a contact */
     patch: operations['ContactsController_update'];
+    trace?: never;
+  };
+  '/companies/{companyId}/contacts': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List contacts for a target company */
+    get: operations['CompanyContactsController_findAll'];
+    put?: never;
+    /** Add an HR/company contact to a target company */
+    post: operations['CompanyContactsController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/companies/{companyId}/contacts/{contactId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Delete a company contact */
+    delete: operations['CompanyContactsController_remove'];
+    options?: never;
+    head?: never;
+    /** Update a company contact */
+    patch: operations['CompanyContactsController_update'];
+    trace?: never;
+  };
+  '/companies': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List target companies (filter by city, priority) */
+    get: operations['CompaniesController_findAll'];
+    put?: never;
+    /** Add a target company */
+    post: operations['CompaniesController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/companies/duplicates': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Find likely-duplicate company pairs (websiteUrl match or fuzzy name match) */
+    get: operations['CompaniesController_findDuplicates'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/companies/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a target company */
+    get: operations['CompaniesController_findOne'];
+    put?: never;
+    post?: never;
+    /** Delete a target company */
+    delete: operations['CompaniesController_remove'];
+    options?: never;
+    head?: never;
+    /** Update a target company */
+    patch: operations['CompaniesController_update'];
+    trace?: never;
+  };
+  '/companies/{id}/enrichment': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Queue AI company research for a target company */
+    post: operations['CompaniesController_triggerEnrichment'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/companies/{id}/merge': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it */
+    post: operations['CompaniesController_merge'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/companies/import': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Bulk-import target companies from a CSV (name,city,businessMode) */
+    post: operations['CompaniesController_importCsv'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   '/users/me': {
@@ -457,23 +615,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/{id}/enrichment': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Queue company data enrichment for a job */
-    post: operations['EnrichmentController_triggerEnrichment'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/health': {
     parameters: {
       query?: never;
@@ -526,6 +667,41 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/tokens': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List active personal access tokens */
+    get: operations['TokensController_findAll'];
+    put?: never;
+    /** Create a personal access token (e.g. for the browser extension) — raw value is only ever returned here */
+    post: operations['TokensController_create'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/tokens/{id}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke a personal access token */
+    delete: operations['TokensController_revoke'];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -554,6 +730,19 @@ export interface components {
        * @description Short-lived UUID code from OAuth redirect
        */
       code: string;
+    };
+    ExchangeApiTokenDto: {
+      /**
+       * @description Raw personal access token, e.g. from the browser extension
+       * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
+       */
+      token: string;
+    };
+    ApiTokenAccessDto: {
+      /** @description JWT access token (15 min) */
+      accessToken: string;
+      /** @description Seconds until accessToken expires */
+      expiresIn: number;
     };
     MessageDto: {
       /** @example Operation successful */
@@ -608,8 +797,24 @@ export interface components {
       scheduledAt: string;
       /** @enum {string} */
       outcome: 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
+      /** @enum {string} */
+      derivedStatus:
+        | 'SCHEDULED'
+        | 'AWAITING_RESPONSE'
+        | 'POSSIBLY_GHOSTED'
+        | 'PASSED'
+        | 'FAILED'
+        | 'CANCELLED';
       /** @example Ask about on-call rotation */
       notes?: Record<string, never>;
+      /**
+       * @description LLM-generated talking points for this round, produced from the debrief notes on the previously-completed round for the same job.
+       * @example - Review React hooks
+       *     - Ask about on-call rotation
+       */
+      prepSuggestions?: Record<string, never>;
+      /** Format: date-time */
+      prepGeneratedAt?: Record<string, never>;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -645,8 +850,16 @@ export interface components {
     ContactResponseDto: {
       /** Format: cuid */
       id: string;
-      /** Format: cuid */
-      jobId: string;
+      /**
+       * Format: cuid
+       * @description Set when this contact belongs to a job, null for a company contact
+       */
+      jobId?: string | null;
+      /**
+       * Format: cuid
+       * @description Set when this contact belongs to a company, null for a job contact
+       */
+      companyId?: string | null;
       /** @example Jane Doe */
       name: string;
       /** @example Recruiter */
@@ -677,6 +890,209 @@ export interface components {
       linkedinUrl?: Record<string, never>;
       /** @example Met at the referral call, mentioned team is hiring fast */
       notes?: Record<string, never>;
+    };
+    CreateCompanyDto: {
+      /** @example Systems Limited */
+      name: string;
+      /** @enum {string} */
+      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+      /** @example DHA Phase 5, Lahore */
+      location?: Record<string, never>;
+      /** @enum {string} */
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+      /** @example Great engineering culture, met their CTO at a meetup */
+      personalNotes?: Record<string, never>;
+      /** @example https://systemsltd.com */
+      websiteUrl?: Record<string, never>;
+      /** @example https://www.linkedin.com/company/systems-limited */
+      linkedinUrl?: Record<string, never>;
+      /** @enum {string} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      /** @example IT staff augmentation for US clients */
+      productDescription?: Record<string, never>;
+      /** @example Software Development */
+      industry?: Record<string, never>;
+      /** @example 50-200 employees */
+      companySize?: Record<string, never>;
+      /**
+       * @example [
+       *       "React",
+       *       "Node.js",
+       *       "AWS"
+       *     ]
+       */
+      techStack?: string[];
+      /** @example Collaborative and fast-paced culture */
+      cultureSummary?: Record<string, never>;
+      /** @example Hybrid */
+      workPolicy?: Record<string, never>;
+      /** @example 4/5 */
+      workLifeBalance?: Record<string, never>;
+      /** @example Lahore, Pakistan */
+      headquarters?: Record<string, never>;
+      /** @example 123 Tech Park, DHA Phase 5, Lahore */
+      address?: Record<string, never>;
+      /** @example 2005 */
+      founded?: Record<string, never>;
+    };
+    CompanyResponseDto: {
+      /** Format: cuid */
+      id: string;
+      /** @example Systems Limited */
+      name: string;
+      /** @enum {string} */
+      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+      /** @example DHA Phase 5, Lahore */
+      location?: Record<string, never>;
+      /** @enum {string} */
+      priority: 'LOW' | 'MEDIUM' | 'HIGH';
+      personalNotes?: Record<string, never>;
+      /** @example https://systemsltd.com */
+      websiteUrl?: Record<string, never>;
+      /** @example https://www.linkedin.com/company/systems-limited */
+      linkedinUrl?: Record<string, never>;
+      /** @enum {string} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      /** @example IT staff augmentation for US clients */
+      productDescription?: Record<string, never>;
+      /**
+       * @description null means enrichment has never been triggered
+       * @enum {string}
+       */
+      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+      /** @example Software Development */
+      industry?: Record<string, never>;
+      /** @example 50-200 employees */
+      companySize?: Record<string, never>;
+      /**
+       * @example [
+       *       "React",
+       *       "Node.js",
+       *       "AWS"
+       *     ]
+       */
+      techStack: string[];
+      /** @example Collaborative and fast-paced culture */
+      cultureSummary?: Record<string, never>;
+      /** @example Hybrid */
+      workPolicy?: Record<string, never>;
+      /** @example 4/5 */
+      workLifeBalance?: Record<string, never>;
+      /** @example Lahore, Pakistan */
+      headquarters?: Record<string, never>;
+      headquartersLowConfidence?: boolean;
+      /** @example 123 Tech Park, DHA Phase 5, Lahore */
+      address?: Record<string, never>;
+      addressLowConfidence?: boolean;
+      /** @example 2005 */
+      founded?: Record<string, never>;
+      errorMessage?: Record<string, never>;
+      /** Format: date-time */
+      enrichedAt?: Record<string, never>;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    PaginationMetaDto: {
+      /** @example 42 */
+      total: number;
+      /** @example 1 */
+      page: number;
+      /** @example 10 */
+      limit: number;
+      /** @example 5 */
+      totalPages: number;
+    };
+    PaginatedCompaniesDto: {
+      data: components['schemas']['CompanyResponseDto'][];
+      meta: components['schemas']['PaginationMetaDto'];
+    };
+    DuplicateSuggestionDto: {
+      companyA: components['schemas']['CompanyResponseDto'];
+      companyB: components['schemas']['CompanyResponseDto'];
+      /** @enum {string} */
+      reason: 'website' | 'name';
+    };
+    UpdateCompanyDto: {
+      /** @example Systems Limited */
+      name?: string;
+      /** @enum {string} */
+      city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+      /** @example DHA Phase 5, Lahore */
+      location?: Record<string, never>;
+      /** @enum {string} */
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+      /** @example Great engineering culture, met their CTO at a meetup */
+      personalNotes?: Record<string, never>;
+      /** @example https://systemsltd.com */
+      websiteUrl?: Record<string, never>;
+      /** @example https://www.linkedin.com/company/systems-limited */
+      linkedinUrl?: Record<string, never>;
+      /** @enum {string} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      /** @example IT staff augmentation for US clients */
+      productDescription?: Record<string, never>;
+      /** @example Software Development */
+      industry?: Record<string, never>;
+      /** @example 50-200 employees */
+      companySize?: Record<string, never>;
+      /**
+       * @example [
+       *       "React",
+       *       "Node.js",
+       *       "AWS"
+       *     ]
+       */
+      techStack?: string[];
+      /** @example Collaborative and fast-paced culture */
+      cultureSummary?: Record<string, never>;
+      /** @example Hybrid */
+      workPolicy?: Record<string, never>;
+      /** @example 4/5 */
+      workLifeBalance?: Record<string, never>;
+      /** @example Lahore, Pakistan */
+      headquarters?: Record<string, never>;
+      /** @example 123 Tech Park, DHA Phase 5, Lahore */
+      address?: Record<string, never>;
+      /** @example 2005 */
+      founded?: Record<string, never>;
+    };
+    MergeFieldOverridesDto: {
+      industry?: Record<string, never>;
+      companySize?: Record<string, never>;
+      techStack?: string[];
+      cultureSummary?: Record<string, never>;
+      workPolicy?: Record<string, never>;
+      workLifeBalance?: Record<string, never>;
+      headquarters?: Record<string, never>;
+      headquartersLowConfidence?: boolean;
+      address?: Record<string, never>;
+      addressLowConfidence?: boolean;
+      founded?: Record<string, never>;
+    };
+    MergeCompanyDto: {
+      /**
+       * Format: cuid
+       * @description The company to merge into the canonical company (:id in the URL) and delete
+       */
+      duplicateCompanyId: string;
+      /** @description Per-field picks when canonical and duplicate have differing enrichment data — only include fields the user explicitly chose the duplicate's value for */
+      fieldOverrides?: components['schemas']['MergeFieldOverridesDto'];
+    };
+    CsvImportErrorDto: {
+      /**
+       * @description 1-indexed row, header is row 1
+       * @example 3
+       */
+      row: number;
+      /** @example Invalid city "Multan" — expected one of LAHORE, ISLAMABAD, KARACHI, OTHER */
+      message: string;
+    };
+    CsvImportResultDto: {
+      /** @example 12 */
+      imported: number;
+      errors: components['schemas']['CsvImportErrorDto'][];
     };
     UserProfileDto: {
       /** Format: cuid */
@@ -758,6 +1174,8 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
         | 'OTHER';
       /** @enum {string} */
       applicationChannel?:
@@ -768,6 +1186,7 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'TARAKI'
         | 'OTHER';
       /** @example Referral from John */
       notes?: string;
@@ -815,6 +1234,12 @@ export interface components {
       /** Format: date-time */
       updatedAt: string;
     };
+    MatchedCompanyDto: {
+      /** Format: cuid */
+      id: string;
+      /** @example Systems Limited */
+      name: string;
+    };
     JobResponseDto: {
       /** Format: cuid */
       id: string;
@@ -847,6 +1272,8 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
         | 'OTHER';
       /** @enum {string} */
       applicationChannel?:
@@ -857,6 +1284,7 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'TARAKI'
         | 'OTHER';
       /** @example Referral from John */
       notes?: Record<string, never>;
@@ -864,15 +1292,26 @@ export interface components {
       appliedAt: string;
       /** Format: date-time */
       nextInterviewAt?: Record<string, never>;
+      /**
+       * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
+       * @example Applied, then moved to interviewing.
+       */
+      timelineSummary?: Record<string, never>;
+      /** Format: date-time */
+      timelineSummaryAt?: Record<string, never>;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
       updatedAt: string;
       /** Format: cuid */
       userId: string;
+      /** Format: cuid */
+      companyId?: Record<string, never>;
       companyProfile?: components['schemas']['CompanyProfileResponseDto'];
       resume?: components['schemas']['ResumeResponseDto'];
       interviewRounds?: components['schemas']['InterviewRoundResponseDto'][];
+      /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
+      matchedCompany?: components['schemas']['MatchedCompanyDto'];
     };
     ParseJobDto: {
       /** @example https://jobs.example.com/123 */
@@ -882,11 +1321,11 @@ export interface components {
     };
     ParsedJobDto: {
       /** @example Acme Corp */
-      company?: string;
+      company?: Record<string, never>;
       /** @example Senior Engineer */
-      position?: string;
+      position?: Record<string, never>;
       /** @example Remote */
-      location?: string;
+      location?: Record<string, never>;
       /** @example https://jobs.example.com/123 */
       url?: string;
       /** @enum {string} */
@@ -900,17 +1339,8 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'TARAKI'
         | 'OTHER';
-    };
-    PaginationMetaDto: {
-      /** @example 42 */
-      total: number;
-      /** @example 1 */
-      page: number;
-      /** @example 10 */
-      limit: number;
-      /** @example 5 */
-      totalPages: number;
     };
     PaginatedJobsDto: {
       data: components['schemas']['JobResponseDto'][];
@@ -984,6 +1414,7 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'TARAKI'
         | 'OTHER'
         | 'UNSPECIFIED';
       /** @example 20 */
@@ -1071,6 +1502,10 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
     };
+    PaginatedJobEventsDto: {
+      data: components['schemas']['JobEventDto'][];
+      meta: components['schemas']['PaginationMetaDto'];
+    };
     UpdateJobDto: {
       /** @example Acme Corp */
       company?: string;
@@ -1101,6 +1536,8 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
         | 'OTHER';
       /** @enum {string} */
       applicationChannel?:
@@ -1111,6 +1548,7 @@ export interface components {
         | 'ROZEE'
         | 'REFERRAL'
         | 'CAREER_EMAIL'
+        | 'TARAKI'
         | 'OTHER';
       /** @example Referral from John */
       notes?: string;
@@ -1134,6 +1572,45 @@ export interface components {
     PaginatedAdminUsersDto: {
       data: components['schemas']['AdminUserDto'][];
       meta: components['schemas']['PaginationMetaDto'];
+    };
+    CreateTokenDto: {
+      /** @example Chrome extension */
+      name: string;
+    };
+    CreatedTokenDto: {
+      /** Format: uuid */
+      id: string;
+      /** @example Chrome extension */
+      name: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      lastUsedAt?: Record<string, never>;
+      /**
+       * Format: date-time
+       * @description Expires 180 days after creation absent a manual revoke
+       */
+      expiresAt: string;
+      /**
+       * @description Raw token value — shown only once, on creation
+       * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
+       */
+      token: string;
+    };
+    TokenResponseDto: {
+      /** Format: uuid */
+      id: string;
+      /** @example Chrome extension */
+      name: string;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      lastUsedAt?: Record<string, never>;
+      /**
+       * Format: date-time
+       * @description Expires 180 days after creation absent a manual revoke
+       */
+      expiresAt: string;
     };
   };
   responses: never;
@@ -1166,7 +1643,7 @@ export interface operations {
         };
       };
       /** @description Email already in use */
-      409: {
+      400: {
         headers: {
           [name: string]: unknown;
         };
@@ -1251,6 +1728,43 @@ export interface operations {
           'application/json': components['schemas']['AuthTokensDto'];
         };
       };
+      /** @description OAuth code expired or already used */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  AuthController_exchangeApiToken: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ExchangeApiTokenDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ApiTokenAccessDto'];
+        };
+      };
+      /** @description Invalid or revoked access token */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   AuthController_logout: {
@@ -1313,6 +1827,13 @@ export interface operations {
       };
       /** @description Missing or invalid access token */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description No resume found for this job */
+      404: {
         headers: {
           [name: string]: unknown;
         };
@@ -1817,6 +2338,510 @@ export interface operations {
       };
     };
   };
+  CompanyContactsController_findAll: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        companyId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ContactResponseDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompanyContactsController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        companyId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateContactDto'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ContactResponseDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompanyContactsController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        companyId: string;
+        /** @description Contact ID */
+        contactId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company or contact not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompanyContactsController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        companyId: string;
+        /** @description Contact ID */
+        contactId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateContactDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ContactResponseDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company or contact not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_findAll: {
+    parameters: {
+      query?: {
+        page?: number;
+        city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
+        search?: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['PaginatedCompaniesDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateCompanyDto'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanyResponseDto'];
+        };
+      };
+      /** @description Company limit reached */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description A company with this name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_findDuplicates: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['DuplicateSuggestionDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_findOne: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanyResponseDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_remove: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_update: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateCompanyDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanyResponseDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description A company with this name already exists */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_triggerEnrichment: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Company ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Enrichment queued */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Enrichment already in progress */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_merge: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Canonical company ID (survives the merge) */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MergeCompanyDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanyResponseDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Canonical or duplicate company not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Cannot merge a company with itself */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  CompaniesController_importCsv: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'multipart/form-data': {
+          /**
+           * Format: binary
+           * @description CSV file, header row "name,city,businessMode" (max 1 MB)
+           */
+          file?: string;
+        };
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CsvImportResultDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   UsersController_getProfile: {
     parameters: {
       query?: never;
@@ -1890,6 +2915,13 @@ export interface operations {
           'application/json': components['schemas']['UserProfileDto'];
         };
       };
+      /** @description Email already in use */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Missing or invalid access token */
       401: {
         headers: {
@@ -1950,8 +2982,22 @@ export interface operations {
           'application/json': components['schemas']['MessageDto'];
         };
       };
+      /** @description Current password is incorrect */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Missing or invalid access token */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Account uses social login — no password set */
+      403: {
         headers: {
           [name: string]: unknown;
         };
@@ -2346,36 +3392,8 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['JobEventDto'][];
+          'application/json': components['schemas']['PaginatedJobEventsDto'];
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  EnrichmentController_triggerEnrichment: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Enrichment queued */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
       };
       /** @description Missing or invalid access token */
       401: {
@@ -2386,13 +3404,6 @@ export interface operations {
       };
       /** @description Job not found */
       404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Enrichment already in progress */
-      409: {
         headers: {
           [name: string]: unknown;
         };
@@ -2630,7 +3641,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description Requires ADMIN role */
+      /** @description Requires ADMIN role, or attempting to delete your own account */
       403: {
         headers: {
           [name: string]: unknown;
@@ -2638,6 +3649,98 @@ export interface operations {
         content?: never;
       };
       /** @description User not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  TokensController_findAll: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TokenResponseDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  TokensController_create: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateTokenDto'];
+      };
+    };
+    responses: {
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CreatedTokenDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  TokensController_revoke: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Token ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Token not found */
       404: {
         headers: {
           [name: string]: unknown;
