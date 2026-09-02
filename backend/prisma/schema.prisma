@@ -205,6 +205,12 @@ model Job {
   @@index([userId, createdAt])
   @@index([userId, nextInterviewAt])
   @@index([companyId])
+  // RAW INDEXES, not represented above: trigram GIN indexes on company,
+  // position, location and notes back the unanchored ILIKE search in
+  // buildJobWhere (add_company_ci_unique_and_job_search_trgm migration).
+  // Prisma cannot express an operator-class index, so `prisma migrate dev`
+  // will propose DROPping them on the next schema change — delete those
+  // DROP statements from the generated migration.
 }
 
 model Company {
@@ -252,6 +258,11 @@ model Company {
   @@index([userId])
   @@index([userId, city])
   @@index([userId, priority])
+  // RAW INDEX, not represented above: a functional UNIQUE index on
+  // (userId, lower(name)) enforces case-insensitive name uniqueness per user
+  // (add_company_ci_unique_and_job_search_trgm migration). JobsService
+  // .resolveCompanyId depends on it for its P2002 fallback. Same
+  // migrate-dev caveat as Job's raw indexes above.
   @@map("companies")
 }
 

@@ -253,54 +253,59 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
-    it('retries the transaction when a write conflict is not a same-name race (different company predicate-locked the same range)', async () => {
-      mockPrisma.job.create.mockResolvedValue({
-        id: 'job-new',
-        status: JobStatus.APPLIED,
-      });
-      mockPrisma.company.findFirst
-        .mockResolvedValueOnce(null) // attempt 1: initial lookup, no match
-        .mockResolvedValueOnce(null) // re-fetch after conflict: not a same-name race
-        .mockResolvedValueOnce(null); // attempt 2: initial lookup, no match
-      mockPrisma.company.create
-        .mockRejectedValueOnce(
-          Object.assign(new Error('could not serialize access'), {
-            code: 'P2034',
-          }),
-        )
-        .mockResolvedValueOnce({ id: 'company-retried', name: 'Retry Co' });
-
-      const dto: CreateJobDto = { company: 'Retry Co', position: 'Engineer' };
-      const result = await service.create('user-1', dto);
-
-      expect(mockPrisma.company.findFirst).toHaveBeenCalledTimes(3);
-      expect(mockPrisma.company.create).toHaveBeenCalledTimes(2);
-      expect(mockPrisma.job.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ companyId: 'company-retried' }),
-        }),
-      );
-      expect(result.matchedCompany).toBeNull();
-    });
-
-    // The retry loop gives up after MAX_ATTEMPTS. What it throws then is the
-    // difference between a caller being told to retry and a caller seeing an
-    // unexplained 500: GlobalExceptionFilter maps only P2002 and P2025, so a
-    // raw P2034 escaping here lands as "Internal server error".
-    it('reports a 409, not a raw serialization error, once the retry budget is exhausted', async () => {
+    // A unique violation is the only error that means "someone else created
+    // this company first". Anything else is a real failure and must not be
+    // swallowed into a silent null companyId — that would drop the FK and
+    // leave the job linked to nothing.
+    it('propagates a non-P2002 create failure instead of linking the job to no company', async () => {
       mockPrisma.company.findFirst.mockResolvedValue(null);
       mockPrisma.company.create.mockRejectedValue(
-        Object.assign(new Error('could not serialize access'), {
-          code: 'P2034',
-        }),
+        Object.assign(new Error('connection terminated'), { code: 'P1017' }),
       );
 
       const dto: CreateJobDto = { company: 'Busy Co', position: 'Engineer' };
 
       await expect(service.create('user-1', dto)).rejects.toThrow(
-        ConflictException,
+        'connection terminated',
       );
       expect(mockPrisma.job.create).not.toHaveBeenCalled();
+    });
+
+    // The re-fetch after P2002 finds the winner's row in every real race —
+    // a unique violation can only be raised against a committed row. If it
+    // somehow comes back empty, rethrowing lets GlobalExceptionFilter answer
+    // 409; inventing a null companyId would silently unlink the job.
+    it('rethrows when the post-conflict re-fetch finds nothing', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.company.create.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      );
+
+      const dto: CreateJobDto = { company: 'Ghost Co', position: 'Engineer' };
+
+      await expect(service.create('user-1', dto)).rejects.toMatchObject({
+        code: 'P2002',
+      });
+      expect(mockPrisma.job.create).not.toHaveBeenCalled();
+    });
+
+    // The old implementation ran this find-or-create inside a Serializable
+    // transaction. The DB-level unique index replaced it — a stray
+    // $transaction here would mean the retry apparatus crept back.
+    it('resolves the company FK without opening a transaction', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+
+      await service.create('user-1', { company: 'Acme', position: 'Engineer' });
+
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
     });
 
     it('enqueues a timeline-summary regen after job creation', async () => {
@@ -524,6 +529,86 @@ describe('JobsService', () => {
       );
       expect(mockPrisma.job.findFirst).not.toHaveBeenCalledWith(
         expect.objectContaining({ include: expect.anything() }),
+      );
+    });
+
+    // `Job.appliedAt` defaults to now() at row creation, so a wishlisted job
+    // carries the date it was *saved*, not the date it was applied to. Every
+    // "applications sent" metric reads that column.
+    it('re-stamps appliedAt when a job leaves WISHLIST', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.WISHLIST,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+      const before = Date.now();
+
+      await service.update('user-1', 'job-1', { status: JobStatus.APPLIED });
+
+      const { data } = mockPrisma.job.update.mock.calls[0][0];
+      expect(data.appliedAt).toBeInstanceOf(Date);
+      expect((data.appliedAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+    });
+
+    // The board lets you drag a wishlist card straight past APPLIED.
+    it('re-stamps appliedAt for a WISHLIST -> INTERVIEWING jump too', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.WISHLIST,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.INTERVIEWING,
+      });
+
+      expect(
+        mockPrisma.job.update.mock.calls[0][0].data.appliedAt,
+      ).toBeInstanceOf(Date);
+    });
+
+    it('leaves appliedAt alone on a status change that does not start from WISHLIST', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.INTERVIEWING,
+      });
+
+      expect(
+        mockPrisma.job.update.mock.calls[0][0].data.appliedAt,
+      ).toBeUndefined();
+    });
+
+    it('lets an explicitly submitted appliedAt win over the wishlist re-stamp', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.WISHLIST,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.APPLIED,
+        appliedAt: '2026-01-05',
+      });
+
+      expect(mockPrisma.job.update.mock.calls[0][0].data.appliedAt).toEqual(
+        new Date('2026-01-05'),
       );
     });
 

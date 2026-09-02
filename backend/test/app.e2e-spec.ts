@@ -945,10 +945,13 @@ describe('Job Tracker (e2e)', () => {
 
       expect(res.body.data).toBeInstanceOf(Array);
       expect(res.body.data.length).toBe(2);
-      expect(res.body.data[0].type).toBe('CREATED');
-      expect(res.body.data[1].type).toBe('STATUS_CHANGE');
-      expect(res.body.data[1].fromStatus).toBe('APPLIED');
-      expect(res.body.data[1].toStatus).toBe('INTERVIEWING');
+      // Newest-first: page 1 must carry the recent activity, since a job with
+      // more events than the page size would otherwise return only its oldest
+      // slice. Callers that render oldest-to-newest reverse the page.
+      expect(res.body.data[0].type).toBe('STATUS_CHANGE');
+      expect(res.body.data[0].fromStatus).toBe('APPLIED');
+      expect(res.body.data[0].toStatus).toBe('INTERVIEWING');
+      expect(res.body.data[1].type).toBe('CREATED');
       expect(res.body.meta).toEqual({
         total: 2,
         page: 1,

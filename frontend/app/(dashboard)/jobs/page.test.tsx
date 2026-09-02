@@ -42,8 +42,14 @@ vi.mock('../../../components/jobs/quick-add', () => ({
 }));
 
 vi.mock('../../../components/jobs/kanban-board', () => ({
-  KanbanBoard: ({ onEdit }: { onEdit: (job: Job) => void }) => (
-    <div data-testid="kanban-board">
+  KanbanBoard: ({
+    onEdit,
+    filters,
+  }: {
+    onEdit: (job: Job) => void;
+    filters: Record<string, string>;
+  }) => (
+    <div data-testid="kanban-board" data-filters={JSON.stringify(filters)}>
       <button onClick={() => onEdit(jobs[0])}>kanban-edit</button>
     </div>
   ),
@@ -204,6 +210,33 @@ describe('JobsPage', () => {
       });
       await waitFor(() => expect(lastGetUrl()).toContain('priority=LOW'));
     });
+    it('filters by applied-date range', async () => {
+      // The backend has supported dateFrom/dateTo all along; there was no UI
+      // for it, so the range filter was unreachable.
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.change(screen.getByLabelText('Applied on or after'), {
+        target: { value: '2026-01-01' },
+      });
+      fireEvent.change(screen.getByLabelText('Applied on or before'), {
+        target: { value: '2026-06-30' },
+      });
+      await waitFor(() => expect(lastGetUrl()).toContain('dateFrom=2026-01-01'));
+      expect(lastGetUrl()).toContain('dateTo=2026-06-30');
+    });
+
+    it('clears both date bounds at once', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.change(screen.getByLabelText('Applied on or after'), {
+        target: { value: '2026-01-01' },
+      });
+      await waitFor(() => expect(lastGetUrl()).toContain('dateFrom='));
+      fireEvent.click(screen.getByRole('button', { name: /clear dates/i }));
+      await waitFor(() => expect(lastGetUrl()).not.toContain('dateFrom='));
+    });
   });
 
   describe('view toggle', () => {
@@ -218,6 +251,21 @@ describe('JobsPage', () => {
       fireEvent.click(screen.getByRole('button', { name: /^list$/i }));
       expect(await screen.findByText('Acme')).toBeInTheDocument();
       expect(screen.queryByTestId('kanban-board')).not.toBeInTheDocument();
+    });
+
+    it('hands the board the same filters the list is using', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.change(screen.getByLabelText('Filter by priority'), {
+        target: { value: 'LOW' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /board/i }));
+
+      const board = screen.getByTestId('kanban-board');
+      expect(
+        JSON.parse(board.getAttribute('data-filters') ?? '{}'),
+      ).toMatchObject({ priority: 'LOW' });
     });
 
     it('opens JobForm pre-filled when editing from the Kanban board', async () => {

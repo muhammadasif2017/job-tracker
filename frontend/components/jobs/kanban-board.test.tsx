@@ -5,6 +5,8 @@ import { KanbanBoard } from './kanban-board';
 import {
   KANBAN_PAGE_SIZE,
   KANBAN_STATUSES,
+  kanbanQueryKey,
+  type JobsFilterValues,
 } from '../../features/jobs/hooks';
 import type {
   DropResult,
@@ -75,12 +77,17 @@ vi.mock('@hello-pangea/dnd', () => ({
 import api from '../../lib/api';
 import { toast } from 'sonner';
 
-// Derived from the same constants the hook uses, so the cache key in this
-// test can't silently drift away from the one the board actually writes.
-const JOBS_KEY = [
-  'jobs',
-  { limit: KANBAN_PAGE_SIZE, statusIn: KANBAN_STATUSES },
-];
+const noFilters: JobsFilterValues = {
+  search: '',
+  status: '',
+  priority: '',
+  dateFrom: '',
+  dateTo: '',
+};
+
+// Built by the same function the hook uses, so the cache key in this test
+// can't silently drift away from the one the board actually writes.
+const JOBS_KEY = kanbanQueryKey(noFilters);
 
 function makeJob(overrides: Partial<Job>): Job {
   return {
@@ -102,13 +109,17 @@ function paginated(data: Job[], total = data.length): PaginatedJobs {
   return { data, meta: { total, page: 1, limit: 100, totalPages: 1 } };
 }
 
-function renderBoard(jobs: Job[], onEdit = vi.fn()) {
+function renderBoard(
+  jobs: Job[],
+  onEdit = vi.fn(),
+  filters: JobsFilterValues = noFilters,
+) {
   vi.mocked(api.get).mockResolvedValue({ data: paginated(jobs) });
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
   render(
     <QueryClientProvider client={qc}>
-      <KanbanBoard onEdit={onEdit} />
+      <KanbanBoard onEdit={onEdit} filters={filters} />
     </QueryClientProvider>,
   );
   return { qc, invalidateSpy, onEdit };
@@ -125,7 +136,7 @@ describe('KanbanBoard', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const { container } = render(
       <QueryClientProvider client={qc}>
-        <KanbanBoard onEdit={vi.fn()} />
+        <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
       </QueryClientProvider>,
     );
     expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
@@ -137,7 +148,7 @@ describe('KanbanBoard', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}>
-        <KanbanBoard onEdit={vi.fn()} />
+        <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
       </QueryClientProvider>,
     );
     expect(await screen.findByText('Failed to load board')).toBeInTheDocument();
@@ -155,6 +166,43 @@ describe('KanbanBoard', () => {
     expect(url).toContain('limit=100');
   });
 
+  it('forwards the page filters to the API instead of fetching everything', async () => {
+    // The board used to send only limit + statusIn, so filtering the list and
+    // switching to the board silently showed the whole pipeline again.
+    renderBoard([], vi.fn(), {
+      search: 'acme',
+      status: '',
+      priority: 'HIGH',
+      dateFrom: '2026-01-01',
+      dateTo: '2026-06-30',
+    });
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
+    const url = vi.mocked(api.get).mock.calls[0][0] as string;
+    expect(url).toContain('search=acme');
+    expect(url).toContain('priority=HIGH');
+    expect(url).toContain('dateFrom=2026-01-01');
+    expect(url).toContain('dateTo=2026-06-30');
+  });
+
+  it('narrows to a single column when the status filter names one', async () => {
+    renderBoard([], vi.fn(), { ...noFilters, status: 'APPLIED' });
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
+    expect(vi.mocked(api.get).mock.calls[0][0] as string).toContain(
+      'statusIn=APPLIED',
+    );
+    expect(screen.queryByText('Wishlist')).not.toBeInTheDocument();
+  });
+
+  it('explains itself, and fetches nothing, for a status with no board column', async () => {
+    // Rejected/Ghosted have no column — rendering an empty board would read
+    // as "you have no applications".
+    renderBoard([], vi.fn(), { ...noFilters, status: 'REJECTED' });
+    expect(
+      await screen.findByText(/isn't a board column/i),
+    ).toBeInTheDocument();
+    expect(vi.mocked(api.get)).not.toHaveBeenCalled();
+  });
+
   it('says how many jobs are off the board when the page is truncated', async () => {
     vi.mocked(api.get).mockResolvedValue({
       data: paginated([makeJob({ id: 'j-1', status: 'APPLIED' })], 105),
@@ -162,7 +210,7 @@ describe('KanbanBoard', () => {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     render(
       <QueryClientProvider client={qc}>
-        <KanbanBoard onEdit={vi.fn()} />
+        <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
       </QueryClientProvider>,
     );
     expect(await screen.findByText(/104 more are not on the board/i)).toBeInTheDocument();
@@ -292,7 +340,7 @@ describe('KanbanBoard', () => {
       const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
       render(
         <QueryClientProvider client={qc}>
-          <KanbanBoard onEdit={vi.fn()} />
+          <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
         </QueryClientProvider>,
       );
       await waitFor(() => expect(screen.getByText('FailCo')).toBeInTheDocument());

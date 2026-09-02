@@ -27,6 +27,7 @@ npx prisma studio                             # GUI DB browser
   ```
 - `prisma.config.ts` at the backend root is Prisma 7's required config file — do not delete it.
 - Always run `prisma generate` after any schema change or migration.
+- **Two indexes are raw SQL and are NOT represented in `schema.prisma`** — a functional UNIQUE index on `companies (userId, lower(name))` and four `pg_trgm` GIN indexes on `Job`'s searchable columns (migration `20260903090000_company_ci_unique_and_job_search_trgm`). Prisma has no syntax for expression or operator-class indexes, so **the next `prisma migrate dev` will generate `DROP INDEX` statements for all five — delete those lines from the generated migration before applying it.** Both models carry a comment saying so. `JobsService.resolveCompanyId` depends on the unique index for correctness (its `P2002` fallback), and `buildJobWhere`'s `ILIKE '%term%'` search is a sequential scan without the trigram indexes.
 - **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) *are* wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
 
 ---
@@ -189,15 +190,42 @@ from the existing `['job', id]` query; no separate fetch.
 
 ---
 
+## Jobs: `appliedAt` Is Re-Stamped on Leaving WISHLIST
+
+`Job.appliedAt` is `@default(now())`, so a wishlisted job carries the date it
+was *saved*. `JobsService.update` re-stamps it to `now()` when a status change
+moves the job out of `WISHLIST` in any direction (the board allows a drag
+straight to INTERVIEWING) — unless the same request carries an explicit
+`appliedAt`, which wins. Without this every "applications sent" metric
+(`getStats.thisMonth`, the trend buckets, the 30d/90d range filters, the CSV
+"Applied Date", the default list sort) dated the application from the save.
+`SENT_APPLICATION_FILTER` excludes `WISHLIST` rows from those metrics; this is
+the other half of that rule, covering what happens once a row leaves. See
+ADR-033.
+
+Anything calendar-shaped in `JobsStatsService` resolves in the user's own
+`User.timezone` (the same column the digest/reminder schedulers read), via
+`src/common/timezone.util.ts` — not the server's zone. Don't reach for
+`new Date(y, m, d)` or local `getMonth()`/`getDate()` in a stats path.
+
+---
+
 ## Jobs/Companies: `companyId` FK Resolution
 
 `JobsService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
 path for turning a job's free-text `company` label into a real `Company` row
 and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
-for auto-created rows, run inside a `Serializable` transaction (same pattern as
-`CompaniesService.runNameCheckedWrite`) with a re-fetch fallback on `P2034`/
-`P2002` so a case-variant name race ("Google" vs "google") can't create two
-companies. Both
+for auto-created rows. Concurrency is enforced by the database, not the
+application: a **raw functional unique index on `(userId, lower(name))`**
+(migration `20260903090000_company_ci_unique_and_job_search_trgm`) makes a
+case-variant race ("Google" vs "google") an ordinary unique violation, so the
+method is a plain `findFirst` + `create` with a single re-fetch on `P2002`. It
+used to run in a `Serializable` transaction with an 8-attempt jittered retry
+loop; that's gone — the case-insensitive `findFirst` had no index to match, so
+Serializable predicate-locked the user's whole `(userId, name)` range and two
+creates for unrelated company names aborted each other, which taxed exactly the
+bulk paths (extension, CSV import) that fire many creates for one user. Don't
+reintroduce a transaction here. See ADR-033. Both
 `create` and `update` reject an explicit `company: null` with a 400 —
 `Job.company` is a required non-nullable column, so there's no "unlink" state
 for a client to clear it into (unlike the optional profile fields this repo's

@@ -17,27 +17,35 @@ import {
   ApplicationChannel,
 } from '@prisma/client';
 
-// Trims before validation so `@IsNotEmpty()` rejects a whitespace-only value
-// instead of letting it through. Without this, "   " passes validation and
-// then `resolveCompanyId` trims it to "" — silently storing a blank company
+// Normalizes to NFKC and trims before validation.
+//
+// Trimming first: without it `@IsNotEmpty()` accepts "   ", which
+// `resolveCompanyId` then trims to "" — silently storing a blank company
 // label with a null companyId. It also keeps `Job.company` byte-identical to
 // the name the Company FK was resolved from, so a later edit's
 // "label unchanged" check can't miss on surrounding whitespace.
-const TrimString = () =>
+//
+// NFKC folds styled Unicode (Mathematical Bold letters and friends, pasted
+// straight out of a LinkedIn post) down to plain Latin. `buildJobWhere`
+// already normalizes the *search term* the same way; normalizing on write is
+// the other half — otherwise a styled stored value could never be matched by
+// any term the user could type. Existing rows were folded by the
+// add_company_ci_unique_and_job_search_trgm migration.
+const NormalizedText = () =>
   Transform(({ value }: { value: unknown }) =>
-    typeof value === 'string' ? value.trim() : value,
+    typeof value === 'string' ? value.normalize('NFKC').trim() : value,
   );
 
 export class CreateJobDto {
   @ApiProperty({ example: 'Acme Corp', maxLength: 200 })
-  @TrimString()
+  @NormalizedText()
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
   company: string;
 
   @ApiProperty({ example: 'Senior Engineer', maxLength: 200 })
-  @TrimString()
+  @NormalizedText()
   @IsString()
   @IsNotEmpty()
   @MaxLength(200)
@@ -53,7 +61,7 @@ export class CreateJobDto {
   // outright.
   @ApiPropertyOptional({ example: 'Remote', maxLength: 200 })
   @IsOptional()
-  @TrimString()
+  @NormalizedText()
   @IsString()
   @MaxLength(200)
   location?: string | null;
@@ -94,6 +102,7 @@ export class CreateJobDto {
 
   @ApiPropertyOptional({ example: 'Referral from John', maxLength: 5000 })
   @IsOptional()
+  @NormalizedText()
   @IsString()
   @MaxLength(5000)
   notes?: string | null;

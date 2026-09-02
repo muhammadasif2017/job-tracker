@@ -15,19 +15,27 @@ import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../.
 import {
   useKanbanJobsQuery,
   useKanbanPatchStatusMutation,
+  kanbanStatuses,
   KANBAN_STATUSES,
   KANBAN_PAGE_SIZE,
+  type JobsFilterValues,
 } from '../../features/jobs/hooks';
 
 const KANBAN_COLS: JobStatus[] = KANBAN_STATUSES;
 
 interface KanbanBoardProps {
   onEdit: (job: Job) => void;
+  // The page's filters, honoured here too — the board used to fetch
+  // unfiltered, so switching from a filtered list to the board silently
+  // showed every open application again.
+  filters: JobsFilterValues;
 }
 
-export function KanbanBoard({ onEdit }: KanbanBoardProps) {
-  const { data, isLoading, isError, refetch } = useKanbanJobsQuery();
-  const patchStatus = useKanbanPatchStatusMutation();
+export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
+  const { data, isLoading, isError, refetch } = useKanbanJobsQuery(filters);
+  const patchStatus = useKanbanPatchStatusMutation(filters);
+  // Empty when the status filter names a stage the board has no column for.
+  const selectableStatuses = kanbanStatuses(filters.status);
 
   // The board fetches a single page. When more open applications match than
   // fit in it, say so — silently rendering a subset of the pipeline is worse
@@ -56,6 +64,21 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
       patchStatus.mutate({ id: jobId, status: newStatus });
     }
   };
+
+  if (selectableStatuses.length === 0) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-md border border-line bg-paper py-16 text-center">
+        <p className="text-base font-medium text-ink">
+          {STATUS_LABELS[filters.status as JobStatus]} isn&apos;t a board
+          column
+        </p>
+        <p className="text-sm text-muted-2">
+          The board shows the open pipeline only. Switch to list view to see
+          these applications.
+        </p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -98,7 +121,7 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
         </p>
       )}
       <div className="flex gap-4 overflow-x-auto pb-4">
-        {KANBAN_COLS.map((col) => (
+        {selectableStatuses.map((col) => (
           <div key={col} className="w-64 shrink-0">
             <div className="relative mb-3 flex items-center gap-2 border-b-2 border-dashed border-line pb-3">
               <span
