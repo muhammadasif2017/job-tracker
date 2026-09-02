@@ -318,6 +318,15 @@ model JobEvent {
   note       String?
   createdAt  DateTime     @default(now())
 
-  @@index([jobId])
+  // Composite, not a bare [jobId]: every read of this table filters by jobId
+  // and then orders by createdAt — the paginated timeline (JobsService
+  // .getEvents), the summariser's most-recent-50 (TimelineSummaryProcessor),
+  // and the funnel's [jobId, createdAt] scan (JobsStatsService.getFunnel).
+  // The composite serves that ordering directly instead of making Postgres
+  // sort the matched rows. It also covers everything a lone [jobId] index did
+  // — leading-column prefix, so plain jobId lookups, the count in getEvents,
+  // and the FK cascade delete from Job all still use it — which is why that
+  // index is dropped rather than kept alongside.
+  @@index([jobId, createdAt])
   @@map("job_events")
 }
