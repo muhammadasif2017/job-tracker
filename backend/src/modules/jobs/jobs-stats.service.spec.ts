@@ -144,11 +144,44 @@ describe('JobsStatsService', () => {
       expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({ where: { userId: 'u1' } }),
       );
-      // thisMonth's count call is untouched by range — still just userId + calendar-month cutoff.
+      // thisMonth's count call is untouched by range — still just userId +
+      // calendar-month cutoff (plus the WISHLIST exclusion every
+      // applications-sent metric carries).
       expect(mockPrisma.job.count).toHaveBeenNthCalledWith(
         1,
+        expect.objectContaining({
+          where: { userId: 'u1', status: { not: JobStatus.WISHLIST } },
+        }),
+      );
+    });
+
+    it('excludes WISHLIST from total and thisMonth but not from byStatus', async () => {
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { status: JobStatus.WISHLIST, _count: { _all: 4 } },
+        { status: JobStatus.APPLIED, _count: { _all: 5 } },
+        { status: JobStatus.INTERVIEWING, _count: { _all: 5 } },
+      ]);
+      mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3);
+
+      const stats = await service.getStats('u1', 'all');
+
+      // Job.appliedAt is @default(now()), so a wishlist save carries a date
+      // and would otherwise inflate the "Total Applications" tile and deflate
+      // responseRate. total counts only applications actually sent.
+      const [totalCall, thisMonthCall] = mockPrisma.job.count.mock.calls;
+      expect(totalCall[0].where).toMatchObject({
+        status: { not: JobStatus.WISHLIST },
+      });
+      expect(thisMonthCall[0].where).toMatchObject({
+        status: { not: JobStatus.WISHLIST },
+      });
+      // 5 INTERVIEWING responded / 10 sent — not / 14 tracked.
+      expect(stats.responseRate).toBe(50);
+      // The status pie still needs its Wishlist slice.
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({ where: { userId: 'u1' } }),
       );
+      expect(stats.byStatus[JobStatus.WISHLIST]).toBe(4);
     });
 
     it('range=30d adds an appliedAt cutoff to total/byStatus but not to thisMonth', async () => {
@@ -164,11 +197,16 @@ describe('JobsStatsService', () => {
       );
       const [totalCall, thisMonthCall] = mockPrisma.job.count.mock.calls;
       expect(totalCall[0]).toEqual({
-        where: { userId: 'u1', appliedAt: { gte: expect.any(Date) } },
+        where: {
+          userId: 'u1',
+          appliedAt: { gte: expect.any(Date) },
+          status: { not: JobStatus.WISHLIST },
+        },
       });
       expect(thisMonthCall[0].where).toEqual({
         userId: 'u1',
         appliedAt: { gte: expect.any(Date) },
+        status: { not: JobStatus.WISHLIST },
       });
       // thisMonth's cutoff is the calendar month start, not the 30-day range cutoff.
       const rangeCutoff = totalCall[0].where.appliedAt.gte as Date;
@@ -385,7 +423,11 @@ describe('JobsStatsService', () => {
       const result = await service.getTrend('u1', '30d');
 
       expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
-        where: { userId: 'u1', appliedAt: { gte: expect.any(Date) } },
+        where: {
+          userId: 'u1',
+          appliedAt: { gte: expect.any(Date) },
+          status: { not: JobStatus.WISHLIST },
+        },
         select: { appliedAt: true },
       });
       expect(result.granularity).toBe('day');
@@ -398,9 +440,23 @@ describe('JobsStatsService', () => {
       await service.getTrend('u1', 'all');
 
       expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
-        where: { userId: 'u1' },
+        where: { userId: 'u1', status: { not: JobStatus.WISHLIST } },
         select: { appliedAt: true },
       });
+    });
+
+    it('excludes WISHLIST jobs — the chart plots applications sent, not saves', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([]);
+
+      await service.getTrend('u1', '30d');
+
+      expect(mockPrisma.job.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            status: { not: JobStatus.WISHLIST },
+          }),
+        }),
+      );
     });
   });
 

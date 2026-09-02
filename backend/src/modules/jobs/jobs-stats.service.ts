@@ -12,6 +12,7 @@ import {
   appliedAtRangeFilter,
   computeTrendBuckets,
   buildJobWhere,
+  SENT_APPLICATION_FILTER,
 } from './jobs.constants.js';
 
 @Injectable()
@@ -25,14 +26,23 @@ export class JobsStatsService {
     const rangeWhere = { userId, ...appliedAtRangeFilter(range) };
 
     const [counts, total, thisMonth] = await Promise.all([
+      // byStatus alone keeps WISHLIST — it backs the status pie chart, which
+      // renders a Wishlist slice. Every other number below is an
+      // "applications sent" metric and excludes it.
       this.prisma.job.groupBy({
         by: ['status'],
         where: rangeWhere,
         _count: { _all: true },
       }),
-      this.prisma.job.count({ where: rangeWhere }),
       this.prisma.job.count({
-        where: { userId, appliedAt: { gte: startOfMonth } },
+        where: { ...rangeWhere, ...SENT_APPLICATION_FILTER },
+      }),
+      this.prisma.job.count({
+        where: {
+          userId,
+          appliedAt: { gte: startOfMonth },
+          ...SENT_APPLICATION_FILTER,
+        },
       }),
     ]);
 
@@ -75,7 +85,7 @@ export class JobsStatsService {
         by: ['applicationChannel', 'status'],
         where: {
           userId,
-          status: { not: JobStatus.WISHLIST },
+          ...SENT_APPLICATION_FILTER,
           ...jobRangeFilter,
         },
         _count: { _all: true },
@@ -156,8 +166,15 @@ export class JobsStatsService {
   }
 
   async getTrend(userId: string, range: StatsRange) {
+    // Same WISHLIST exclusion as getStats — the chart is labelled "New
+    // applications", and `cumulative` at the last bucket is meant to line up
+    // with getStats's range-filtered total (see computeTrendBuckets' contract).
     const jobs = await this.prisma.job.findMany({
-      where: { userId, ...appliedAtRangeFilter(range) },
+      where: {
+        userId,
+        ...appliedAtRangeFilter(range),
+        ...SENT_APPLICATION_FILTER,
+      },
       select: { appliedAt: true },
     });
 
