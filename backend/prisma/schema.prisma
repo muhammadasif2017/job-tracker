@@ -35,6 +35,8 @@ enum DiscoverySource {
   ROZEE
   REFERRAL
   CAREER_EMAIL
+  JOBLEADS
+  TARAKI
   OTHER
 }
 
@@ -46,6 +48,7 @@ enum ApplicationChannel {
   ROZEE
   REFERRAL
   CAREER_EMAIL
+  TARAKI
   OTHER
 }
 

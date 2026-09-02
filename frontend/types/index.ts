@@ -25,6 +25,8 @@ export const DISCOVERY_SOURCES = [
   'ROZEE',
   'REFERRAL',
   'CAREER_EMAIL',
+  'JOBLEADS',
+  'TARAKI',
   'OTHER',
 ] as const;
 
@@ -38,6 +40,7 @@ export const APPLICATION_CHANNELS = [
   'ROZEE',
   'REFERRAL',
   'CAREER_EMAIL',
+  'TARAKI',
   'OTHER',
 ] as const;
 
@@ -317,6 +320,8 @@ export const DISCOVERY_SOURCE_LABELS: Record<DiscoverySource, string> = {
   ROZEE: 'Rozee.pk',
   REFERRAL: 'Referral',
   CAREER_EMAIL: 'Career Email',
+  JOBLEADS: 'Jobleads',
+  TARAKI: 'Taraki',
   OTHER: 'Other',
 };
 
@@ -331,6 +336,10 @@ export const DISCOVERY_SOURCE_COLORS: Record<DiscoverySource, string> = {
   REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   CAREER_EMAIL:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  JOBLEADS:
+    'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  TARAKI:
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
@@ -342,6 +351,7 @@ export const APPLICATION_CHANNEL_LABELS: Record<ApplicationChannel, string> = {
   ROZEE: 'Rozee.pk',
   REFERRAL: 'Referral',
   CAREER_EMAIL: 'Career Email',
+  TARAKI: 'Taraki',
   OTHER: 'Other',
 };
 
@@ -355,6 +365,8 @@ export const APPLICATION_CHANNEL_COLORS: Record<ApplicationChannel, string> = {
   REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
   CAREER_EMAIL:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  TARAKI:
+    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
   OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
