@@ -325,6 +325,7 @@ export class JobsService {
       location: dto.location,
       url: dto.url,
       priority: dto.priority,
+      jobType: dto.jobType,
       discoverySource: dto.discoverySource,
       applicationChannel: dto.applicationChannel,
       notes: dto.notes,

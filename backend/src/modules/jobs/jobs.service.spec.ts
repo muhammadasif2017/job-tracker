@@ -494,6 +494,24 @@ describe('JobsService', () => {
       );
     });
 
+    it('persists an edited jobType — it is a plain updatable field, unlike status', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { jobType: JobType.REMOTE });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ jobType: JobType.REMOTE }),
+        }),
+      );
+    });
+
     it('creates a STATUS_CHANGE event with fromStatus and toStatus when status changes', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
