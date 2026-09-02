@@ -2,7 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { getAttentionItems } from './attention.helper.js';
-import { JobStatus, ApplicationChannel } from '@prisma/client';
+import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
+import { safeTimeZone, startOfLocalMonth } from '../../common/timezone.util.js';
 import {
   FUNNEL_STAGES,
   DROPOFF_STAGES,
@@ -20,13 +21,29 @@ import {
 export class JobsStatsService {
   constructor(private prisma: PrismaService) {}
 
+  // Every calendar-shaped stat ("this month", trend buckets) is computed in
+  // the user's own zone — the same `User.timezone` the digest/reminder emails
+  // already honour. Reading it here rather than on the JWT keeps it correct
+  // right after the user changes it in their profile. Missing row (or a
+  // hand-edited invalid zone) falls back to UTC, which is the column default.
+  private async userTimeZone(userId: string): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    return safeTimeZone(user?.timezone);
+  }
+
   async getStats(userId: string, range: StatsRange) {
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     // thisMonth is always "applications this calendar month" — not scoped by `range`.
     const rangeWhere = { userId, ...appliedAtRangeFilter(range) };
 
-    const [counts, total, thisMonth] = await Promise.all([
+    // The zone lookup rides along with the other queries rather than blocking
+    // in front of them — this is a dashboard-mount request, so an extra
+    // serialized round-trip would land straight on the critical path. The
+    // thisMonth count is the only one that needs it, so it runs after.
+    const [counts, total, timeZone] = await Promise.all([
       // byStatus alone keeps WISHLIST — it backs the status pie chart, which
       // renders a Wishlist slice. Every other number below is an
       // "applications sent" metric and excludes it.
@@ -38,14 +55,16 @@ export class JobsStatsService {
       this.prisma.job.count({
         where: { ...rangeWhere, ...SENT_APPLICATION_FILTER },
       }),
-      this.prisma.job.count({
-        where: {
-          userId,
-          appliedAt: { gte: startOfMonth },
-          ...SENT_APPLICATION_FILTER,
-        },
-      }),
+      this.userTimeZone(userId),
     ]);
+
+    const thisMonth = await this.prisma.job.count({
+      where: {
+        userId,
+        appliedAt: { gte: startOfLocalMonth(now, timeZone) },
+        ...SENT_APPLICATION_FILTER,
+      },
+    });
 
     const byStatus = Object.values(JobStatus).reduce(
       (acc, s) => ({ ...acc, [s]: 0 }),
@@ -75,7 +94,7 @@ export class JobsStatsService {
       // the page if event volume per user ever grows much larger.
       this.prisma.jobEvent.findMany({
         where: { job: { userId, ...jobRangeFilter } },
-        select: { jobId: true, toStatus: true, createdAt: true },
+        select: { jobId: true, type: true, toStatus: true, createdAt: true },
         orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
       }),
       // Excludes WISHLIST: responseRateBySource is a rate over applications
@@ -134,10 +153,22 @@ export class JobsStatsService {
     }
 
     // stageDurationsMs[stage] = closed-interval gaps (ms spent in that funnel
-    // stage before the job's next event). Computed per job so one job's
-    // events never leak into another's intervals.
+    // stage before the job *left* it). Computed per job so one job's events
+    // never leak into another's intervals.
+    //
+    // Only stage-entering events (CREATED / STATUS_CHANGE) open and close an
+    // interval. INTERVIEW_ROUND_ADDED is written with `toStatus` set to the
+    // job's *current* status (see InterviewRoundsService.logRoundEvent), so
+    // treating it as a boundary chopped one stay in INTERVIEWING into one
+    // short interval per round scheduled — and since each fragment counted
+    // as its own sample, the average fell the more rounds a job actually
+    // had. Filtering to status-entering events makes each interval a real
+    // "entered stage X -> left for stage Y" span again.
+    const isStageEntry = (type: JobEventType) =>
+      type === JobEventType.CREATED || type === JobEventType.STATUS_CHANGE;
     const eventsByJob = new Map<string, typeof events>();
     for (const event of events) {
+      if (!isStageEntry(event.type)) continue;
       const list = eventsByJob.get(event.jobId);
       if (list) list.push(event);
       else eventsByJob.set(event.jobId, [event]);
@@ -199,18 +230,23 @@ export class JobsStatsService {
     // Same WISHLIST exclusion as getStats — the chart is labelled "New
     // applications", and `cumulative` at the last bucket is meant to line up
     // with getStats's range-filtered total (see computeTrendBuckets' contract).
-    const jobs = await this.prisma.job.findMany({
-      where: {
-        userId,
-        ...appliedAtRangeFilter(range),
-        ...SENT_APPLICATION_FILTER,
-      },
-      select: { appliedAt: true },
-    });
+    const [jobs, timeZone] = await Promise.all([
+      this.prisma.job.findMany({
+        where: {
+          userId,
+          ...appliedAtRangeFilter(range),
+          ...SENT_APPLICATION_FILTER,
+        },
+        select: { appliedAt: true },
+      }),
+      this.userTimeZone(userId),
+    ]);
 
     return computeTrendBuckets(
       jobs.map((j) => j.appliedAt),
       range,
+      new Date(),
+      timeZone,
     );
   }
 

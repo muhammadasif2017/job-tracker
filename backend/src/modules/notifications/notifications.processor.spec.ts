@@ -233,6 +233,9 @@ describe('NotificationsProcessor', () => {
                 company: 'Acme',
                 position: 'Eng',
                 appliedAt,
+                // getAttentionItems includes the latest event to date the
+                // stall from; an empty list falls back to appliedAt.
+                events: [],
                 // already digested at (after) the same appliedAt occurrence
                 staleAppliedDigestedAt: new Date('2026-07-09T00:00:00Z'),
               },
@@ -277,6 +280,7 @@ describe('NotificationsProcessor', () => {
                 position: 'Eng',
                 // digested for an earlier occurrence than the current appliedAt
                 appliedAt: new Date('2026-07-20T00:00:00Z'),
+                events: [],
                 staleAppliedDigestedAt: new Date('2026-07-01T00:00:00Z'),
               },
             ]),
@@ -322,6 +326,7 @@ describe('NotificationsProcessor', () => {
                 company: 'Acme',
                 position: 'Eng',
                 appliedAt: new Date('2026-07-20T00:00:00Z'),
+                events: [],
                 staleAppliedDigestedAt: null,
               },
             ]),

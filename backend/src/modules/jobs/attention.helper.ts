@@ -38,12 +38,22 @@ export async function getAttentionItems(prisma: PrismaService, userId: string) {
       orderBy: { updatedAt: 'asc' },
       take: MAX_ITEMS_PER_RULE,
     }),
+    // "No movement for 7 days" means no *activity* for 7 days, not "applied
+    // more than 7 days ago" — same event-recency test STALE_INTERVIEWING
+    // uses above. Without the events clause a job you followed up on
+    // yesterday still nagged you as stalled, and (with appliedAt now
+    // re-stamped on the WISHLIST -> APPLIED transition) a long-wishlisted
+    // job would have been flagged stale the moment it was applied to.
+    // `appliedAt` is kept as a cheap indexed pre-filter and as the guard for
+    // the degenerate no-events-at-all row.
     prisma.job.findMany({
       where: {
         userId,
         status: JobStatus.APPLIED,
         appliedAt: { lt: sevenDaysAgo },
+        events: { none: { createdAt: { gt: sevenDaysAgo } } },
       },
+      include: { events: { orderBy: { createdAt: 'desc' }, take: 1 } },
       orderBy: { appliedAt: 'asc' },
       take: MAX_ITEMS_PER_RULE,
     }),
@@ -60,9 +70,13 @@ export async function getAttentionItems(prisma: PrismaService, userId: string) {
       since: events[0]?.createdAt ?? job.updatedAt,
       job,
     })),
-    ...staleApplied.map((job) => ({
+    // `since` is "stalled since" — the last thing that happened, falling back
+    // to the application date for a job with no events at all. It stays fixed
+    // while the job remains stale (any new event un-stales it), which is the
+    // invariant the digest dedup in NotificationsProcessor relies on.
+    ...staleApplied.map(({ events, ...job }) => ({
       type: STALE_APPLIED,
-      since: job.appliedAt,
+      since: events[0]?.createdAt ?? job.appliedAt,
       job,
     })),
   ];

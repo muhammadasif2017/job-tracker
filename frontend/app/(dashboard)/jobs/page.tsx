@@ -37,7 +37,12 @@ import {
   type JobPriority,
 } from '../../../types';
 import api from '../../../lib/api';
-import { useJobsQuery, useDeleteJobMutation } from '../../../features/jobs/hooks';
+import {
+  useJobsQuery,
+  useDeleteJobMutation,
+  jobFilterParams,
+  type JobsFilterValues,
+} from '../../../features/jobs/hooks';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -65,6 +70,11 @@ export default function JobsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<JobPriority | ''>('');
+  // Date-only strings straight from <input type="date">, passed through to
+  // the backend's dateFrom/dateTo (which widens dateTo to cover that whole
+  // day). '' means "no bound".
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
@@ -73,11 +83,19 @@ export default function JobsPage() {
 
   const debouncedSearch = useDebounce(search);
 
-  const { data, isLoading, isError, refetch } = useJobsQuery({
-    page,
+  // One filter object for the list, the board and the export — they answer
+  // the same question and must not drift.
+  const filters: JobsFilterValues = {
     search: debouncedSearch,
     status: statusFilter,
     priority: priorityFilter,
+    dateFrom,
+    dateTo,
+  };
+
+  const { data, isLoading, isError, refetch } = useJobsQuery({
+    ...filters,
+    page,
   });
 
   const deleteMutation = useDeleteJobMutation(() => setDeleteTarget(undefined));
@@ -93,10 +111,8 @@ export default function JobsPage() {
 
   const handleExport = async () => {
     try {
-      const exportParams = new URLSearchParams();
-      if (debouncedSearch) exportParams.set('search', debouncedSearch);
+      const exportParams = jobFilterParams(filters);
       if (statusFilter) exportParams.set('status', statusFilter);
-      if (priorityFilter) exportParams.set('priority', priorityFilter);
       const res = await api.get(`/jobs/export?${exportParams}`, {
         responseType: 'blob',
       });
@@ -198,6 +214,43 @@ export default function JobsPage() {
             </option>
           ))}
         </select>
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            aria-label="Applied on or after"
+            className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
+            value={dateFrom}
+            max={dateTo || undefined}
+            onChange={(e) => {
+              setDateFrom(e.target.value);
+              setPage(1);
+            }}
+          />
+          <span className="text-sm text-muted-2">to</span>
+          <input
+            type="date"
+            aria-label="Applied on or before"
+            className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
+            value={dateTo}
+            min={dateFrom || undefined}
+            onChange={(e) => {
+              setDateTo(e.target.value);
+              setPage(1);
+            }}
+          />
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+                setPage(1);
+              }}
+              className="rounded px-2 py-1 font-mono text-xs uppercase tracking-wide text-muted hover:text-accent"
+            >
+              Clear dates
+            </button>
+          )}
+        </div>
         <div className="flex rounded-md border border-line">
           <button
             onClick={() => setView('list')}
@@ -217,7 +270,7 @@ export default function JobsPage() {
       </div>
 
       {view === 'kanban' ? (
-        <KanbanBoard onEdit={openEdit} />
+        <KanbanBoard onEdit={openEdit} filters={filters} />
       ) : (
         <div className="rounded-md border border-line bg-paper overflow-x-auto">
           <table className="w-full text-sm">

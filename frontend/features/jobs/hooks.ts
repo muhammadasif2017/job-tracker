@@ -21,6 +21,28 @@ export interface JobsFilters {
   search: string;
   status: JobStatus | '';
   priority: JobPriority | '';
+  // Both are date-only strings from <input type="date">, or '' for no bound.
+  // The backend widens a date-only `dateTo` to the end of that day (see
+  // buildJobWhere) so the named day is included.
+  dateFrom: string;
+  dateTo: string;
+}
+
+// The subset of the page's filters that isn't pagination — shared by the
+// list, the board and the CSV export so all three answer the same question.
+export type JobsFilterValues = Omit<JobsFilters, 'page'>;
+
+// One place that turns filter state into query params. The board and the
+// list would otherwise drift on which filters they honour — the board used
+// to send none of them, so filtering the list and switching to the board
+// silently showed everything again.
+export function jobFilterParams(filters: JobsFilterValues): URLSearchParams {
+  const params = new URLSearchParams();
+  if (filters.search) params.set('search', filters.search);
+  if (filters.priority) params.set('priority', filters.priority);
+  if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
+  if (filters.dateTo) params.set('dateTo', filters.dateTo);
+  return params;
 }
 
 function invalidateJobListCaches(qc: QueryClient) {
@@ -31,15 +53,12 @@ function invalidateJobListCaches(qc: QueryClient) {
 }
 
 export function useJobsQuery(filters: JobsFilters) {
-  const params = new URLSearchParams({
-    page: String(filters.page),
-    limit: '10',
-    sortBy: 'appliedAt',
-    sortOrder: 'desc',
-    ...(filters.search && { search: filters.search }),
-    ...(filters.status && { status: filters.status }),
-    ...(filters.priority && { priority: filters.priority }),
-  });
+  const params = jobFilterParams(filters);
+  params.set('page', String(filters.page));
+  params.set('limit', '10');
+  params.set('sortBy', 'appliedAt');
+  params.set('sortOrder', 'desc');
+  if (filters.status) params.set('status', filters.status);
 
   return useQuery<PaginatedJobs>({
     queryKey: ['jobs', filters],
@@ -142,33 +161,57 @@ export const KANBAN_STATUSES: JobStatus[] = [
 // dropping cards.
 export const KANBAN_PAGE_SIZE = 100;
 
-// Must describe the request it caches — the board and the optimistic-drag
-// mutation share this constant, so they can never drift apart.
-const KANBAN_QUERY_KEY = [
-  'jobs',
-  { limit: KANBAN_PAGE_SIZE, statusIn: KANBAN_STATUSES },
-] as const;
+// The board renders only the four open-pipeline columns, so a status filter
+// that isn't one of them (Rejected, Ghosted) selects nothing the board can
+// draw. Returning an empty list — rather than ignoring the filter — keeps
+// the board honest; KanbanBoard renders an explanation for that case.
+export function kanbanStatuses(status: JobStatus | ''): JobStatus[] {
+  if (!status) return KANBAN_STATUSES;
+  return KANBAN_STATUSES.includes(status) ? [status] : [];
+}
 
-export function useKanbanJobsQuery() {
-  const params = new URLSearchParams({
-    limit: String(KANBAN_PAGE_SIZE),
-    statusIn: KANBAN_STATUSES.join(','),
-  });
+// Must describe the request it caches — the board and the optimistic-drag
+// mutation share this builder, so they can never drift apart. The filters
+// are part of the key: two different filter sets are two different pages of
+// data and must not share a cache entry.
+export function kanbanQueryKey(filters: JobsFilterValues) {
+  return [
+    'jobs',
+    {
+      limit: KANBAN_PAGE_SIZE,
+      statusIn: kanbanStatuses(filters.status),
+      search: filters.search,
+      priority: filters.priority,
+      dateFrom: filters.dateFrom,
+      dateTo: filters.dateTo,
+    },
+  ] as const;
+}
+
+export function useKanbanJobsQuery(filters: JobsFilterValues) {
+  const statuses = kanbanStatuses(filters.status);
+  const params = jobFilterParams(filters);
+  params.set('limit', String(KANBAN_PAGE_SIZE));
+  params.set('statusIn', statuses.join(','));
   return useQuery<PaginatedJobs>({
-    queryKey: KANBAN_QUERY_KEY,
+    queryKey: kanbanQueryKey(filters),
     queryFn: () => api.get(`/jobs?${params}`).then((r) => r.data),
+    // No board column can hold the selected status, so there is nothing to
+    // fetch — asking anyway would send `statusIn=` and get back everything.
+    enabled: statuses.length > 0,
   });
 }
 
-export function useKanbanPatchStatusMutation() {
+export function useKanbanPatchStatusMutation(filters: JobsFilterValues) {
   const qc = useQueryClient();
+  const queryKey = kanbanQueryKey(filters);
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: JobStatus }) =>
       api.patch(`/jobs/${id}`, { status }).then((r) => r.data),
     onMutate: async ({ id, status }) => {
       await qc.cancelQueries({ queryKey: ['jobs'] });
-      const prev = qc.getQueryData<PaginatedJobs>(KANBAN_QUERY_KEY);
-      qc.setQueryData<PaginatedJobs>(KANBAN_QUERY_KEY, (old) =>
+      const prev = qc.getQueryData<PaginatedJobs>(queryKey);
+      qc.setQueryData<PaginatedJobs>(queryKey, (old) =>
         old
           ? {
               ...old,
@@ -179,7 +222,7 @@ export function useKanbanPatchStatusMutation() {
       return { prev };
     },
     onError: (err, _v, ctx) => {
-      if (ctx?.prev) qc.setQueryData(KANBAN_QUERY_KEY, ctx.prev);
+      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
       toast.error(getErrorMessage(err, 'Failed to update status'));
     },
     onSettled: () => {

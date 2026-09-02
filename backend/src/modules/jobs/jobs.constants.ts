@@ -1,5 +1,10 @@
 import { JobStatus } from '@prisma/client';
 import { JobQueryDto } from './dto/job-query.dto.js';
+import {
+  localCivilDay,
+  safeTimeZone,
+  zonedInstantFromCivil,
+} from '../../common/timezone.util.js';
 
 export const FUNNEL_STAGES = [
   JobStatus.WISHLIST,
@@ -180,44 +185,66 @@ export function rangeToGranularity(range: StatsRange): TrendGranularity {
   return 'month';
 }
 
-function startOfPeriod(date: Date, granularity: TrendGranularity): Date {
-  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+// The three helpers below all operate on *civil* dates — wall-clock days
+// encoded as UTC midnight (see common/timezone.util.ts). Everything is UTC
+// arithmetic on purpose: the calendar has already been resolved in the
+// user's zone, so a DST shift must not move a bucket boundary here.
+function startOfPeriod(civil: Date, granularity: TrendGranularity): Date {
+  const d = new Date(
+    Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth(), civil.getUTCDate()),
+  );
   if (granularity === 'day') return d;
   if (granularity === 'week') {
-    const daysSinceMonday = (d.getDay() + 6) % 7;
-    d.setDate(d.getDate() - daysSinceMonday);
+    const daysSinceMonday = (d.getUTCDay() + 6) % 7;
+    d.setUTCDate(d.getUTCDate() - daysSinceMonday);
     return d;
   }
-  return new Date(date.getFullYear(), date.getMonth(), 1);
+  return new Date(Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth(), 1));
 }
 
-function nextPeriod(date: Date, granularity: TrendGranularity): Date {
-  const d = new Date(date);
-  if (granularity === 'day') d.setDate(d.getDate() + 1);
-  else if (granularity === 'week') d.setDate(d.getDate() + 7);
-  else d.setMonth(d.getMonth() + 1);
+function nextPeriod(civil: Date, granularity: TrendGranularity): Date {
+  const d = new Date(civil);
+  if (granularity === 'day') d.setUTCDate(d.getUTCDate() + 1);
+  else if (granularity === 'week') d.setUTCDate(d.getUTCDate() + 7);
+  else d.setUTCMonth(d.getUTCMonth() + 1);
   return d;
 }
 
-function formatLabel(date: Date, granularity: TrendGranularity): string {
+function formatLabel(civil: Date, granularity: TrendGranularity): string {
+  // timeZone: 'UTC' reads the civil encoding back literally — without it the
+  // label would be re-projected into the *server's* zone and could name the
+  // day before the bucket it sits on.
   if (granularity === 'month') {
-    return date.toLocaleDateString('en-US', {
+    return civil.toLocaleDateString('en-US', {
+      timeZone: 'UTC',
       month: 'short',
       year: 'numeric',
     });
   }
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return civil.toLocaleDateString('en-US', {
+    timeZone: 'UTC',
+    month: 'short',
+    day: 'numeric',
+  });
 }
 
 // Pure function, unit-testable without Prisma mocking. `appliedDates` must
 // already be scoped to the same user + range filter as the caller's other
 // stats queries, so `cumulative` at the last bucket lines up with getStats's
 // range-filtered total.
+//
+// `timeZone` is the *user's* IANA zone, not the server's. Bucketing on the
+// server's calendar put a UTC+5 user's late-evening application on the
+// following day's bar (and, at a month boundary, in a bucket their own
+// "this month" card disagreed with). Defaults to UTC so the pure-function
+// callers in tests stay deterministic on any machine.
 export function computeTrendBuckets(
   appliedDates: Date[],
   range: StatsRange,
   now: Date = new Date(),
+  timeZone = 'UTC',
 ): { granularity: TrendGranularity; buckets: TrendBucket[] } {
+  const tz = safeTimeZone(timeZone);
   const granularity = rangeToGranularity(range);
   const cutoff = rangeToCutoff(range, now);
 
@@ -227,14 +254,23 @@ export function computeTrendBuckets(
     return { granularity, buckets: [] };
   }
 
-  const sorted = [...appliedDates].sort((a, b) => a.getTime() - b.getTime());
+  // Resolve every instant to the user's calendar day *first*; all bucket
+  // arithmetic below is then civil-date arithmetic.
+  const sorted = appliedDates
+    .map((applied) => localCivilDay(applied, tz))
+    .sort((a, b) => a.getTime() - b.getTime());
   const earliest = sorted[0];
   const latest = sorted[sorted.length - 1];
-  const windowStart = startOfPeriod(cutoff ?? earliest, granularity);
-  // Anchor the window end to whichever is later — `now` or the latest applied
+  const nowCivil = localCivilDay(now, tz);
+  const windowStart = startOfPeriod(
+    cutoff ? localCivilDay(cutoff, tz) : earliest,
+    granularity,
+  );
+  // Anchor the window end to whichever is later — today or the latest applied
   // date — so a future-dated appliedAt still gets its own bucket instead of
   // silently falling outside [windowStart, windowEndExclusive) and vanishing.
-  const windowEndAnchor = latest.getTime() > now.getTime() ? latest : now;
+  const windowEndAnchor =
+    latest.getTime() > nowCivil.getTime() ? latest : nowCivil;
   const windowEndExclusive = nextPeriod(
     startOfPeriod(windowEndAnchor, granularity),
     granularity,
@@ -257,7 +293,10 @@ export function computeTrendBuckets(
     cumulative += count;
     buckets.push({
       label: formatLabel(cursor, granularity),
-      periodStart: cursor.toISOString(),
+      // A real instant, not the civil encoding — the period start as it
+      // actually happened for this user, so a client that re-formats it
+      // gets the same day back.
+      periodStart: zonedInstantFromCivil(cursor.getTime(), tz).toISOString(),
       count,
       cumulative,
     });

@@ -6,9 +6,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
-import type { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -52,111 +50,66 @@ export class JobsService {
 
   // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
   // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
-  // 6). Runs the findFirst+create pair inside a Serializable transaction —
-  // same pattern as CompaniesService.runNameCheckedWrite — so two concurrent
-  // create/update calls racing the same *case-variant* new company name
-  // ("Google" vs "google") can't both pass the case-insensitive findFirst
-  // and both create: Postgres aborts the loser with P2034 (a plain
-  // create-vs-create collision on the exact same name would instead surface
-  // as P2002 from the DB's case-sensitive unique constraint). Either error
-  // means the other side won the race, so we re-fetch the now-committed row
-  // — same fallback shape as the original pre-transaction implementation.
-  // Never overwrites an existing company's user-edited/enriched fields as a
-  // side effect of linking a job to it. CompanyCity.OTHER is used for
-  // auto-created rows since job create/update collects no city. `matched` is
-  // true only for a *pre-existing* company match — callers use it to
-  // distinguish "linked to a company you already saved" from "we silently
-  // auto-created this row" (a race-resolved row counts as the latter, same
-  // as the loser of the race would have gotten via a plain, non-concurrent
-  // create).
+  // 6). Never overwrites an existing company's user-edited/enriched fields
+  // as a side effect of linking a job to it. CompanyCity.OTHER is used for
+  // auto-created rows since job create/update collects no city.
   //
-  // `name: { mode: 'insensitive' }` has no matching (userId, lower(name))
-  // index, so the findFirst predicate-locks the whole `userId` range of the
-  // `(userId, name)` unique index under Serializable isolation. Two
-  // concurrent creates for the SAME user always overlap that range, even
-  // with completely unrelated company names — Postgres aborts the loser
-  // with "could not serialize access due to read/write dependencies" no
-  // less often than a genuine same-name collision does. A conflict is
-  // therefore NOT reliable evidence that `trimmedName` itself now exists,
-  // so a re-fetch-by-name that comes up empty means "transient conflict,
-  // nothing to reuse" and must retry the whole transaction rather than
-  // rethrow — see the live-DB concurrency e2e added for ADR-029.
+  // `matched` is true only for a *pre-existing* company match — callers use
+  // it to distinguish "linked to a company you already saved" from "we
+  // silently auto-created this row" (the loser of a create race counts as
+  // the latter, same as a plain non-concurrent create would have).
+  //
+  // Concurrency is the database's job: the functional unique index on
+  // (userId, lower(name)) — see the add_company_ci_unique migration — makes
+  // a case-variant duplicate ("Google" vs "google") an ordinary unique
+  // violation, so a losing racer gets P2002 and the winner's row is already
+  // committed and findable. This replaced a Serializable transaction wrapped
+  // in an 8-attempt jittered retry loop: the case-insensitive `findFirst`
+  // had no index to match, so under Serializable it predicate-locked the
+  // user's entire (userId, name) range and two creates for *completely
+  // unrelated* company names aborted each other. That was a standing tax on
+  // exactly the bulk paths that matter — the browser extension and CSV
+  // import fire many creates for one user (ADR-029).
   private async resolveCompanyId(
     userId: string,
     trimmedName: string,
-    attempt = 1,
   ): Promise<{
     company: { id: string; name: string } | null;
     matched: boolean;
   }> {
     if (!trimmedName) return { company: null, matched: false };
-    const MAX_ATTEMPTS = 8;
+
+    const existing = await this.prisma.company.findFirst({
+      where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+      select: { id: true, name: true },
+    });
+    if (existing) return { company: existing, matched: true };
 
     try {
-      return await this.prisma.$transaction(
-        async (tx) => {
-          const existing = await tx.company.findFirst({
-            where: {
-              userId,
-              name: { equals: trimmedName, mode: 'insensitive' },
-            },
-            select: { id: true, name: true },
-          });
-          if (existing) return { company: existing, matched: true };
-
-          const created = await tx.company.create({
-            data: { userId, name: trimmedName, city: CompanyCity.OTHER },
-            select: { id: true, name: true },
-          });
-          return { company: created, matched: false };
-        },
-        { isolationLevel: 'Serializable' as Prisma.TransactionIsolationLevel },
-      );
+      const created = await this.prisma.company.create({
+        data: { userId, name: trimmedName, city: CompanyCity.OTHER },
+        select: { id: true, name: true },
+      });
+      return { company: created, matched: false };
     } catch (err: unknown) {
       const code =
         err && typeof err === 'object' && 'code' in err
           ? (err as { code?: unknown }).code
           : undefined;
-      // isTransactionWriteConflict covers P2034 plus the raw
-      // DriverAdapterError shape a commit-time conflict surfaces as (see
-      // prisma-errors.ts) — P2002 (a same-name create-vs-create race) is a
-      // separate, normally-wrapped case checked alongside it.
-      if (code !== 'P2002' && !isTransactionWriteConflict(err)) throw err;
+      if (code !== 'P2002') throw err;
 
+      // Lost the race. The conflicting row is committed by definition — a
+      // unique violation can't be raised against an uncommitted one — so
+      // this re-fetch resolves it. A null here would mean the row was
+      // deleted between the violation and this read, which no code path
+      // does mid-request; rethrowing lets GlobalExceptionFilter map the
+      // P2002 to a 409 rather than inventing a wrong answer.
       const raced = await this.prisma.company.findFirst({
         where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
         select: { id: true, name: true },
       });
-      if (raced) return { company: raced, matched: false };
-
-      // No row under this name — the conflict was against some other
-      // company's create in the same predicate-locked range, not a
-      // same-name race. Retry the whole transaction; only give up once
-      // MAX_ATTEMPTS is exhausted.
-      //
-      // Out of retries, surface the same 409 CompaniesService's
-      // runNameCheckedWrite returns for an unresolvable Serializable
-      // conflict, rather than letting the raw P2034 / DriverAdapterError
-      // reach GlobalExceptionFilter — which maps only P2002 and P2025, so
-      // this would otherwise be an opaque 500 telling the caller nothing,
-      // on a conflict that is retryable by definition. Bulk paths reach
-      // here in practice: the browser extension and CSV import fire many
-      // creates for one user, and every one of them contends on the same
-      // predicate-locked (userId, name) range.
-      if (attempt >= MAX_ATTEMPTS) {
-        throw new ConflictException(
-          `Could not link company "${trimmedName}" — a conflicting change happened at the same time. Please try again.`,
-        );
-      }
-
-      // Jittered backoff (not an immediate retry) matters here: several
-      // concurrent requests for the same user all lose to each other's
-      // predicate lock at once, so retrying in lockstep just re-collides —
-      // random delay desyncs the retries so contention actually clears.
-      await new Promise((resolve) =>
-        setTimeout(resolve, 10 + Math.random() * 40 * attempt),
-      );
-      return this.resolveCompanyId(userId, trimmedName, attempt + 1);
+      if (!raced) throw err;
+      return { company: raced, matched: false };
     }
   }
 
@@ -376,6 +329,25 @@ export class JobsService {
         const { company } = await this.resolveCompanyId(userId, trimmedCompany);
         data = { ...baseData, companyId: company?.id ?? null };
       }
+    }
+
+    // `Job.appliedAt` is `@default(now())`, so a job saved to the wishlist in
+    // June already carries June as its application date — and nothing used to
+    // move it when the user actually applied. Every "applications sent"
+    // metric reads that column (getStats.thisMonth, the trend buckets, the
+    // 30d/90d range filters, the CSV "Applied Date", the default list sort),
+    // so applying today to a long-wishlisted job was reported as an
+    // application made months ago: absent from this month's count, plotted on
+    // the wrong bar, and sorted to the bottom of the list.
+    //
+    // Leaving WISHLIST in any direction is the moment it becomes a real
+    // application (the kanban board lets you drag straight to INTERVIEWING),
+    // so stamp it here. An explicit `appliedAt` in the same request still
+    // wins — the user backdating a date they know beats our inference.
+    const leftWishlist =
+      statusChanged && existing.status === JobStatus.WISHLIST;
+    if (leftWishlist && dto.appliedAt === undefined) {
+      data = { ...data, appliedAt: new Date() };
     }
 
     if (!statusChanged) {

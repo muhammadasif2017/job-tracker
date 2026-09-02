@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { JobStatus } from '@prisma/client';
+import { JobStatus, JobEventType } from '@prisma/client';
 import { JobsStatsService } from './jobs-stats.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -12,6 +12,9 @@ const mockPrisma = {
     findMany: jest.fn(),
   },
   jobEvent: { findMany: jest.fn() },
+  // Every calendar-shaped stat resolves the user's zone first — default it to
+  // UTC so assertions below stay independent of the machine running them.
+  user: { findUnique: jest.fn() },
 };
 
 describe('JobsStatsService', () => {
@@ -19,6 +22,7 @@ describe('JobsStatsService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockPrisma.user.findUnique.mockResolvedValue({ timezone: 'UTC' });
     const module = await Test.createTestingModule({
       providers: [
         JobsStatsService,
@@ -42,11 +46,13 @@ describe('JobsStatsService', () => {
       const staleAppliedJob = {
         id: 'job-3',
         appliedAt: new Date('2026-07-01T00:00:00Z'),
+        events: [{ createdAt: new Date('2026-07-03T00:00:00Z') }],
       };
       // job-1 also matches the stale-applied rule — must appear only once
       const duplicateJob = {
         id: 'job-1',
         appliedAt: new Date('2026-07-02T00:00:00Z'),
+        events: [],
       };
       mockPrisma.job.findMany
         .mockResolvedValueOnce([interviewJob])
@@ -69,10 +75,32 @@ describe('JobsStatsService', () => {
       expect(items[1].job).not.toHaveProperty('events');
       expect(items[2]).toMatchObject({
         type: 'STALE_APPLIED',
+        // "stalled since" is the last thing that happened, not the
+        // application date — the digest dedup keys off this.
+        since: staleAppliedJob.events[0].createdAt,
         job: { id: 'job-3' },
       });
+      expect(items[2].job).not.toHaveProperty('events');
       // job-1 matched two rules but appears only once, with the higher-priority type
       expect(items.filter((i) => i.job.id === 'job-1')).toHaveLength(1);
+    });
+
+    // "No movement for 7 days" is about activity, not about the application
+    // date — a job you followed up on yesterday is not stalled. The appliedAt
+    // bound alone was never a movement test; it stays only as a cheap indexed
+    // pre-filter and as the guard for a row with no events at all.
+    it('scopes STALE_APPLIED by event recency, not by the application date alone', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([]);
+
+      await service.getAttention('user-1');
+
+      const staleAppliedCall = mockPrisma.job.findMany.mock.calls[2][0];
+      expect(staleAppliedCall.where.events).toEqual({
+        none: { createdAt: { gt: expect.any(Date) } },
+      });
+      expect(staleAppliedCall.include).toEqual({
+        events: { orderBy: { createdAt: 'desc' }, take: 1 },
+      });
     });
 
     it('caps each rule bucket so the list stays bounded', async () => {
@@ -226,6 +254,38 @@ describe('JobsStatsService', () => {
       const monthCutoff = thisMonthCall[0].where.appliedAt.gte as Date;
       expect(monthCutoff.getTime()).not.toBe(rangeCutoff.getTime());
     });
+    // User.timezone already drives the digest/reminder emails. Before this,
+    // the dashboard's "this month" was cut on the *server's* calendar — a
+    // user five hours ahead of a UTC server saw the first evening of a new
+    // month counted against the old one.
+    it('cuts "this month" on the user calendar, not the server one', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({
+        timezone: 'Asia/Karachi',
+      });
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+      mockPrisma.job.count.mockResolvedValue(0);
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-30T20:00:00Z'));
+
+      try {
+        await service.getStats('u1', 'all');
+      } finally {
+        jest.useRealTimers();
+      }
+
+      const thisMonthCall = mockPrisma.job.count.mock.calls[1][0];
+      // 20:00 UTC on Jun 30 is already July 1st in Karachi.
+      expect(thisMonthCall.where.appliedAt.gte.toISOString()).toBe(
+        '2026-06-30T19:00:00.000Z',
+      );
+    });
+
+    it('falls back to UTC when the stored timezone is unusable', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue({ timezone: 'Not/AZone' });
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+      mockPrisma.job.count.mockResolvedValue(0);
+
+      await expect(service.getStats('u1', 'all')).resolves.toBeDefined();
+    });
   });
 
   describe('getFunnel', () => {
@@ -256,6 +316,7 @@ describe('JobsStatsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([
         {
           jobId: 'jX',
+          type: JobEventType.STATUS_CHANGE,
           toStatus: JobStatus.OFFER,
           createdAt: new Date('2026-01-01T00:00:00Z'),
         },
@@ -285,11 +346,13 @@ describe('JobsStatsService', () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([
         {
           jobId: 'jY',
+          type: JobEventType.STATUS_CHANGE,
           toStatus: JobStatus.APPLIED,
           createdAt: new Date(t0),
         },
         {
           jobId: 'jY',
+          type: JobEventType.STATUS_CHANGE,
           toStatus: JobStatus.OFFER,
           createdAt: new Date(t0 + 3 * day),
         },
@@ -319,23 +382,60 @@ describe('JobsStatsService', () => {
       // jC: APPLIED -> INTERVIEWING (1d) -> OFFER (6d)
       // jD: WISHLIST only, still open
       mockPrisma.jobEvent.findMany.mockResolvedValue([
-        { jobId: 'jA', toStatus: JobStatus.WISHLIST, createdAt: at(0) },
-        { jobId: 'jA', toStatus: JobStatus.APPLIED, createdAt: at(2 * day) },
         {
           jobId: 'jA',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.WISHLIST,
+          createdAt: at(0),
+        },
+        {
+          jobId: 'jA',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.APPLIED,
+          createdAt: at(2 * day),
+        },
+        {
+          jobId: 'jA',
+          type: JobEventType.STATUS_CHANGE,
           toStatus: JobStatus.INTERVIEWING,
           createdAt: at(5 * day),
         },
-        { jobId: 'jB', toStatus: JobStatus.APPLIED, createdAt: at(0) },
-        { jobId: 'jB', toStatus: JobStatus.REJECTED, createdAt: at(4 * day) },
-        { jobId: 'jC', toStatus: JobStatus.APPLIED, createdAt: at(0) },
+        {
+          jobId: 'jB',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.APPLIED,
+          createdAt: at(0),
+        },
+        {
+          jobId: 'jB',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.REJECTED,
+          createdAt: at(4 * day),
+        },
         {
           jobId: 'jC',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.APPLIED,
+          createdAt: at(0),
+        },
+        {
+          jobId: 'jC',
+          type: JobEventType.STATUS_CHANGE,
           toStatus: JobStatus.INTERVIEWING,
           createdAt: at(1 * day),
         },
-        { jobId: 'jC', toStatus: JobStatus.OFFER, createdAt: at(7 * day) },
-        { jobId: 'jD', toStatus: JobStatus.WISHLIST, createdAt: at(0) },
+        {
+          jobId: 'jC',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.OFFER,
+          createdAt: at(7 * day),
+        },
+        {
+          jobId: 'jD',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.WISHLIST,
+          createdAt: at(0),
+        },
       ]);
       mockPrisma.job.groupBy.mockResolvedValue([
         {
@@ -398,6 +498,49 @@ describe('JobsStatsService', () => {
       expect(result.responseRateBySource).toHaveLength(4);
     });
 
+    // InterviewRoundsService.logRoundEvent writes INTERVIEW_ROUND_ADDED with
+    // toStatus set to the job's *current* status. Treating that as a stage
+    // boundary chopped one stay in INTERVIEWING into one short interval per
+    // round scheduled — so the more rounds a job really had, the faster the
+    // stage looked.
+    it('does not let INTERVIEW_ROUND_ADDED split a stage into shorter intervals', async () => {
+      const day = 86_400_000;
+      const t0 = new Date('2026-01-01T00:00:00Z').getTime();
+      const at = (ms: number) => new Date(t0 + ms);
+      mockPrisma.jobEvent.findMany.mockResolvedValue([
+        {
+          jobId: 'jR',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.INTERVIEWING,
+          createdAt: at(0),
+        },
+        {
+          jobId: 'jR',
+          type: JobEventType.INTERVIEW_ROUND_ADDED,
+          toStatus: JobStatus.INTERVIEWING,
+          createdAt: at(2 * day),
+        },
+        {
+          jobId: 'jR',
+          type: JobEventType.INTERVIEW_ROUND_ADDED,
+          toStatus: JobStatus.INTERVIEWING,
+          createdAt: at(5 * day),
+        },
+        {
+          jobId: 'jR',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.OFFER,
+          createdAt: at(9 * day),
+        },
+      ]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      const result = await service.getFunnel('u1', 'all');
+
+      // One 9-day stay, not the mean of 2, 3 and 4.
+      expect(result.avgTimeInStageDays[JobStatus.INTERVIEWING]).toBe(9);
+    });
+
     it('excludes WISHLIST jobs from the responseRateBySource query', async () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
       mockPrisma.job.groupBy.mockResolvedValue([]);
@@ -418,9 +561,24 @@ describe('JobsStatsService', () => {
 
       // jE: APPLIED -> REJECTED (3d) -> APPLIED (2d later, reactivated), still open
       mockPrisma.jobEvent.findMany.mockResolvedValue([
-        { jobId: 'jE', toStatus: JobStatus.APPLIED, createdAt: at(0) },
-        { jobId: 'jE', toStatus: JobStatus.REJECTED, createdAt: at(3 * day) },
-        { jobId: 'jE', toStatus: JobStatus.APPLIED, createdAt: at(5 * day) },
+        {
+          jobId: 'jE',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.APPLIED,
+          createdAt: at(0),
+        },
+        {
+          jobId: 'jE',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.REJECTED,
+          createdAt: at(3 * day),
+        },
+        {
+          jobId: 'jE',
+          type: JobEventType.STATUS_CHANGE,
+          toStatus: JobStatus.APPLIED,
+          createdAt: at(5 * day),
+        },
       ]);
       mockPrisma.job.groupBy.mockResolvedValue([
         {
@@ -587,6 +745,22 @@ describe('JobsStatsService', () => {
       expect(result.buckets[result.buckets.length - 1].label).toBe('Jul 2026');
     });
 
+    it('buckets an application on the user calendar day, not the server one', () => {
+      // 22:00 UTC on Jul 9 is already Jul 10 in Karachi. Bucketing on the
+      // server's calendar put the bar on the wrong day for every evening
+      // application a user ahead of UTC made.
+      const applied = [new Date('2026-07-09T22:00:00Z')];
+
+      const utc = computeTrendBuckets(applied, '30d', now, 'UTC');
+      const karachi = computeTrendBuckets(applied, '30d', now, 'Asia/Karachi');
+
+      const dayWithTheApplication = (
+        result: ReturnType<typeof computeTrendBuckets>,
+      ) => result.buckets.find((b) => b.count === 1)?.label;
+      expect(dayWithTheApplication(utc)).toBe('Jul 9');
+      expect(dayWithTheApplication(karachi)).toBe('Jul 10');
+    });
+
     it('cumulative at the last bucket equals the total number of applications', () => {
       const applied = [
         new Date('2026-07-01T00:00:00Z'),
@@ -608,7 +782,10 @@ describe('JobsStatsService', () => {
       expect(result.buckets).toHaveLength(1);
       expect(result.buckets[0]).toEqual({
         label: 'Jul 2026',
-        periodStart: new Date(2026, 6, 1).toISOString(),
+        // Buckets resolve in the caller's zone (UTC by default here), not the
+        // server's — so the period start is UTC midnight on the 1st, whatever
+        // zone the test machine happens to sit in.
+        periodStart: new Date('2026-07-01T00:00:00.000Z').toISOString(),
         count: 1,
         cumulative: 1,
       });
