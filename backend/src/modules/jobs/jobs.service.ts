@@ -132,12 +132,27 @@ export class JobsService {
       // No row under this name — the conflict was against some other
       // company's create in the same predicate-locked range, not a
       // same-name race. Retry the whole transaction; only give up once
-      // MAX_ATTEMPTS is exhausted. Jittered backoff (not an immediate
-      // retry) matters here: several concurrent requests for the same user
-      // all lose to each other's predicate lock at once, so retrying in
-      // lockstep just re-collides — random delay desyncs the retries so
-      // contention actually clears.
-      if (attempt >= MAX_ATTEMPTS) throw err;
+      // MAX_ATTEMPTS is exhausted.
+      //
+      // Out of retries, surface the same 409 CompaniesService's
+      // runNameCheckedWrite returns for an unresolvable Serializable
+      // conflict, rather than letting the raw P2034 / DriverAdapterError
+      // reach GlobalExceptionFilter — which maps only P2002 and P2025, so
+      // this would otherwise be an opaque 500 telling the caller nothing,
+      // on a conflict that is retryable by definition. Bulk paths reach
+      // here in practice: the browser extension and CSV import fire many
+      // creates for one user, and every one of them contends on the same
+      // predicate-locked (userId, name) range.
+      if (attempt >= MAX_ATTEMPTS) {
+        throw new ConflictException(
+          `Could not link company "${trimmedName}" — a conflicting change happened at the same time. Please try again.`,
+        );
+      }
+
+      // Jittered backoff (not an immediate retry) matters here: several
+      // concurrent requests for the same user all lose to each other's
+      // predicate lock at once, so retrying in lockstep just re-collides —
+      // random delay desyncs the retries so contention actually clears.
       await new Promise((resolve) =>
         setTimeout(resolve, 10 + Math.random() * 40 * attempt),
       );

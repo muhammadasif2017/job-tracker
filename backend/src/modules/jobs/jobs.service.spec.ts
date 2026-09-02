@@ -283,6 +283,26 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
+    // The retry loop gives up after MAX_ATTEMPTS. What it throws then is the
+    // difference between a caller being told to retry and a caller seeing an
+    // unexplained 500: GlobalExceptionFilter maps only P2002 and P2025, so a
+    // raw P2034 escaping here lands as "Internal server error".
+    it('reports a 409, not a raw serialization error, once the retry budget is exhausted', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+      mockPrisma.company.create.mockRejectedValue(
+        Object.assign(new Error('could not serialize access'), {
+          code: 'P2034',
+        }),
+      );
+
+      const dto: CreateJobDto = { company: 'Busy Co', position: 'Engineer' };
+
+      await expect(service.create('user-1', dto)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(mockPrisma.job.create).not.toHaveBeenCalled();
+    });
+
     it('enqueues a timeline-summary regen after job creation', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
