@@ -19,6 +19,9 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY package*.json ./
+# Exists so the uploads volume in docker-compose.yml is seeded with this
+# directory's ownership; the chown below covers it.
+RUN mkdir -p /app/uploads
 RUN chown -R appuser:nodejs /app
 USER appuser
 EXPOSE 3001

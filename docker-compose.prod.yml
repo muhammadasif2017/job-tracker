@@ -47,6 +47,14 @@ services:
       OCI_BUCKET_NAME: ${OCI_BUCKET_NAME}
       OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID}
       OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY}
+    # Only used when STORAGE_DRIVER=local, where resume PDFs are written to
+    # /app/uploads inside the container. Without a volume they live in the
+    # container's writable layer and `pull && up -d` destroys them, while the
+    # Resume rows keep pointing at storage keys that no longer resolve. Kept
+    # mounted regardless of driver so switching to local can't lose data; it
+    # simply stays empty under STORAGE_DRIVER=oracle.
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       redis:
         condition: service_healthy
@@ -68,5 +76,6 @@ services:
       - backend
 
 volumes:
+  backend_uploads:
   caddy_data:
   caddy_config:
