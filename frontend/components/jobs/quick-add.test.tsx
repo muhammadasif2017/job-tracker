@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { QuickAdd } from './quick-add';
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('../../lib/api', () => ({
@@ -22,6 +22,7 @@ vi.mock('../../lib/api', () => ({
 }));
 
 import api from '../../lib/api';
+import { toast } from 'sonner';
 
 function renderQuickAdd(onClose = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -109,6 +110,24 @@ describe('QuickAdd', () => {
     expect(await screen.findByText('Add Job')).toBeInTheDocument();
     expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
     expect(screen.getByLabelText(/position/i)).toHaveValue('');
+  });
+
+  it('warns when the parser found nothing rather than opening a blank form silently', async () => {
+    // /jobs/parse answers 200 with an all-but-empty body when neither the
+    // page fetch nor the search fallback gave the LLM anything to work with.
+    vi.mocked(api.post).mockResolvedValue({ data: {} });
+    renderQuickAdd();
+    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
+      target: { value: 'Some posting text' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+
+    await waitFor(() =>
+      expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
+        expect.stringContaining('enter the details manually'),
+      ),
+    );
+    expect(await screen.findByText('Add Job')).toBeInTheDocument();
   });
 
   it('calls onClose without parsing when cancel is clicked', () => {

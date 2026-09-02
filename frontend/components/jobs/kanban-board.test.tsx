@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { KanbanBoard } from './kanban-board';
+import {
+  KANBAN_PAGE_SIZE,
+  KANBAN_STATUSES,
+} from '../../features/jobs/hooks';
 import type {
   DropResult,
   DroppableProvided,
@@ -71,7 +75,12 @@ vi.mock('@hello-pangea/dnd', () => ({
 import api from '../../lib/api';
 import { toast } from 'sonner';
 
-const JOBS_KEY = ['jobs', { limit: 100 }];
+// Derived from the same constants the hook uses, so the cache key in this
+// test can't silently drift away from the one the board actually writes.
+const JOBS_KEY = [
+  'jobs',
+  { limit: KANBAN_PAGE_SIZE, statusIn: KANBAN_STATUSES },
+];
 
 function makeJob(overrides: Partial<Job>): Job {
   return {
@@ -89,8 +98,8 @@ function makeJob(overrides: Partial<Job>): Job {
   };
 }
 
-function paginated(data: Job[]): PaginatedJobs {
-  return { data, meta: { total: data.length, page: 1, limit: 100, totalPages: 1 } };
+function paginated(data: Job[], total = data.length): PaginatedJobs {
+  return { data, meta: { total, page: 1, limit: 100, totalPages: 1 } };
 }
 
 function renderBoard(jobs: Job[], onEdit = vi.fn()) {
@@ -134,6 +143,35 @@ describe('KanbanBoard', () => {
     expect(await screen.findByText('Failed to load board')).toBeInTheDocument();
     expect(screen.queryByText('Wishlist')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  });
+
+  it('asks the API for only the statuses it renders', async () => {
+    // Without statusIn, REJECTED/GHOSTED rows occupy slots in the page limit
+    // and then render in no column at all.
+    renderBoard([]);
+    await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
+    const url = vi.mocked(api.get).mock.calls[0][0] as string;
+    expect(url).toContain('statusIn=WISHLIST%2CAPPLIED%2CINTERVIEWING%2COFFER');
+    expect(url).toContain('limit=100');
+  });
+
+  it('says how many jobs are off the board when the page is truncated', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: paginated([makeJob({ id: 'j-1', status: 'APPLIED' })], 105),
+    });
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <KanbanBoard onEdit={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/104 more are not on the board/i)).toBeInTheDocument();
+  });
+
+  it('shows no truncation notice when everything fits', async () => {
+    renderBoard([makeJob({ id: 'j-1', status: 'APPLIED' })]);
+    await screen.findByText('Acme');
+    expect(screen.queryByText(/not on the board/i)).not.toBeInTheDocument();
   });
 
   it('shows only the four active-pipeline columns', async () => {

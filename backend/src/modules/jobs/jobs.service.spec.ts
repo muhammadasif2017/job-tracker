@@ -470,6 +470,39 @@ describe('JobsService', () => {
         derivedStatus: 'PASSED',
       });
     });
+    it('nulls out a nextInterviewAt that has already passed', async () => {
+      // The column is denormalized and only recomputed on round writes, so a
+      // past value just means "nothing upcoming" — showing it as the next
+      // interview is wrong.
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        userId: 'user-1',
+        nextInterviewAt: new Date(Date.now() - 86_400_000),
+        companyLink: null,
+        interviewRounds: [],
+        contacts: [],
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.nextInterviewAt).toBeNull();
+    });
+
+    it('keeps a nextInterviewAt that is still in the future', async () => {
+      const upcoming = new Date(Date.now() + 86_400_000);
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        userId: 'user-1',
+        nextInterviewAt: upcoming,
+        companyLink: null,
+        interviewRounds: [],
+        contacts: [],
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
+      expect(result.nextInterviewAt).toBe(upcoming);
+    });
   });
 
   describe('update', () => {
@@ -508,6 +541,39 @@ describe('JobsService', () => {
       expect(mockPrisma.job.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ jobType: JobType.REMOTE }),
+        }),
+      );
+    });
+
+    it('passes an explicit null through to Prisma so a nullable field can be cleared', async () => {
+      // Only an explicit null clears a column — an omitted/undefined key
+      // means "leave it alone" (ADR-022). The DTO types these fields
+      // `T | null` for exactly this path.
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        url: null,
+        location: null,
+        notes: null,
+        discoverySource: null,
+        applicationChannel: null,
+      });
+
+      expect(mockPrisma.job.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            url: null,
+            location: null,
+            notes: null,
+            discoverySource: null,
+            applicationChannel: null,
+          }),
         }),
       );
     });
@@ -822,18 +888,42 @@ describe('JobsService', () => {
   });
 
   describe('getEvents', () => {
-    it('returns events ordered by createdAt asc', async () => {
+    it('orders newest-first so a truncated page keeps the recent events', async () => {
+      // Ascending order would make page 1 the *oldest* slice and silently
+      // drop everything recent — the only part a timeline is read for.
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         status: JobStatus.APPLIED,
       });
-      const events = [{ id: 'e1' }, { id: 'e2' }];
+      const events = [{ id: 'e2' }, { id: 'e1' }];
       mockPrisma.jobEvent.findMany.mockResolvedValue(events);
       mockPrisma.jobEvent.count.mockResolvedValue(2);
 
       const result = await service.getEvents('user-1', 'job-1');
 
       expect(result.data).toBe(events);
+      expect(mockPrisma.jobEvent.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        }),
+      );
+    });
+
+    it('breaks createdAt ties on id so pages stay deterministic', async () => {
+      // Same-millisecond events are normal: job create nests its CREATED
+      // event, and logRoundEvent writes inside its round's transaction.
+      // Without a tiebreaker a row can repeat or vanish across pages.
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.jobEvent.count.mockResolvedValue(0);
+
+      await service.getEvents('user-1', 'job-1');
+
+      const { orderBy } = mockPrisma.jobEvent.findMany.mock.calls[0][0];
+      expect(orderBy[1]).toEqual({ id: 'desc' });
     });
 
     it('defaults to page 1 with limit 50', async () => {

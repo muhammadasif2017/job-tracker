@@ -179,11 +179,19 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
 
   const mutation = useMutation({
     mutationFn: (data: FormData) => {
+      // On edit, a field the user emptied out must go over the wire as an
+      // explicit `null`: `JSON.stringify` drops `undefined` keys and Prisma
+      // treats an omitted column as "leave it alone", so `undefined` would
+      // silently keep the old value and make these fields unclearable
+      // (ADR-022). On create there is nothing to clear, so omit them.
+      const blank = isEdit ? null : undefined;
       const payload = {
         ...data,
-        url: data.url || undefined,
-        discoverySource: data.discoverySource || undefined,
-        applicationChannel: data.applicationChannel || undefined,
+        location: data.location || blank,
+        url: data.url || blank,
+        discoverySource: data.discoverySource || blank,
+        applicationChannel: data.applicationChannel || blank,
+        notes: data.notes || blank,
       };
       return isEdit
         ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)

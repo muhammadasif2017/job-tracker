@@ -26,7 +26,7 @@ import {
   STORAGE_SERVICE,
   type IStorageService,
 } from '../../storage/storage.service.js';
-import { buildJobWhere } from './jobs.constants.js';
+import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
 @Injectable()
@@ -259,6 +259,9 @@ export class JobsService {
     const { companyLink, interviewRounds, ...rest } = job;
     return {
       ...rest,
+      // Null out a stale past value rather than showing it as "next" — see
+      // upcomingInterviewAt in jobs.constants.ts.
+      nextInterviewAt: upcomingInterviewAt(rest.nextInterviewAt),
       // InterviewRoundsService attaches this same field for its own
       // create/findAll/update responses — this include bypasses that
       // service entirely, so it must be computed here too (see the "no
@@ -455,10 +458,21 @@ export class JobsService {
     // concurrent event write mid-request, `data` and `meta.total` can
     // reflect different snapshots. Acceptable here since this only backs a
     // read-only timeline display, not a CAS-guarded write.
+    //
+    // Newest-first, not oldest-first: with ascending order, page 1 of a job
+    // with more events than `take` returns the *oldest* slice and the
+    // recent activity — the only part anyone reads on a timeline — is
+    // silently dropped. Callers that render oldest-to-newest reverse the
+    // page client-side.
+    //
+    // `id` is the tiebreaker because `createdAt` is not unique: job create
+    // nests its CREATED event, and logRoundEvent writes inside the same
+    // transaction as its round, so same-millisecond timestamps are normal.
+    // Without it, a row can repeat or vanish across page boundaries.
     const [events, total] = await Promise.all([
       this.prisma.jobEvent.findMany({
         where: { jobId },
-        orderBy: { createdAt: 'asc' },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         skip: (page - 1) * take,
         take,
       }),
