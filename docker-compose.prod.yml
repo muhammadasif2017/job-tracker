@@ -9,6 +9,27 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # `pull && up -d` recreates this container, and without a volume its /data
+    # goes with it — including the RDB snapshots Redis is already writing
+    # there. That takes queued and delayed BullMQ jobs, the notifications
+    # digest dedup keys, and any in-flight OAuth exchange codes with it.
+    # appendonly narrows the loss window from an RDB save point (up to 60s of
+    # writes under the default save rules) to roughly one second.
+    # maxmemory-policy is pinned because BullMQ requires noeviction — evicting
+    # a job hash loses the job silently. It is already the default; stated
+    # here so that setting maxmemory later cannot quietly change it.
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--appendfsync',
+        'everysec',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
+    volumes:
+      - redis_data:/data
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
@@ -77,5 +98,6 @@ services:
 
 volumes:
   backend_uploads:
+  redis_data:
   caddy_data:
   caddy_config:
