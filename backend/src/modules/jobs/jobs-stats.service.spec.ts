@@ -3,7 +3,7 @@ import { JobStatus } from '@prisma/client';
 import { JobsStatsService } from './jobs-stats.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { computeTrendBuckets } from './jobs.constants.js';
+import { buildJobWhere, computeTrendBuckets } from './jobs.constants.js';
 
 const mockPrisma = {
   job: {
@@ -73,6 +73,19 @@ describe('JobsStatsService', () => {
       });
       // job-1 matched two rules but appears only once, with the higher-priority type
       expect(items.filter((i) => i.job.id === 'job-1')).toHaveLength(1);
+    });
+
+    it('caps each rule bucket so the list stays bounded', async () => {
+      // Every row is a fully-hydrated Job and this backs a dashboard
+      // call-to-action list, not a report.
+      mockPrisma.job.findMany.mockResolvedValue([]);
+
+      await service.getAttention('user-1');
+
+      for (const call of mockPrisma.job.findMany.mock.calls) {
+        expect(typeof call[0].take).toBe('number');
+        expect(call[0].take).toBeLessThanOrEqual(50);
+      }
     });
 
     it('returns an empty list when nothing needs attention', async () => {
@@ -633,6 +646,26 @@ describe('JobsStatsService', () => {
       expect(row).toContain('"Acme ""Corp"""');
     });
 
+    it('leaves Next Interview blank when the stored date has already passed', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([
+        {
+          company: 'Co',
+          position: 'P',
+          status: 'APPLIED',
+          location: null,
+          appliedAt: new Date('2026-01-01'),
+          nextInterviewAt: new Date('2020-01-02T00:00:00Z'),
+          url: null,
+          notes: null,
+        },
+      ]);
+
+      const { csv } = await service.exportCsv('u1', new JobQueryDto());
+      // A stale date must not reach the file at all — the column means
+      // "next upcoming interview".
+      expect(csv).not.toContain('2020-01-02');
+    });
+
     it('renders null and undefined fields as empty quoted strings', async () => {
       mockPrisma.job.findMany.mockResolvedValue([
         {
@@ -651,6 +684,66 @@ describe('JobsStatsService', () => {
       const row = csv.split('\r\n')[1];
 
       expect(row).toContain(',"",');
+    });
+  });
+  describe('buildJobWhere', () => {
+    const query = (overrides: Partial<JobQueryDto>) =>
+      Object.assign(new JobQueryDto(), overrides);
+
+    it('lets statusIn win over status instead of one silently dropping the other', () => {
+      // Both write the same `status` key — spreading them separately would
+      // make whichever came first vanish.
+      const where = buildJobWhere(
+        'u1',
+        query({
+          status: JobStatus.APPLIED,
+          statusIn: [JobStatus.WISHLIST, JobStatus.OFFER],
+        }),
+      );
+
+      expect(where.status).toEqual({
+        in: [JobStatus.WISHLIST, JobStatus.OFFER],
+      });
+    });
+
+    it('falls back to status when statusIn is absent or empty', () => {
+      expect(
+        buildJobWhere('u1', query({ status: JobStatus.APPLIED })).status,
+      ).toBe(JobStatus.APPLIED);
+      expect(
+        buildJobWhere('u1', query({ status: JobStatus.APPLIED, statusIn: [] }))
+          .status,
+      ).toBe(JobStatus.APPLIED);
+    });
+
+    it('covers the whole day named by a date-only dateTo', () => {
+      // `lte: new Date('2026-03-15')` is that day's midnight, which excludes
+      // everything actually applied during the day.
+      const where = buildJobWhere('u1', query({ dateTo: '2026-03-15' }));
+
+      expect(where.appliedAt).toEqual({ lt: new Date('2026-03-16T00:00:00Z') });
+    });
+
+    it('treats a full ISO dateTo as the exact instant it names', () => {
+      const where = buildJobWhere(
+        'u1',
+        query({ dateTo: '2026-03-15T12:00:00.000Z' }),
+      );
+
+      expect(where.appliedAt).toEqual({
+        lte: new Date('2026-03-15T12:00:00.000Z'),
+      });
+    });
+
+    it('searches location and notes alongside company and position', () => {
+      const where = buildJobWhere('u1', query({ search: 'remote' }));
+
+      expect(where.OR?.map((clause) => Object.keys(clause)[0])).toEqual([
+        'company',
+        'position',
+        'location',
+        'notes',
+      ]);
     });
   });
 });

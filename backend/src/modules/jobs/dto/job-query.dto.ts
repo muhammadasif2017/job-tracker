@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsDateString,
   IsEnum,
@@ -19,6 +19,28 @@ export class JobQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsEnum(JobStatus)
   status?: JobStatus;
+
+  // Multi-status filter, used by the kanban board to fetch only the four
+  // columns it renders. Takes precedence over `status` (see buildJobWhere) —
+  // the two are alternatives, never combined. Accepts either a repeated
+  // param (?statusIn=A&statusIn=B) or a comma-separated one (?statusIn=A,B);
+  // the transform normalizes both to an array before validation.
+  @ApiPropertyOptional({
+    enum: JobStatus,
+    isArray: true,
+    example: ['WISHLIST', 'APPLIED'],
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string'
+      ? value
+          .split(',')
+          .map((v) => v.trim())
+          .filter(Boolean)
+      : value,
+  )
+  @IsEnum(JobStatus, { each: true })
+  statusIn?: JobStatus[];
 
   @ApiPropertyOptional({ enum: JobPriority })
   @IsOptional()

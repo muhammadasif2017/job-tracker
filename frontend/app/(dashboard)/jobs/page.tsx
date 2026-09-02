@@ -48,6 +48,18 @@ function useDebounce<T>(value: T, delay = 300): T {
   return debounced;
 }
 
+// `attachment; filename="jobs-offer.csv"` -> `jobs-offer.csv`. Falls back to
+// the caller's default for a missing or unparseable header (e.g. a same-origin
+// dev setup where the header isn't exposed).
+function filenameFromDisposition(
+  header: unknown,
+  fallback: string,
+): string {
+  if (typeof header !== 'string') return fallback;
+  const match = /filename="?([^";]+)"?/i.exec(header);
+  return match?.[1]?.trim() || fallback;
+}
+
 export default function JobsPage() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [search, setSearch] = useState('');
@@ -91,9 +103,26 @@ export default function JobsPage() {
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'jobs.csv';
+      // Prefer the server's filename — it carries the status suffix for a
+      // filtered export (jobs-offer.csv). Both this and X-Export-Truncated
+      // are only readable because main.ts lists them in the CORS
+      // `exposedHeaders`.
+      // `res.headers` is always present from a real axios response; the
+      // fallback keeps this from throwing on a hand-rolled response object.
+      const headers = (res.headers ?? {}) as Record<string, unknown>;
+      a.download = filenameFromDisposition(
+        headers['content-disposition'],
+        'jobs.csv',
+      );
       a.click();
       URL.revokeObjectURL(url);
+      // The export is capped server-side. Without this the user just gets a
+      // short file and no reason to doubt it.
+      if (headers['x-export-truncated'] === 'true') {
+        toast.warning(
+          'Export was truncated at 1000 rows — narrow the filters to export the rest.',
+        );
+      }
     } catch {
       toast.error('Export failed');
     }

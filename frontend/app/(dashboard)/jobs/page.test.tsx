@@ -6,7 +6,7 @@ import { formatDateOnly } from '../../../lib/utils';
 import type { Job, PaginatedJobs } from '../../../types';
 
 vi.mock('sonner', () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock('../../../lib/api', () => ({
@@ -326,6 +326,52 @@ describe('JobsPage', () => {
       expect(clickSpy).toHaveBeenCalled();
 
       clickSpy.mockRestore();
+      vi.unstubAllGlobals();
+    });
+
+    it('warns when the server truncated the export and uses its filename', async () => {
+      // X-Export-Truncated is the only signal that the download hit the row
+      // cap; Content-Disposition carries the status-suffixed filename. Both
+      // are readable cross-origin only because main.ts lists them in the CORS
+      // exposedHeaders.
+      const createObjectURL = vi.fn().mockReturnValue('blob:mock');
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+      const clickSpy = vi
+        .spyOn(HTMLAnchorElement.prototype, 'click')
+        .mockImplementation(() => {});
+      const downloads: string[] = [];
+      vi.spyOn(HTMLAnchorElement.prototype, 'download', 'set').mockImplementation(
+        function (this: HTMLAnchorElement, value: string) {
+          downloads.push(value);
+        },
+      );
+
+      vi.mocked(api.get).mockImplementation((url: string) => {
+        if (url.startsWith('/jobs/export')) {
+          return Promise.resolve({
+            data: new Blob(['csv']),
+            headers: {
+              'content-disposition': 'attachment; filename="jobs-offer.csv"',
+              'x-export-truncated': 'true',
+            },
+          });
+        }
+        return Promise.resolve({ data: page() });
+      });
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.click(screen.getByRole('button', { name: /export csv/i }));
+
+      await waitFor(() =>
+        expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
+          expect.stringContaining('truncated'),
+        ),
+      );
+      expect(downloads).toContain('jobs-offer.csv');
+
+      clickSpy.mockRestore();
+      vi.restoreAllMocks();
       vi.unstubAllGlobals();
     });
 

@@ -78,19 +78,47 @@ export function appliedAtRangeFilter(
   return cutoff ? { appliedAt: { gte: cutoff } } : {};
 }
 
+// `appliedAt` is a timestamp column, but `dateTo` is usually a date-only
+// string from a <input type="date">. `new Date('2024-12-31')` is that day's
+// midnight UTC, so a plain `lte` would exclude everything actually applied
+// *during* the named day. Widen a date-only bound to an exclusive
+// start-of-next-day instead; a caller who sends a full ISO datetime means
+// that exact instant, so it stays an inclusive `lte`.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+
+function appliedAtUpperBound(dateTo: string) {
+  const parsed = new Date(dateTo);
+  return DATE_ONLY.test(dateTo)
+    ? { lt: new Date(parsed.getTime() + 86_400_000) }
+    : { lte: parsed };
+}
+
 // Shared filter builder for the list and CSV export — both expose the same
 // status/priority/search/date filters scoped to the owner.
 export function buildJobWhere(userId: string, query: JobQueryDto) {
-  const { status, priority, search, dateFrom, dateTo } = query;
+  const { status, statusIn, priority, search, dateFrom, dateTo } = query;
   // NFKC folds styled Unicode (e.g. Mathematical Bold letters pasted from
   // LinkedIn/social posts) down to plain Latin so `contains` can match
   // against normally-typed stored data.
   const normalizedSearch = search?.normalize('NFKC');
+  // `statusIn` and `status` both write the same `status` key, so resolve them
+  // in one expression — spreading both would silently drop whichever came
+  // first. `statusIn` wins: it's the more specific of the two, and no caller
+  // sends both.
+  const statusFilter =
+    statusIn && statusIn.length > 0
+      ? { status: { in: statusIn } }
+      : status
+        ? { status }
+        : {};
   return {
     userId,
-    ...(status && { status }),
+    ...statusFilter,
     ...(priority && { priority }),
     ...(normalizedSearch && {
+      // Widened past company/position to cover the two other free-text
+      // columns — searching for a city or a note is the same intent, and
+      // CSV export shares this builder so both stay consistent.
       OR: [
         {
           company: { contains: normalizedSearch, mode: 'insensitive' as const },
@@ -101,17 +129,40 @@ export function buildJobWhere(userId: string, query: JobQueryDto) {
             mode: 'insensitive' as const,
           },
         },
+        {
+          location: {
+            contains: normalizedSearch,
+            mode: 'insensitive' as const,
+          },
+        },
+        {
+          notes: { contains: normalizedSearch, mode: 'insensitive' as const },
+        },
       ],
     }),
     ...(dateFrom || dateTo
       ? {
           appliedAt: {
             ...(dateFrom && { gte: new Date(dateFrom) }),
-            ...(dateTo && { lte: new Date(dateTo) }),
+            ...(dateTo && appliedAtUpperBound(dateTo)),
           },
         }
       : {}),
   };
+}
+
+// `Job.nextInterviewAt` is denormalized: InterviewRoundsService recomputes it
+// from the earliest future PENDING round on every round write, but nothing
+// touches it when time simply passes. Once the stored instant is in the past
+// it no longer names an *upcoming* interview, so read paths must not present
+// it as one — otherwise the job detail page and the CSV export keep showing a
+// date that has already been and gone. (getAttentionItems is already safe: it
+// scopes its query with `gte: now`.)
+export function upcomingInterviewAt(
+  value: Date | null | undefined,
+  now: Date = new Date(),
+): Date | null {
+  return value && value.getTime() >= now.getTime() ? value : null;
 }
 
 export type TrendGranularity = 'day' | 'week' | 'month';

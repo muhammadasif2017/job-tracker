@@ -13,6 +13,7 @@ import {
   computeTrendBuckets,
   buildJobWhere,
   SENT_APPLICATION_FILTER,
+  upcomingInterviewAt,
 } from './jobs.constants.js';
 
 @Injectable()
@@ -259,7 +260,9 @@ export class JobsStatsService {
         escape(j.applicationChannel),
         escape(j.location),
         escape(j.appliedAt.toISOString().split('T')[0]),
-        escape(j.nextInterviewAt?.toISOString().split('T')[0]),
+        escape(
+          upcomingInterviewAt(j.nextInterviewAt)?.toISOString().split('T')[0],
+        ),
         escape(j.url),
         escape(j.notes),
       ].join(','),

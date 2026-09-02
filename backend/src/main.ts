@@ -39,6 +39,13 @@ async function bootstrap() {
   app.enableCors({
     origin: config.get<string>('FRONTEND_URL'),
     credentials: true,
+    // A cross-origin response's headers are invisible to JS unless listed
+    // here. The CSV export needs both: `Content-Disposition` carries the
+    // server-chosen filename, and `X-Export-Truncated` is the only signal
+    // that the download hit the row cap — without it the browser silently
+    // saves a partial file. Caddy is a plain reverse proxy in prod (see
+    // Caddyfile), so this is the only place CORS is configured.
+    exposedHeaders: ['Content-Disposition', 'X-Export-Truncated'],
   });
 
   app.useGlobalPipes(

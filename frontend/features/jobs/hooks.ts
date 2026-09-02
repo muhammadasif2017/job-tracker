@@ -73,12 +73,25 @@ export function useJobQuery(id: string) {
   });
 }
 
+// The backend's max page size. There's no pagination UI on the timeline, so
+// ask for the largest page it will serve — a job with more events than this
+// is far outside normal use, and the newest-first ordering means the newest
+// ones are what survive.
+const EVENTS_PAGE_SIZE = 200;
+
 export function useJobEventsQuery(id: string) {
   return useQuery<JobEvent[]>({
     queryKey: ['job-events', id],
     // Backend returns { data, meta } (paginated) — no pagination UI here yet,
-    // so unwrap to the flat array callers expect.
-    queryFn: () => api.get(`/jobs/${id}/events`).then((r) => r.data.data),
+    // so unwrap to the flat array callers expect. It orders newest-first so a
+    // truncated page keeps the recent events; the timeline renders
+    // oldest-to-newest, so flip the page back here. Reversing the fresh axios
+    // array inside queryFn (not the cached value in a selector) keeps this
+    // from mutating cache state.
+    queryFn: () =>
+      api
+        .get(`/jobs/${id}/events?limit=${EVENTS_PAGE_SIZE}`)
+        .then((r) => (r.data.data as JobEvent[]).reverse()),
     enabled: !!id,
   });
 }
@@ -89,10 +102,15 @@ export function usePatchJobStatusMutation(id: string) {
     mutationFn: (status: JobStatus) =>
       api.patch(`/jobs/${id}`, { status }).then((r) => r.data),
     onSuccess: (updated) => {
-      qc.setQueryData<Job>(['job', id], (prev) => ({
-        ...updated,
-        companyProfile: prev?.companyProfile,
-      }));
+      // PATCH /jobs/:id returns the job with `resume` included only — it
+      // carries no `interviewRounds`, `contacts` or `companyProfile`, unlike
+      // the GET /jobs/:id shape this cache entry holds. Spread `prev` first
+      // so those survive: the keys are absent from `updated`, so they can't
+      // be overwritten with undefined and blank the detail page's rounds and
+      // contacts sections.
+      qc.setQueryData<Job>(['job', id], (prev) =>
+        prev ? { ...prev, ...updated } : updated,
+      );
       qc.invalidateQueries({ queryKey: ['job-events', id] });
       invalidateJobListCaches(qc);
     },
@@ -107,12 +125,38 @@ export function usePatchJobStatusMutation(id: string) {
   });
 }
 
-const KANBAN_QUERY_KEY = ['jobs', { limit: 100 }] as const;
+// The four columns the board renders. Sent as `statusIn` so REJECTED and
+// GHOSTED jobs don't consume slots in the page limit and then render in no
+// column at all — with enough closed applications that alone could empty the
+// board.
+export const KANBAN_STATUSES: JobStatus[] = [
+  'WISHLIST',
+  'APPLIED',
+  'INTERVIEWING',
+  'OFFER',
+];
+
+// Max page size the list endpoint will serve. The board is a single page, so
+// a user with more open applications than this sees a subset — `meta.total`
+// says how many matched, and the board surfaces that rather than quietly
+// dropping cards.
+export const KANBAN_PAGE_SIZE = 100;
+
+// Must describe the request it caches — the board and the optimistic-drag
+// mutation share this constant, so they can never drift apart.
+const KANBAN_QUERY_KEY = [
+  'jobs',
+  { limit: KANBAN_PAGE_SIZE, statusIn: KANBAN_STATUSES },
+] as const;
 
 export function useKanbanJobsQuery() {
+  const params = new URLSearchParams({
+    limit: String(KANBAN_PAGE_SIZE),
+    statusIn: KANBAN_STATUSES.join(','),
+  });
   return useQuery<PaginatedJobs>({
     queryKey: KANBAN_QUERY_KEY,
-    queryFn: () => api.get('/jobs?limit=100').then((r) => r.data),
+    queryFn: () => api.get(`/jobs?${params}`).then((r) => r.data),
   });
 }
 
@@ -172,7 +216,18 @@ export function useParseJobMutation(onParsed?: (data: ParsedJob) => void) {
         .post<ParsedJob>('/jobs/parse', payload, { timeout: 60_000 })
         .then((r) => r.data);
     },
-    onSuccess: (data) => onParsed?.(data),
+    onSuccess: (data) => {
+      // /jobs/parse answers 200 with an all-but-empty body when neither the
+      // page fetch nor the search fallback gave the LLM anything to extract.
+      // Quick Add then opens a blank form, which reads as a bug unless we say
+      // what happened.
+      if (!data.company && !data.position) {
+        toast.warning(
+          "Couldn't read that posting — enter the details manually.",
+        );
+      }
+      onParsed?.(data);
+    },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Could not parse that posting')),
   });

@@ -163,7 +163,9 @@ describe('JobForm', () => {
       expect(payload).toMatchObject({
         company: 'Acme',
         position: 'Senior Engineer',
+        location: undefined,
         url: undefined,
+        notes: undefined,
         discoverySource: undefined,
         applicationChannel: undefined,
       });
@@ -179,6 +181,55 @@ describe('JobForm', () => {
       );
       expect(screen.getByText('Job Added')).toBeInTheDocument();
       expect(onClose).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('edit submit', () => {
+    it('sends explicit nulls for optional fields the user emptied out', async () => {
+      // `undefined` would be dropped by JSON.stringify and Prisma would keep
+      // the old column value — only an explicit null clears it (ADR-022).
+      vi.mocked(api.patch).mockResolvedValue({ data: { ...job } });
+      renderForm({ job });
+      fireEvent.change(screen.getByLabelText(/job url/i), {
+        target: { value: '' },
+      });
+      fireEvent.change(screen.getByLabelText(/location/i), {
+        target: { value: '' },
+      });
+      fireEvent.change(screen.getByLabelText(/notes/i), {
+        target: { value: '' },
+      });
+      fireEvent.change(screen.getByLabelText(/discovery source/i), {
+        target: { value: '' },
+      });
+      fireEvent.change(screen.getByLabelText(/application channel/i), {
+        target: { value: '' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      const [url, payload] = vi.mocked(api.patch).mock.calls[0];
+      expect(url).toBe('/jobs/j-1');
+      expect(payload).toMatchObject({
+        location: null,
+        url: null,
+        notes: null,
+        discoverySource: null,
+        applicationChannel: null,
+      });
+    });
+
+    it('leaves filled optional fields untouched', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: { ...job } });
+      renderForm({ job });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      expect(vi.mocked(api.patch).mock.calls[0][1]).toMatchObject({
+        location: 'Remote',
+        url: 'https://acme.example/jobs/1',
+        notes: 'Great referral from Bob',
+        discoverySource: 'LINKEDIN',
+        applicationChannel: 'REFERRAL',
+      });
     });
   });
 

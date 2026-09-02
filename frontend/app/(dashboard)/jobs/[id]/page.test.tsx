@@ -91,7 +91,7 @@ function mockJobAndEvents(jobData: Job | undefined, events: JobEvent[] = []) {
         ? Promise.resolve({ data: jobData })
         : Promise.reject({ isAxiosError: true, response: { status: 404 } });
     }
-    if (url === '/jobs/j-1/events') {
+    if (url.startsWith('/jobs/j-1/events')) {
       return Promise.resolve({
         data: {
           data: events,
@@ -294,6 +294,57 @@ describe('JobDetailPage', () => {
       expect(invalidatedKeys).toEqual(
         expect.arrayContaining(['job-events', 'jobs', 'stats', 'analytics', 'attention']),
       );
+    });
+
+    it('keeps rounds, contacts and the company profile after a status patch', async () => {
+      // PATCH /jobs/:id responds with the job plus `resume` only — no
+      // interviewRounds/contacts/companyProfile. The cache merge must not
+      // let those missing keys blank the sections already rendered.
+      mockJobAndEvents({
+        ...job,
+        interviewRounds: [
+          {
+            id: 'r-1',
+            jobId: 'j-1',
+            stage: 'Screen',
+            scheduledAt: '2026-06-05T00:00:00Z',
+            outcome: 'PENDING',
+            derivedStatus: 'SCHEDULED',
+            createdAt: '2026-06-01T00:00:00Z',
+            updatedAt: '2026-06-01T00:00:00Z',
+          },
+        ],
+        contacts: [
+          {
+            id: 'c-1',
+            jobId: 'j-1',
+            name: 'Jane',
+            createdAt: '2026-06-01T00:00:00Z',
+            updatedAt: '2026-06-01T00:00:00Z',
+          },
+        ],
+      });
+      const patchResponse: Record<string, unknown> = {
+        ...job,
+        status: 'OFFER',
+        resume: null,
+      };
+      // The keys must be genuinely absent, not present-and-undefined — an
+      // explicit `undefined` would still clobber them in the cache merge.
+      delete patchResponse.interviewRounds;
+      delete patchResponse.contacts;
+      vi.mocked(api.patch).mockResolvedValue({ data: patchResponse });
+      renderPage();
+      await screen.findByText('Acme');
+      expect(screen.getByTestId('interview-rounds')).toHaveAttribute('data-count', '1');
+      fireEvent.change(screen.getByDisplayValue('Interviewing'), {
+        target: { value: 'OFFER' },
+      });
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('Offer')).toBeInTheDocument(),
+      );
+      expect(screen.getByTestId('interview-rounds')).toHaveAttribute('data-count', '1');
+      expect(screen.getByTestId('contacts')).toHaveAttribute('data-count', '1');
     });
 
     it('shows the server error and refetches on a 409 conflict', async () => {

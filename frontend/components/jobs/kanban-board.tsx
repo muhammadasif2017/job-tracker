@@ -12,14 +12,14 @@ import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import { formatDateOnly } from '../../lib/utils';
 import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../../types';
-import { useKanbanJobsQuery, useKanbanPatchStatusMutation } from '../../features/jobs/hooks';
+import {
+  useKanbanJobsQuery,
+  useKanbanPatchStatusMutation,
+  KANBAN_STATUSES,
+  KANBAN_PAGE_SIZE,
+} from '../../features/jobs/hooks';
 
-const KANBAN_COLS: JobStatus[] = [
-  'WISHLIST',
-  'APPLIED',
-  'INTERVIEWING',
-  'OFFER',
-];
+const KANBAN_COLS: JobStatus[] = KANBAN_STATUSES;
 
 interface KanbanBoardProps {
   onEdit: (job: Job) => void;
@@ -28,6 +28,12 @@ interface KanbanBoardProps {
 export function KanbanBoard({ onEdit }: KanbanBoardProps) {
   const { data, isLoading, isError, refetch } = useKanbanJobsQuery();
   const patchStatus = useKanbanPatchStatusMutation();
+
+  // The board fetches a single page. When more open applications match than
+  // fit in it, say so — silently rendering a subset of the pipeline is worse
+  // than an incomplete board the user knows is incomplete.
+  const loaded = data?.data.length ?? 0;
+  const hiddenCount = Math.max((data?.meta.total ?? 0) - loaded, 0);
 
   const jobsByStatus = useMemo(
     () =>
@@ -84,6 +90,13 @@ export function KanbanBoard({ onEdit }: KanbanBoardProps) {
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
+      {hiddenCount > 0 && (
+        <p className="mb-3 rounded-md border border-line bg-paper px-3 py-2 text-sm text-muted">
+          Showing the {KANBAN_PAGE_SIZE} most recent open applications.{' '}
+          {hiddenCount} more {hiddenCount === 1 ? 'is' : 'are'} not on the
+          board — use the list view to see everything.
+        </p>
+      )}
       <div className="flex gap-4 overflow-x-auto pb-4">
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0">
