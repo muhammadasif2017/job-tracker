@@ -25,6 +25,12 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/package.json ./package.json
+# STORAGE_DRIVER=local writes resume PDFs to ./uploads. /app is root-owned, so
+# without this the runtime mkdir fails with EACCES and uploads break outright.
+# Creating it here with the right ownership also makes a named volume mounted
+# at this path writable: Docker seeds a fresh volume from the image directory,
+# ownership included. See the backend_uploads volume in docker-compose.prod.yml.
+RUN mkdir -p /app/uploads && chown nodeapp:nodejs /app/uploads
 USER nodeapp
 EXPOSE 3001
 # Apply pending migrations, then boot. migrate deploy never generates or resets — safe for prod.

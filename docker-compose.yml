@@ -41,6 +41,11 @@ services:
       JWT_REFRESH_EXPIRES_IN: 7d
       FRONTEND_URL: http://localhost:3000
       NODE_ENV: production
+    # No STORAGE_DRIVER is set here, so this stack runs the local driver and
+    # writes resume PDFs to /app/uploads — persist them instead of losing
+    # them with the container.
+    volumes:
+      - backend_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,3 +66,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_uploads:
