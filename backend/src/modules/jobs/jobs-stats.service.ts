@@ -3,7 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { getAttentionItems } from './attention.helper.js';
 import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
-import { safeTimeZone, startOfCivilMonth } from '../../common/timezone.util.js';
+import {
+  localCivilDay,
+  safeTimeZone,
+  startOfCivilMonth,
+} from '../../common/timezone.util.js';
 import {
   FUNNEL_STAGES,
   DROPOFF_STAGES,
@@ -16,6 +20,13 @@ import {
   SENT_APPLICATION_FILTER,
   upcomingInterviewAt,
 } from './jobs.constants.js';
+
+// The calendar day a real instant falls on for this user, or null. Kept
+// separate from `localCivilDay` so the nullable read paths don't each repeat
+// the guard.
+function civilDay(value: Date | null, timeZone: string): Date | null {
+  return value ? localCivilDay(value, timeZone) : null;
+}
 
 @Injectable()
 export class JobsStatsService {
@@ -269,11 +280,14 @@ export class JobsStatsService {
     const where = buildJobWhere(userId, query);
     const exportLimit = 1_000;
 
-    const jobs = await this.prisma.job.findMany({
-      where,
-      orderBy: { appliedAt: 'desc' },
-      take: exportLimit + 1,
-    });
+    const [jobs, timeZone] = await Promise.all([
+      this.prisma.job.findMany({
+        where,
+        orderBy: { appliedAt: 'desc' },
+        take: exportLimit + 1,
+      }),
+      this.userTimeZone(userId),
+    ]);
     const truncated = jobs.length > exportLimit;
     if (truncated) jobs.length = exportLimit;
 
@@ -306,9 +320,16 @@ export class JobsStatsService {
         escape(j.discoverySource),
         escape(j.applicationChannel),
         escape(j.location),
+        // `appliedAt` is a civil date, so its UTC day *is* the calendar day
+        // it names (ADR-034) — no projection.
         escape(j.appliedAt.toISOString().split('T')[0]),
+        // `nextInterviewAt` is the opposite: a real instant. Taking its UTC
+        // day would export a 02:00-local interview on the previous date for
+        // a user ahead of UTC, so resolve it on their calendar first.
         escape(
-          upcomingInterviewAt(j.nextInterviewAt)?.toISOString().split('T')[0],
+          civilDay(upcomingInterviewAt(j.nextInterviewAt), timeZone)
+            ?.toISOString()
+            .split('T')[0],
         ),
         escape(j.url),
         escape(j.notes),

@@ -848,6 +848,38 @@ describe('JobsStatsService', () => {
       expect(row).toContain('"Acme ""Corp"""');
     });
 
+    it('exports Next Interview on the user calendar, not the UTC one', async () => {
+      // A real instant, unlike Applied Date — 22:00Z is already the next day
+      // in Karachi, and taking its UTC day would export the interview a
+      // date early for every user ahead of UTC.
+      mockPrisma.user.findUnique.mockResolvedValue({
+        timezone: 'Asia/Karachi',
+      });
+      const future = new Date(Date.now() + 30 * 86_400_000);
+      const at22Utc = new Date(
+        `${future.toISOString().split('T')[0]}T22:00:00Z`,
+      );
+      mockPrisma.job.findMany.mockResolvedValue([
+        {
+          company: 'Co',
+          position: 'P',
+          status: 'APPLIED',
+          location: null,
+          appliedAt: new Date('2026-01-01'),
+          nextInterviewAt: at22Utc,
+          url: null,
+          notes: null,
+        },
+      ]);
+
+      const { csv } = await service.exportCsv('u1', new JobQueryDto());
+
+      const nextDay = new Date(at22Utc.getTime() + 86_400_000)
+        .toISOString()
+        .split('T')[0];
+      expect(csv).toContain(`"${nextDay}"`);
+    });
+
     it('leaves Next Interview blank when the stored date has already passed', async () => {
       mockPrisma.job.findMany.mockResolvedValue([
         {
