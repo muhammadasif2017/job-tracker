@@ -15,6 +15,11 @@ import { TimelineSummaryService } from '../timeline-summary/timeline-summary.ser
 import { STORAGE_SERVICE } from '../../storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 
+// The stored `appliedAt` every ownership mock below reports. `findOwned`
+// selects it so `update` can tell a date the user actually edited from the
+// pre-filled one JobForm resends untouched.
+const SAVED_AT = new Date('2026-01-01T00:00:00.000Z');
+
 const mockPrisma = {
   job: {
     groupBy: jest.fn(),
@@ -30,6 +35,9 @@ const mockPrisma = {
   jobEvent: { findMany: jest.fn(), create: jest.fn(), count: jest.fn() },
   resume: { findFirst: jest.fn() },
   company: { findFirst: jest.fn(), create: jest.fn() },
+  // Read by `todayFor` — `appliedAt` is a civil date in the *user's* zone
+  // (ADR-034), so every write path that stamps it needs the timezone column.
+  user: { findUnique: jest.fn() },
   // See interview-rounds.service.spec.ts for why this just replays the
   // callback against the same mock instead of modeling a real transaction.
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
@@ -56,6 +64,7 @@ describe('JobsService', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockPrisma.company.findFirst.mockResolvedValue(null);
+    mockPrisma.user.findUnique.mockResolvedValue({ timezone: 'UTC' });
     const module = await Test.createTestingModule({
       providers: [
         JobsService,
@@ -517,6 +526,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -524,7 +534,13 @@ describe('JobsService', () => {
 
       expect(mockPrisma.job.findFirst).toHaveBeenCalledWith(
         expect.objectContaining({
-          select: { id: true, status: true, company: true, companyId: true },
+          select: {
+            id: true,
+            status: true,
+            company: true,
+            companyId: true,
+            appliedAt: true,
+          },
         }),
       );
       expect(mockPrisma.job.findFirst).not.toHaveBeenCalledWith(
@@ -541,16 +557,26 @@ describe('JobsService', () => {
         status: JobStatus.WISHLIST,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
-      const before = Date.now();
+      mockPrisma.user.findUnique.mockResolvedValue({
+        timezone: 'Asia/Karachi',
+      });
 
       await service.update('user-1', 'job-1', { status: JobStatus.APPLIED });
 
+      // The user's own today, floored to civil midnight — not `now()`. The
+      // column holds a calendar day, and it's the user's calendar that
+      // decides which one (ADR-034).
       const { data } = mockPrisma.job.update.mock.calls[0][0];
-      expect(data.appliedAt).toBeInstanceOf(Date);
-      expect((data.appliedAt as Date).getTime()).toBeGreaterThanOrEqual(before);
+      const stamped = data.appliedAt as Date;
+      expect(stamped.toISOString()).toBe(
+        `${new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'Asia/Karachi',
+        }).format(new Date())}T00:00:00.000Z`,
+      );
     });
 
     // The board lets you drag a wishlist card straight past APPLIED.
@@ -560,6 +586,7 @@ describe('JobsService', () => {
         status: JobStatus.WISHLIST,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
@@ -579,6 +606,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
@@ -598,6 +626,7 @@ describe('JobsService', () => {
         status: JobStatus.WISHLIST,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
@@ -612,12 +641,59 @@ describe('JobsService', () => {
       );
     });
 
+    // JobForm resends every field on every submit, including the pre-filled
+    // date the user never touched. An `appliedAt !== undefined` guard meant
+    // the re-stamp fired on a kanban drag and silently didn't on the exact
+    // same transition made through the edit form.
+    it('still re-stamps when the client resends the stored appliedAt unchanged', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.WISHLIST,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        status: JobStatus.APPLIED,
+        appliedAt: '2026-01-01',
+      });
+
+      expect(mockPrisma.job.update.mock.calls[0][0].data.appliedAt).not.toEqual(
+        SAVED_AT,
+      );
+    });
+
+    // A full ISO datetime is accepted by @IsDateString, so it can reach the
+    // service — it must not smuggle a time-of-day into a civil column.
+    it('floors a submitted ISO datetime to the calendar day it names', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        appliedAt: '2026-03-15T17:42:09.000Z',
+      });
+
+      expect(mockPrisma.job.update.mock.calls[0][0].data.appliedAt).toEqual(
+        new Date('2026-03-15T00:00:00.000Z'),
+      );
+    });
+
     it('persists an edited jobType — it is a plain updatable field, unlike status', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -639,6 +715,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       });
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -784,6 +861,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       }); // findOwned
       mockPrisma.company.findFirst.mockResolvedValueOnce({
         id: 'company-2',
@@ -810,6 +888,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       }); // findOwned
       mockPrisma.company.findFirst.mockResolvedValueOnce(null); // resolveCompanyId: no match
       mockPrisma.company.create.mockResolvedValue({
@@ -841,6 +920,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Old Co',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       }); // findOwned only — resolveCompanyId short-circuits on blank name
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 
@@ -860,6 +940,7 @@ describe('JobsService', () => {
         status: JobStatus.APPLIED,
         company: 'Google',
         companyId: 'company-1',
+        appliedAt: SAVED_AT,
       }); // findOwned
       mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
 

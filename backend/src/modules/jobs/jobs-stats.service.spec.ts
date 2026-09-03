@@ -273,9 +273,12 @@ describe('JobsStatsService', () => {
       }
 
       const thisMonthCall = mockPrisma.job.count.mock.calls[1][0];
-      // 20:00 UTC on Jun 30 is already July 1st in Karachi.
+      // 20:00 UTC on Jun 30 is already July 1st in Karachi, so the boundary
+      // is July's. It is a *civil* midnight, not the real instant Karachi's
+      // month began — the column it filters holds civil dates (ADR-034), and
+      // a bound carrying a time-of-day would half-exclude the 1st.
       expect(thisMonthCall.where.appliedAt.gte.toISOString()).toBe(
-        '2026-06-30T19:00:00.000Z',
+        '2026-07-01T00:00:00.000Z',
       );
     });
 
@@ -745,20 +748,42 @@ describe('JobsStatsService', () => {
       expect(result.buckets[result.buckets.length - 1].label).toBe('Jul 2026');
     });
 
-    it('buckets an application on the user calendar day, not the server one', () => {
-      // 22:00 UTC on Jul 9 is already Jul 10 in Karachi. Bucketing on the
-      // server's calendar put the bar on the wrong day for every evening
-      // application a user ahead of UTC made.
-      const applied = [new Date('2026-07-09T22:00:00Z')];
+    it('does not re-project a stored civil date into the user zone', () => {
+      // `appliedAt` is already a civil date — the user's zone decided which
+      // calendar day it names at write time (ADR-034). Resolving it through
+      // a zone a second time is what this guards: west of UTC, UTC midnight
+      // on Jul 9 reads back as Jul 8 and every bar shifts a day.
+      const applied = [new Date('2026-07-09T00:00:00Z')];
 
-      const utc = computeTrendBuckets(applied, '30d', now, 'UTC');
-      const karachi = computeTrendBuckets(applied, '30d', now, 'Asia/Karachi');
+      const dayWithTheApplication = (timeZone: string) =>
+        computeTrendBuckets(applied, '30d', now, timeZone).buckets.find(
+          (b) => b.count === 1,
+        )?.label;
 
-      const dayWithTheApplication = (
-        result: ReturnType<typeof computeTrendBuckets>,
-      ) => result.buckets.find((b) => b.count === 1)?.label;
-      expect(dayWithTheApplication(utc)).toBe('Jul 9');
-      expect(dayWithTheApplication(karachi)).toBe('Jul 10');
+      expect(dayWithTheApplication('UTC')).toBe('Jul 9');
+      expect(dayWithTheApplication('Asia/Karachi')).toBe('Jul 9');
+      expect(dayWithTheApplication('America/New_York')).toBe('Jul 9');
+    });
+
+    it('still places the window on the user calendar', () => {
+      // The zone is not ignored — it decides which day is "today", and so
+      // where the rolling window ends. At 20:00 UTC on Jun 30 a Karachi user
+      // is already on Jul 1 and their chart must run one bar further.
+      const evening = new Date('2026-06-30T20:00:00Z');
+      const applied = [new Date('2026-06-20T00:00:00Z')];
+
+      const lastLabel = (timeZone: string) => {
+        const { buckets } = computeTrendBuckets(
+          applied,
+          '30d',
+          evening,
+          timeZone,
+        );
+        return buckets[buckets.length - 1].label;
+      };
+
+      expect(lastLabel('UTC')).toBe('Jun 30');
+      expect(lastLabel('Asia/Karachi')).toBe('Jul 1');
     });
 
     it('cumulative at the last bucket equals the total number of applications', () => {

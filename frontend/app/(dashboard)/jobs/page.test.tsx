@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import JobsPage from './page';
-import { formatDateOnly } from '../../../lib/utils';
+import { formatCivilDate } from '../../../lib/utils';
 import type { Job, PaginatedJobs } from '../../../types';
 
 vi.mock('sonner', () => ({
@@ -159,7 +159,7 @@ describe('JobsPage', () => {
       expect(row.getByText('High')).toBeInTheDocument();
       expect(row.getByText('Remote')).toBeInTheDocument();
       expect(row.getByText('Austin, TX')).toBeInTheDocument();
-      expect(row.getByText(formatDateOnly('2026-06-01T00:00:00Z'))).toBeInTheDocument();
+      expect(row.getByText(formatCivilDate('2026-06-01T00:00:00Z'))).toBeInTheDocument();
       expect(
         screen.getByText((_, el) => el?.textContent === '2 applications tracked'),
       ).toBeInTheDocument();

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { StatusBadge, PriorityBadge } from '../ui/badge';
-import { formatDate } from '../../lib/utils';
+import { formatCivilDate } from '../../lib/utils';
 import type { CompanyJobSummary } from '../../types';
 
 interface CompanyJobsProps {
@@ -37,7 +37,7 @@ export function CompanyJobs({ jobs }: CompanyJobsProps) {
                   <StatusBadge status={job.status} />
                   <PriorityBadge priority={job.priority} />
                   <span className="text-xs text-muted-2">
-                    {formatDate(job.appliedAt)}
+                    {formatCivilDate(job.appliedAt)}
                   </span>
                 </div>
               </Link>

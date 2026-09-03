@@ -1,9 +1,8 @@
 import {
-  civilMsIn,
+  civilDaysAgo,
   localCivilDay,
   safeTimeZone,
-  startOfLocalMonth,
-  zonedInstantFromCivil,
+  startOfCivilMonth,
 } from './timezone.util.js';
 
 describe('timezone.util', () => {
@@ -41,32 +40,41 @@ describe('timezone.util', () => {
     });
   });
 
-  describe('zonedInstantFromCivil', () => {
-    it('round-trips a wall clock back to the instant that shows it', () => {
-      const instant = new Date('2026-07-09T22:00:00Z');
-      const civil = civilMsIn(instant, 'Asia/Karachi');
-      expect(zonedInstantFromCivil(civil, 'Asia/Karachi')).toEqual(instant);
-    });
-
-    it('round-trips across a DST transition', () => {
-      // US DST ended 2026-11-01; a November instant sits on a different
-      // offset than the one a naive single-pass guess would measure.
-      const instant = new Date('2026-11-15T12:00:00Z');
-      const civil = civilMsIn(instant, 'America/New_York');
-      expect(zonedInstantFromCivil(civil, 'America/New_York')).toEqual(instant);
+  describe('startOfCivilMonth', () => {
+    it('anchors to the user calendar, not the server one', () => {
+      // 20:00 UTC on Jun 30 is already July in Karachi — "this month" must
+      // agree with the calendar on the user's wall. The bound itself is a
+      // civil date, because `appliedAt` is one (ADR-034); a real instant here
+      // would carry a time-of-day the column never has.
+      const instant = new Date('2026-06-30T20:00:00Z');
+      expect(startOfCivilMonth(instant, 'Asia/Karachi').toISOString()).toBe(
+        '2026-07-01T00:00:00.000Z',
+      );
+      expect(startOfCivilMonth(instant, 'UTC').toISOString()).toBe(
+        '2026-06-01T00:00:00.000Z',
+      );
     });
   });
 
-  describe('startOfLocalMonth', () => {
-    it('anchors to the user calendar, not the server one', () => {
-      // 20:00 UTC on Jun 30 is already July in Karachi — "this month" must
-      // agree with the calendar on the user's wall.
-      const instant = new Date('2026-06-30T20:00:00Z');
-      expect(startOfLocalMonth(instant, 'Asia/Karachi').toISOString()).toBe(
-        '2026-06-30T19:00:00.000Z',
+  describe('civilDaysAgo', () => {
+    it('counts back from the user calendar day, landing on midnight', () => {
+      // Karachi already reads Jul 10, so 30 days back is Jun 10 — not Jun 9,
+      // which is what counting from the UTC day would give.
+      const instant = new Date('2026-07-09T22:00:00Z');
+      expect(civilDaysAgo(instant, 'Asia/Karachi', 30).toISOString()).toBe(
+        '2026-06-10T00:00:00.000Z',
       );
-      expect(startOfLocalMonth(instant, 'UTC').toISOString()).toBe(
-        '2026-06-01T00:00:00.000Z',
+      expect(civilDaysAgo(instant, 'UTC', 30).toISOString()).toBe(
+        '2026-06-09T00:00:00.000Z',
+      );
+    });
+
+    it('stays on midnight across a DST transition', () => {
+      // US DST ended 2026-11-01; a naive `now - 30*86400000` would land an
+      // hour off midnight and half-exclude the boundary day.
+      const instant = new Date('2026-11-15T12:00:00Z');
+      expect(civilDaysAgo(instant, 'America/New_York', 30).toISOString()).toBe(
+        '2026-10-16T00:00:00.000Z',
       );
     });
   });
