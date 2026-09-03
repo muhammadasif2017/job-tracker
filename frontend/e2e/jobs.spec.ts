@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import {
   createTestUser,
   deleteTestUser,
@@ -213,10 +213,16 @@ test.describe('Search', () => {
     await deleteTestJob(user.accessToken, jobB.id).catch(() => {});
   });
 
+  // Located by aria-label, not placeholder. The placeholder names which
+  // columns the search covers, so it changes whenever that set does — it took
+  // all three of these tests down when `notes` and `location` were added.
+  const searchBox = (page: Page) =>
+    page.getByRole('textbox', { name: 'Search jobs' });
+
   test('filters jobs by company name', async ({ page }) => {
     await goToJobs(page);
 
-    await page.getByPlaceholder('Search company or position…').fill('Alpha');
+    await searchBox(page).fill('Alpha');
     // Wait for the 300ms debounce + network response
     await expect(
       page.getByRole('cell', { name: 'Alpha Inc', exact: true }),
@@ -229,7 +235,7 @@ test.describe('Search', () => {
   test('filters jobs by position', async ({ page }) => {
     await goToJobs(page);
 
-    await page.getByPlaceholder('Search company or position…').fill('Backend');
+    await searchBox(page).fill('Backend');
     await expect(
       page.getByRole('cell', { name: 'Beta Ltd', exact: true }),
     ).toBeVisible();
@@ -241,9 +247,7 @@ test.describe('Search', () => {
   test('shows empty state when search has no results', async ({ page }) => {
     await goToJobs(page);
 
-    await page
-      .getByPlaceholder('Search company or position…')
-      .fill('ZZZNoMatch');
+    await searchBox(page).fill('ZZZNoMatch');
     await expect(page.getByText('No jobs found')).toBeVisible();
   });
 });

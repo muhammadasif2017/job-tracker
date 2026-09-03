@@ -10,7 +10,7 @@ import {
 import { Pencil, ExternalLink } from 'lucide-react';
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
-import { formatDateOnly } from '../../lib/utils';
+import { formatCivilDate } from '../../lib/utils';
 import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../../types';
 import {
   useKanbanJobsQuery,
@@ -160,7 +160,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                           </p>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="font-mono text-[11px] text-muted-2">
-                              {formatDateOnly(job.appliedAt)}
+                              {formatCivilDate(job.appliedAt)}
                             </span>
                             <div className="flex gap-1">
                               {job.url && (

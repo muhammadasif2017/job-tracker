@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { formatDateOnly } from '../../lib/utils';
+import { formatDate } from '../../lib/utils';
 import api from '../../lib/api';
 import {
   useCreateInterviewRoundMutation,
@@ -188,7 +188,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{round.stage}</p>
                     <p className="text-xs text-muted">
-                      {formatDateOnly(round.scheduledAt)}
+                      {formatDate(round.scheduledAt)}
                     </p>
                     {round.notes && (
                       <p className="mt-1 text-xs text-muted">{round.notes}</p>

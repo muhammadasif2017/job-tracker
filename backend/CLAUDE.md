@@ -190,23 +190,45 @@ from the existing `['job', id]` query; no separate fetch.
 
 ---
 
-## Jobs: `appliedAt` Is Re-Stamped on Leaving WISHLIST
+## Jobs: `appliedAt` Is a Civil Date
 
-`Job.appliedAt` is `@default(now())`, so a wishlisted job carries the date it
-was *saved*. `JobsService.update` re-stamps it to `now()` when a status change
-moves the job out of `WISHLIST` in any direction (the board allows a drag
-straight to INTERVIEWING) — unless the same request carries an explicit
-`appliedAt`, which wins. Without this every "applications sent" metric
+`Job.appliedAt` holds a **civil date** — UTC midnight standing in for a
+calendar day, never a real time-of-day (ADR-034). The user's own
+`User.timezone` decides *which* calendar day, once, at write time.
+
+Two private helpers on `JobsService` are the only ways to produce a value for
+this column, and a third way must not appear: `civilDateFromInput` for a date
+the client named (it floors a full ISO datetime to the UTC day it names, since
+`@IsDateString` accepts one), and `todayFor` for a date we infer. **`create`
+sets the column explicitly on every path** — the schema's `@default(now())`
+would write a real timestamp and break the invariant, so it must never fire.
+
+**Never re-project a value read out of this column.** It is civil already;
+resolving it through a zone a second time reads UTC midnight back as the
+previous day for any user west of UTC. The zone is still used in
+`JobsStatsService`, but only to place a *boundary* on the user's calendar —
+which month is "this" month (`startOfCivilMonth`), which day a rolling 30d/90d
+window starts on (`rangeToCutoff`). Both boundaries are themselves civil
+dates; a real instant there carries a time-of-day the column never has and
+half-excludes the boundary day.
+
+`nextInterviewAt` and `InterviewRound.scheduledAt` are the opposite — real
+instants, filtered on a 48-hour window and used to schedule reminder emails.
+Don't format or compare them as civil dates. The frontend counterpart of this
+split is `formatCivilDate` vs `formatDate` in `frontend/lib/utils.ts`.
+
+`JobsService.update` re-stamps `appliedAt` to the user's today when a status
+change moves a job out of `WISHLIST` in any direction (the board allows a drag
+straight to INTERVIEWING). Without it every "applications sent" metric
 (`getStats.thisMonth`, the trend buckets, the 30d/90d range filters, the CSV
 "Applied Date", the default list sort) dated the application from the save.
 `SENT_APPLICATION_FILTER` excludes `WISHLIST` rows from those metrics; this is
-the other half of that rule, covering what happens once a row leaves. See
-ADR-033.
-
-Anything calendar-shaped in `JobsStatsService` resolves in the user's own
-`User.timezone` (the same column the digest/reminder schedulers read), via
-`src/common/timezone.util.ts` — not the server's zone. Don't reach for
-`new Date(y, m, d)` or local `getMonth()`/`getDate()` in a stats path.
+the other half of that rule, covering what happens once a row leaves. The
+guard is "the client sent an `appliedAt` **different from the stored one**",
+not merely "sent one" — `JobForm` resends the untouched pre-filled date on
+every submit, so an `!== undefined` check made the re-stamp fire on a kanban
+drag and silently skip the identical transition made through the edit form.
+See ADR-033 and ADR-034.
 
 ---
 

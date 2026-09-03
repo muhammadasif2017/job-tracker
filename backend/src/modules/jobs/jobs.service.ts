@@ -25,7 +25,22 @@ import {
   type IStorageService,
 } from '../../storage/storage.service.js';
 import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
+import { localCivilDay, safeTimeZone } from '../../common/timezone.util.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
+
+// `Job.nextInterviewAt` goes stale on its own: InterviewRoundsService
+// recomputes it on every round write, but nothing touches it when time simply
+// passes, so a past instant keeps claiming to be the *next* interview. Every
+// read path that hands a job to a client runs it through this — findOne,
+// findAll, the PATCH response and the CSV export. Missing it on any one of
+// them is enough: `usePatchJobStatusMutation` merges the PATCH response over
+// the cached detail job, so an un-nulled value there resurrects the stale
+// date on a page that had already cleaned it.
+function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
+  job: T,
+): T {
+  return { ...job, nextInterviewAt: upcomingInterviewAt(job.nextInterviewAt) };
+}
 
 @Injectable()
 export class JobsService {
@@ -36,6 +51,37 @@ export class JobsService {
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
+
+  // `Job.appliedAt` holds a *civil* date — UTC midnight standing in for a
+  // calendar day, never a real time-of-day (ADR-034). Every write path goes
+  // through one of these two helpers so the invariant can't drift:
+  // `civilDateFromInput` for a date the client named, `todayFor` for one we
+  // infer. The schema's `@default(now())` would violate it, so `create` sets
+  // the column explicitly and never lets the default fire.
+  private static civilDateFromInput(value: string): Date {
+    const parsed = new Date(value);
+    // A date-only string already parses to UTC midnight; a full ISO datetime
+    // (which the DTO's @IsDateString also accepts) gets floored to the UTC
+    // day it names rather than smuggling a time-of-day into the column.
+    return new Date(
+      Date.UTC(
+        parsed.getUTCFullYear(),
+        parsed.getUTCMonth(),
+        parsed.getUTCDate(),
+      ),
+    );
+  }
+
+  // The user's own today, not the server's. A UTC+5 user applying at 02:00
+  // local is on the next calendar day from a UTC server's point of view, and
+  // the date they see in the list must be the one they'd write down.
+  private async todayFor(userId: string): Promise<Date> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    return localCivilDay(new Date(), safeTimeZone(user?.timezone));
+  }
 
   // Timeline-summary regen is best-effort — a queue/LLM hiccup must never
   // fail the job mutation that triggered it. Same shape as the
@@ -116,10 +162,12 @@ export class JobsService {
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
     const trimmedCompanyName = dto.company.trim();
-    const { company, matched } = await this.resolveCompanyId(
-      userId,
-      trimmedCompanyName,
-    );
+    const [{ company, matched }, appliedAt] = await Promise.all([
+      this.resolveCompanyId(userId, trimmedCompanyName),
+      dto.appliedAt
+        ? Promise.resolve(JobsService.civilDateFromInput(dto.appliedAt))
+        : this.todayFor(userId),
+    ]);
     // matchedCompany drives the "saved as a target company" banner in the
     // response — must stay null for a row we just silently auto-created.
     const matchedCompany = matched ? company : null;
@@ -136,7 +184,9 @@ export class JobsService {
         discoverySource: dto.discoverySource,
         applicationChannel: dto.applicationChannel,
         notes: dto.notes,
-        appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+        // Always explicit — never `undefined`, which would let the schema's
+        // `@default(now())` write a real timestamp and break the invariant.
+        appliedAt,
         userId,
         companyId: company?.id,
         events: {
@@ -190,7 +240,7 @@ export class JobsService {
     ]);
 
     return {
-      data: jobs,
+      data: jobs.map(withUpcomingInterview),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -265,7 +315,15 @@ export class JobsService {
   private async findOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
-      select: { id: true, status: true, company: true, companyId: true },
+      // `appliedAt` is here so `update` can tell a date the user actually
+      // changed from the pre-filled one JobForm resends untouched.
+      select: {
+        id: true,
+        status: true,
+        company: true,
+        companyId: true,
+        appliedAt: true,
+      },
     });
     if (!job) throw new NotFoundException('Job not found');
     return job;
@@ -285,7 +343,9 @@ export class JobsService {
       discoverySource: dto.discoverySource,
       applicationChannel: dto.applicationChannel,
       notes: dto.notes,
-      appliedAt: dto.appliedAt ? new Date(dto.appliedAt) : undefined,
+      appliedAt: dto.appliedAt
+        ? JobsService.civilDateFromInput(dto.appliedAt)
+        : undefined,
     };
   }
 
@@ -342,20 +402,32 @@ export class JobsService {
     //
     // Leaving WISHLIST in any direction is the moment it becomes a real
     // application (the kanban board lets you drag straight to INTERVIEWING),
-    // so stamp it here. An explicit `appliedAt` in the same request still
-    // wins — the user backdating a date they know beats our inference.
+    // so stamp it here — with the user's own today, since the column is a
+    // civil date (ADR-034).
+    //
+    // The guard is "the client sent an appliedAt *different from the stored
+    // one*", not merely "sent one at all". JobForm resends every field on
+    // every submit, including the untouched pre-filled date, so an
+    // `!== undefined` check meant the re-stamp fired on a kanban drag and
+    // silently didn't on the exact same transition made through the edit
+    // form. A date the user genuinely changed still wins.
     const leftWishlist =
       statusChanged && existing.status === JobStatus.WISHLIST;
-    if (leftWishlist && dto.appliedAt === undefined) {
-      data = { ...data, appliedAt: new Date() };
+    const submittedAppliedAt = baseData.appliedAt;
+    const appliedAtEdited =
+      submittedAppliedAt !== undefined &&
+      submittedAppliedAt.getTime() !== existing.appliedAt.getTime();
+    if (leftWishlist && !appliedAtEdited) {
+      data = { ...data, appliedAt: await this.todayFor(userId) };
     }
 
     if (!statusChanged) {
-      return this.prisma.job.update({
+      const updated = await this.prisma.job.update({
         where: { id: jobId },
         include: { resume: true },
         data,
       });
+      return withUpcomingInterview(updated);
     }
 
     // Status is changing — CAS the transition on the status we just read
@@ -394,7 +466,7 @@ export class JobsService {
     });
 
     await this.enqueueTimelineSummary(jobId);
-    return result;
+    return withUpcomingInterview(result);
   }
 
   async remove(userId: string, jobId: string) {

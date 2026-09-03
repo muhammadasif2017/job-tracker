@@ -26,7 +26,7 @@ import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
 import { QuickAdd } from '../../../components/jobs/quick-add';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
-import { formatDateOnly } from '../../../lib/utils';
+import { formatCivilDate } from '../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
@@ -119,6 +119,12 @@ export default function JobsPage() {
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement('a');
       a.href = url;
+      // Firefox only dispatches the download for an anchor that is actually
+      // in the document, and revoking the object URL in the same tick can
+      // cancel a download already in flight — so attach, click, then clean
+      // up once the event loop has handed the blob off.
+      a.style.display = 'none';
+      document.body.appendChild(a);
       // Prefer the server's filename — it carries the status suffix for a
       // filtered export (jobs-offer.csv). Both this and X-Export-Truncated
       // are only readable because main.ts lists them in the CORS
@@ -131,7 +137,10 @@ export default function JobsPage() {
         'jobs.csv',
       );
       a.click();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        a.remove();
+        URL.revokeObjectURL(url);
+      }, 0);
       // The export is capped server-side. Without this the user just gets a
       // short file and no reason to doubt it.
       if (headers['x-export-truncated'] === 'true') {
@@ -174,7 +183,7 @@ export default function JobsPage() {
           <input
             aria-label="Search jobs"
             className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            placeholder="Search company or position…"
+            placeholder="Search company, position, location or notes…"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -382,7 +391,7 @@ export default function JobsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted whitespace-nowrap">
-                      {formatDateOnly(job.appliedAt)}
+                      {formatCivilDate(job.appliedAt)}
                     </td>
                     <td className="px-4 py-3 text-muted">
                       {job.location ?? '—'}

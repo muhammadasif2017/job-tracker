@@ -29,6 +29,7 @@ import {
   type PaginatedCompanies,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
+import { toDateInputValue, todayInputValue } from '../../lib/utils';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -103,7 +104,9 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       status: 'APPLIED',
       priority: 'MEDIUM',
       jobType: 'ONSITE',
-      appliedAt: new Date().toISOString().split('T')[0],
+      // The viewer's today. `toISOString()` here would prefill UTC's today —
+      // yesterday, for anyone east of UTC before their local morning.
+      appliedAt: todayInputValue(),
     },
   });
 
@@ -163,14 +166,16 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
               discoverySource: job.discoverySource ?? '',
               applicationChannel: job.applicationChannel ?? '',
               url: job.url ?? '',
-              appliedAt: job.appliedAt?.split('T')[0],
+              appliedAt: job.appliedAt
+                ? toDateInputValue(job.appliedAt)
+                : undefined,
               notes: job.notes ?? '',
             }
           : {
               status: 'APPLIED',
               priority: 'MEDIUM',
               jobType: 'ONSITE',
-              appliedAt: new Date().toISOString().split('T')[0],
+              appliedAt: todayInputValue(),
               ...initialValues,
             },
       );

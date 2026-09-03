@@ -3,7 +3,11 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { getAttentionItems } from './attention.helper.js';
 import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
-import { safeTimeZone, startOfLocalMonth } from '../../common/timezone.util.js';
+import {
+  localCivilDay,
+  safeTimeZone,
+  startOfCivilMonth,
+} from '../../common/timezone.util.js';
 import {
   FUNNEL_STAGES,
   DROPOFF_STAGES,
@@ -17,15 +21,24 @@ import {
   upcomingInterviewAt,
 } from './jobs.constants.js';
 
+// The calendar day a real instant falls on for this user, or null. Kept
+// separate from `localCivilDay` so the nullable read paths don't each repeat
+// the guard.
+function civilDay(value: Date | null, timeZone: string): Date | null {
+  return value ? localCivilDay(value, timeZone) : null;
+}
+
 @Injectable()
 export class JobsStatsService {
   constructor(private prisma: PrismaService) {}
 
-  // Every calendar-shaped stat ("this month", trend buckets) is computed in
-  // the user's own zone — the same `User.timezone` the digest/reminder emails
-  // already honour. Reading it here rather than on the JWT keeps it correct
-  // right after the user changes it in their profile. Missing row (or a
-  // hand-edited invalid zone) falls back to UTC, which is the column default.
+  // `Job.appliedAt` is a civil date (ADR-034), so no stat projects a stored
+  // value into a zone — that would shift it. The zone is needed only to place
+  // a *boundary* on the user's calendar: which month is "this" month, and
+  // which day a rolling 30d/90d window starts on. Same `User.timezone` the
+  // digest/reminder emails honour; read per request rather than off the JWT
+  // so it's correct right after the user changes it in their profile. Missing
+  // row (or a hand-edited invalid zone) falls back to UTC, the column default.
   private async userTimeZone(userId: string): Promise<string> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -36,14 +49,17 @@ export class JobsStatsService {
 
   async getStats(userId: string, range: StatsRange) {
     const now = new Date();
+    // The zone has to be resolved before the range filter can be built, so
+    // this one round-trip is unavoidably on the critical path of a
+    // dashboard-mount request. It's a primary-key lookup on one column.
+    const timeZone = await this.userTimeZone(userId);
     // thisMonth is always "applications this calendar month" — not scoped by `range`.
-    const rangeWhere = { userId, ...appliedAtRangeFilter(range) };
+    const rangeWhere = {
+      userId,
+      ...appliedAtRangeFilter(range, now, timeZone),
+    };
 
-    // The zone lookup rides along with the other queries rather than blocking
-    // in front of them — this is a dashboard-mount request, so an extra
-    // serialized round-trip would land straight on the critical path. The
-    // thisMonth count is the only one that needs it, so it runs after.
-    const [counts, total, timeZone] = await Promise.all([
+    const [counts, total, thisMonth] = await Promise.all([
       // byStatus alone keeps WISHLIST — it backs the status pie chart, which
       // renders a Wishlist slice. Every other number below is an
       // "applications sent" metric and excludes it.
@@ -55,16 +71,14 @@ export class JobsStatsService {
       this.prisma.job.count({
         where: { ...rangeWhere, ...SENT_APPLICATION_FILTER },
       }),
-      this.userTimeZone(userId),
+      this.prisma.job.count({
+        where: {
+          userId,
+          appliedAt: { gte: startOfCivilMonth(now, timeZone) },
+          ...SENT_APPLICATION_FILTER,
+        },
+      }),
     ]);
-
-    const thisMonth = await this.prisma.job.count({
-      where: {
-        userId,
-        appliedAt: { gte: startOfLocalMonth(now, timeZone) },
-        ...SENT_APPLICATION_FILTER,
-      },
-    });
 
     const byStatus = Object.values(JobStatus).reduce(
       (acc, s) => ({ ...acc, [s]: 0 }),
@@ -86,7 +100,11 @@ export class JobsStatsService {
     const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
     // Filtered on the job's appliedAt, not event createdAt — a job either
     // belongs to the range or it doesn't; its full event history still counts.
-    const jobRangeFilter = appliedAtRangeFilter(range);
+    const jobRangeFilter = appliedAtRangeFilter(
+      range,
+      new Date(),
+      await this.userTimeZone(userId),
+    );
 
     const [events, channelStatusCounts] = await Promise.all([
       // No upper bound on event history — acceptable at this app's scale
@@ -112,9 +130,14 @@ export class JobsStatsService {
       }),
     ]);
 
-    // reached[stage] = distinct jobs whose event history ever hit that stage
-    // (funnel stages and dropoff stages alike — same "ever reached" method
-    // for both, so dropoff and funnel numbers stay comparable).
+    // reached[stage] = distinct jobs whose event history ever hit that stage,
+    // for funnel and dropoff stages alike.
+    //
+    // The two are NOT directly comparable, despite sharing this method: the
+    // rollup below only walks the funnel spine, so a job created straight as
+    // REJECTED counts in dropoff while never counting in the funnel it
+    // supposedly dropped out of. Read dropoff as "ended here", not as a
+    // remainder of the funnel.
     const reached: Record<string, Set<string>> = {};
     for (const s of TRACKED_STAGES) reached[s] = new Set();
     for (const event of events) {
@@ -230,22 +253,21 @@ export class JobsStatsService {
     // Same WISHLIST exclusion as getStats — the chart is labelled "New
     // applications", and `cumulative` at the last bucket is meant to line up
     // with getStats's range-filtered total (see computeTrendBuckets' contract).
-    const [jobs, timeZone] = await Promise.all([
-      this.prisma.job.findMany({
-        where: {
-          userId,
-          ...appliedAtRangeFilter(range),
-          ...SENT_APPLICATION_FILTER,
-        },
-        select: { appliedAt: true },
-      }),
-      this.userTimeZone(userId),
-    ]);
+    const now = new Date();
+    const timeZone = await this.userTimeZone(userId);
+    const jobs = await this.prisma.job.findMany({
+      where: {
+        userId,
+        ...appliedAtRangeFilter(range, now, timeZone),
+        ...SENT_APPLICATION_FILTER,
+      },
+      select: { appliedAt: true },
+    });
 
     return computeTrendBuckets(
       jobs.map((j) => j.appliedAt),
       range,
-      new Date(),
+      now,
       timeZone,
     );
   }
@@ -258,11 +280,14 @@ export class JobsStatsService {
     const where = buildJobWhere(userId, query);
     const exportLimit = 1_000;
 
-    const jobs = await this.prisma.job.findMany({
-      where,
-      orderBy: { appliedAt: 'desc' },
-      take: exportLimit + 1,
-    });
+    const [jobs, timeZone] = await Promise.all([
+      this.prisma.job.findMany({
+        where,
+        orderBy: { appliedAt: 'desc' },
+        take: exportLimit + 1,
+      }),
+      this.userTimeZone(userId),
+    ]);
     const truncated = jobs.length > exportLimit;
     if (truncated) jobs.length = exportLimit;
 
@@ -295,9 +320,16 @@ export class JobsStatsService {
         escape(j.discoverySource),
         escape(j.applicationChannel),
         escape(j.location),
+        // `appliedAt` is a civil date, so its UTC day *is* the calendar day
+        // it names (ADR-034) — no projection.
         escape(j.appliedAt.toISOString().split('T')[0]),
+        // `nextInterviewAt` is the opposite: a real instant. Taking its UTC
+        // day would export a 02:00-local interview on the previous date for
+        // a user ahead of UTC, so resolve it on their calendar first.
         escape(
-          upcomingInterviewAt(j.nextInterviewAt)?.toISOString().split('T')[0],
+          civilDay(upcomingInterviewAt(j.nextInterviewAt), timeZone)
+            ?.toISOString()
+            .split('T')[0],
         ),
         escape(j.url),
         escape(j.notes),

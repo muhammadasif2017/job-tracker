@@ -10,7 +10,7 @@ import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
-import { formatDateOnly } from '../../lib/utils';
+import { formatCivilDate } from '../../lib/utils';
 import type { DashboardRange } from '../../types';
 import {
   useStatsQuery,
@@ -170,7 +170,7 @@ export default function DashboardPage() {
                   <div className="flex shrink-0 flex-col items-end gap-1">
                     <StatusBadge status={job.status} />
                     <span className="text-xs text-muted-2">
-                      {formatDateOnly(job.appliedAt)}
+                      {formatCivilDate(job.appliedAt)}
                     </span>
                   </div>
                 </li>

@@ -1,9 +1,9 @@
 import { JobStatus } from '@prisma/client';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import {
+  civilDaysAgo,
   localCivilDay,
   safeTimeZone,
-  zonedInstantFromCivil,
 } from '../../common/timezone.util.js';
 
 export const FUNNEL_STAGES = [
@@ -63,13 +63,20 @@ const RANGE_TO_DAYS: Partial<Record<StatsRange, number>> = {
 };
 
 // undefined cutoff = no lower bound (range: 'all')
+//
+// The cutoff is a *civil* date, because `appliedAt` is one (ADR-034): it's
+// the calendar day `days` before the user's own today. Deriving it by real
+// instant arithmetic instead (`now - 30 days`) would carry the current
+// time-of-day into a bound compared against UTC-midnight values, silently
+// dropping half of the boundary day.
 export function rangeToCutoff(
   range: StatsRange,
   now: Date = new Date(),
+  timeZone = 'UTC',
 ): Date | undefined {
   const days = RANGE_TO_DAYS[range];
   if (days === undefined) return undefined;
-  return new Date(now.getTime() - days * 86_400_000);
+  return civilDaysAgo(now, safeTimeZone(timeZone), days);
 }
 
 // Prisma where-fragment for scoping a query to `range` — `{}` (no lower
@@ -78,17 +85,22 @@ export function rangeToCutoff(
 export function appliedAtRangeFilter(
   range: StatsRange,
   now: Date = new Date(),
+  timeZone = 'UTC',
 ): { appliedAt?: { gte: Date } } {
-  const cutoff = rangeToCutoff(range, now);
+  const cutoff = rangeToCutoff(range, now, timeZone);
   return cutoff ? { appliedAt: { gte: cutoff } } : {};
 }
 
-// `appliedAt` is a timestamp column, but `dateTo` is usually a date-only
-// string from a <input type="date">. `new Date('2024-12-31')` is that day's
-// midnight UTC, so a plain `lte` would exclude everything actually applied
-// *during* the named day. Widen a date-only bound to an exclusive
-// start-of-next-day instead; a caller who sends a full ISO datetime means
-// that exact instant, so it stays an inclusive `lte`.
+// `dateFrom`/`dateTo` arrive as date-only strings from a <input type="date">,
+// and `new Date('2024-12-31')` is that day's midnight UTC — which is exactly
+// the civil encoding `appliedAt` is stored in (ADR-034), so the lower bound
+// needs no adjustment.
+//
+// The upper bound is still widened to an exclusive start-of-next-day rather
+// than an inclusive `lte`. For a civil row the two are equivalent, but rows
+// written before ADR-034 carry a real time-of-day, and `lte` would drop them
+// from their own day. A caller who sends a full ISO datetime means that exact
+// instant, so that case stays an inclusive `lte`.
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
 function appliedAtUpperBound(dateTo: string) {
@@ -233,11 +245,16 @@ function formatLabel(civil: Date, granularity: TrendGranularity): string {
 // stats queries, so `cumulative` at the last bucket lines up with getStats's
 // range-filtered total.
 //
-// `timeZone` is the *user's* IANA zone, not the server's. Bucketing on the
-// server's calendar put a UTC+5 user's late-evening application on the
-// following day's bar (and, at a month boundary, in a bucket their own
-// "this month" card disagreed with). Defaults to UTC so the pure-function
-// callers in tests stay deterministic on any machine.
+// `appliedDates` are civil dates straight out of the column (ADR-034) — they
+// are NOT projected into `timeZone` here. The user's zone already decided
+// which calendar day each one names, at write time; re-resolving a
+// UTC-midnight value through a zone west of UTC would read it back as the
+// previous day and shift every bar.
+//
+// `timeZone` is still needed, but only to place the *window*: which day is
+// "today" and which day the rolling cutoff lands on depend on the user's
+// calendar, not the server's. Defaults to UTC so the pure-function callers
+// in tests stay deterministic on any machine.
 export function computeTrendBuckets(
   appliedDates: Date[],
   range: StatsRange,
@@ -246,7 +263,7 @@ export function computeTrendBuckets(
 ): { granularity: TrendGranularity; buckets: TrendBucket[] } {
   const tz = safeTimeZone(timeZone);
   const granularity = rangeToGranularity(range);
-  const cutoff = rangeToCutoff(range, now);
+  const cutoff = rangeToCutoff(range, now, tz);
 
   if (appliedDates.length === 0) {
     // No applications at all (in range) — match StatusChart/FunnelChart's
@@ -254,18 +271,14 @@ export function computeTrendBuckets(
     return { granularity, buckets: [] };
   }
 
-  // Resolve every instant to the user's calendar day *first*; all bucket
-  // arithmetic below is then civil-date arithmetic.
-  const sorted = appliedDates
-    .map((applied) => localCivilDay(applied, tz))
-    .sort((a, b) => a.getTime() - b.getTime());
+  // Already civil — sorted, not re-projected. `startOfPeriod` below reads UTC
+  // fields, which is what reads a civil date back literally.
+  const sorted = [...appliedDates].sort((a, b) => a.getTime() - b.getTime());
   const earliest = sorted[0];
   const latest = sorted[sorted.length - 1];
+  // `now` is a real instant, so this one *does* need the zone.
   const nowCivil = localCivilDay(now, tz);
-  const windowStart = startOfPeriod(
-    cutoff ? localCivilDay(cutoff, tz) : earliest,
-    granularity,
-  );
+  const windowStart = startOfPeriod(cutoff ?? earliest, granularity);
   // Anchor the window end to whichever is later — today or the latest applied
   // date — so a future-dated appliedAt still gets its own bucket instead of
   // silently falling outside [windowStart, windowEndExclusive) and vanishing.
@@ -293,10 +306,10 @@ export function computeTrendBuckets(
     cumulative += count;
     buckets.push({
       label: formatLabel(cursor, granularity),
-      // A real instant, not the civil encoding — the period start as it
-      // actually happened for this user, so a client that re-formats it
-      // gets the same day back.
-      periodStart: zonedInstantFromCivil(cursor.getTime(), tz).toISOString(),
+      // The civil encoding, same as `appliedAt` — a client reading it back
+      // with the app's own date-only formatter gets the day the bucket
+      // names, with no zone projection to get wrong.
+      periodStart: cursor.toISOString(),
       count,
       cumulative,
     });
