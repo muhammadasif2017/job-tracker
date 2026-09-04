@@ -10,9 +10,11 @@ Success: user can add a company manually or via CSV import, trigger AI enrichmen
 
 Curated to what actually changes an apply/skip decision, not everything scrapeable:
 
-**Personal, always user-owned (AI never writes these):** `name`, `city` (enum), `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`.
+**Personal, always user-owned (AI never writes these):** `name`, `city` (enum), `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`, `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`), `productDescription`.
 
-**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID` — the field most likely to need a manual fix), `productDescription`, `industry`, `techStack`, `companySize`, `founded`, `workPolicy`, `workLifeBalance`, `cultureSummary`, `headquarters`, `address` (+ existing `headquartersLowConfidence`/`addressLowConfidence` guard flags), `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
+`businessMode` and `productDescription` are set by the user only — via the company form or the `name,city,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.
+
+**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `founded`, `workPolicy`, `workLifeBalance`, `cultureSummary`, `headquarters`, `address` (+ existing `headquartersLowConfidence`/`addressLowConfidence` guard flags), `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
 
 **Deliberately not storing** (no job-search decision value, or stale on arrival): revenue/financials (unreliable for private Pakistani companies), legal/registration/tax IDs, current open-position count (decays the moment it's saved — that's what the `Job` list already tracks), awards/certifications, social links beyond LinkedIn.
 

@@ -30,9 +30,6 @@ export class CompanyProfileResponseDto {
   @ApiPropertyOptional({ example: 'Hybrid' })
   workPolicy: string | null;
 
-  @ApiPropertyOptional({ example: '4/5' })
-  workLifeBalance: string | null;
-
   @ApiPropertyOptional({ example: 'San Francisco, CA' })
   headquarters: string | null;
 
@@ -40,9 +37,6 @@ export class CompanyProfileResponseDto {
     example: '1600 Amphitheatre Parkway, Mountain View, CA 94043',
   })
   address: string | null;
-
-  @ApiPropertyOptional({ example: '2010' })
-  founded: string | null;
 
   @ApiPropertyOptional()
   errorMessage: string | null;

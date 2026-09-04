@@ -124,10 +124,8 @@ export class CompaniesService {
           techStack: dto.techStack ?? [],
           cultureSummary: dto.cultureSummary,
           workPolicy: dto.workPolicy,
-          workLifeBalance: dto.workLifeBalance,
           headquarters: dto.headquarters,
           address: dto.address,
-          founded: dto.founded,
         },
       });
     });
@@ -237,10 +235,8 @@ export class CompaniesService {
       techStack: dto.techStack,
       cultureSummary: dto.cultureSummary,
       workPolicy: dto.workPolicy,
-      workLifeBalance: dto.workLifeBalance,
       headquarters: dto.headquarters,
       address: dto.address,
-      founded: dto.founded,
     };
 
     if (dto.name === undefined) {

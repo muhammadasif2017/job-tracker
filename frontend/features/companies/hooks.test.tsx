@@ -81,10 +81,8 @@ describe('useUpdateCompanyMutation', () => {
     techStack: [],
     cultureSummary: null,
     workPolicy: null,
-    workLifeBalance: null,
     headquarters: null,
     address: null,
-    founded: null,
   };
 
   it('invalidates the company cache instead of overwriting it with the bare PATCH response', async () => {

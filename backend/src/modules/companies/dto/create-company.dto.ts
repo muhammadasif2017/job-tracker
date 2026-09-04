@@ -110,12 +110,6 @@ export class CreateCompanyDto {
   @MaxLength(100)
   workPolicy?: string | null;
 
-  @ApiPropertyOptional({ example: '4/5', maxLength: 1000 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  workLifeBalance?: string | null;
-
   @ApiPropertyOptional({ example: 'Lahore, Pakistan', maxLength: 200 })
   @IsOptional()
   @IsString()
@@ -130,10 +124,4 @@ export class CreateCompanyDto {
   @IsString()
   @MaxLength(500)
   address?: string | null;
-
-  @ApiPropertyOptional({ example: '2005', maxLength: 20 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  founded?: string | null;
 }

@@ -9,10 +9,8 @@ export interface CompanyData {
   techStack: string[];
   cultureSummary: string | null;
   workPolicy: string | null;
-  workLifeBalance: string | null;
   headquarters: string | null;
   address: string | null;
-  founded: string | null;
 }
 
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
@@ -44,10 +42,6 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
           type: 'string',
           enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
         },
-        workLifeBalance: {
-          type: 'string',
-          enum: ['Excellent', 'Good', 'Average', 'Below Average', 'Unknown'],
-        },
         headquarters: { type: 'string' },
         address: {
           type: 'string',
@@ -57,7 +51,6 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
             'appears there, use "Unknown". Never take an address from web search ' +
             'results — they may belong to a different company with a similar name.',
         },
-        founded: { type: 'string' },
       },
       required: [
         'industry',
@@ -65,10 +58,8 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
         'techStack',
         'cultureSummary',
         'workPolicy',
-        'workLifeBalance',
         'headquarters',
         'address',
-        'founded',
       ],
     },
   },
@@ -154,10 +145,8 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
       : [],
     cultureSummary: strOrNull(raw.cultureSummary),
     workPolicy: strOrNull(raw.workPolicy),
-    workLifeBalance: strOrNull(raw.workLifeBalance),
     headquarters: strOrNull(raw.headquarters),
     address: strOrNull(raw.address),
-    founded: strOrNull(raw.founded),
   };
 }
 

@@ -4,3749 +4,3609 @@
  */
 
 export interface paths {
-  '/auth/register': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a new user */
+        post: operations["AuthController_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Register a new user */
-    post: operations['AuthController_register'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/login': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Login with email and password */
+        post: operations["AuthController_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Login with email and password */
-    post: operations['AuthController_login'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/refresh': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rotate tokens using the refresh token cookie */
+        post: operations["AuthController_refresh"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Rotate tokens using the refresh token cookie */
-    post: operations['AuthController_refresh'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/exchange-code': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/exchange-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange short-lived OAuth code for tokens */
+        post: operations["AuthController_exchangeCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Exchange short-lived OAuth code for tokens */
-    post: operations['AuthController_exchangeCode'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/token/exchange': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/token/exchange": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued) */
+        post: operations["AuthController_exchangeApiToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued) */
-    post: operations['AuthController_exchangeApiToken'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/logout': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Invalidate the current refresh token */
+        post: operations["AuthController_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Invalidate the current refresh token */
-    post: operations['AuthController_logout'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/auth/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current authenticated user */
+        get: operations["AuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get current authenticated user */
-    get: operations['AuthController_me'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/resumes': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/resumes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get resume metadata for a job */
+        get: operations["ResumesController_findByJob"];
+        put?: never;
+        /** Upload or replace a resume PDF for a job */
+        post: operations["ResumesController_uploadResume"];
+        /** Delete the resume for a job */
+        delete: operations["ResumesController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get resume metadata for a job */
-    get: operations['ResumesController_findByJob'];
-    put?: never;
-    /** Upload or replace a resume PDF for a job */
-    post: operations['ResumesController_uploadResume'];
-    /** Delete the resume for a job */
-    delete: operations['ResumesController_remove'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/resumes/url': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/resumes/url": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a presigned URL to download the resume (oracle driver only) */
+        get: operations["ResumesController_getPresignedUrl"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get a presigned URL to download the resume (oracle driver only) */
-    get: operations['ResumesController_getPresignedUrl'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/resumes/file': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/resumes/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Serve a resume file by storage key (local driver only) */
+        get: operations["ResumesController_serveFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Serve a resume file by storage key (local driver only) */
-    get: operations['ResumesController_serveFile'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/interview-rounds': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/interview-rounds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List interview rounds for a job */
+        get: operations["InterviewRoundsController_findAll"];
+        put?: never;
+        /** Add an interview round to a job */
+        post: operations["InterviewRoundsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List interview rounds for a job */
-    get: operations['InterviewRoundsController_findAll'];
-    put?: never;
-    /** Add an interview round to a job */
-    post: operations['InterviewRoundsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/interview-rounds/{roundId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/interview-rounds/{roundId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete an interview round */
+        delete: operations["InterviewRoundsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update an interview round */
+        patch: operations["InterviewRoundsController_update"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete an interview round */
-    delete: operations['InterviewRoundsController_remove'];
-    options?: never;
-    head?: never;
-    /** Update an interview round */
-    patch: operations['InterviewRoundsController_update'];
-    trace?: never;
-  };
-  '/jobs/{jobId}/interview-rounds/{roundId}/ics': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/interview-rounds/{roundId}/ics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an interview round as a calendar (.ics) file */
+        get: operations["InterviewRoundsController_exportIcs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Download an interview round as a calendar (.ics) file */
-    get: operations['InterviewRoundsController_exportIcs'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/contacts': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contacts for a job */
+        get: operations["ContactsController_findAll"];
+        put?: never;
+        /** Add a contact to a job */
+        post: operations["ContactsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List contacts for a job */
-    get: operations['ContactsController_findAll'];
-    put?: never;
-    /** Add a contact to a job */
-    post: operations['ContactsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{jobId}/contacts/{contactId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{jobId}/contacts/{contactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a contact */
+        delete: operations["ContactsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a contact */
+        patch: operations["ContactsController_update"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete a contact */
-    delete: operations['ContactsController_remove'];
-    options?: never;
-    head?: never;
-    /** Update a contact */
-    patch: operations['ContactsController_update'];
-    trace?: never;
-  };
-  '/companies/{companyId}/contacts': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/{companyId}/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List contacts for a target company */
+        get: operations["CompanyContactsController_findAll"];
+        put?: never;
+        /** Add an HR/company contact to a target company */
+        post: operations["CompanyContactsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List contacts for a target company */
-    get: operations['CompanyContactsController_findAll'];
-    put?: never;
-    /** Add an HR/company contact to a target company */
-    post: operations['CompanyContactsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/companies/{companyId}/contacts/{contactId}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/{companyId}/contacts/{contactId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete a company contact */
+        delete: operations["CompanyContactsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a company contact */
+        patch: operations["CompanyContactsController_update"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Delete a company contact */
-    delete: operations['CompanyContactsController_remove'];
-    options?: never;
-    head?: never;
-    /** Update a company contact */
-    patch: operations['CompanyContactsController_update'];
-    trace?: never;
-  };
-  '/companies': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List target companies (filter by city, priority) */
+        get: operations["CompaniesController_findAll"];
+        put?: never;
+        /** Add a target company */
+        post: operations["CompaniesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List target companies (filter by city, priority) */
-    get: operations['CompaniesController_findAll'];
-    put?: never;
-    /** Add a target company */
-    post: operations['CompaniesController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/companies/duplicates': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/duplicates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Find likely-duplicate company pairs (websiteUrl match or fuzzy name match) */
+        get: operations["CompaniesController_findDuplicates"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Find likely-duplicate company pairs (websiteUrl match or fuzzy name match) */
-    get: operations['CompaniesController_findDuplicates'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/companies/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a target company */
+        get: operations["CompaniesController_findOne"];
+        put?: never;
+        post?: never;
+        /** Delete a target company */
+        delete: operations["CompaniesController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a target company */
+        patch: operations["CompaniesController_update"];
+        trace?: never;
     };
-    /** Get a target company */
-    get: operations['CompaniesController_findOne'];
-    put?: never;
-    post?: never;
-    /** Delete a target company */
-    delete: operations['CompaniesController_remove'];
-    options?: never;
-    head?: never;
-    /** Update a target company */
-    patch: operations['CompaniesController_update'];
-    trace?: never;
-  };
-  '/companies/{id}/enrichment': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/{id}/enrichment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Queue AI company research for a target company */
+        post: operations["CompaniesController_triggerEnrichment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Queue AI company research for a target company */
-    post: operations['CompaniesController_triggerEnrichment'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/companies/{id}/merge': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it */
+        post: operations["CompaniesController_merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it */
-    post: operations['CompaniesController_merge'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/companies/import': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/companies/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Bulk-import target companies from a CSV (name,city,businessMode) */
+        post: operations["CompaniesController_importCsv"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Bulk-import target companies from a CSV (name,city,businessMode) */
-    post: operations['CompaniesController_importCsv'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/users/me': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get current user profile */
+        get: operations["UsersController_getProfile"];
+        put?: never;
+        post?: never;
+        /** Delete account and all associated data */
+        delete: operations["UsersController_deleteAccount"];
+        options?: never;
+        head?: never;
+        /** Update name or email */
+        patch: operations["UsersController_updateProfile"];
+        trace?: never;
     };
-    /** Get current user profile */
-    get: operations['UsersController_getProfile'];
-    put?: never;
-    post?: never;
-    /** Delete account and all associated data */
-    delete: operations['UsersController_deleteAccount'];
-    options?: never;
-    head?: never;
-    /** Update name or email */
-    patch: operations['UsersController_updateProfile'];
-    trace?: never;
-  };
-  '/users/me/notifications': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update email notification preferences */
+        patch: operations["UsersController_updateNotificationPrefs"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update email notification preferences */
-    patch: operations['UsersController_updateNotificationPrefs'];
-    trace?: never;
-  };
-  '/users/me/password': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/users/me/password": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Change password */
+        patch: operations["UsersController_changePassword"];
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Change password */
-    patch: operations['UsersController_changePassword'];
-    trace?: never;
-  };
-  '/jobs': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List job applications with filters and pagination */
+        get: operations["JobsController_findAll"];
+        put?: never;
+        /** Create a job application */
+        post: operations["JobsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List job applications with filters and pagination */
-    get: operations['JobsController_findAll'];
-    put?: never;
-    /** Create a job application */
-    post: operations['JobsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/parse': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/parse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Extract job fields from a posting URL or pasted text, for quick-add prefill */
+        post: operations["JobsController_parseJobPosting"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    /** Extract job fields from a posting URL or pasted text, for quick-add prefill */
-    post: operations['JobsController_parseJobPosting'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/stats': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get application funnel stats */
+        get: operations["JobsController_getStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get application funnel stats */
-    get: operations['JobsController_getStats'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/stats/funnel': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/stats/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel */
+        get: operations["JobsController_getFunnel"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel */
-    get: operations['JobsController_getFunnel'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/stats/trend': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/stats/trend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get application volume over time (adaptive day/week/month buckets + cumulative total) */
+        get: operations["JobsController_getTrend"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get application volume over time (adaptive day/week/month buckets + cumulative total) */
-    get: operations['JobsController_getTrend'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/export': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export job applications as CSV */
+        get: operations["JobsController_exportCsv"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Export job applications as CSV */
-    get: operations['JobsController_exportCsv'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/attention': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/attention": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Jobs needing action: upcoming interviews and stalled applications */
+        get: operations["JobsController_getAttention"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Jobs needing action: upcoming interviews and stalled applications */
-    get: operations['JobsController_getAttention'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/jobs/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single job application */
+        get: operations["JobsController_findOne"];
+        put?: never;
+        post?: never;
+        /** Delete a job application */
+        delete: operations["JobsController_remove"];
+        options?: never;
+        head?: never;
+        /** Update a job application */
+        patch: operations["JobsController_update"];
+        trace?: never;
     };
-    /** Get a single job application */
-    get: operations['JobsController_findOne'];
-    put?: never;
-    post?: never;
-    /** Delete a job application */
-    delete: operations['JobsController_remove'];
-    options?: never;
-    head?: never;
-    /** Update a job application */
-    patch: operations['JobsController_update'];
-    trace?: never;
-  };
-  '/jobs/{id}/events': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/jobs/{id}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get timeline events for a job */
+        get: operations["JobsController_getEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get timeline events for a job */
-    get: operations['JobsController_getEvents'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/health': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check database and Redis connectivity */
+        get: operations["HealthController_check"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Check database and Redis connectivity */
-    get: operations['HealthController_check'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/admin/users': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List all users with pagination and search */
+        get: operations["AdminController_findAll"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List all users with pagination and search */
-    get: operations['AdminController_findAll'];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/admin/users/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a single user */
+        get: operations["AdminController_findOne"];
+        put?: never;
+        post?: never;
+        /** Delete a user account */
+        delete: operations["AdminController_remove"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** Get a single user */
-    get: operations['AdminController_findOne'];
-    put?: never;
-    post?: never;
-    /** Delete a user account */
-    delete: operations['AdminController_remove'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/tokens': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/tokens": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List active personal access tokens */
+        get: operations["TokensController_findAll"];
+        put?: never;
+        /** Create a personal access token (e.g. for the browser extension) — raw value is only ever returned here */
+        post: operations["TokensController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    /** List active personal access tokens */
-    get: operations['TokensController_findAll'];
-    put?: never;
-    /** Create a personal access token (e.g. for the browser extension) — raw value is only ever returned here */
-    post: operations['TokensController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/tokens/{id}': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    "/tokens/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke a personal access token */
+        delete: operations["TokensController_revoke"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
     };
-    get?: never;
-    put?: never;
-    post?: never;
-    /** Revoke a personal access token */
-    delete: operations['TokensController_revoke'];
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    RegisterDto: {
-      /** @example Jane Doe */
-      name: string;
-      /** @example user@example.com */
-      email: string;
-      /** @example password123 */
-      password: string;
+    schemas: {
+        RegisterDto: {
+            /** @example Jane Doe */
+            name: string;
+            /** @example user@example.com */
+            email: string;
+            /** @example password123 */
+            password: string;
+        };
+        AuthTokensDto: {
+            /** @description JWT access token (15 min) */
+            accessToken: string;
+        };
+        LoginDto: {
+            /** @example user@example.com */
+            email: string;
+            /** @example password123 */
+            password: string;
+        };
+        ExchangeCodeDto: {
+            /**
+             * Format: uuid
+             * @description Short-lived UUID code from OAuth redirect
+             */
+            code: string;
+        };
+        ExchangeApiTokenDto: {
+            /**
+             * @description Raw personal access token, e.g. from the browser extension
+             * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
+             */
+            token: string;
+        };
+        ApiTokenAccessDto: {
+            /** @description JWT access token (15 min) */
+            accessToken: string;
+            /** @description Seconds until accessToken expires */
+            expiresIn: number;
+        };
+        MessageDto: {
+            /** @example Operation successful */
+            message: string;
+        };
+        CurrentUserDto: {
+            /** Format: cuid */
+            id: string;
+            /** @example user@example.com */
+            email: string;
+            /** @example Jane Doe */
+            name: string;
+            /** @example https://example.com/avatar.png */
+            avatarUrl?: Record<string, never>;
+            /** @enum {string} */
+            role: "USER" | "ADMIN";
+        };
+        ResumeResponseDto: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            jobId: string;
+            /** @example resume-2024.pdf */
+            originalName: string;
+            /**
+             * @description File size in bytes
+             * @example 204800
+             */
+            size: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CreateInterviewRoundDto: {
+            /** @example Phone Screen */
+            stage: string;
+            /**
+             * Format: date
+             * @example 2024-03-22
+             */
+            scheduledAt: string;
+            /** @example Ask about on-call rotation */
+            notes?: string;
+        };
+        InterviewRoundResponseDto: {
+            /** Format: cuid */
+            id: string;
+            /** Format: cuid */
+            jobId: string;
+            /** @example Phone Screen */
+            stage: string;
+            /** Format: date-time */
+            scheduledAt: string;
+            /** @enum {string} */
+            outcome: "PENDING" | "PASSED" | "FAILED" | "CANCELLED";
+            /** @enum {string} */
+            derivedStatus: "SCHEDULED" | "AWAITING_RESPONSE" | "POSSIBLY_GHOSTED" | "PASSED" | "FAILED" | "CANCELLED";
+            /** @example Ask about on-call rotation */
+            notes?: Record<string, never>;
+            /**
+             * @description LLM-generated talking points for this round, produced from the debrief notes on the previously-completed round for the same job.
+             * @example - Review React hooks
+             *     - Ask about on-call rotation
+             */
+            prepSuggestions?: Record<string, never>;
+            /** Format: date-time */
+            prepGeneratedAt?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateInterviewRoundDto: {
+            /** @example Phone Screen */
+            stage?: string;
+            /**
+             * Format: date
+             * @example 2024-03-22
+             */
+            scheduledAt?: string;
+            /** @example Ask about on-call rotation */
+            notes?: string;
+            /** @enum {string} */
+            outcome?: "PENDING" | "PASSED" | "FAILED" | "CANCELLED";
+        };
+        CreateContactDto: {
+            /** @example Jane Doe */
+            name: string;
+            /** @example Recruiter */
+            role?: Record<string, never>;
+            /** @example jane.doe@example.com */
+            email?: Record<string, never>;
+            /** @example +1 555 123 4567 */
+            phone?: Record<string, never>;
+            /** @example https://www.linkedin.com/in/janedoe */
+            linkedinUrl?: Record<string, never>;
+            /** @example Met at the referral call, mentioned team is hiring fast */
+            notes?: Record<string, never>;
+        };
+        ContactResponseDto: {
+            /** Format: cuid */
+            id: string;
+            /**
+             * Format: cuid
+             * @description Set when this contact belongs to a job, null for a company contact
+             */
+            jobId?: string | null;
+            /**
+             * Format: cuid
+             * @description Set when this contact belongs to a company, null for a job contact
+             */
+            companyId?: string | null;
+            /** @example Jane Doe */
+            name: string;
+            /** @example Recruiter */
+            role?: Record<string, never>;
+            /** @example jane.doe@example.com */
+            email?: Record<string, never>;
+            /** @example +1 555 123 4567 */
+            phone?: Record<string, never>;
+            /** @example https://www.linkedin.com/in/janedoe */
+            linkedinUrl?: Record<string, never>;
+            /** @example Met at the referral call, mentioned team is hiring fast */
+            notes?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateContactDto: {
+            /** @example Jane Doe */
+            name?: string;
+            /** @example Recruiter */
+            role?: Record<string, never>;
+            /** @example jane.doe@example.com */
+            email?: Record<string, never>;
+            /** @example +1 555 123 4567 */
+            phone?: Record<string, never>;
+            /** @example https://www.linkedin.com/in/janedoe */
+            linkedinUrl?: Record<string, never>;
+            /** @example Met at the referral call, mentioned team is hiring fast */
+            notes?: Record<string, never>;
+        };
+        CreateCompanyDto: {
+            /** @example Systems Limited */
+            name: string;
+            /** @enum {string} */
+            city: "LAHORE" | "ISLAMABAD" | "KARACHI" | "OTHER";
+            /** @example DHA Phase 5, Lahore */
+            location?: Record<string, never>;
+            /** @enum {string} */
+            priority?: "LOW" | "MEDIUM" | "HIGH";
+            /** @example Great engineering culture, met their CTO at a meetup */
+            personalNotes?: Record<string, never>;
+            /** @example https://systemsltd.com */
+            websiteUrl?: Record<string, never>;
+            /** @example https://www.linkedin.com/company/systems-limited */
+            linkedinUrl?: Record<string, never>;
+            /** @enum {string} */
+            businessMode?: "PRODUCT" | "SERVICES" | "HYBRID";
+            /** @example IT staff augmentation for US clients */
+            productDescription?: Record<string, never>;
+            /** @example Software Development */
+            industry?: Record<string, never>;
+            /** @example 50-200 employees */
+            companySize?: Record<string, never>;
+            /**
+             * @example [
+             *       "React",
+             *       "Node.js",
+             *       "AWS"
+             *     ]
+             */
+            techStack?: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
+            /** @example Hybrid */
+            workPolicy?: Record<string, never>;
+            /** @example Lahore, Pakistan */
+            headquarters?: Record<string, never>;
+            /** @example 123 Tech Park, DHA Phase 5, Lahore */
+            address?: Record<string, never>;
+        };
+        CompanyResponseDto: {
+            /** Format: cuid */
+            id: string;
+            /** @example Systems Limited */
+            name: string;
+            /** @enum {string} */
+            city: "LAHORE" | "ISLAMABAD" | "KARACHI" | "OTHER";
+            /** @example DHA Phase 5, Lahore */
+            location?: Record<string, never>;
+            /** @enum {string} */
+            priority: "LOW" | "MEDIUM" | "HIGH";
+            personalNotes?: Record<string, never>;
+            /** @example https://systemsltd.com */
+            websiteUrl?: Record<string, never>;
+            /** @example https://www.linkedin.com/company/systems-limited */
+            linkedinUrl?: Record<string, never>;
+            /** @enum {string} */
+            businessMode?: "PRODUCT" | "SERVICES" | "HYBRID";
+            /** @example IT staff augmentation for US clients */
+            productDescription?: Record<string, never>;
+            /**
+             * @description null means enrichment has never been triggered
+             * @enum {string}
+             */
+            status?: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+            /** @example Software Development */
+            industry?: Record<string, never>;
+            /** @example 50-200 employees */
+            companySize?: Record<string, never>;
+            /**
+             * @example [
+             *       "React",
+             *       "Node.js",
+             *       "AWS"
+             *     ]
+             */
+            techStack: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
+            /** @example Hybrid */
+            workPolicy?: Record<string, never>;
+            /** @example Lahore, Pakistan */
+            headquarters?: Record<string, never>;
+            headquartersLowConfidence?: boolean;
+            /** @example 123 Tech Park, DHA Phase 5, Lahore */
+            address?: Record<string, never>;
+            addressLowConfidence?: boolean;
+            errorMessage?: Record<string, never>;
+            /** Format: date-time */
+            enrichedAt?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PaginationMetaDto: {
+            /** @example 42 */
+            total: number;
+            /** @example 1 */
+            page: number;
+            /** @example 10 */
+            limit: number;
+            /** @example 5 */
+            totalPages: number;
+        };
+        PaginatedCompaniesDto: {
+            data: components["schemas"]["CompanyResponseDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+        };
+        DuplicateSuggestionDto: {
+            companyA: components["schemas"]["CompanyResponseDto"];
+            companyB: components["schemas"]["CompanyResponseDto"];
+            /** @enum {string} */
+            reason: "website" | "name";
+        };
+        UpdateCompanyDto: {
+            /** @example Systems Limited */
+            name?: string;
+            /** @enum {string} */
+            city?: "LAHORE" | "ISLAMABAD" | "KARACHI" | "OTHER";
+            /** @example DHA Phase 5, Lahore */
+            location?: Record<string, never>;
+            /** @enum {string} */
+            priority?: "LOW" | "MEDIUM" | "HIGH";
+            /** @example Great engineering culture, met their CTO at a meetup */
+            personalNotes?: Record<string, never>;
+            /** @example https://systemsltd.com */
+            websiteUrl?: Record<string, never>;
+            /** @example https://www.linkedin.com/company/systems-limited */
+            linkedinUrl?: Record<string, never>;
+            /** @enum {string} */
+            businessMode?: "PRODUCT" | "SERVICES" | "HYBRID";
+            /** @example IT staff augmentation for US clients */
+            productDescription?: Record<string, never>;
+            /** @example Software Development */
+            industry?: Record<string, never>;
+            /** @example 50-200 employees */
+            companySize?: Record<string, never>;
+            /**
+             * @example [
+             *       "React",
+             *       "Node.js",
+             *       "AWS"
+             *     ]
+             */
+            techStack?: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
+            /** @example Hybrid */
+            workPolicy?: Record<string, never>;
+            /** @example Lahore, Pakistan */
+            headquarters?: Record<string, never>;
+            /** @example 123 Tech Park, DHA Phase 5, Lahore */
+            address?: Record<string, never>;
+        };
+        MergeFieldOverridesDto: {
+            industry?: Record<string, never>;
+            companySize?: Record<string, never>;
+            techStack?: string[];
+            cultureSummary?: Record<string, never>;
+            workPolicy?: Record<string, never>;
+            headquarters?: Record<string, never>;
+            headquartersLowConfidence?: boolean;
+            address?: Record<string, never>;
+            addressLowConfidence?: boolean;
+        };
+        MergeCompanyDto: {
+            /**
+             * Format: cuid
+             * @description The company to merge into the canonical company (:id in the URL) and delete
+             */
+            duplicateCompanyId: string;
+            /** @description Per-field picks when canonical and duplicate have differing enrichment data — only include fields the user explicitly chose the duplicate's value for */
+            fieldOverrides?: components["schemas"]["MergeFieldOverridesDto"];
+        };
+        CsvImportErrorDto: {
+            /**
+             * @description 1-indexed row, header is row 1
+             * @example 3
+             */
+            row: number;
+            /** @example Invalid city "Multan" — expected one of LAHORE, ISLAMABAD, KARACHI, OTHER */
+            message: string;
+        };
+        CsvImportResultDto: {
+            /** @example 12 */
+            imported: number;
+            errors: components["schemas"]["CsvImportErrorDto"][];
+        };
+        UserProfileDto: {
+            /** Format: cuid */
+            id: string;
+            /** @example user@example.com */
+            email: string;
+            /** @example Jane Doe */
+            name: string;
+            /** @example https://example.com/avatar.png */
+            avatarUrl?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /**
+             * @example [
+             *       "google"
+             *     ]
+             */
+            connectedProviders: string[];
+            /** @example true */
+            hasPassword: boolean;
+            /** @example true */
+            interviewRemindersEnabled: boolean;
+            /**
+             * @example OFF
+             * @enum {string}
+             */
+            digestFrequency: "OFF" | "DAILY" | "WEEKLY";
+            /** @example Asia/Karachi */
+            timezone: string;
+        };
+        UpdateUserDto: {
+            /** @example Jane Doe */
+            name?: string;
+            /** @example user@example.com */
+            email?: string;
+        };
+        UpdateNotificationPrefsDto: {
+            /** @example true */
+            interviewRemindersEnabled?: boolean;
+            /**
+             * @example OFF
+             * @enum {string}
+             */
+            digestFrequency?: "OFF" | "DAILY" | "WEEKLY";
+            /** @example Asia/Karachi */
+            timezone?: string;
+        };
+        ChangePasswordDto: {
+            currentPassword: string;
+            newPassword: string;
+        };
+        CreateJobDto: {
+            /** @example Acme Corp */
+            company: string;
+            /** @example Senior Engineer */
+            position: string;
+            /** @example Remote */
+            location?: Record<string, never>;
+            /** @example https://jobs.example.com/123 */
+            url?: Record<string, never>;
+            /** @enum {string} */
+            status?: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+            /** @enum {string} */
+            priority?: "LOW" | "MEDIUM" | "HIGH";
+            /** @enum {string} */
+            jobType?: "ONSITE" | "HYBRID" | "REMOTE";
+            /** @enum {string} */
+            discoverySource?: "LINKEDIN" | "LINKEDIN_JOBS" | "GOOGLE_SEARCH" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "JOBLEADS" | "TARAKI" | "OTHER";
+            /** @enum {string} */
+            applicationChannel?: "COMPANY_WEBSITE" | "ATS" | "LINKEDIN" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "TARAKI" | "OTHER";
+            /** @example Referral from John */
+            notes?: Record<string, never>;
+            /**
+             * Format: date
+             * @example 2024-03-15
+             */
+            appliedAt?: string;
+        };
+        CompanyProfileResponseDto: {
+            /** Format: cuid */
+            id: string;
+            /** Format: cuid */
+            jobId: string;
+            /** @enum {string} */
+            status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+            /** @example Software */
+            industry?: Record<string, never>;
+            /** @example 1000-5000 */
+            companySize?: Record<string, never>;
+            /**
+             * @example [
+             *       "TypeScript",
+             *       "React"
+             *     ]
+             */
+            techStack: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
+            /** @example Hybrid */
+            workPolicy?: Record<string, never>;
+            /** @example San Francisco, CA */
+            headquarters?: Record<string, never>;
+            /** @example 1600 Amphitheatre Parkway, Mountain View, CA 94043 */
+            address?: Record<string, never>;
+            errorMessage?: Record<string, never>;
+            /** Format: date-time */
+            enrichedAt?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        MatchedCompanyDto: {
+            /** Format: cuid */
+            id: string;
+            /** @example Systems Limited */
+            name: string;
+        };
+        JobResponseDto: {
+            /** Format: cuid */
+            id: string;
+            /** @example Acme Corp */
+            company: string;
+            /** @example Senior Engineer */
+            position: string;
+            /** @example Remote */
+            location?: Record<string, never>;
+            /** @example https://jobs.example.com/123 */
+            url?: Record<string, never>;
+            /** @enum {string} */
+            status: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+            /** @enum {string} */
+            priority: "LOW" | "MEDIUM" | "HIGH";
+            /** @enum {string} */
+            jobType: "ONSITE" | "HYBRID" | "REMOTE";
+            /** @enum {string} */
+            discoverySource?: "LINKEDIN" | "LINKEDIN_JOBS" | "GOOGLE_SEARCH" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "JOBLEADS" | "TARAKI" | "OTHER";
+            /** @enum {string} */
+            applicationChannel?: "COMPANY_WEBSITE" | "ATS" | "LINKEDIN" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "TARAKI" | "OTHER";
+            /** @example Referral from John */
+            notes?: Record<string, never>;
+            /** Format: date-time */
+            appliedAt: string;
+            /** Format: date-time */
+            nextInterviewAt?: Record<string, never>;
+            /**
+             * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
+             * @example Applied, then moved to interviewing.
+             */
+            timelineSummary?: Record<string, never>;
+            /** Format: date-time */
+            timelineSummaryAt?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** Format: cuid */
+            userId: string;
+            /** Format: cuid */
+            companyId?: Record<string, never>;
+            companyProfile?: components["schemas"]["CompanyProfileResponseDto"];
+            resume?: components["schemas"]["ResumeResponseDto"];
+            interviewRounds?: components["schemas"]["InterviewRoundResponseDto"][];
+            /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
+            matchedCompany?: components["schemas"]["MatchedCompanyDto"];
+        };
+        ParseJobDto: {
+            /** @example https://jobs.example.com/123 */
+            url?: string;
+            /** @example Senior Engineer at Acme... */
+            text?: string;
+        };
+        ParsedJobDto: {
+            /** @example Acme Corp */
+            company?: Record<string, never>;
+            /** @example Senior Engineer */
+            position?: Record<string, never>;
+            /** @example Remote */
+            location?: Record<string, never>;
+            /** @example https://jobs.example.com/123 */
+            url?: string;
+            /** @enum {string} */
+            jobType?: "ONSITE" | "HYBRID" | "REMOTE";
+            /** @enum {string} */
+            applicationChannel?: "COMPANY_WEBSITE" | "ATS" | "LINKEDIN" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "TARAKI" | "OTHER";
+        };
+        PaginatedJobsDto: {
+            data: components["schemas"]["JobResponseDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+        };
+        ByStatusDto: {
+            /** @example 3 */
+            WISHLIST: number;
+            /** @example 12 */
+            APPLIED: number;
+            /** @example 5 */
+            INTERVIEWING: number;
+            /** @example 1 */
+            OFFER: number;
+            /** @example 8 */
+            REJECTED: number;
+            /** @example 2 */
+            GHOSTED: number;
+        };
+        JobStatsDto: {
+            /** @example 31 */
+            total: number;
+            byStatus: components["schemas"]["ByStatusDto"];
+            /**
+             * @description Applications this calendar month
+             * @example 7
+             */
+            thisMonth: number;
+            /**
+             * @description Percentage of apps that got a response
+             * @example 45.2
+             */
+            responseRate: number;
+            /**
+             * @description Percentage of apps that ended ghosted
+             * @example 12.9
+             */
+            ghostRate: number;
+        };
+        FunnelStageDto: {
+            /**
+             * @example APPLIED
+             * @enum {string}
+             */
+            status: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER";
+            /**
+             * @description Distinct jobs that ever reached this stage
+             * @example 12
+             */
+            reached: number;
+        };
+        DropoffStageDto: {
+            /**
+             * @example REJECTED
+             * @enum {string}
+             */
+            status: "REJECTED" | "GHOSTED";
+            /** @example 8 */
+            count: number;
+        };
+        SourceResponseRateDto: {
+            /**
+             * @example LINKEDIN
+             * @enum {string}
+             */
+            source: "COMPANY_WEBSITE" | "ATS" | "LINKEDIN" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "TARAKI" | "OTHER" | "UNSPECIFIED";
+            /** @example 20 */
+            total: number;
+            /**
+             * @description Percentage of applications from this source that got a response
+             * @example 45.2
+             */
+            responseRate: number;
+        };
+        FunnelStatsDto: {
+            funnel: components["schemas"]["FunnelStageDto"][];
+            dropoff: components["schemas"]["DropoffStageDto"][];
+            /**
+             * @description Average days spent in each stage before moving on. Stage omitted if no job has moved past it yet.
+             * @example {
+             *       "APPLIED": 4.5,
+             *       "INTERVIEWING": 6.2
+             *     }
+             */
+            avgTimeInStageDays: Record<string, never>;
+            responseRateBySource: components["schemas"]["SourceResponseRateDto"][];
+        };
+        TrendBucketDto: {
+            /** @example Jul 24 */
+            label: string;
+            /** @example 2026-07-24T00:00:00.000Z */
+            periodStart: string;
+            /**
+             * @description New applications in this period
+             * @example 3
+             */
+            count: number;
+            /**
+             * @description Running total up to this period
+             * @example 12
+             */
+            cumulative: number;
+        };
+        TrendStatsDto: {
+            /**
+             * @example week
+             * @enum {string}
+             */
+            granularity: "day" | "week" | "month";
+            buckets: components["schemas"]["TrendBucketDto"][];
+        };
+        AttentionItemDto: {
+            /**
+             * @example STALE_APPLIED
+             * @enum {string}
+             */
+            type: "UPCOMING_INTERVIEW" | "STALE_INTERVIEWING" | "STALE_APPLIED";
+            /**
+             * Format: date-time
+             * @description Timestamp the reason is based on: interview time, last activity, or applied date
+             */
+            since: string;
+            job: components["schemas"]["JobResponseDto"];
+        };
+        JobEventDto: {
+            /** Format: cuid */
+            id: string;
+            /** Format: cuid */
+            jobId: string;
+            /** @enum {string} */
+            type: "CREATED" | "STATUS_CHANGE" | "INTERVIEW_ROUND_ADDED";
+            /** @enum {string} */
+            fromStatus?: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+            /** @enum {string} */
+            toStatus: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+            note?: Record<string, never>;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        PaginatedJobEventsDto: {
+            data: components["schemas"]["JobEventDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+        };
+        UpdateJobDto: {
+            /** @example Acme Corp */
+            company?: string;
+            /** @example Senior Engineer */
+            position?: string;
+            /** @example Remote */
+            location?: Record<string, never>;
+            /** @example https://jobs.example.com/123 */
+            url?: Record<string, never>;
+            /** @enum {string} */
+            status?: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+            /** @enum {string} */
+            priority?: "LOW" | "MEDIUM" | "HIGH";
+            /** @enum {string} */
+            jobType?: "ONSITE" | "HYBRID" | "REMOTE";
+            /** @enum {string} */
+            discoverySource?: "LINKEDIN" | "LINKEDIN_JOBS" | "GOOGLE_SEARCH" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "JOBLEADS" | "TARAKI" | "OTHER";
+            /** @enum {string} */
+            applicationChannel?: "COMPANY_WEBSITE" | "ATS" | "LINKEDIN" | "INDEED" | "ROZEE" | "REFERRAL" | "CAREER_EMAIL" | "TARAKI" | "OTHER";
+            /** @example Referral from John */
+            notes?: Record<string, never>;
+            /**
+             * Format: date
+             * @example 2024-03-15
+             */
+            appliedAt?: string;
+        };
+        AdminUserDto: {
+            id: string;
+            email: string;
+            name: string;
+            /** @enum {string} */
+            role: "USER" | "ADMIN";
+            /** Format: date-time */
+            createdAt: string;
+            /** @example 12 */
+            jobCount: number;
+        };
+        PaginatedAdminUsersDto: {
+            data: components["schemas"]["AdminUserDto"][];
+            meta: components["schemas"]["PaginationMetaDto"];
+        };
+        CreateTokenDto: {
+            /** @example Chrome extension */
+            name: string;
+        };
+        CreatedTokenDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example Chrome extension */
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastUsedAt?: Record<string, never>;
+            /**
+             * Format: date-time
+             * @description Expires 180 days after creation absent a manual revoke
+             */
+            expiresAt: string;
+            /**
+             * @description Raw token value — shown only once, on creation
+             * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
+             */
+            token: string;
+        };
+        TokenResponseDto: {
+            /** Format: uuid */
+            id: string;
+            /** @example Chrome extension */
+            name: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastUsedAt?: Record<string, never>;
+            /**
+             * Format: date-time
+             * @description Expires 180 days after creation absent a manual revoke
+             */
+            expiresAt: string;
+        };
     };
-    AuthTokensDto: {
-      /** @description JWT access token (15 min) */
-      accessToken: string;
-    };
-    LoginDto: {
-      /** @example user@example.com */
-      email: string;
-      /** @example password123 */
-      password: string;
-    };
-    ExchangeCodeDto: {
-      /**
-       * Format: uuid
-       * @description Short-lived UUID code from OAuth redirect
-       */
-      code: string;
-    };
-    ExchangeApiTokenDto: {
-      /**
-       * @description Raw personal access token, e.g. from the browser extension
-       * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
-       */
-      token: string;
-    };
-    ApiTokenAccessDto: {
-      /** @description JWT access token (15 min) */
-      accessToken: string;
-      /** @description Seconds until accessToken expires */
-      expiresIn: number;
-    };
-    MessageDto: {
-      /** @example Operation successful */
-      message: string;
-    };
-    CurrentUserDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example user@example.com */
-      email: string;
-      /** @example Jane Doe */
-      name: string;
-      /** @example https://example.com/avatar.png */
-      avatarUrl?: Record<string, never>;
-      /** @enum {string} */
-      role: 'USER' | 'ADMIN';
-    };
-    ResumeResponseDto: {
-      /** Format: uuid */
-      id: string;
-      /** Format: uuid */
-      jobId: string;
-      /** @example resume-2024.pdf */
-      originalName: string;
-      /**
-       * @description File size in bytes
-       * @example 204800
-       */
-      size: number;
-      /** Format: date-time */
-      createdAt: string;
-    };
-    CreateInterviewRoundDto: {
-      /** @example Phone Screen */
-      stage: string;
-      /**
-       * Format: date
-       * @example 2024-03-22
-       */
-      scheduledAt: string;
-      /** @example Ask about on-call rotation */
-      notes?: string;
-    };
-    InterviewRoundResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** Format: cuid */
-      jobId: string;
-      /** @example Phone Screen */
-      stage: string;
-      /** Format: date-time */
-      scheduledAt: string;
-      /** @enum {string} */
-      outcome: 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
-      /** @enum {string} */
-      derivedStatus:
-        | 'SCHEDULED'
-        | 'AWAITING_RESPONSE'
-        | 'POSSIBLY_GHOSTED'
-        | 'PASSED'
-        | 'FAILED'
-        | 'CANCELLED';
-      /** @example Ask about on-call rotation */
-      notes?: Record<string, never>;
-      /**
-       * @description LLM-generated talking points for this round, produced from the debrief notes on the previously-completed round for the same job.
-       * @example - Review React hooks
-       *     - Ask about on-call rotation
-       */
-      prepSuggestions?: Record<string, never>;
-      /** Format: date-time */
-      prepGeneratedAt?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    UpdateInterviewRoundDto: {
-      /** @example Phone Screen */
-      stage?: string;
-      /**
-       * Format: date
-       * @example 2024-03-22
-       */
-      scheduledAt?: string;
-      /** @example Ask about on-call rotation */
-      notes?: string;
-      /** @enum {string} */
-      outcome?: 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
-    };
-    CreateContactDto: {
-      /** @example Jane Doe */
-      name: string;
-      /** @example Recruiter */
-      role?: Record<string, never>;
-      /** @example jane.doe@example.com */
-      email?: Record<string, never>;
-      /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
-      /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
-      /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
-    };
-    ContactResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /**
-       * Format: cuid
-       * @description Set when this contact belongs to a job, null for a company contact
-       */
-      jobId?: string | null;
-      /**
-       * Format: cuid
-       * @description Set when this contact belongs to a company, null for a job contact
-       */
-      companyId?: string | null;
-      /** @example Jane Doe */
-      name: string;
-      /** @example Recruiter */
-      role?: Record<string, never>;
-      /** @example jane.doe@example.com */
-      email?: Record<string, never>;
-      /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
-      /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
-      /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    UpdateContactDto: {
-      /** @example Jane Doe */
-      name?: string;
-      /** @example Recruiter */
-      role?: Record<string, never>;
-      /** @example jane.doe@example.com */
-      email?: Record<string, never>;
-      /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
-      /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
-      /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
-    };
-    CreateCompanyDto: {
-      /** @example Systems Limited */
-      name: string;
-      /** @enum {string} */
-      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
-      /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @example Great engineering culture, met their CTO at a meetup */
-      personalNotes?: Record<string, never>;
-      /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
-      /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
-      /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
-      /** @example Software Development */
-      industry?: Record<string, never>;
-      /** @example 50-200 employees */
-      companySize?: Record<string, never>;
-      /**
-       * @example [
-       *       "React",
-       *       "Node.js",
-       *       "AWS"
-       *     ]
-       */
-      techStack?: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      /** @example 4/5 */
-      workLifeBalance?: Record<string, never>;
-      /** @example Lahore, Pakistan */
-      headquarters?: Record<string, never>;
-      /** @example 123 Tech Park, DHA Phase 5, Lahore */
-      address?: Record<string, never>;
-      /** @example 2005 */
-      founded?: Record<string, never>;
-    };
-    CompanyResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example Systems Limited */
-      name: string;
-      /** @enum {string} */
-      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
-      /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
-      /** @enum {string} */
-      priority: 'LOW' | 'MEDIUM' | 'HIGH';
-      personalNotes?: Record<string, never>;
-      /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
-      /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
-      /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
-      /**
-       * @description null means enrichment has never been triggered
-       * @enum {string}
-       */
-      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-      /** @example Software Development */
-      industry?: Record<string, never>;
-      /** @example 50-200 employees */
-      companySize?: Record<string, never>;
-      /**
-       * @example [
-       *       "React",
-       *       "Node.js",
-       *       "AWS"
-       *     ]
-       */
-      techStack: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      /** @example 4/5 */
-      workLifeBalance?: Record<string, never>;
-      /** @example Lahore, Pakistan */
-      headquarters?: Record<string, never>;
-      headquartersLowConfidence?: boolean;
-      /** @example 123 Tech Park, DHA Phase 5, Lahore */
-      address?: Record<string, never>;
-      addressLowConfidence?: boolean;
-      /** @example 2005 */
-      founded?: Record<string, never>;
-      errorMessage?: Record<string, never>;
-      /** Format: date-time */
-      enrichedAt?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    PaginationMetaDto: {
-      /** @example 42 */
-      total: number;
-      /** @example 1 */
-      page: number;
-      /** @example 10 */
-      limit: number;
-      /** @example 5 */
-      totalPages: number;
-    };
-    PaginatedCompaniesDto: {
-      data: components['schemas']['CompanyResponseDto'][];
-      meta: components['schemas']['PaginationMetaDto'];
-    };
-    DuplicateSuggestionDto: {
-      companyA: components['schemas']['CompanyResponseDto'];
-      companyB: components['schemas']['CompanyResponseDto'];
-      /** @enum {string} */
-      reason: 'website' | 'name';
-    };
-    UpdateCompanyDto: {
-      /** @example Systems Limited */
-      name?: string;
-      /** @enum {string} */
-      city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
-      /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @example Great engineering culture, met their CTO at a meetup */
-      personalNotes?: Record<string, never>;
-      /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
-      /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
-      /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
-      /** @example Software Development */
-      industry?: Record<string, never>;
-      /** @example 50-200 employees */
-      companySize?: Record<string, never>;
-      /**
-       * @example [
-       *       "React",
-       *       "Node.js",
-       *       "AWS"
-       *     ]
-       */
-      techStack?: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      /** @example 4/5 */
-      workLifeBalance?: Record<string, never>;
-      /** @example Lahore, Pakistan */
-      headquarters?: Record<string, never>;
-      /** @example 123 Tech Park, DHA Phase 5, Lahore */
-      address?: Record<string, never>;
-      /** @example 2005 */
-      founded?: Record<string, never>;
-    };
-    MergeFieldOverridesDto: {
-      industry?: Record<string, never>;
-      companySize?: Record<string, never>;
-      techStack?: string[];
-      cultureSummary?: Record<string, never>;
-      workPolicy?: Record<string, never>;
-      workLifeBalance?: Record<string, never>;
-      headquarters?: Record<string, never>;
-      headquartersLowConfidence?: boolean;
-      address?: Record<string, never>;
-      addressLowConfidence?: boolean;
-      founded?: Record<string, never>;
-    };
-    MergeCompanyDto: {
-      /**
-       * Format: cuid
-       * @description The company to merge into the canonical company (:id in the URL) and delete
-       */
-      duplicateCompanyId: string;
-      /** @description Per-field picks when canonical and duplicate have differing enrichment data — only include fields the user explicitly chose the duplicate's value for */
-      fieldOverrides?: components['schemas']['MergeFieldOverridesDto'];
-    };
-    CsvImportErrorDto: {
-      /**
-       * @description 1-indexed row, header is row 1
-       * @example 3
-       */
-      row: number;
-      /** @example Invalid city "Multan" — expected one of LAHORE, ISLAMABAD, KARACHI, OTHER */
-      message: string;
-    };
-    CsvImportResultDto: {
-      /** @example 12 */
-      imported: number;
-      errors: components['schemas']['CsvImportErrorDto'][];
-    };
-    UserProfileDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example user@example.com */
-      email: string;
-      /** @example Jane Doe */
-      name: string;
-      /** @example https://example.com/avatar.png */
-      avatarUrl?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /**
-       * @example [
-       *       "google"
-       *     ]
-       */
-      connectedProviders: string[];
-      /** @example true */
-      hasPassword: boolean;
-      /** @example true */
-      interviewRemindersEnabled: boolean;
-      /**
-       * @example OFF
-       * @enum {string}
-       */
-      digestFrequency: 'OFF' | 'DAILY' | 'WEEKLY';
-      /** @example Asia/Karachi */
-      timezone: string;
-    };
-    UpdateUserDto: {
-      /** @example Jane Doe */
-      name?: string;
-      /** @example user@example.com */
-      email?: string;
-    };
-    UpdateNotificationPrefsDto: {
-      /** @example true */
-      interviewRemindersEnabled?: boolean;
-      /**
-       * @example OFF
-       * @enum {string}
-       */
-      digestFrequency?: 'OFF' | 'DAILY' | 'WEEKLY';
-      /** @example Asia/Karachi */
-      timezone?: string;
-    };
-    ChangePasswordDto: {
-      currentPassword: string;
-      newPassword: string;
-    };
-    CreateJobDto: {
-      /** @example Acme Corp */
-      company: string;
-      /** @example Senior Engineer */
-      position: string;
-      /** @example Remote */
-      location?: string;
-      /** @example https://jobs.example.com/123 */
-      url?: string;
-      /** @enum {string} */
-      status?:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @enum {string} */
-      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
-      discoverySource?:
-        | 'LINKEDIN'
-        | 'LINKEDIN_JOBS'
-        | 'GOOGLE_SEARCH'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'JOBLEADS'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @example Referral from John */
-      notes?: string;
-      /**
-       * Format: date
-       * @example 2024-03-15
-       */
-      appliedAt?: string;
-    };
-    CompanyProfileResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** Format: cuid */
-      jobId: string;
-      /** @enum {string} */
-      status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
-      /** @example Software */
-      industry?: Record<string, never>;
-      /** @example 1000-5000 */
-      companySize?: Record<string, never>;
-      /**
-       * @example [
-       *       "TypeScript",
-       *       "React"
-       *     ]
-       */
-      techStack: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      /** @example 4/5 */
-      workLifeBalance?: Record<string, never>;
-      /** @example San Francisco, CA */
-      headquarters?: Record<string, never>;
-      /** @example 1600 Amphitheatre Parkway, Mountain View, CA 94043 */
-      address?: Record<string, never>;
-      /** @example 2010 */
-      founded?: Record<string, never>;
-      errorMessage?: Record<string, never>;
-      /** Format: date-time */
-      enrichedAt?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    MatchedCompanyDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example Systems Limited */
-      name: string;
-    };
-    JobResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example Acme Corp */
-      company: string;
-      /** @example Senior Engineer */
-      position: string;
-      /** @example Remote */
-      location?: Record<string, never>;
-      /** @example https://jobs.example.com/123 */
-      url?: Record<string, never>;
-      /** @enum {string} */
-      status:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      priority: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @enum {string} */
-      jobType: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
-      discoverySource?:
-        | 'LINKEDIN'
-        | 'LINKEDIN_JOBS'
-        | 'GOOGLE_SEARCH'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'JOBLEADS'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @example Referral from John */
-      notes?: Record<string, never>;
-      /** Format: date-time */
-      appliedAt: string;
-      /** Format: date-time */
-      nextInterviewAt?: Record<string, never>;
-      /**
-       * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
-       * @example Applied, then moved to interviewing.
-       */
-      timelineSummary?: Record<string, never>;
-      /** Format: date-time */
-      timelineSummaryAt?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-      /** Format: cuid */
-      userId: string;
-      /** Format: cuid */
-      companyId?: Record<string, never>;
-      companyProfile?: components['schemas']['CompanyProfileResponseDto'];
-      resume?: components['schemas']['ResumeResponseDto'];
-      interviewRounds?: components['schemas']['InterviewRoundResponseDto'][];
-      /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
-      matchedCompany?: components['schemas']['MatchedCompanyDto'];
-    };
-    ParseJobDto: {
-      /** @example https://jobs.example.com/123 */
-      url?: string;
-      /** @example Senior Engineer at Acme... */
-      text?: string;
-    };
-    ParsedJobDto: {
-      /** @example Acme Corp */
-      company?: Record<string, never>;
-      /** @example Senior Engineer */
-      position?: Record<string, never>;
-      /** @example Remote */
-      location?: Record<string, never>;
-      /** @example https://jobs.example.com/123 */
-      url?: string;
-      /** @enum {string} */
-      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER';
-    };
-    PaginatedJobsDto: {
-      data: components['schemas']['JobResponseDto'][];
-      meta: components['schemas']['PaginationMetaDto'];
-    };
-    ByStatusDto: {
-      /** @example 3 */
-      WISHLIST: number;
-      /** @example 12 */
-      APPLIED: number;
-      /** @example 5 */
-      INTERVIEWING: number;
-      /** @example 1 */
-      OFFER: number;
-      /** @example 8 */
-      REJECTED: number;
-      /** @example 2 */
-      GHOSTED: number;
-    };
-    JobStatsDto: {
-      /** @example 31 */
-      total: number;
-      byStatus: components['schemas']['ByStatusDto'];
-      /**
-       * @description Applications this calendar month
-       * @example 7
-       */
-      thisMonth: number;
-      /**
-       * @description Percentage of apps that got a response
-       * @example 45.2
-       */
-      responseRate: number;
-      /**
-       * @description Percentage of apps that ended ghosted
-       * @example 12.9
-       */
-      ghostRate: number;
-    };
-    FunnelStageDto: {
-      /**
-       * @example APPLIED
-       * @enum {string}
-       */
-      status: 'WISHLIST' | 'APPLIED' | 'INTERVIEWING' | 'OFFER';
-      /**
-       * @description Distinct jobs that ever reached this stage
-       * @example 12
-       */
-      reached: number;
-    };
-    DropoffStageDto: {
-      /**
-       * @example REJECTED
-       * @enum {string}
-       */
-      status: 'REJECTED' | 'GHOSTED';
-      /** @example 8 */
-      count: number;
-    };
-    SourceResponseRateDto: {
-      /**
-       * @example LINKEDIN
-       * @enum {string}
-       */
-      source:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER'
-        | 'UNSPECIFIED';
-      /** @example 20 */
-      total: number;
-      /**
-       * @description Percentage of applications from this source that got a response
-       * @example 45.2
-       */
-      responseRate: number;
-    };
-    FunnelStatsDto: {
-      funnel: components['schemas']['FunnelStageDto'][];
-      dropoff: components['schemas']['DropoffStageDto'][];
-      /**
-       * @description Average days spent in each stage before moving on. Stage omitted if no job has moved past it yet.
-       * @example {
-       *       "APPLIED": 4.5,
-       *       "INTERVIEWING": 6.2
-       *     }
-       */
-      avgTimeInStageDays: Record<string, never>;
-      responseRateBySource: components['schemas']['SourceResponseRateDto'][];
-    };
-    TrendBucketDto: {
-      /** @example Jul 24 */
-      label: string;
-      /** @example 2026-07-24T00:00:00.000Z */
-      periodStart: string;
-      /**
-       * @description New applications in this period
-       * @example 3
-       */
-      count: number;
-      /**
-       * @description Running total up to this period
-       * @example 12
-       */
-      cumulative: number;
-    };
-    TrendStatsDto: {
-      /**
-       * @example week
-       * @enum {string}
-       */
-      granularity: 'day' | 'week' | 'month';
-      buckets: components['schemas']['TrendBucketDto'][];
-    };
-    AttentionItemDto: {
-      /**
-       * @example STALE_APPLIED
-       * @enum {string}
-       */
-      type: 'UPCOMING_INTERVIEW' | 'STALE_INTERVIEWING' | 'STALE_APPLIED';
-      /**
-       * Format: date-time
-       * @description Timestamp the reason is based on: interview time, last activity, or applied date
-       */
-      since: string;
-      job: components['schemas']['JobResponseDto'];
-    };
-    JobEventDto: {
-      /** Format: cuid */
-      id: string;
-      /** Format: cuid */
-      jobId: string;
-      /** @enum {string} */
-      type: 'CREATED' | 'STATUS_CHANGE' | 'INTERVIEW_ROUND_ADDED';
-      /** @enum {string} */
-      fromStatus?:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      toStatus:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      note?: Record<string, never>;
-      /** Format: date-time */
-      createdAt: string;
-    };
-    PaginatedJobEventsDto: {
-      data: components['schemas']['JobEventDto'][];
-      meta: components['schemas']['PaginationMetaDto'];
-    };
-    UpdateJobDto: {
-      /** @example Acme Corp */
-      company?: string;
-      /** @example Senior Engineer */
-      position?: string;
-      /** @example Remote */
-      location?: string;
-      /** @example https://jobs.example.com/123 */
-      url?: string;
-      /** @enum {string} */
-      status?:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @enum {string} */
-      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
-      discoverySource?:
-        | 'LINKEDIN'
-        | 'LINKEDIN_JOBS'
-        | 'GOOGLE_SEARCH'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'JOBLEADS'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER';
-      /** @example Referral from John */
-      notes?: string;
-      /**
-       * Format: date
-       * @example 2024-03-15
-       */
-      appliedAt?: string;
-    };
-    AdminUserDto: {
-      id: string;
-      email: string;
-      name: string;
-      /** @enum {string} */
-      role: 'USER' | 'ADMIN';
-      /** Format: date-time */
-      createdAt: string;
-      /** @example 12 */
-      jobCount: number;
-    };
-    PaginatedAdminUsersDto: {
-      data: components['schemas']['AdminUserDto'][];
-      meta: components['schemas']['PaginationMetaDto'];
-    };
-    CreateTokenDto: {
-      /** @example Chrome extension */
-      name: string;
-    };
-    CreatedTokenDto: {
-      /** Format: uuid */
-      id: string;
-      /** @example Chrome extension */
-      name: string;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      lastUsedAt?: Record<string, never>;
-      /**
-       * Format: date-time
-       * @description Expires 180 days after creation absent a manual revoke
-       */
-      expiresAt: string;
-      /**
-       * @description Raw token value — shown only once, on creation
-       * @example jt_pat_4e1f0a3c-9b7d-4a2e-8c6f-1d5b6a0e2f3c.9f8e7d6c5b4a3928...
-       */
-      token: string;
-    };
-    TokenResponseDto: {
-      /** Format: uuid */
-      id: string;
-      /** @example Chrome extension */
-      name: string;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      lastUsedAt?: Record<string, never>;
-      /**
-       * Format: date-time
-       * @description Expires 180 days after creation absent a manual revoke
-       */
-      expiresAt: string;
-    };
-  };
-  responses: never;
-  parameters: never;
-  requestBodies: never;
-  headers: never;
-  pathItems: never;
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  AuthController_register: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['RegisterDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AuthTokensDto'];
-        };
-      };
-      /** @description Email already in use */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  AuthController_login: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['LoginDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AuthTokensDto'];
-        };
-      };
-      /** @description Invalid credentials */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  AuthController_refresh: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AuthTokensDto'];
-        };
-      };
-      /** @description Invalid or expired refresh token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  AuthController_exchangeCode: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ExchangeCodeDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AuthTokensDto'];
-        };
-      };
-      /** @description OAuth code expired or already used */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  AuthController_exchangeApiToken: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ExchangeApiTokenDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ApiTokenAccessDto'];
-        };
-      };
-      /** @description Invalid or revoked access token */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  AuthController_logout: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-    };
-  };
-  AuthController_me: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CurrentUserDto'];
-        };
-      };
-    };
-  };
-  ResumesController_findByJob: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ResumeResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No resume found for this job */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ResumesController_uploadResume: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'multipart/form-data': {
-          /**
-           * Format: binary
-           * @description PDF file (max 8 MB)
-           */
-          file: string;
-        };
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ResumeResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ResumesController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Resume deleted */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No resume found for this job */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ResumesController_getPresignedUrl: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Returns presigned URL */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description No resume found for this job */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ResumesController_serveFile: {
-    parameters: {
-      query: {
-        /** @description Storage key (resumes/<userId>/<jobId>/<uuid>.pdf) */
-        key: string;
-        /** @description Set to "true" for attachment disposition */
-        download?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description PDF file stream */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/pdf': unknown;
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Key belongs to another user */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description File not found or oracle driver active */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  InterviewRoundsController_findAll: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InterviewRoundResponseDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  InterviewRoundsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateInterviewRoundDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InterviewRoundResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  InterviewRoundsController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-        /** @description Interview round ID */
-        roundId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job or interview round not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  InterviewRoundsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-        /** @description Interview round ID */
-        roundId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateInterviewRoundDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['InterviewRoundResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job or interview round not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  InterviewRoundsController_exportIcs: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-        /** @description Interview round ID */
-        roundId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job or interview round not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ContactsController_findAll: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ContactsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateContactDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ContactsController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-        /** @description Contact ID */
-        contactId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job or contact not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  ContactsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        jobId: string;
-        /** @description Contact ID */
-        contactId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateContactDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job or contact not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompanyContactsController_findAll: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        companyId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompanyContactsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        companyId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateContactDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompanyContactsController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        companyId: string;
-        /** @description Contact ID */
-        contactId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company or contact not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompanyContactsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        companyId: string;
-        /** @description Contact ID */
-        contactId: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateContactDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ContactResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company or contact not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_findAll: {
-    parameters: {
-      query?: {
-        page?: number;
-        city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
-        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-        search?: string;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['PaginatedCompaniesDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateCompanyDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CompanyResponseDto'];
-        };
-      };
-      /** @description Company limit reached */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description A company with this name already exists */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_findDuplicates: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['DuplicateSuggestionDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_findOne: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CompanyResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateCompanyDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CompanyResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description A company with this name already exists */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_triggerEnrichment: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Company ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Enrichment queued */
-      202: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Enrichment already in progress */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_merge: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Canonical company ID (survives the merge) */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['MergeCompanyDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CompanyResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Canonical or duplicate company not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Cannot merge a company with itself */
-      409: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  CompaniesController_importCsv: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'multipart/form-data': {
-          /**
-           * Format: binary
-           * @description CSV file, header row "name,city,businessMode" (max 1 MB)
-           */
-          file?: string;
-        };
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['CsvImportResultDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UsersController_getProfile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['UserProfileDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UsersController_deleteAccount: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UsersController_updateProfile: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateUserDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['UserProfileDto'];
-        };
-      };
-      /** @description Email already in use */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UsersController_updateNotificationPrefs: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateNotificationPrefsDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['UserProfileDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  UsersController_changePassword: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ChangePasswordDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Current password is incorrect */
-      400: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Account uses social login — no password set */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_findAll: {
-    parameters: {
-      query?: {
-        page?: number;
-        status?:
-          | 'WISHLIST'
-          | 'APPLIED'
-          | 'INTERVIEWING'
-          | 'OFFER'
-          | 'REJECTED'
-          | 'GHOSTED';
-        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-        search?: string;
-        limit?: number;
-        sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';
-        sortOrder?: 'asc' | 'desc';
-        dateFrom?: string;
-        dateTo?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['PaginatedJobsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateJobDto'];
-      };
-    };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['JobResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_parseJobPosting: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ParseJobDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ParsedJobDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getStats: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['JobStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getFunnel: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['FunnelStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getTrend: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['TrendStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_exportCsv: {
-    parameters: {
-      query?: {
-        page?: number;
-        status?:
-          | 'WISHLIST'
-          | 'APPLIED'
-          | 'INTERVIEWING'
-          | 'OFFER'
-          | 'REJECTED'
-          | 'GHOSTED';
-        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-        search?: string;
-        limit?: number;
-        sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';
-        sortOrder?: 'asc' | 'desc';
-        dateFrom?: string;
-        dateTo?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description CSV file download */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'text/csv': unknown;
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getAttention: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AttentionItemDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_findOne: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['JobResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_update: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Job ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['UpdateJobDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['JobResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getEvents: {
-    parameters: {
-      query?: {
-        page?: number;
-        limit?: number;
-      };
-      header?: never;
-      path: {
-        /** @description Job ID */
-        id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['PaginatedJobEventsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Job not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  HealthController_check: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /**
-       * @description All services healthy
-       *
-       *     The Health Check is successful
-       */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            /** @example ok */
-            status?: string;
-            /**
-             * @example {
-             *       "database": {
-             *         "status": "up"
-             *       }
-             *     }
-             */
-            info?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
-            } | null;
-            /** @example {} */
-            error?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
-            } | null;
-            /**
-             * @example {
-             *       "database": {
-             *         "status": "up"
-             *       }
-             *     }
-             */
-            details?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
+    AuthController_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterDto"];
             };
-          };
         };
-      };
-      /** @description The Health Check is not successful */
-      503: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': {
-            /** @example error */
-            status?: string;
-            /**
-             * @example {
-             *       "database": {
-             *         "status": "up"
-             *       }
-             *     }
-             */
-            info?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
-            } | null;
-            /**
-             * @example {
-             *       "redis": {
-             *         "status": "down",
-             *         "message": "Could not connect"
-             *       }
-             *     }
-             */
-            error?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
-            } | null;
-            /**
-             * @example {
-             *       "database": {
-             *         "status": "up"
-             *       },
-             *       "redis": {
-             *         "status": "down",
-             *         "message": "Could not connect"
-             *       }
-             *     }
-             */
-            details?: {
-              [key: string]: {
-                status: string;
-              } & {
-                [key: string]: unknown;
-              };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokensDto"];
+                };
             };
-          };
+            /** @description Email already in use */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
     };
-  };
-  AdminController_findAll: {
-    parameters: {
-      query?: {
-        page?: number;
-        /** @description Matches name or email */
-        search?: string;
-        limit?: number;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
+    AuthController_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokensDto"];
+                };
+            };
+            /** @description Invalid credentials */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_refresh: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['PaginatedAdminUsersDto'];
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokensDto"];
+                };
+            };
+            /** @description Invalid or expired refresh token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Requires ADMIN role */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  AdminController_findOne: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description User ID */
-        id: string;
-      };
-      cookie?: never;
+    AuthController_exchangeCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeCodeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthTokensDto"];
+                };
+            };
+            /** @description OAuth code expired or already used */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_exchangeApiToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['AdminUserDto'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ExchangeApiTokenDto"];
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiTokenAccessDto"];
+                };
+            };
+            /** @description Invalid or revoked access token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
-      /** @description Requires ADMIN role */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  AdminController_remove: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description User ID */
-        id: string;
-      };
-      cookie?: never;
+    AuthController_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CurrentUserDto"];
+                };
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description Requires ADMIN role, or attempting to delete your own account */
-      403: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-      /** @description User not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  TokensController_findAll: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    ResumesController_findByJob: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No resume found for this job */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    ResumesController_uploadResume: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['TokenResponseDto'][];
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description PDF file (max 8 MB)
+                     */
+                    file: string;
+                };
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResumeResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
     };
-  };
-  TokensController_create: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
+    ResumesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resume deleted */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No resume found for this job */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['CreateTokenDto'];
-      };
+    ResumesController_getPresignedUrl: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Returns presigned URL */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No resume found for this job */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    responses: {
-      201: {
-        headers: {
-          [name: string]: unknown;
+    ResumesController_serveFile: {
+        parameters: {
+            query: {
+                /** @description Storage key (resumes/<userId>/<jobId>/<uuid>.pdf) */
+                key: string;
+                /** @description Set to "true" for attachment disposition */
+                download?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['CreatedTokenDto'];
+        requestBody?: never;
+        responses: {
+            /** @description PDF file stream */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/pdf": unknown;
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Key belongs to another user */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description File not found or oracle driver active */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
-  TokensController_revoke: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        /** @description Token ID */
-        id: string;
-      };
-      cookie?: never;
+    InterviewRoundsController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRoundResponseDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
     };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
+    InterviewRoundsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
         };
-        content: {
-          'application/json': components['schemas']['MessageDto'];
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateInterviewRoundDto"];
+            };
         };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRoundResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
-        content?: never;
-      };
-      /** @description Token not found */
-      404: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
     };
-  };
+    InterviewRoundsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+                /** @description Interview round ID */
+                roundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job or interview round not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewRoundsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+                /** @description Interview round ID */
+                roundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateInterviewRoundDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InterviewRoundResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job or interview round not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    InterviewRoundsController_exportIcs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+                /** @description Interview round ID */
+                roundId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job or interview round not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContactsController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContactsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContactDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContactsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+                /** @description Contact ID */
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job or contact not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ContactsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                jobId: string;
+                /** @description Contact ID */
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContactDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job or contact not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompanyContactsController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                companyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompanyContactsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                companyId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateContactDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompanyContactsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                companyId: string;
+                /** @description Contact ID */
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company or contact not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompanyContactsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                companyId: string;
+                /** @description Contact ID */
+                contactId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateContactDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ContactResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company or contact not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_findAll: {
+        parameters: {
+            query?: {
+                page?: number;
+                city?: "LAHORE" | "ISLAMABAD" | "KARACHI" | "OTHER";
+                priority?: "LOW" | "MEDIUM" | "HIGH";
+                search?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedCompaniesDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateCompanyDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyResponseDto"];
+                };
+            };
+            /** @description Company limit reached */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A company with this name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_findDuplicates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuplicateSuggestionDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateCompanyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A company with this name already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_triggerEnrichment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Company ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrichment queued */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Enrichment already in progress */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Canonical company ID (survives the merge) */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MergeCompanyDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CompanyResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Canonical or duplicate company not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Cannot merge a company with itself */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CompaniesController_importCsv: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description CSV file, header row "name,city,businessMode" (max 1 MB)
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CsvImportResultDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsersController_getProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsersController_deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsersController_updateProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateUserDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileDto"];
+                };
+            };
+            /** @description Email already in use */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsersController_updateNotificationPrefs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateNotificationPrefsDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProfileDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsersController_changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangePasswordDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Current password is incorrect */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Account uses social login — no password set */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_findAll: {
+        parameters: {
+            query?: {
+                page?: number;
+                status?: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+                statusIn?: ("WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED")[];
+                priority?: "LOW" | "MEDIUM" | "HIGH";
+                search?: string;
+                limit?: number;
+                sortBy?: "appliedAt" | "company" | "position" | "createdAt" | "status";
+                sortOrder?: "asc" | "desc";
+                dateFrom?: string;
+                dateTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedJobsDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateJobDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_parseJobPosting: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ParseJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ParsedJobDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getStats: {
+        parameters: {
+            query?: {
+                range?: "30d" | "90d" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobStatsDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getFunnel: {
+        parameters: {
+            query?: {
+                range?: "30d" | "90d" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FunnelStatsDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getTrend: {
+        parameters: {
+            query?: {
+                range?: "30d" | "90d" | "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrendStatsDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_exportCsv: {
+        parameters: {
+            query?: {
+                page?: number;
+                status?: "WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED";
+                statusIn?: ("WISHLIST" | "APPLIED" | "INTERVIEWING" | "OFFER" | "REJECTED" | "GHOSTED")[];
+                priority?: "LOW" | "MEDIUM" | "HIGH";
+                search?: string;
+                limit?: number;
+                sortBy?: "appliedAt" | "company" | "position" | "createdAt" | "status";
+                sortOrder?: "asc" | "desc";
+                dateFrom?: string;
+                dateTo?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description CSV file download */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/csv": unknown;
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getAttention: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttentionItemDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Job ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateJobDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobResponseDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    JobsController_getEvents: {
+        parameters: {
+            query?: {
+                page?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Job ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedJobEventsDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Job not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    HealthController_check: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /**
+             * @description All services healthy
+             *
+             *     The Health Check is successful
+             */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example ok */
+                        status?: string;
+                        /**
+                         * @example {
+                         *       "database": {
+                         *         "status": "up"
+                         *       }
+                         *     }
+                         */
+                        info?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        } | null;
+                        /** @example {} */
+                        error?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        } | null;
+                        /**
+                         * @example {
+                         *       "database": {
+                         *         "status": "up"
+                         *       }
+                         *     }
+                         */
+                        details?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+            /** @description The Health Check is not successful */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @example error */
+                        status?: string;
+                        /**
+                         * @example {
+                         *       "database": {
+                         *         "status": "up"
+                         *       }
+                         *     }
+                         */
+                        info?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        } | null;
+                        /**
+                         * @example {
+                         *       "redis": {
+                         *         "status": "down",
+                         *         "message": "Could not connect"
+                         *       }
+                         *     }
+                         */
+                        error?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        } | null;
+                        /**
+                         * @example {
+                         *       "database": {
+                         *         "status": "up"
+                         *       },
+                         *       "redis": {
+                         *         "status": "down",
+                         *         "message": "Could not connect"
+                         *       }
+                         *     }
+                         */
+                        details?: {
+                            [key: string]: {
+                                status: string;
+                            } & {
+                                [key: string]: unknown;
+                            };
+                        };
+                    };
+                };
+            };
+        };
+    };
+    AdminController_findAll: {
+        parameters: {
+            query?: {
+                page?: number;
+                /** @description Matches name or email */
+                search?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedAdminUsersDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires ADMIN role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminController_findOne: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires ADMIN role */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminController_remove: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description User ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Requires ADMIN role, or attempting to delete your own account */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description User not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_findAll: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenResponseDto"][];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTokenDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreatedTokenDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TokensController_revoke: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Token ID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessageDto"];
+                };
+            };
+            /** @description Missing or invalid access token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Token not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
 }

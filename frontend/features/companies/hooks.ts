@@ -33,10 +33,8 @@ export interface CompanyWritePayload {
   techStack: string[];
   cultureSummary: string | null;
   workPolicy: string | null;
-  workLifeBalance: string | null;
   headquarters: string | null;
   address: string | null;
-  founded: string | null;
 }
 
 export interface CompaniesFilters {
@@ -238,12 +236,10 @@ export type MergeFieldOverrides = Partial<
     | 'techStack'
     | 'cultureSummary'
     | 'workPolicy'
-    | 'workLifeBalance'
     | 'headquarters'
     | 'headquartersLowConfidence'
     | 'address'
     | 'addressLowConfidence'
-    | 'founded'
   >
 >;
 

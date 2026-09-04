@@ -50,12 +50,6 @@ export class MergeFieldOverridesDto {
   @MaxLength(100)
   workPolicy?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 1000 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(1000)
-  workLifeBalance?: string | null;
-
   @ApiPropertyOptional({ maxLength: 200 })
   @IsOptional()
   @IsString()
@@ -77,12 +71,6 @@ export class MergeFieldOverridesDto {
   @IsOptional()
   @IsBoolean()
   addressLowConfidence?: boolean;
-
-  @ApiPropertyOptional({ maxLength: 20 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(20)
-  founded?: string | null;
 }
 
 export class MergeCompanyDto {

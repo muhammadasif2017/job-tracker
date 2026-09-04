@@ -64,9 +64,6 @@ export class CompanyResponseDto {
   @ApiPropertyOptional({ example: 'Hybrid' })
   workPolicy: string | null;
 
-  @ApiPropertyOptional({ example: '4/5' })
-  workLifeBalance: string | null;
-
   @ApiPropertyOptional({ example: 'Lahore, Pakistan' })
   headquarters: string | null;
 
@@ -78,9 +75,6 @@ export class CompanyResponseDto {
 
   @ApiPropertyOptional()
   addressLowConfidence: boolean;
-
-  @ApiPropertyOptional({ example: '2005' })
-  founded: string | null;
 
   @ApiPropertyOptional()
   errorMessage: string | null;

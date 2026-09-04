@@ -24,9 +24,7 @@ const baseInput = {
   techStack: ['React', 'Node.js', 'PostgreSQL'],
   cultureSummary: 'Fast-paced culture with strong engineering standards.',
   workPolicy: 'Hybrid',
-  workLifeBalance: 'Good',
   headquarters: 'San Francisco, USA',
-  founded: '2010',
 };
 
 function groqResponse(input: Record<string, unknown>) {
@@ -77,9 +75,7 @@ describe('LlmService', () => {
     expect(result.companySize).toBe('Mid-size (200-1000)');
     expect(result.techStack).toEqual(['React', 'Node.js', 'PostgreSQL']);
     expect(result.workPolicy).toBe('Hybrid');
-    expect(result.workLifeBalance).toBe('Good');
     expect(result.headquarters).toBe('San Francisco, USA');
-    expect(result.founded).toBe('2010');
   });
 
   it('includes the company name and context in the prompt sent to Groq', async () => {

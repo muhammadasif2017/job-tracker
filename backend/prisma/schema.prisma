@@ -240,12 +240,10 @@ model Company {
   techStack                 String[]
   cultureSummary            String?
   workPolicy                String?
-  workLifeBalance           String?
   headquarters              String?
   headquartersLowConfidence Boolean          @default(false)
   address                   String?
   addressLowConfidence      Boolean          @default(false)
-  founded                   String?
   errorMessage              String?
   enrichedAt                DateTime?
 

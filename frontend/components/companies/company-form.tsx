@@ -47,10 +47,8 @@ const schema = z.object({
   techStack: z.string().optional(),
   cultureSummary: z.string().optional(),
   workPolicy: z.string().optional(),
-  workLifeBalance: z.string().optional(),
   headquarters: z.string().optional(),
   address: z.string().optional(),
-  founded: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -93,10 +91,8 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               techStack: company.techStack.join(', '),
               cultureSummary: company.cultureSummary ?? '',
               workPolicy: company.workPolicy ?? '',
-              workLifeBalance: company.workLifeBalance ?? '',
               headquarters: company.headquarters ?? '',
               address: company.address ?? '',
-              founded: company.founded ?? '',
             }
           : { city: 'LAHORE', priority: 'MEDIUM' },
       );
@@ -136,10 +132,8 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
         : [],
       cultureSummary: data.cultureSummary || null,
       workPolicy: data.workPolicy || null,
-      workLifeBalance: data.workLifeBalance || null,
       headquarters: data.headquarters || null,
       address: data.address || null,
-      founded: data.founded || null,
     };
     if (isEdit) {
       updateMutation.mutate(payload);
@@ -242,11 +236,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                 ))}
               </select>
             </div>
-            <Input
-              label="Founded"
-              placeholder="2005"
-              {...register('founded')}
-            />
           </div>
 
           <Input
@@ -301,11 +290,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                   label="Work Policy"
                   placeholder="Hybrid"
                   {...register('workPolicy')}
-                />
-                <Input
-                  label="Work-Life Balance"
-                  placeholder="Good"
-                  {...register('workLifeBalance')}
                 />
                 <Input label="Headquarters" {...register('headquarters')} />
                 <Input label="Address" {...register('address')} />
