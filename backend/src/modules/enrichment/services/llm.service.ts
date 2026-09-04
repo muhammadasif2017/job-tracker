@@ -250,9 +250,15 @@ export class LlmService {
                   `company even if the name or city matches, so ignore it.\n\n` +
                   `If information is not available in the provided content, use "Unknown" for ` +
                   `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
-                  `in the content. If the content describes a different company that merely ` +
-                  `shares the name "${companyName}", return "Unknown" for all string fields ` +
-                  `and [] for arrays rather than extracting from it.` +
+                  `in the content.\n\n` +
+                  `Judge each snippet on its own. Ignoring a snippet about a same-named but ` +
+                  `different company means skipping that snippet — not discarding the whole ` +
+                  `extraction. Search results for a small company routinely contain a few ` +
+                  `genuine snippets mixed in with several about unrelated same-named ` +
+                  `businesses; extract every field you can from the ones that really are about ` +
+                  `"${companyName}", and simply ignore the rest. Return "Unknown" for all ` +
+                  `string fields and [] for arrays only when NONE of the content is about ` +
+                  `"${companyName}".` +
                   `${disambiguationBlock}\n\nWeb content:\n${context}`,
               },
             ],

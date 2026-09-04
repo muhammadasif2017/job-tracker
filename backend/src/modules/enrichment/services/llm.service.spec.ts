@@ -95,6 +95,29 @@ describe('LlmService', () => {
     expect(prompt).toContain('Acme builds widgets.');
   });
 
+  // Regression: the disambiguation instruction used to read "if the content
+  // describes a different company that merely shares the name, return
+  // Unknown for all string fields". It was meant as "if ALL the content is
+  // about a different company" but the model applied it whenever ANY snippet
+  // was — and a small company's search results almost always mix a couple of
+  // genuine hits in with several same-named businesses. The result was a run
+  // that pulled 6 usable snippets and still wrote null to every column.
+  it('scopes the same-name guard to individual snippets, not the whole extraction', async () => {
+    mockCreate.mockResolvedValue(toolCallResponse);
+
+    await service.extract('Acme Corp', 'Acme builds widgets.');
+
+    const call = mockCreate.mock.calls[0][0] as {
+      messages: { role: string; content: string }[];
+    };
+    const prompt = call.messages[0].content;
+
+    // Discarding everything must be conditioned on NONE of the content
+    // matching — never on the mere presence of a same-named company.
+    expect(prompt).toMatch(/only when NONE of the content is about/i);
+    expect(prompt).toMatch(/skipping that snippet — not discarding the whole/i);
+  });
+
   it('throws when response contains no tool call', async () => {
     mockCreate.mockResolvedValue({ choices: [{ message: {} }] });
 
