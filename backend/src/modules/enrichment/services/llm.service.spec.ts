@@ -22,6 +22,7 @@ const baseInput = {
   industry: 'FinTech',
   companySize: 'Mid-size (200-1000)',
   techStack: ['React', 'Node.js', 'PostgreSQL'],
+  cultureSummary: 'Fast-paced culture with strong engineering standards.',
   workPolicy: 'Hybrid',
 };
 
@@ -72,6 +73,9 @@ describe('LlmService', () => {
     expect(result.industry).toBe('FinTech');
     expect(result.companySize).toBe('Mid-size (200-1000)');
     expect(result.techStack).toEqual(['React', 'Node.js', 'PostgreSQL']);
+    expect(result.cultureSummary).toBe(
+      'Fast-paced culture with strong engineering standards.',
+    );
     expect(result.workPolicy).toBe('Hybrid');
   });
 

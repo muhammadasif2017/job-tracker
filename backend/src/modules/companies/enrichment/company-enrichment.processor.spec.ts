@@ -40,6 +40,7 @@ const extracted = {
   industry: 'IT Services',
   companySize: 'Large (1000-5000)',
   techStack: ['Java', '.NET'],
+  cultureSummary: 'Structured, process-driven culture.',
   workPolicy: 'Hybrid',
 };
 const bullJob = {
@@ -427,6 +428,7 @@ describe('CompanyEnrichmentProcessor', () => {
       ...dbCompany,
       industry: 'FinTech',
       workPolicy: 'Remote',
+      cultureSummary: 'Small, senior-heavy team.',
       techStack: ['Python'],
     });
     mockPrisma.company.update.mockResolvedValue({});
@@ -436,6 +438,7 @@ describe('CompanyEnrichmentProcessor', () => {
       ...extracted,
       industry: null,
       workPolicy: null,
+      cultureSummary: null,
       techStack: [],
     });
 
@@ -446,6 +449,7 @@ describe('CompanyEnrichmentProcessor', () => {
         data: expect.objectContaining({
           industry: 'FinTech',
           workPolicy: 'Remote',
+          cultureSummary: 'Small, senior-heavy team.',
           techStack: ['Python'],
         }),
       }),

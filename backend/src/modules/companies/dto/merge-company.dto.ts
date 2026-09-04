@@ -3,7 +3,6 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
-  IsBoolean,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -38,13 +37,17 @@ export class MergeFieldOverridesDto {
   @MaxLength(100, { each: true })
   techStack?: string[];
 
+  @ApiPropertyOptional({ maxLength: 2000 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  cultureSummary?: string | null;
 
   @ApiPropertyOptional({ maxLength: 100 })
   @IsOptional()
   @IsString()
   @MaxLength(100)
   workPolicy?: string | null;
-
 }
 
 export class MergeCompanyDto {

@@ -7,6 +7,7 @@ export interface CompanyData {
   industry: string | null;
   companySize: string | null;
   techStack: string[];
+  cultureSummary: string | null;
   workPolicy: string | null;
 }
 
@@ -31,11 +32,18 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
           ],
         },
         techStack: { type: 'array', items: { type: 'string' } },
+        cultureSummary: {
+          type: 'string',
+          description: '2-3 sentences about work culture',
+        },
         workPolicy: {
           type: 'string',
           enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
         },
       },
+      // `cultureSummary` is intentionally absent: it is the one free-prose
+      // field here, and forcing it makes the model invent culture claims for
+      // companies with no public write-up. Optional lets it return nothing.
       required: ['industry', 'companySize', 'techStack', 'workPolicy'],
     },
   },
@@ -119,6 +127,7 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
           (t): t is string => typeof t === 'string' && !!t.trim(),
         )
       : [],
+    cultureSummary: strOrNull(raw.cultureSummary),
     workPolicy: strOrNull(raw.workPolicy),
   };
 }

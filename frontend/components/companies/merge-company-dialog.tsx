@@ -34,6 +34,7 @@ const CONFLICT_FIELDS: {
   { key: 'industry', label: 'Industry' },
   { key: 'companySize', label: 'Company Size' },
   { key: 'techStack', label: 'Tech Stack' },
+  { key: 'cultureSummary', label: 'Culture' },
   { key: 'workPolicy', label: 'Work Policy' },
 ];
 

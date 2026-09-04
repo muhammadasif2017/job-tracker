@@ -312,6 +312,7 @@ export class JobsService {
             industry: companyLink.industry,
             companySize: companyLink.companySize,
             techStack: companyLink.techStack,
+            cultureSummary: companyLink.cultureSummary,
             workPolicy: companyLink.workPolicy,
             errorMessage: companyLink.errorMessage,
             enrichedAt: companyLink.enrichedAt,

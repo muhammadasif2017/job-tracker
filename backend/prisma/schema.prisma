@@ -238,6 +238,7 @@ model Company {
   industry                  String?
   companySize               String?
   techStack                 String[]
+  cultureSummary            String?
   workPolicy                String?
   errorMessage              String?
   enrichedAt                DateTime?

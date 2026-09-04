@@ -95,6 +95,15 @@ export class CreateCompanyDto {
   @MaxLength(100, { each: true })
   techStack?: string[];
 
+  @ApiPropertyOptional({
+    example: 'Collaborative and fast-paced culture',
+    maxLength: 2000,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  cultureSummary?: string | null;
+
   @ApiPropertyOptional({ example: 'Hybrid', maxLength: 100 })
   @IsOptional()
   @IsString()
