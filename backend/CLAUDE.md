@@ -345,7 +345,17 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 
 ## Database Schema
 
-Key relationships: `User → Job[] → JobEvent[]`, `User → Account[]`, `User → RefreshToken[]`, `Job → CompanyProfile?`, `Job → Resume?`. `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field. `Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row has a bcrypt-hashed token, expiry, and cascades on user delete. `CompanyProfile` is a 1:1 optional relation to `Job` holding enrichment status (`EnrichmentStatus` enum) and extracted fields (industry, techStack, cultureSummary, etc.), with cascade delete. `Resume` is a 1:1 optional relation to `Job` — one PDF per job, stored by key in the configured storage driver; `storageKey` is never sent to the client.
+Key relationships: `User → Job[] / Company[] / Account[] / RefreshToken[] / ApiToken[]`, `Job → JobEvent[] / Resume? / InterviewRound[] / Contact[]`, `Company → Job[] / Contact[]`. `Job.companyId` is a nullable FK to `Company` (relation field `companyLink`) — see "Jobs/Companies: `companyId` FK Resolution".
+
+`Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field.
+
+`Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row stores a **SHA-256** hash of the token, plus expiry, and cascades on user delete. Deliberately not bcrypt: its 72-byte input limit truncated the JWT to a prefix every token for that user shares, so any of a user's refresh tokens compared equal to any other (see the comment above `hashToken` in `auth.service.ts`). bcrypt is still correct for *passwords* and is used there.
+
+**There is no `CompanyProfile` model** — it was dropped in migration `20260815185348_drop_company_profile` (#193) and enrichment now lives directly on `Company`. The name survives only as `jobs/dto/company-profile-response.dto.ts` and the `CompanyProfileCard` component, both of which render `Company` data; don't take either as evidence the model exists. Enrichment columns on `Company`: `status` (`EnrichmentStatus?` — null means "never enriched", distinct from `PENDING`), `industry`, `companySize`, `techStack`, `workPolicy`, `errorMessage`, `enrichedAt`. Fields removed as low-value: `founded`/`workLifeBalance` (#282), `address`/`headquarters` and their `*LowConfidence` guard flags plus `cultureSummary` (#283) — see `docs/specs/target-companies.md` for why.
+
+`Contact` hangs off **exactly one** of `jobId`/`companyId`, enforced in `ContactsService` rather than a DB `CHECK` constraint. `Resume` is a 1:1 optional relation to `Job` — one PDF per job, stored by key in the configured storage driver; `storageKey` is never sent to the client.
+
+**Table names are inconsistent — matters for raw SQL.** `Company`, `InterviewRound`, `Contact` and `JobEvent` carry `@@map` (`companies`, `interview_rounds`, `contacts`, `job_events`), but `Job`, `User`, `Account`, `RefreshToken`, `ApiToken` and `Resume` have none and keep their PascalCase names — quote them: `FROM "Job"`, not `FROM jobs`.
 
 ---
 
@@ -388,3 +398,4 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 - Each run uses a unique email: `e2e-${Date.now()}@test.dev`.
 - `afterAll` deletes that user (cascades to all jobs and events).
 - Test setup in `beforeAll` manually mirrors `main.ts` — if `main.ts` adds a global pipe/guard/filter, add it to the test setup too.
+- **A green run still reports `Test Suites: 1 failed` locally — check the test count, not the suite line.** Jest's default 5s hook budget applies to `afterAll`, and `app.close()` tears down the BullMQ workers and Redis connections, which routinely takes longer. The output reads `Tests: 82 passed` alongside `Test Suites: 1 failed` with the failure pointing at `app.e2e-spec.ts:59` (the `afterAll`). That is teardown, not a test failure, and it does not reproduce in CI (`e2e-pr.yml` / `e2e-nightly.yml` are green on `main`). Don't go hunting for a regression in the change under test, and don't blame DB latency — it happens against a local Postgres on a near-empty database.
