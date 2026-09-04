@@ -76,7 +76,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack work`;
+      const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack work culture`;
       const snippets = await search(generalQuery);
 
       // No job-posting page to fetch here (unlike EnrichmentProcessor) —
@@ -280,15 +280,13 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
   // back to `previous` per-field means a weak run only fills gaps or
   // overwrites fields it actually found something for, instead of wiping
   // last-known-good data whenever any single field comes back empty.
-  private buildCompletedProfileData(
-    data: CompanyData,
-    previous: Company,
-  ) {
+  private buildCompletedProfileData(data: CompanyData, previous: Company) {
     return {
       status: EnrichmentStatus.COMPLETED,
       industry: data.industry ?? previous.industry,
       companySize: data.companySize ?? previous.companySize,
       techStack: data.techStack.length ? data.techStack : previous.techStack,
+      cultureSummary: data.cultureSummary ?? previous.cultureSummary,
       workPolicy: data.workPolicy ?? previous.workPolicy,
       enrichedAt: new Date(),
     };

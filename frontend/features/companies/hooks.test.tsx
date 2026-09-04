@@ -79,6 +79,7 @@ describe('useUpdateCompanyMutation', () => {
     industry: null,
     companySize: null,
     techStack: [],
+    cultureSummary: null,
     workPolicy: null,
   };
 

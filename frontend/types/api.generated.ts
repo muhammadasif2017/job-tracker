@@ -916,6 +916,8 @@ export interface components {
              *     ]
              */
             techStack?: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
         };
@@ -956,6 +958,8 @@ export interface components {
              *     ]
              */
             techStack: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
             errorMessage?: Record<string, never>;
@@ -1017,6 +1021,8 @@ export interface components {
              *     ]
              */
             techStack?: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
         };
@@ -1024,6 +1030,7 @@ export interface components {
             industry?: Record<string, never>;
             companySize?: Record<string, never>;
             techStack?: string[];
+            cultureSummary?: Record<string, never>;
             workPolicy?: Record<string, never>;
         };
         MergeCompanyDto: {
@@ -1144,6 +1151,8 @@ export interface components {
              *     ]
              */
             techStack: string[];
+            /** @example Collaborative and fast-paced culture */
+            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
             errorMessage?: Record<string, never>;

@@ -122,6 +122,7 @@ export class CompaniesService {
           industry: dto.industry,
           companySize: dto.companySize,
           techStack: dto.techStack ?? [],
+          cultureSummary: dto.cultureSummary,
           workPolicy: dto.workPolicy,
         },
       });
@@ -230,6 +231,7 @@ export class CompaniesService {
       industry: dto.industry,
       companySize: dto.companySize,
       techStack: dto.techStack,
+      cultureSummary: dto.cultureSummary,
       workPolicy: dto.workPolicy,
     };
 

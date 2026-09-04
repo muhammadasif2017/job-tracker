@@ -154,6 +154,15 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
           <FieldValue value={profile.workPolicy} />
         </p>
       </div>
+
+      <div>
+        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
+          Culture
+        </p>
+        <p className="text-sm text-muted break-words">
+          <FieldValue value={profile.cultureSummary} />
+        </p>
+      </div>
     </>
   );
 }
@@ -194,6 +203,7 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
       profile.industry ||
       profile.companySize ||
       profile.techStack?.length > 0 ||
+      profile.cultureSummary ||
       profile.workPolicy,
   );
   const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';

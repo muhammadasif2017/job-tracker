@@ -362,6 +362,7 @@ describe('CompanyProfileCard', () => {
         makeProfile({
           industry: null,
           companySize: 'Startup (<50)',
+          cultureSummary: 'known',
           workPolicy: 'known',
         }),
       );
@@ -376,6 +377,13 @@ describe('CompanyProfileCard', () => {
       );
       expect(screen.getAllByText('TypeScript')).toHaveLength(1);
       expect(screen.getByText('React')).toBeInTheDocument();
+    });
+
+    it('shows culture summary when present', () => {
+      renderCard(makeProfile({ cultureSummary: 'Strong engineering culture' }));
+      expect(
+        screen.getByText('Strong engineering culture'),
+      ).toBeInTheDocument();
     });
 
     it('shows remote policy when present', () => {

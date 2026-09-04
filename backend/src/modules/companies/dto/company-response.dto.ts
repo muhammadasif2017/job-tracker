@@ -58,6 +58,9 @@ export class CompanyResponseDto {
   })
   techStack: string[];
 
+  @ApiPropertyOptional({ example: 'Collaborative and fast-paced culture' })
+  cultureSummary: string | null;
+
   @ApiPropertyOptional({ example: 'Hybrid' })
   workPolicy: string | null;
 
