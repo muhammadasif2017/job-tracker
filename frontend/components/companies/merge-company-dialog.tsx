@@ -29,20 +29,12 @@ type Step = 'search' | 'conflicts' | 'confirm';
 // businessMode, etc.) stay canonical-wins unconditionally, no picker for them.
 const CONFLICT_FIELDS: {
   key: keyof MergeFieldOverrides;
-  confidenceKey?: keyof MergeFieldOverrides;
   label: string;
 }[] = [
   { key: 'industry', label: 'Industry' },
   { key: 'companySize', label: 'Company Size' },
   { key: 'techStack', label: 'Tech Stack' },
-  { key: 'cultureSummary', label: 'Culture' },
   { key: 'workPolicy', label: 'Work Policy' },
-  {
-    key: 'headquarters',
-    confidenceKey: 'headquartersLowConfidence',
-    label: 'Headquarters',
-  },
-  { key: 'address', confidenceKey: 'addressLowConfidence', label: 'Address' },
 ];
 
 function normalize(value: unknown): string {
@@ -155,9 +147,6 @@ export function MergeCompanyDialog({
     for (const field of conflicts) {
       if (picks[field.key] !== 'duplicate') continue;
       overrides[field.key] = duplicate[field.key];
-      if (field.confidenceKey) {
-        overrides[field.confidenceKey] = duplicate[field.confidenceKey];
-      }
     }
     return overrides as MergeFieldOverrides;
   };

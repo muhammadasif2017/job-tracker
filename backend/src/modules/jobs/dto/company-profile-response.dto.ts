@@ -24,19 +24,8 @@ export class CompanyProfileResponseDto {
   })
   techStack: string[];
 
-  @ApiPropertyOptional({ example: 'Collaborative and fast-paced culture' })
-  cultureSummary: string | null;
-
   @ApiPropertyOptional({ example: 'Hybrid' })
   workPolicy: string | null;
-
-  @ApiPropertyOptional({ example: 'San Francisco, CA' })
-  headquarters: string | null;
-
-  @ApiPropertyOptional({
-    example: '1600 Amphitheatre Parkway, Mountain View, CA 94043',
-  })
-  address: string | null;
 
   @ApiPropertyOptional()
   errorMessage: string | null;

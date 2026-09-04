@@ -16,11 +16,6 @@ import {
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 
-type ExtractionResult = {
-  data: CompanyData;
-  lowConfidence: { address: boolean; headquarters: boolean };
-};
-
 @Injectable()
 // See EnrichmentProcessor for why 90s — same stall-detection margin, same
 // BullMQ renewal cadence.
@@ -53,7 +48,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     const domain = this.extractDomain(dbCompany.websiteUrl);
     this.logger.log('company_enrichment_started', { companyId, company });
 
-    let extraction: ExtractionResult | undefined;
+    let extraction: CompanyData | undefined;
     // Set only when a search call fails for an account-level reason (quota
     // exhausted, bad key) rather than genuinely finding nothing. Read only
     // if the run ends up with zero context — a search failure that still
@@ -81,7 +76,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const generalQuery = `"${company}"${locationSuffix} company overview headquarters address employees industry tech stack work culture reviews`;
+      const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack work`;
       const snippets = await search(generalQuery);
 
       // No job-posting page to fetch here (unlike EnrichmentProcessor) —
@@ -183,37 +178,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         location,
       });
 
-      // Same confidence guard as EnrichmentProcessor — same thresholds, same
-      // reasoning (a same-name company in search results can otherwise poison
-      // address/headquarters).
-      const officialTokens = new Set(
-        this.normalize(officialParts.join(' ')).split(' ').filter(Boolean),
-      );
-      const guardThresholds: Record<'address' | 'headquarters', number> = {
-        address: 0.7,
-        headquarters: 0.25,
-      };
-      const lowConfidence: Record<'address' | 'headquarters', boolean> = {
-        address: false,
-        headquarters: false,
-      };
-      for (const field of ['address', 'headquarters'] as const) {
-        const value = data[field];
-        if (!value) continue;
-        const tokens = this.normalize(value).split(' ').filter(Boolean);
-        const hits = tokens.filter((t) => officialTokens.has(t)).length;
-        if (!tokens.length || hits / tokens.length < guardThresholds[field]) {
-          this.logger.log('company_enrichment_field_low_confidence', {
-            companyId,
-            company,
-            field,
-            value,
-          });
-          lowConfidence[field] = true;
-        }
-      }
-
-      extraction = { data, lowConfidence };
+      extraction = data;
 
       const stillExists = await this.prisma.company.findFirst({
         where: { id: companyId },
@@ -270,7 +235,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
   private async recordFailureOutcome(
     companyId: string,
     company: string,
-    extraction: ExtractionResult | undefined,
+    extraction: CompanyData | undefined,
     previous: Company,
     errorMessage: string,
     startedAt: number,
@@ -316,39 +281,17 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
   // overwrites fields it actually found something for, instead of wiping
   // last-known-good data whenever any single field comes back empty.
   private buildCompletedProfileData(
-    extraction: ExtractionResult,
+    data: CompanyData,
     previous: Company,
   ) {
-    const { data } = extraction;
     return {
       status: EnrichmentStatus.COMPLETED,
       industry: data.industry ?? previous.industry,
       companySize: data.companySize ?? previous.companySize,
       techStack: data.techStack.length ? data.techStack : previous.techStack,
-      cultureSummary: data.cultureSummary ?? previous.cultureSummary,
       workPolicy: data.workPolicy ?? previous.workPolicy,
-      headquarters: data.headquarters ?? previous.headquarters,
-      address: data.address ?? previous.address,
-      // Only trust this run's confidence verdict for a field it actually
-      // extracted — a field that fell back to `previous` keeps whatever
-      // confidence flag that previous value already had.
-      addressLowConfidence:
-        data.address !== null
-          ? extraction.lowConfidence.address
-          : previous.addressLowConfidence,
-      headquartersLowConfidence:
-        data.headquarters !== null
-          ? extraction.lowConfidence.headquarters
-          : previous.headquartersLowConfidence,
       enrichedAt: new Date(),
     };
-  }
-
-  private normalize(text: string): string {
-    return text
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, ' ')
-      .trim();
   }
 
   private extractDomain(url: string | null): string | undefined {

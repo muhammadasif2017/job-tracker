@@ -38,11 +38,6 @@ export class MergeFieldOverridesDto {
   @MaxLength(100, { each: true })
   techStack?: string[];
 
-  @ApiPropertyOptional({ maxLength: 2000 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(2000)
-  cultureSummary?: string | null;
 
   @ApiPropertyOptional({ maxLength: 100 })
   @IsOptional()
@@ -50,27 +45,6 @@ export class MergeFieldOverridesDto {
   @MaxLength(100)
   workPolicy?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 200 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(200)
-  headquarters?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  headquartersLowConfidence?: boolean;
-
-  @ApiPropertyOptional({ maxLength: 500 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(500)
-  address?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsBoolean()
-  addressLowConfidence?: boolean;
 }
 
 export class MergeCompanyDto {

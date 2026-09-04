@@ -916,14 +916,8 @@ export interface components {
              *     ]
              */
             techStack?: string[];
-            /** @example Collaborative and fast-paced culture */
-            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
-            /** @example Lahore, Pakistan */
-            headquarters?: Record<string, never>;
-            /** @example 123 Tech Park, DHA Phase 5, Lahore */
-            address?: Record<string, never>;
         };
         CompanyResponseDto: {
             /** Format: cuid */
@@ -962,16 +956,8 @@ export interface components {
              *     ]
              */
             techStack: string[];
-            /** @example Collaborative and fast-paced culture */
-            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
-            /** @example Lahore, Pakistan */
-            headquarters?: Record<string, never>;
-            headquartersLowConfidence?: boolean;
-            /** @example 123 Tech Park, DHA Phase 5, Lahore */
-            address?: Record<string, never>;
-            addressLowConfidence?: boolean;
             errorMessage?: Record<string, never>;
             /** Format: date-time */
             enrichedAt?: Record<string, never>;
@@ -1031,25 +1017,14 @@ export interface components {
              *     ]
              */
             techStack?: string[];
-            /** @example Collaborative and fast-paced culture */
-            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
-            /** @example Lahore, Pakistan */
-            headquarters?: Record<string, never>;
-            /** @example 123 Tech Park, DHA Phase 5, Lahore */
-            address?: Record<string, never>;
         };
         MergeFieldOverridesDto: {
             industry?: Record<string, never>;
             companySize?: Record<string, never>;
             techStack?: string[];
-            cultureSummary?: Record<string, never>;
             workPolicy?: Record<string, never>;
-            headquarters?: Record<string, never>;
-            headquartersLowConfidence?: boolean;
-            address?: Record<string, never>;
-            addressLowConfidence?: boolean;
         };
         MergeCompanyDto: {
             /**
@@ -1169,14 +1144,8 @@ export interface components {
              *     ]
              */
             techStack: string[];
-            /** @example Collaborative and fast-paced culture */
-            cultureSummary?: Record<string, never>;
             /** @example Hybrid */
             workPolicy?: Record<string, never>;
-            /** @example San Francisco, CA */
-            headquarters?: Record<string, never>;
-            /** @example 1600 Amphitheatre Parkway, Mountain View, CA 94043 */
-            address?: Record<string, never>;
             errorMessage?: Record<string, never>;
             /** Format: date-time */
             enrichedAt?: Record<string, never>;

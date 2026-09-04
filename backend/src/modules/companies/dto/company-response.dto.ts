@@ -58,23 +58,8 @@ export class CompanyResponseDto {
   })
   techStack: string[];
 
-  @ApiPropertyOptional({ example: 'Collaborative and fast-paced culture' })
-  cultureSummary: string | null;
-
   @ApiPropertyOptional({ example: 'Hybrid' })
   workPolicy: string | null;
-
-  @ApiPropertyOptional({ example: 'Lahore, Pakistan' })
-  headquarters: string | null;
-
-  @ApiPropertyOptional()
-  headquartersLowConfidence: boolean;
-
-  @ApiPropertyOptional({ example: '123 Tech Park, DHA Phase 5, Lahore' })
-  address: string | null;
-
-  @ApiPropertyOptional()
-  addressLowConfidence: boolean;
 
   @ApiPropertyOptional()
   errorMessage: string | null;

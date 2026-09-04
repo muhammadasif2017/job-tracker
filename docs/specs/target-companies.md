@@ -14,9 +14,17 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 
 `businessMode` and `productDescription` are set by the user only — via the company form or the `name,city,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.
 
-**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `founded`, `workPolicy`, `workLifeBalance`, `cultureSummary`, `headquarters`, `address` (+ existing `headquartersLowConfidence`/`addressLowConfidence` guard flags), `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
+**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `workPolicy`, `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
 
 **Deliberately not storing** (no job-search decision value, or stale on arrival): revenue/financials (unreliable for private Pakistani companies), legal/registration/tax IDs, current open-position count (decays the moment it's saved — that's what the `Job` list already tracks), awards/certifications, social links beyond LinkedIn.
+
+Also dropped after the fact, once the list had been used in anger — every one of them was written by enrichment and then only ever displayed, never filtered, sorted, searched, or indexed on:
+
+- `founded`, `workLifeBalance` (removed in #282): a year nobody sorted by, and an LLM-guessed rating with no ratings source in the pipeline.
+- `address`, `headquarters` (+ their `addressLowConfidence`/`headquartersLowConfidence` guard flags): the only two fields carrying a confidence guard, so dropping both retired the whole guard subsystem with them — the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI. `city` (indexed, filterable) and `location` (the enrichment disambiguation anchor) already carry the location signal this list needs.
+- `cultureSummary`: LLM prose with no reliable source for private Pakistani companies, overlapping the actionable half of `workPolicy`.
+
+That leaves `extract_company_data` with four properties — `industry`, `companySize`, `techStack`, `workPolicy` — each of which actually moves an apply/skip decision. `workPolicy` is still a `String` column rather than an enum, so it cannot be filtered on; enum-ifying it is the open follow-up here.
 
 ## Assumptions
 
@@ -25,7 +33,7 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 3. `Company.priority` reuses the existing `JobPriority` enum (`LOW`/`MEDIUM`/`HIGH`) rather than a new `CompanyPriority` enum — same three values, no reason to duplicate.
 4. "Total workplace count" from the idea doc maps to a free-text `companySize` field (e.g. `"50-200 employees"`), same shape as `CompanyProfile.companySize` — company headcount is usually reported as a range, not an exact int.
 5. CSV import is a small **hand-rolled** parser (split on `,`/newline, no quoted-field/embedded-comma support) for a fixed column set (`name,city,businessMode`) — matches the existing hand-rolled CSV *export* in `jobs-stats.service.ts` (no CSV library in `package.json` today) and the CLAUDE.md rule against adding a dependency without checking necessity. If real-world exports (e.g. from a LinkedIn search) turn out to need quoted-comma handling, escalate to adding `csv-parse` rather than hand-rolling that edge case.
-8. `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`) and `productDescription` (free text — what they build or offer) replace the earlier vague `businessType` placeholder. `founded` (year established) was already in scope via Assumption 2's enrichment-shape columns — it's user-editable on `Company` too, not enrichment-only, same as every other field the AI can also fill in.
+8. `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`) and `productDescription` (free text — what they build or offer) replace the earlier vague `businessType` placeholder.
 6. Auto-flag matching is exact-or-case-insensitive name match only (`Company.name` vs `Job.company`, `mode: 'insensitive'`) — no fuzzy/Levenshtein matching in v1. A "Systems Ltd" vs "Systems Limited" miss is acceptable; over-matching (false positive) is worse than under-matching here.
 7. `Contact.jobId` and `Contact.companyId` both become nullable, exactly one required — enforced in `ContactsService`, not a DB-level `CHECK` constraint (Prisma has no first-class support for that without a raw-SQL migration edit).
 9. AI-fillable fields (see Company Fields — Scope) are fully user-editable via `PATCH /companies/:id` — same `T | null` DTO pattern as everywhere else. Clicking "Refresh enrichment" always overwrites them with the new AI result, same all-or-nothing semantics `CompanyProfile` already has for `Job` — no per-field provenance tracking (AI vs. manually-corrected) is being added, that's real complexity for a solo-user list. Mitigation is frontend-only: a confirm dialog before refresh warning that manual corrections will be replaced. Revisit only if this turns out to bite in practice.
@@ -53,9 +61,8 @@ backend/prisma/schema.prisma
   → new enum CompanyCity { LAHORE, ISLAMABAD, KARACHI, OTHER }
   → new enum BusinessMode { PRODUCT, SERVICES, HYBRID }
   → new model Company (owned by userId; businessMode + productDescription (user-editable);
-     own EnrichmentStatus/industry/companySize/techStack/cultureSummary/workPolicy/headquarters/
-     address/founded/errorMessage/enrichedAt columns, mirroring CompanyProfile's shape but on
-     its own table — see Assumption 2)
+     own EnrichmentStatus/industry/companySize/techStack/workPolicy/errorMessage/enrichedAt
+     columns, mirroring CompanyProfile's shape but on its own table — see Assumption 2)
   → Contact: jobId String → String?, add companyId String? + relation, both indexed
 
 backend/src/modules/companies/                      → new module, same shape as contacts/jobs

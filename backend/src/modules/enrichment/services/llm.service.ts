@@ -7,10 +7,7 @@ export interface CompanyData {
   industry: string | null;
   companySize: string | null;
   techStack: string[];
-  cultureSummary: string | null;
   workPolicy: string | null;
-  headquarters: string | null;
-  address: string | null;
 }
 
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
@@ -34,33 +31,12 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
           ],
         },
         techStack: { type: 'array', items: { type: 'string' } },
-        cultureSummary: {
-          type: 'string',
-          description: '2-3 sentences about work culture',
-        },
         workPolicy: {
           type: 'string',
           enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
         },
-        headquarters: { type: 'string' },
-        address: {
-          type: 'string',
-          description:
-            'Full postal/street address of the company office. Extract ONLY from ' +
-            'the OFFICIAL COMPANY WEBSITE section of the content; if no address ' +
-            'appears there, use "Unknown". Never take an address from web search ' +
-            'results — they may belong to a different company with a similar name.',
-        },
       },
-      required: [
-        'industry',
-        'companySize',
-        'techStack',
-        'cultureSummary',
-        'workPolicy',
-        'headquarters',
-        'address',
-      ],
+      required: ['industry', 'companySize', 'techStack', 'workPolicy'],
     },
   },
 };
@@ -143,10 +119,7 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
           (t): t is string => typeof t === 'string' && !!t.trim(),
         )
       : [],
-    cultureSummary: strOrNull(raw.cultureSummary),
     workPolicy: strOrNull(raw.workPolicy),
-    headquarters: strOrNull(raw.headquarters),
-    address: strOrNull(raw.address),
   };
 }
 
@@ -203,9 +176,7 @@ export class LlmService {
         hints.push(
           `The job posting's official domain is "${disambiguation.domain}". Only use ` +
             `content that refers to the company at this domain — ignore snippets about ` +
-            `unrelated companies that merely share the same name. In particular, extract ` +
-            `the address and other contact details only from snippets sourced from this ` +
-            `domain or that unambiguously describe "${companyName}".`,
+            `unrelated companies that merely share the same name.`,
         );
       }
       if (disambiguation?.location) {

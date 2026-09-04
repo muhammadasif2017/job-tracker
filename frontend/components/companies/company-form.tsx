@@ -45,10 +45,7 @@ const schema = z.object({
   industry: z.string().optional(),
   companySize: z.string().optional(),
   techStack: z.string().optional(),
-  cultureSummary: z.string().optional(),
   workPolicy: z.string().optional(),
-  headquarters: z.string().optional(),
-  address: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -89,10 +86,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               industry: company.industry ?? '',
               companySize: company.companySize ?? '',
               techStack: company.techStack.join(', '),
-              cultureSummary: company.cultureSummary ?? '',
               workPolicy: company.workPolicy ?? '',
-              headquarters: company.headquarters ?? '',
-              address: company.address ?? '',
             }
           : { city: 'LAHORE', priority: 'MEDIUM' },
       );
@@ -130,10 +124,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
       techStack: data.techStack
         ? data.techStack.split(',').map((t) => t.trim()).filter(Boolean)
         : [],
-      cultureSummary: data.cultureSummary || null,
       workPolicy: data.workPolicy || null,
-      headquarters: data.headquarters || null,
-      address: data.address || null,
     };
     if (isEdit) {
       updateMutation.mutate(payload);
@@ -291,8 +282,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                   placeholder="Hybrid"
                   {...register('workPolicy')}
                 />
-                <Input label="Headquarters" {...register('headquarters')} />
-                <Input label="Address" {...register('address')} />
               </div>
               <div className="mt-4 flex flex-col gap-1">
                 <label
@@ -306,20 +295,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                   className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                   placeholder="React, Node.js, AWS"
                   {...register('techStack')}
-                />
-              </div>
-              <div className="mt-4 flex flex-col gap-1">
-                <label
-                  htmlFor="company-culture"
-                  className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
-                >
-                  Culture Summary
-                </label>
-                <textarea
-                  id="company-culture"
-                  rows={2}
-                  className="w-full rounded-md border border-line bg-paper px-3 py-2 text-sm text-ink"
-                  {...register('cultureSummary')}
                 />
               </div>
             </div>
