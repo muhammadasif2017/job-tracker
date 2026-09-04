@@ -223,3 +223,89 @@ test.describe('Company enrichment card', () => {
     await expect(page.getByText('Queued…')).toBeVisible();
   });
 });
+
+// ADR-035. API-level, no page needed — this is about what the server does on
+// job creation, not what the card renders.
+//
+// Deliberately a separate describe: the block above reuses one company name
+// across every test, so by its second test the company is already enriched
+// and its assertions can't tell "correctly skipped" from "gate broken". Each
+// test here takes a name nothing else has touched.
+test.describe('Company enrichment auto-trigger gate', () => {
+  const createdJobIds: string[] = [];
+
+  const isInFlight = (s: string | null | undefined) =>
+    s === 'PENDING' || s === 'PROCESSING';
+
+  async function addJob(company: string): Promise<TestJob> {
+    const job = await createTestJob(user.accessToken, { company });
+    createdJobIds.push(job.id);
+    return job;
+  }
+
+  async function statusOf(jobId: string): Promise<string | null | undefined> {
+    const res = await fetch(`${API}/jobs/${jobId}`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const body = (await res.json()) as {
+      companyProfile?: { status?: string | null } | null;
+    };
+    return body.companyProfile?.status;
+  }
+
+  // The auto-queued run does real search + LLM work, so "settled" has to be
+  // polled for rather than assumed.
+  async function waitForTerminalStatus(
+    jobId: string,
+  ): Promise<string | null | undefined> {
+    let status = await statusOf(jobId);
+    for (let attempt = 0; attempt < 90 && isInFlight(status); attempt++) {
+      await new Promise((r) => setTimeout(r, 500));
+      status = await statusOf(jobId);
+    }
+    return status;
+  }
+
+  test.afterAll(async () => {
+    await Promise.all(
+      createdJobIds.map((id) => deleteTestJob(user.accessToken, id)),
+    );
+  });
+
+  // Guards the catastrophic-but-silent failure: enqueueIfStale gates on
+  // `status: null`, and if that ever stopped compiling to `IS NULL` the CAS
+  // would match nothing, no run would ever be queued, and status would sit
+  // at null forever. Every other test in this file would still pass — a
+  // null-status profile renders the same Refresh button that COMPLETED and
+  // FAILED do (company-profile-card.tsx), which is the signal they key off.
+  test('a job at a brand-new company actually queues a run', async () => {
+    const job = await addJob(`Gate New Co ${Date.now()}`);
+
+    expect(job.companyId).toBeTruthy();
+    // Not `toBe('PENDING')` — the worker is real and may already have moved
+    // the row to PROCESSING or past it. Any non-null status proves the CAS
+    // matched and the enqueue happened.
+    expect(await statusOf(job.id)).not.toBeNull();
+    expect(await statusOf(job.id)).toBeDefined();
+  });
+
+  // The leak this ADR exists to close: before the gate, every job added at an
+  // already-enriched company re-ran the whole pipeline (1-2 Tavily
+  // searches, doubled by the retry policy) to rediscover facts already on the
+  // row.
+  test('a second job at the same company does not re-queue enrichment', async () => {
+    const company = `Gate Repeat Co ${Date.now()}`;
+    const first = await addJob(company);
+
+    const settled = await waitForTerminalStatus(first.id);
+    expect(isInFlight(settled)).toBe(false);
+
+    const second = await addJob(company);
+    expect(second.companyId).toBe(first.companyId);
+
+    // The whole point: the second add must leave the terminal status alone.
+    // A regression here flips it back to PENDING and spends search credits.
+    expect(await statusOf(second.id)).toBe(settled);
+    expect(isInFlight(await statusOf(second.id))).toBe(false);
+  });
+});
