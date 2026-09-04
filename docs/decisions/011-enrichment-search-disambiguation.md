@@ -5,6 +5,13 @@ Partially superseded by ADR-013 — prompt hints alone proved insufficient for
 the `address` field; a deterministic guard now backs them. Hints remain active
 for all other fields.
 
+Amended by ADR-036 — this ADR's "ignore snippets describing unrelated
+same-named companies" instruction was written as a whole-extraction guard and
+read by the model as one, so a single impostor snippet discarded every field.
+It is now scoped per snippet. The disambiguation hints themselves are
+unchanged, and are in fact applied more often than before (auto-created
+companies now carry a location).
+
 ## Date
 2026-07-07
 

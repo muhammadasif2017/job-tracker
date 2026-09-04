@@ -236,6 +236,54 @@ describe('JobsService', () => {
       expect(result.matchedCompany).toBeNull();
     });
 
+    // The auto-created row is the only content enrichment gets to work with:
+    // with no websiteUrl there's no official-site fetch, so the LLM sees
+    // search snippets alone and, without a location, has nothing to tell the
+    // real company apart from same-named ones. Seeding the job's location
+    // gives LlmService.extract its disambiguation hint.
+    it('seeds the job location onto an auto-created company as an enrichment anchor', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Codenzy',
+      });
+
+      const dto: CreateJobDto = {
+        company: 'Codenzy',
+        position: 'Engineer',
+        location: '  Lahore, Pakistan  ',
+      };
+      await service.create('user-1', dto);
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ location: 'Lahore, Pakistan' }),
+        }),
+      );
+    });
+
+    it('leaves location unset when the job has none, rather than writing an empty string', async () => {
+      mockPrisma.job.create.mockResolvedValue({
+        id: 'job-new',
+        status: JobStatus.APPLIED,
+      });
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+
+      const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
+      await service.create('user-1', dto);
+
+      const arg = mockPrisma.company.create.mock.calls[0][0] as {
+        data: { location?: unknown };
+      };
+      expect(arg.data.location).toBeUndefined();
+    });
+
     it('re-fetches instead of failing job creation when a concurrent request creates the same new company first', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',

@@ -119,6 +119,9 @@ export class JobsService {
   private async resolveCompanyId(
     userId: string,
     trimmedName: string,
+    // `string | null` (not just `undefined`) because the DTO convention here
+    // types clearable fields that way — see CLAUDE.md / ADR-022.
+    location?: string | null,
   ): Promise<{
     company: { id: string; name: string } | null;
     matched: boolean;
@@ -133,7 +136,20 @@ export class JobsService {
 
     try {
       const created = await this.prisma.company.create({
-        data: { userId, name: trimmedName, city: CompanyCity.OTHER },
+        // The job's location is seeded onto the auto-created row purely as an
+        // enrichment anchor: LlmService.extract turns Company.location into a
+        // disambiguation hint ("prefer content consistent with a company
+        // operating in or near this location"), and without it a small
+        // company's search results — which routinely mix in several unrelated
+        // same-named businesses — give the model nothing to tell them apart.
+        // Only ever set at creation, so it can't overwrite a location the
+        // user has since corrected on an existing company.
+        data: {
+          userId,
+          name: trimmedName,
+          city: CompanyCity.OTHER,
+          location: location?.trim() || undefined,
+        },
         select: { id: true, name: true },
       });
       return { company: created, matched: false };
@@ -163,7 +179,7 @@ export class JobsService {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
     const trimmedCompanyName = dto.company.trim();
     const [{ company, matched }, appliedAt] = await Promise.all([
-      this.resolveCompanyId(userId, trimmedCompanyName),
+      this.resolveCompanyId(userId, trimmedCompanyName, dto.location),
       dto.appliedAt
         ? Promise.resolve(JobsService.civilDateFromInput(dto.appliedAt))
         : this.todayFor(userId),
