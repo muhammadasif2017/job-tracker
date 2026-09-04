@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus, type Company } from '@prisma/client';
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
@@ -108,8 +108,15 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       const newOfficialText = [...contactTexts, aboutText, homepageText].join(
         '',
       );
+      // `searchUnavailableReason` set means the general search above already
+      // came back 429/432 (quota) or 401/403 (bad key) — an account-level
+      // failure, so this second search would fail the same way. Skipping it
+      // saves a guaranteed-wasted call on exactly the runs where the quota
+      // is already the problem.
       const shouldFallbackSearch =
-        domain !== undefined && newOfficialText.length < 300;
+        domain !== undefined &&
+        newOfficialText.length < 300 &&
+        !searchUnavailableReason;
       const domainSnippets = shouldFallbackSearch
         ? await search(generalQuery, {
             includeDomains: [domain],
@@ -154,11 +161,20 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       // tool_use_failed. Fail fast with a clear reason instead of burning an
       // LLM call (and its built-in retry) on a request that can't succeed.
       if (!context.trim()) {
+        // A quota/bad-key failure will still be a quota/bad-key failure 10s
+        // later, so BullMQ's second attempt can only burn another search
+        // call to fail identically — UnrecoverableError skips it. The
+        // message is unchanged either way, so ADR-031's frontend
+        // RATE_LIMITED/CONFIG classifiers still see what they expect. The
+        // no-content cases below stay ordinary Errors: a site that was down
+        // or a search that found nothing can genuinely differ on a retry.
+        if (searchUnavailableReason) {
+          throw new UnrecoverableError(searchUnavailableReason);
+        }
         throw new Error(
-          searchUnavailableReason ??
-            (domain
-              ? 'No extractable content: official site fetch and web search both returned nothing'
-              : 'No extractable content: no website on file and web search returned nothing'),
+          domain
+            ? 'No extractable content: official site fetch and web search both returned nothing'
+            : 'No extractable content: no website on file and web search returned nothing',
         );
       }
 

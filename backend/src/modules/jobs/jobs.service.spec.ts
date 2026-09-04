@@ -43,9 +43,9 @@ const mockPrisma = {
   $transaction: jest.fn((fn: (tx: unknown) => unknown) => fn(mockPrisma)),
 };
 
-const mockCompanyEnrichment = { enqueueEnrichment: jest.fn() } satisfies Pick<
+const mockCompanyEnrichment = { enqueueIfStale: jest.fn() } satisfies Pick<
   CompanyEnrichmentService,
-  'enqueueEnrichment'
+  'enqueueIfStale'
 >;
 const mockTimelineSummary = { enqueue: jest.fn() } satisfies Pick<
   TimelineSummaryService,
@@ -79,7 +79,7 @@ describe('JobsService', () => {
   });
 
   describe('create', () => {
-    it('calls enqueueEnrichment with the linked company id, not the job id', async () => {
+    it('calls enqueueIfStale with the linked company id, not the job id', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -88,17 +88,17 @@ describe('JobsService', () => {
         id: 'company-new',
         name: 'Acme',
       });
-      mockCompanyEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
+      mockCompanyEnrichment.enqueueIfStale.mockResolvedValue(undefined);
 
       const dto: CreateJobDto = { company: 'Acme', position: 'Engineer' };
       await service.create('user-1', dto);
 
-      expect(mockCompanyEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
+      expect(mockCompanyEnrichment.enqueueIfStale).toHaveBeenCalledWith(
         'company-new',
       );
     });
 
-    it('does not call enqueueEnrichment when the company name is blank', async () => {
+    it('does not call enqueueIfStale when the company name is blank', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -107,10 +107,10 @@ describe('JobsService', () => {
       const dto: CreateJobDto = { company: '   ', position: 'Engineer' };
       await service.create('user-1', dto);
 
-      expect(mockCompanyEnrichment.enqueueEnrichment).not.toHaveBeenCalled();
+      expect(mockCompanyEnrichment.enqueueIfStale).not.toHaveBeenCalled();
     });
 
-    it('still returns the created job even if enqueueEnrichment throws', async () => {
+    it('still returns the created job even if enqueueIfStale throws', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -119,7 +119,7 @@ describe('JobsService', () => {
         id: 'company-new',
         name: 'Acme',
       });
-      mockCompanyEnrichment.enqueueEnrichment.mockRejectedValue(
+      mockCompanyEnrichment.enqueueIfStale.mockRejectedValue(
         new Error('Redis down'),
       );
 

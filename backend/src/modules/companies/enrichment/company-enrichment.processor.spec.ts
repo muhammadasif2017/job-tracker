@@ -1,4 +1,4 @@
-import type { Job } from 'bullmq';
+import { UnrecoverableError, type Job } from 'bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
@@ -200,6 +200,60 @@ describe('CompanyEnrichmentProcessor', () => {
         }),
       }),
     );
+  });
+
+  // ADR-035. The whole point of the quota guard is to stop spending search
+  // calls once the account is out of them, so the run must not fall through
+  // to the include_domains fallback search, and BullMQ must not retry it 10s
+  // later into an identical 429.
+  it('skips the domain-restricted fallback search when the general search is already out of quota', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(
+      new SearchUnavailableError('Search quota exceeded', 432),
+    );
+    // Under the 300-char threshold, so the fallback would fire if unguarded.
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+
+    await expect(processor.process(bullJob)).rejects.toThrow();
+
+    expect(mockSearch.search).toHaveBeenCalledTimes(1);
+    expect(mockSearch.search).not.toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ includeDomains: expect.anything() }),
+    );
+  });
+
+  it('marks a quota failure unrecoverable so BullMQ does not retry it into another 429', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockRejectedValue(
+      new SearchUnavailableError('Search quota exceeded', 432),
+    );
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+
+    await expect(processor.process(bullJob)).rejects.toThrow(
+      UnrecoverableError,
+    );
+  });
+
+  // The counterpart: a site that was down or a search that found nothing can
+  // genuinely differ on the next attempt, so those stay retryable.
+  it('leaves an empty-content failure retryable when search was available', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('');
+
+    // Captured rather than asserted through `rejects.not.toBeInstanceOf`,
+    // which passes vacuously if the promise shape isn't what you expect.
+    const err: unknown = await processor
+      .process(bullJob)
+      .then(() => undefined)
+      .catch((e: unknown) => e);
+
+    expect(err).toBeInstanceOf(Error);
+    expect(err).not.toBeInstanceOf(UnrecoverableError);
   });
 
   it('ignores a quota-exceeded search failure and still completes when the official site has enough content', async () => {
