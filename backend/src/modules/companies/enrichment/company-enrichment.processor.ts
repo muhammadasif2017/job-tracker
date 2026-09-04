@@ -76,7 +76,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack remote hybrid work policy`;
+      const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack work`;
       const snippets = await search(generalQuery);
 
       // No job-posting page to fetch here (unlike EnrichmentProcessor) —
