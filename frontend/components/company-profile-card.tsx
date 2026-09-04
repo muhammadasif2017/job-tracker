@@ -51,18 +51,6 @@ const FAILURE_COPY: Record<
   },
 };
 
-function UnverifiedBadge() {
-  return (
-    <span
-      title="Couldn't confirm this against the company's own site — may belong to a different company with the same name."
-      className="ml-1.5 inline-flex items-center gap-0.5 align-middle text-xs font-normal text-amber-600 dark:text-amber-400"
-    >
-      <AlertTriangle className="h-3 w-3" />
-      unverified
-    </span>
-  );
-}
-
 // Never falls through to displaying the raw message — an unrecognized shape
 // (e.g. a vendor error format nobody's seen yet) still gets a safe, generic
 // message via 'FAILED' rather than leaking backend/vendor internals to the UI.
@@ -121,7 +109,7 @@ function FailureBanner({
 function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
         <div>
           <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
             Industry
@@ -136,17 +124,6 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
           </p>
           <p className="break-words">
             <FieldValue value={profile.companySize} />
-          </p>
-        </div>
-        <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-            HQ
-          </p>
-          <p className="break-words">
-            <FieldValue value={profile.headquarters} />
-            {profile.headquarters && profile.headquartersLowConfidence && (
-              <UnverifiedBadge />
-            )}
           </p>
         </div>
       </div>
@@ -171,31 +148,10 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
 
       <div>
         <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Address
-        </p>
-        <p className="text-sm break-words">
-          <FieldValue value={profile.address} />
-          {profile.address && profile.addressLowConfidence && (
-            <UnverifiedBadge />
-          )}
-        </p>
-      </div>
-
-      <div>
-        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
           Work Policy
         </p>
         <p className="text-sm break-words">
           <FieldValue value={profile.workPolicy} />
-        </p>
-      </div>
-
-      <div>
-        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Culture
-        </p>
-        <p className="text-sm text-muted break-words">
-          <FieldValue value={profile.cultureSummary} />
         </p>
       </div>
     </>
@@ -228,7 +184,7 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
   // longer true — these same columns are also directly user-editable
   // (CompanyForm) and mergeable (fieldOverrides), independent of enrichment
   // ever completing, so a fresh company sitting in PENDING/PROCESSING can
-  // still have a real, user-set industry/headquarters/etc. worth showing
+  // still have a real, user-set industry/workPolicy/etc. worth showing
   // immediately rather than stuck behind a loading skeleton. Checking the
   // fields themselves (not just `enrichedAt`) covers both contexts — on the
   // job page these are equivalent, since enrichedAt and the fields are only
@@ -238,10 +194,7 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
       profile.industry ||
       profile.companySize ||
       profile.techStack?.length > 0 ||
-      profile.cultureSummary ||
-      profile.workPolicy ||
-      profile.headquarters ||
-      profile.address,
+      profile.workPolicy,
   );
   const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
 

@@ -326,11 +326,11 @@ describe('CompanyProfileCard', () => {
       renderCard(
         makeProfile({
           status: 'PROCESSING',
-          headquarters: 'Austin, TX',
+          workPolicy: 'Hybrid',
           enrichedAt: undefined,
         }),
       );
-      expect(screen.getByText('Austin, TX')).toBeInTheDocument();
+      expect(screen.getByText('Hybrid')).toBeInTheDocument();
     });
   });
 
@@ -343,44 +343,6 @@ describe('CompanyProfileCard', () => {
     it('shows company size when present', () => {
       renderCard(makeProfile({ companySize: '501-1000' }));
       expect(screen.getByText('501-1000')).toBeInTheDocument();
-    });
-
-    it('shows headquarters when present', () => {
-      renderCard(makeProfile({ headquarters: 'San Francisco, CA' }));
-      expect(screen.getByText('San Francisco, CA')).toBeInTheDocument();
-    });
-
-    it('does not show an unverified badge for a normal-confidence headquarters', () => {
-      renderCard(makeProfile({ headquarters: 'San Francisco, CA' }));
-      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
-    });
-
-    it('shows an unverified badge when headquartersLowConfidence is true', () => {
-      renderCard(
-        makeProfile({
-          headquarters: 'Springfield, IL',
-          headquartersLowConfidence: true,
-        }),
-      );
-      expect(screen.getByText('Springfield, IL')).toBeInTheDocument();
-      expect(screen.getByText('unverified')).toBeInTheDocument();
-    });
-
-    it('shows address without a badge when addressLowConfidence is false', () => {
-      renderCard(makeProfile({ address: '123 Main St, Austin, TX' }));
-      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
-      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
-    });
-
-    it('shows an unverified badge on the address when addressLowConfidence is true', () => {
-      renderCard(
-        makeProfile({
-          address: '123 Main St, Austin, TX',
-          addressLowConfidence: true,
-        }),
-      );
-      expect(screen.getByText('123 Main St, Austin, TX')).toBeInTheDocument();
-      expect(screen.getByText('unverified')).toBeInTheDocument();
     });
 
     it('renders tech stack as individual badges', () => {
@@ -400,28 +362,12 @@ describe('CompanyProfileCard', () => {
         makeProfile({
           industry: null,
           companySize: 'Startup (<50)',
-          headquarters: null,
-          address: 'known',
           workPolicy: 'known',
-          cultureSummary: 'known',
         }),
       );
       expect(screen.getByText('Industry')).toBeInTheDocument();
       expect(screen.getByText('Startup (<50)')).toBeInTheDocument();
-      expect(screen.getByText('HQ')).toBeInTheDocument();
-      expect(screen.getAllByText('Unknown')).toHaveLength(2);
-    });
-
-    it('does not show an unverified badge on a null (Unknown) headquarters or address', () => {
-      renderCard(
-        makeProfile({
-          headquarters: null,
-          headquartersLowConfidence: true,
-          address: null,
-          addressLowConfidence: true,
-        }),
-      );
-      expect(screen.queryByText('unverified')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Unknown')).toHaveLength(1);
     });
 
     it('deduplicates tech stack entries so each badge appears once', () => {
@@ -435,13 +381,6 @@ describe('CompanyProfileCard', () => {
     it('shows remote policy when present', () => {
       renderCard(makeProfile({ workPolicy: 'Fully remote' }));
       expect(screen.getByText('Fully remote')).toBeInTheDocument();
-    });
-
-    it('shows culture summary when present', () => {
-      renderCard(makeProfile({ cultureSummary: 'Strong engineering culture' }));
-      expect(
-        screen.getByText('Strong engineering culture'),
-      ).toBeInTheDocument();
     });
 
     it('shows a Refresh button', () => {

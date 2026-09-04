@@ -238,12 +238,7 @@ model Company {
   industry                  String?
   companySize               String?
   techStack                 String[]
-  cultureSummary            String?
   workPolicy                String?
-  headquarters              String?
-  headquartersLowConfidence Boolean          @default(false)
-  address                   String?
-  addressLowConfidence      Boolean          @default(false)
   errorMessage              String?
   enrichedAt                DateTime?
 

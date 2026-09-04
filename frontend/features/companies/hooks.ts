@@ -31,10 +31,7 @@ export interface CompanyWritePayload {
   industry: string | null;
   companySize: string | null;
   techStack: string[];
-  cultureSummary: string | null;
   workPolicy: string | null;
-  headquarters: string | null;
-  address: string | null;
 }
 
 export interface CompaniesFilters {
@@ -234,12 +231,7 @@ export type MergeFieldOverrides = Partial<
     | 'industry'
     | 'companySize'
     | 'techStack'
-    | 'cultureSummary'
     | 'workPolicy'
-    | 'headquarters'
-    | 'headquartersLowConfidence'
-    | 'address'
-    | 'addressLowConfidence'
   >
 >;
 

@@ -40,10 +40,7 @@ const extracted = {
   industry: 'IT Services',
   companySize: 'Large (1000-5000)',
   techStack: ['Java', '.NET'],
-  cultureSummary: 'Structured, process-driven culture.',
   workPolicy: 'Hybrid',
-  headquarters: 'Lahore, Pakistan',
-  address: null,
 };
 const bullJob = {
   data: { companyId: 'company-123' },
@@ -429,8 +426,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockPrisma.company.findFirst.mockResolvedValue({
       ...dbCompany,
       industry: 'FinTech',
-      headquarters: 'Karachi, Pakistan',
-      headquartersLowConfidence: true,
+      workPolicy: 'Remote',
       techStack: ['Python'],
     });
     mockPrisma.company.update.mockResolvedValue({});
@@ -439,7 +435,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockLlm.extract.mockResolvedValue({
       ...extracted,
       industry: null,
-      headquarters: null,
+      workPolicy: null,
       techStack: [],
     });
 
@@ -449,35 +445,8 @@ describe('CompanyEnrichmentProcessor', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           industry: 'FinTech',
-          headquarters: 'Karachi, Pakistan',
-          headquartersLowConfidence: true,
+          workPolicy: 'Remote',
           techStack: ['Python'],
-        }),
-      }),
-    );
-  });
-
-  it('keeps a low-overlap address but flags it low-confidence instead of wiping it (same guard as job enrichment)', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search
-      .mockResolvedValueOnce([
-        '[Contact | other-company.com] Plot 10 Block BB Canal Road Lahore',
-      ])
-      .mockResolvedValueOnce([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('We build great software.');
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      address: 'Plot 10 Block BB Canal Road Lahore',
-    });
-
-    await processor.process(bullJob);
-
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          address: 'Plot 10 Block BB Canal Road Lahore',
-          addressLowConfidence: true,
         }),
       }),
     );
@@ -587,136 +556,6 @@ describe('CompanyEnrichmentProcessor', () => {
     await processor.process(bullJob);
 
     expect(mockSearch.search).toHaveBeenCalledTimes(1);
-  });
-
-  it('accepts a headquarters value exactly at the 0.25 threshold boundary (not just above it)', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('Located in Lahore only.');
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      headquarters: 'Lahore Nomatch Words Here',
-    });
-
-    await processor.process(bullJob);
-
-    // "lahore" hits, the other 3 tokens don't: 1/4 = exactly 0.25. The guard
-    // check is `< threshold`, so a value exactly at the bar must be accepted,
-    // not flagged — pins the boundary against an accidental `<=` flip.
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          headquarters: 'Lahore Nomatch Words Here',
-          headquartersLowConfidence: false,
-        }),
-      }),
-    );
-  });
-
-  it('accepts a headquarters value in the loosened 0.25-0.7 band that the stricter address threshold would reject', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue(
-      'Our office is located in Lahore, Pakistan.',
-    );
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      headquarters: 'Lahore Pakistan HQ Branch',
-    });
-
-    await processor.process(bullJob);
-
-    // "lahore" and "pakistan" hit (2/4 = 0.5): >= headquarters' 0.25 bar, but
-    // below address's 0.7 bar — proves the loosened threshold does real work.
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          headquarters: 'Lahore Pakistan HQ Branch',
-          headquartersLowConfidence: false,
-        }),
-      }),
-    );
-  });
-
-  it('does not let a token match inside an unrelated word pass the guard', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    // "increasing" contains the substring "inc" — exact token-Set matching
-    // requires "inc" as its own standalone token, not a substring hit.
-    mockWebFetch.fetchPageText.mockResolvedValue(
-      'We are increasing headcount rapidly.',
-    );
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      headquarters: 'Springfield Inc',
-    });
-
-    await processor.process(bullJob);
-
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          headquarters: 'Springfield Inc',
-          headquartersLowConfidence: true,
-        }),
-      }),
-    );
-  });
-
-  it('accepts a correct headquarters value on a state-abbreviation-vs-spelled-out-name mismatch now that the bar is lowered to 0.25', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue(
-      'Located in Lahore, Punjab since 2015.',
-    );
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      headquarters: 'Lahore, PB, Pakistan',
-    });
-
-    await processor.process(bullJob);
-
-    // Only "lahore" matches (1/3 ≈ 0.33) since the official text spells out
-    // "Punjab" rather than "PB" — below a 0.4-style bar (would have been
-    // flagged) but at/above the loosened 0.25 bar.
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          headquarters: 'Lahore, PB, Pakistan',
-          headquartersLowConfidence: false,
-        }),
-      }),
-    );
-  });
-
-  it('still flags a correct headquarters value low-confidence when overlap falls below the lowered 0.25 bar (known, accepted limitation)', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue(
-      'Located in Lahore, Punjab since 2015.',
-    );
-    mockLlm.extract.mockResolvedValue({
-      ...extracted,
-      headquarters: 'Lahore, PB, Pakistan Headquarters Office',
-    });
-
-    await processor.process(bullJob);
-
-    // Only "lahore" matches out of 5 tokens (1/5 = 0.2, below the 0.25 bar) —
-    // the value is still kept and shown, just flagged, not hidden.
-    expect(mockPrisma.company.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          headquarters: 'Lahore, PB, Pakistan Headquarters Office',
-          headquartersLowConfidence: true,
-        }),
-      }),
-    );
   });
 
   it('marks the company FAILED and rethrows for BullMQ retry when the LLM throws', async () => {

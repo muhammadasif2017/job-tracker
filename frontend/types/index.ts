@@ -71,12 +71,7 @@ export interface CompanyProfile {
   industry?: string | null;
   companySize?: string | null;
   techStack: string[];
-  cultureSummary?: string | null;
   workPolicy?: string | null;
-  headquarters?: string | null;
-  headquartersLowConfidence?: boolean;
-  address?: string | null;
-  addressLowConfidence?: boolean;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;
@@ -506,12 +501,7 @@ export interface Company {
   industry?: string | null;
   companySize?: string | null;
   techStack: string[];
-  cultureSummary?: string | null;
   workPolicy?: string | null;
-  headquarters?: string | null;
-  headquartersLowConfidence?: boolean;
-  address?: string | null;
-  addressLowConfidence?: boolean;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;

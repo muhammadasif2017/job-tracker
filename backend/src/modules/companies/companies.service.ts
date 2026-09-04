@@ -122,10 +122,7 @@ export class CompaniesService {
           industry: dto.industry,
           companySize: dto.companySize,
           techStack: dto.techStack ?? [],
-          cultureSummary: dto.cultureSummary,
           workPolicy: dto.workPolicy,
-          headquarters: dto.headquarters,
-          address: dto.address,
         },
       });
     });
@@ -233,10 +230,7 @@ export class CompaniesService {
       industry: dto.industry,
       companySize: dto.companySize,
       techStack: dto.techStack,
-      cultureSummary: dto.cultureSummary,
       workPolicy: dto.workPolicy,
-      headquarters: dto.headquarters,
-      address: dto.address,
     };
 
     if (dto.name === undefined) {

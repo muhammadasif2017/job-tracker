@@ -22,9 +22,7 @@ const baseInput = {
   industry: 'FinTech',
   companySize: 'Mid-size (200-1000)',
   techStack: ['React', 'Node.js', 'PostgreSQL'],
-  cultureSummary: 'Fast-paced culture with strong engineering standards.',
   workPolicy: 'Hybrid',
-  headquarters: 'San Francisco, USA',
 };
 
 function groqResponse(input: Record<string, unknown>) {
@@ -75,7 +73,6 @@ describe('LlmService', () => {
     expect(result.companySize).toBe('Mid-size (200-1000)');
     expect(result.techStack).toEqual(['React', 'Node.js', 'PostgreSQL']);
     expect(result.workPolicy).toBe('Hybrid');
-    expect(result.headquarters).toBe('San Francisco, USA');
   });
 
   it('includes the company name and context in the prompt sent to Groq', async () => {
@@ -206,13 +203,13 @@ describe('LlmService', () => {
 
   it('converts empty string and whitespace-only fields to null', async () => {
     mockCreate.mockResolvedValue(
-      groqResponse({ ...baseInput, industry: '', headquarters: '   ' }),
+      groqResponse({ ...baseInput, industry: '', workPolicy: '   ' }),
     );
 
     const result = await service.extract('Acme', 'context');
 
     expect(result.industry).toBeNull();
-    expect(result.headquarters).toBeNull();
+    expect(result.workPolicy).toBeNull();
   });
 });
 

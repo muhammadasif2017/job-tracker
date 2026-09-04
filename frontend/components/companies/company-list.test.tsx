@@ -18,10 +18,7 @@ const company: Company = {
   industry: 'IT Services',
   companySize: null,
   techStack: [],
-  cultureSummary: null,
   workPolicy: null,
-  headquarters: null,
-  address: null,
   createdAt: '2026-06-01T00:00:00Z',
   updatedAt: '2026-06-01T00:00:00Z',
 };
