@@ -54,22 +54,71 @@ export class WebFetchService {
     return u;
   }
 
+  // A redirect target is unvalidated, so it can't simply be followed — a
+  // public URL that 302s to an internal address would bypass resolveSafeUrl
+  // entirely. This used to be handled with `redirect: 'error'`, which failed
+  // closed on *any* redirect. That turned out to fail closed on most of the
+  // legitimate web: apex-to-www (codenzy.com 307s to www.codenzy.com),
+  // http-to-https, and trailing-slash normalisation are all redirects, so the
+  // official-site fetch threw "fetch failed" for a large share of companies
+  // and enrichment silently degraded to search-snippets-only. See ADR-037.
+  //
+  // Following hops manually and re-running each target through
+  // resolveSafeUrl keeps the actual security property — we never connect to a
+  // non-public address — while allowing ordinary redirects. The hop cap stops
+  // a redirect loop, and a target that fails validation aborts the fetch
+  // rather than falling through to the next hop.
+  private static readonly MAX_REDIRECTS = 3;
+
   async fetchPageText(url: string): Promise<string> {
     if (!url) return '';
-    const safeUrl = await this.resolveSafeUrl(url);
+    let safeUrl = await this.resolveSafeUrl(url);
     if (!safeUrl) return '';
 
     try {
-      const res = await fetch(safeUrl, {
+      let res = await fetch(safeUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; JobTrackerBot/1.0)',
         },
         signal: AbortSignal.timeout(10_000),
-        // A redirect target is unvalidated — following it would silently
-        // bypass the resolveSafeUrl check above (e.g. a public URL that
-        // 302s to an internal address). Fail closed instead.
-        redirect: 'error',
+        redirect: 'manual',
       });
+
+      for (
+        let hop = 0;
+        this.isRedirect(res.status) && hop < WebFetchService.MAX_REDIRECTS;
+        hop++
+      ) {
+        const location = res.headers.get('location');
+        if (!location) break;
+
+        // Resolved against the URL that issued it, so a relative Location
+        // ("/about") works the same as an absolute one.
+        const next = await this.resolveSafeUrl(
+          new URL(location, safeUrl).toString(),
+        );
+        if (!next) {
+          this.logger.warn('web_fetch_unsafe_redirect', {
+            url,
+            status: res.status,
+          });
+          return '';
+        }
+
+        safeUrl = next;
+        res = await fetch(safeUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; JobTrackerBot/1.0)',
+          },
+          signal: AbortSignal.timeout(10_000),
+          redirect: 'manual',
+        });
+      }
+
+      if (this.isRedirect(res.status)) {
+        this.logger.warn('web_fetch_too_many_redirects', { url });
+        return '';
+      }
       if (!res.ok) {
         this.logger.warn('web_fetch_error', { url, status: res.status });
         return '';
@@ -88,5 +137,11 @@ export class WebFetchService {
       });
       return '';
     }
+  }
+
+  // 304 and 305 carry a Location in some servers' responses but aren't
+  // redirects to follow; the fetch spec's redirect statuses are exactly these.
+  private isRedirect(status: number): boolean {
+    return [301, 302, 303, 307, 308].includes(status);
   }
 }

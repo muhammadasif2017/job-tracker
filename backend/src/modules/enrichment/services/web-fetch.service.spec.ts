@@ -121,18 +121,99 @@ describe('WebFetchService', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('sends redirect: "error" so a redirect target can never bypass validation', async () => {
+  // Redirects are followed by hand rather than by fetch, so that each hop's
+  // target goes back through resolveSafeUrl. `redirect: 'manual'` is what
+  // hands us the 3xx instead of letting undici act on it. See ADR-037.
+  const redirectTo = (location: string, status = 307) => ({
+    status,
+    ok: false,
+    headers: { get: (h: string) => (h === 'location' ? location : null) },
+  });
+  const pageOk = (body = '<html><body>ok</body></html>') => ({
+    status: 200,
+    ok: true,
+    text: () => Promise.resolve(body),
+  });
+
+  it('sends redirect: "manual" rather than letting fetch follow unvalidated hops', async () => {
     mockDnsAddresses({ address: '93.184.216.34', family: 4 });
-    fetchSpy.mockResolvedValue({
-      ok: true,
-      text: () => Promise.resolve('<html><body>ok</body></html>'),
-    });
+    fetchSpy.mockResolvedValue(pageOk());
 
     await service.fetchPageText('https://acme.com');
 
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ redirect: 'error' }),
+      expect.objectContaining({ redirect: 'manual' }),
+    );
+  });
+
+  // The regression this fix exists for: apex-to-www is a redirect, so
+  // `redirect: 'error'` made ordinary company sites throw "fetch failed" and
+  // enrichment fell back to search snippets alone.
+  it('follows an apex-to-www redirect and returns the final page text', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy
+      .mockResolvedValueOnce(redirectTo('https://www.acme.com/'))
+      .mockResolvedValueOnce(
+        pageOk('<html><body>We build things.</body></html>'),
+      );
+
+    const text = await service.fetchPageText('https://acme.com');
+
+    expect(text).toBe('We build things.');
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect((fetchSpy.mock.calls[1][0] as URL).toString()).toBe(
+      'https://www.acme.com/',
+    );
+  });
+
+  it('resolves a relative Location against the URL that issued it', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy
+      .mockResolvedValueOnce(redirectTo('/about-us', 301))
+      .mockResolvedValueOnce(pageOk());
+
+    await service.fetchPageText('https://acme.com/about');
+
+    expect((fetchSpy.mock.calls[1][0] as URL).toString()).toBe(
+      'https://acme.com/about-us',
+    );
+  });
+
+  // The security property the old `redirect: 'error'` was protecting, kept
+  // intact: a public URL that redirects to an internal address must not be
+  // followed.
+  it('refuses a redirect whose target resolves to a private address', async () => {
+    dnsLookup
+      .mockResolvedValueOnce([{ address: '93.184.216.34', family: 4 }])
+      .mockResolvedValueOnce([{ address: '169.254.169.254', family: 4 }]);
+    fetchSpy.mockResolvedValueOnce(
+      redirectTo('http://169.254.169.254/latest/meta-data/'),
+    );
+
+    const text = await service.fetchPageText('https://acme.com');
+
+    expect(text).toBe('');
+    // Only the first hop was ever fetched — the metadata endpoint was not.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'web_fetch_unsafe_redirect',
+      expect.objectContaining({ url: 'https://acme.com' }),
+    );
+  });
+
+  it('gives up on a redirect loop instead of following it forever', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue(redirectTo('https://acme.com/loop'));
+
+    const text = await service.fetchPageText('https://acme.com');
+
+    expect(text).toBe('');
+    // Initial request plus MAX_REDIRECTS hops, then it stops.
+    expect(fetchSpy).toHaveBeenCalledTimes(4);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'web_fetch_too_many_redirects',
+      expect.objectContaining({ url: 'https://acme.com' }),
     );
   });
 
