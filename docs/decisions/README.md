@@ -41,6 +41,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [032](./032-system-design-concepts-catalog.md) | Catalog of system design concepts in use | Accepted |
 | [033](./033-jobs-analytics-correctness-and-search-indexing.md) | Date the application not the save; measure stages by status changes; DB-enforced company uniqueness and trigram search | Accepted |
 | [034](./034-appliedat-is-a-civil-date.md) | `Job.appliedAt` holds a civil date, not an instant — one calendar for the column, decided at write time | Accepted |
+| [035](./035-enrichment-search-quota-conservation.md) | Enrich a company once, not once per job; don't retry an out-of-quota search | Accepted |
 
 ## How to read an ADR
 

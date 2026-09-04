@@ -265,6 +265,19 @@ script (`backend/scripts/backfill-company-fk.core.ts`) duplicates this same
 logic rather than importing it, since it runs standalone against a raw
 `PrismaClient` outside Nest's DI container.
 
+Enrichment has **two** enqueue methods and picking the wrong one costs Tavily
+quota. `CompanyEnrichmentService.enqueueIfStale` is the auto path (job
+creation): a single `updateMany` on `{ status: null, enrichedAt: null }` that
+is both a staleness gate and a CAS claim, so a company enriches once no matter
+how many jobs link to it, a burst of creates queues one run, and a FAILED
+company is not retried until the user hits Refresh. `enqueueEnrichment` is
+unconditional and belongs only to `CompaniesService.triggerEnrichment` (the
+Refresh button) and `CompaniesService.create`. Don't call `enqueueEnrichment`
+from a new automatic path — that's the bug ADR-035 fixes. Same ADR: a run that
+ends with no context because search returned 429/432/401/403 throws BullMQ's
+`UnrecoverableError`, not `Error`, so the retry doesn't spend another search
+call failing identically.
+
 `JobResponseDto.companyProfile` is only populated by `findOne`'s reshaped
 response — `PATCH /jobs/:id` returns the raw Prisma update result, which
 doesn't include it. Don't add a new PATCH consumer that reads this field

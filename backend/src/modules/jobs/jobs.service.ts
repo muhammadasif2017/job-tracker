@@ -85,7 +85,7 @@ export class JobsService {
 
   // Timeline-summary regen is best-effort — a queue/LLM hiccup must never
   // fail the job mutation that triggered it. Same shape as the
-  // companyEnrichment.enqueueEnrichment try/catch below in create().
+  // companyEnrichment.enqueueIfStale try/catch below in create().
   private async enqueueTimelineSummary(jobId: string): Promise<void> {
     try {
       await this.timelineSummary.enqueue(jobId);
@@ -196,11 +196,14 @@ export class JobsService {
     });
     // Company-scoped, not job-scoped (see docs/specs/company-fk-phase3b.md)
     // — one AI research run per company, not duplicated per job at that
-    // company. Skipped entirely for a blank company name (nothing to
-    // enrich; there's no linked Company).
+    // company. enqueueIfStale, not enqueueEnrichment, is what actually
+    // enforces that "not duplicated": it no-ops for a company already
+    // enriched, already running, or already failed (ADR-035). Skipped
+    // entirely for a blank company name (nothing to enrich; there's no
+    // linked Company).
     if (company) {
       try {
-        await this.companyEnrichment.enqueueEnrichment(company.id);
+        await this.companyEnrichment.enqueueIfStale(company.id);
       } catch (err: unknown) {
         // enrichment is best-effort; job creation always succeeds
         this.logger.warn('Enrichment enqueue failed', {
