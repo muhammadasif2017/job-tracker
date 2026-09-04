@@ -81,7 +81,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       });
 
       const locationSuffix = location ? ` ${location}` : '';
-      const generalQuery = `"${company}"${locationSuffix} company overview headquarters address founded employees industry tech stack work culture reviews`;
+      const generalQuery = `"${company}"${locationSuffix} company overview headquarters address employees industry tech stack work culture reviews`;
       const snippets = await search(generalQuery);
 
       // No job-posting page to fetch here (unlike EnrichmentProcessor) —
@@ -327,10 +327,8 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       techStack: data.techStack.length ? data.techStack : previous.techStack,
       cultureSummary: data.cultureSummary ?? previous.cultureSummary,
       workPolicy: data.workPolicy ?? previous.workPolicy,
-      workLifeBalance: data.workLifeBalance ?? previous.workLifeBalance,
       headquarters: data.headquarters ?? previous.headquarters,
       address: data.address ?? previous.address,
-      founded: data.founded ?? previous.founded,
       // Only trust this run's confidence verdict for a field it actually
       // extracted — a field that fell back to `previous` keeps whatever
       // confidence flag that previous value already had.

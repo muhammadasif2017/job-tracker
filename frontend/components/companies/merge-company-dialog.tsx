@@ -37,14 +37,12 @@ const CONFLICT_FIELDS: {
   { key: 'techStack', label: 'Tech Stack' },
   { key: 'cultureSummary', label: 'Culture' },
   { key: 'workPolicy', label: 'Work Policy' },
-  { key: 'workLifeBalance', label: 'Work-Life Balance' },
   {
     key: 'headquarters',
     confidenceKey: 'headquartersLowConfidence',
     label: 'Headquarters',
   },
   { key: 'address', confidenceKey: 'addressLowConfidence', label: 'Address' },
-  { key: 'founded', label: 'Founded' },
 ];
 
 function normalize(value: unknown): string {

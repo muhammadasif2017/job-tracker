@@ -383,11 +383,6 @@ describe('CompanyProfileCard', () => {
       expect(screen.getByText('unverified')).toBeInTheDocument();
     });
 
-    it('shows founded year when present', () => {
-      renderCard(makeProfile({ founded: '2012' }));
-      expect(screen.getByText('2012')).toBeInTheDocument();
-    });
-
     it('renders tech stack as individual badges', () => {
       renderCard(makeProfile({ techStack: ['TypeScript', 'React', 'NestJS'] }));
       expect(screen.getByText('TypeScript')).toBeInTheDocument();
@@ -406,18 +401,15 @@ describe('CompanyProfileCard', () => {
           industry: null,
           companySize: 'Startup (<50)',
           headquarters: null,
-          founded: null,
           address: 'known',
           workPolicy: 'known',
-          workLifeBalance: 'known',
           cultureSummary: 'known',
         }),
       );
       expect(screen.getByText('Industry')).toBeInTheDocument();
       expect(screen.getByText('Startup (<50)')).toBeInTheDocument();
       expect(screen.getByText('HQ')).toBeInTheDocument();
-      expect(screen.getByText('Founded')).toBeInTheDocument();
-      expect(screen.getAllByText('Unknown')).toHaveLength(3);
+      expect(screen.getAllByText('Unknown')).toHaveLength(2);
     });
 
     it('does not show an unverified badge on a null (Unknown) headquarters or address', () => {
@@ -443,11 +435,6 @@ describe('CompanyProfileCard', () => {
     it('shows remote policy when present', () => {
       renderCard(makeProfile({ workPolicy: 'Fully remote' }));
       expect(screen.getByText('Fully remote')).toBeInTheDocument();
-    });
-
-    it('shows work-life balance when present', () => {
-      renderCard(makeProfile({ workLifeBalance: 'Flexible hours' }));
-      expect(screen.getByText('Flexible hours')).toBeInTheDocument();
     });
 
     it('shows culture summary when present', () => {

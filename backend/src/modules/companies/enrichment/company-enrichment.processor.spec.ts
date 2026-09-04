@@ -42,10 +42,8 @@ const extracted = {
   techStack: ['Java', '.NET'],
   cultureSummary: 'Structured, process-driven culture.',
   workPolicy: 'Hybrid',
-  workLifeBalance: 'Average',
   headquarters: 'Lahore, Pakistan',
   address: null,
-  founded: '1977',
 };
 const bullJob = {
   data: { companyId: 'company-123' },

@@ -42,10 +42,8 @@ const baseCompany: Company = {
   techStack: [],
   cultureSummary: null,
   workPolicy: null,
-  workLifeBalance: null,
   headquarters: null,
   address: null,
-  founded: null,
   createdAt: '2026-06-01T00:00:00Z',
   updatedAt: '2026-06-01T00:00:00Z',
 };

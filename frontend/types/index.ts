@@ -73,12 +73,10 @@ export interface CompanyProfile {
   techStack: string[];
   cultureSummary?: string | null;
   workPolicy?: string | null;
-  workLifeBalance?: string | null;
   headquarters?: string | null;
   headquartersLowConfidence?: boolean;
   address?: string | null;
   addressLowConfidence?: boolean;
-  founded?: string | null;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;
@@ -510,12 +508,10 @@ export interface Company {
   techStack: string[];
   cultureSummary?: string | null;
   workPolicy?: string | null;
-  workLifeBalance?: string | null;
   headquarters?: string | null;
   headquartersLowConfidence?: boolean;
   address?: string | null;
   addressLowConfidence?: boolean;
-  founded?: string | null;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;

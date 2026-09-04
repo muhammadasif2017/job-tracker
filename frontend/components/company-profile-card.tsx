@@ -149,14 +149,6 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
             )}
           </p>
         </div>
-        <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-            Founded
-          </p>
-          <p>
-            <FieldValue value={profile.founded} />
-          </p>
-        </div>
       </div>
 
       {profile.techStack?.length > 0 && (
@@ -195,15 +187,6 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
         </p>
         <p className="text-sm break-words">
           <FieldValue value={profile.workPolicy} />
-        </p>
-      </div>
-
-      <div>
-        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Work-Life Balance
-        </p>
-        <p className="text-sm break-words">
-          <FieldValue value={profile.workLifeBalance} />
         </p>
       </div>
 
@@ -257,10 +240,8 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
       profile.techStack?.length > 0 ||
       profile.cultureSummary ||
       profile.workPolicy ||
-      profile.workLifeBalance ||
       profile.headquarters ||
-      profile.address ||
-      profile.founded,
+      profile.address,
   );
   const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
 
