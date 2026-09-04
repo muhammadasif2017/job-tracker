@@ -332,6 +332,21 @@ describe('CompanyProfileCard', () => {
       );
       expect(screen.getByText('Hybrid')).toBeInTheDocument();
     });
+
+    // cultureSummary alone has to satisfy `hasData` — a company whose only
+    // populated field is the culture prose must render it, not a skeleton.
+    it('shows fields while PROCESSING when cultureSummary is the only populated field', () => {
+      renderCard(
+        makeProfile({
+          status: 'PROCESSING',
+          cultureSummary: 'Small, senior-heavy team.',
+          enrichedAt: undefined,
+        }),
+      );
+      expect(
+        screen.getByText('Small, senior-heavy team.'),
+      ).toBeInTheDocument();
+    });
   });
 
   describe('when status is COMPLETED', () => {
