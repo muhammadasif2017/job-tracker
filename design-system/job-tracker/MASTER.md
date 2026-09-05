@@ -404,13 +404,15 @@ changed and why.
    and `STATUS_FILL_CLASSES` — renamed rather than redefined, so a missed consumer fails
    loudly instead of rendering unstyled. Recharts' `<Legend>` was replaced by `ChartLegend`
    for the same reason. See §2.4.
-8. **`global-error.tsx` hardcodes an inaccessible button.** White text on `#ff9f45` is
-   2.04:1 at `0.875rem`, and its muted paragraph `#8b97a3` on white is 2.98:1. The file
-   deliberately uses inline styles — it replaces the root layout when the app crashes, so
-   Tailwind classes are not available — but the values should at least be the light-mode
-   ones. Note before attempting a token fix: the file imports no stylesheet, and because it
-   replaces the root layout it never gets `globals.css`, so `var(--accent)` would resolve to
-   nothing there. It needs literal values, chosen for a light background. Not applied.
+8. ~~**`global-error.tsx` hardcoded an inaccessible button** — white on `#ff9f45` at
+   `0.875rem` (2.04:1), with a `#8b97a3` paragraph on an unpainted background
+   (2.98:1).~~ **Fixed:** it now paints the literal light-mode values of `--surface`,
+   `--ink`, `--muted` and `--accent`/`--accent-fg` — 17.26:1, 4.96:1 and 4.62:1. It cannot
+   use tokens: the boundary replaces the root layout, so it never receives `globals.css`
+   and `var(--accent)` would resolve to nothing. It also cannot follow the theme — inline
+   styles carry no media query, and the pre-hydration script that sets `.dark` lives in the
+   layout it replaces — so it commits to the light palette and paints background and text
+   explicitly rather than inheriting a UA default. `global-error.test.tsx` pins the values.
 
 **Known, unrelated:** `company-profile-card.tsx`'s `tone === 'red'` branch is dead code —
 both `FAILURE_COPY` entries are `tone: 'amber'`, so the `danger` arm of those three
