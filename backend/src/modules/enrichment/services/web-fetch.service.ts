@@ -76,21 +76,41 @@ export class WebFetchService {
     if (!safeUrl) return '';
 
     try {
-      let res = await fetch(safeUrl, {
+      // One budget for the whole redirect chain, not one per hop. Created
+      // before the first fetch, so the clock covers every hop that follows:
+      // a chain still resolving at t=10s aborts, even mid-hop. That is the
+      // point — per-hop timeouts would let 1 + MAX_REDIRECTS hops run 40s,
+      // and CompanyEnrichmentProcessor makes up to four fetchPageText calls
+      // (three parallel, then /contact-us) inside a 90s BullMQ lockDuration,
+      // which a slow-redirecting host could otherwise blow through. Don't
+      // move this inside the loop to "give each hop a fair chance".
+      const signal = AbortSignal.timeout(10_000);
+      const init: RequestInit = {
         headers: {
           'User-Agent': 'Mozilla/5.0 (compatible; JobTrackerBot/1.0)',
         },
-        signal: AbortSignal.timeout(10_000),
+        signal,
         redirect: 'manual',
-      });
+      };
+
+      let res = await fetch(safeUrl, init);
 
       for (
         let hop = 0;
         this.isRedirect(res.status) && hop < WebFetchService.MAX_REDIRECTS;
         hop++
       ) {
+        // A 3xx with no Location is malformed, not a hop we ran out of budget
+        // for — returning here keeps it out of the too-many-redirects branch
+        // below, which would otherwise mislabel it during triage.
         const location = res.headers.get('location');
-        if (!location) break;
+        if (!location) {
+          this.logger.warn('web_fetch_redirect_no_location', {
+            url,
+            status: res.status,
+          });
+          return '';
+        }
 
         // Resolved against the URL that issued it, so a relative Location
         // ("/about") works the same as an absolute one.
@@ -106,13 +126,7 @@ export class WebFetchService {
         }
 
         safeUrl = next;
-        res = await fetch(safeUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; JobTrackerBot/1.0)',
-          },
-          signal: AbortSignal.timeout(10_000),
-          redirect: 'manual',
-        });
+        res = await fetch(safeUrl, init);
       }
 
       if (this.isRedirect(res.status)) {
