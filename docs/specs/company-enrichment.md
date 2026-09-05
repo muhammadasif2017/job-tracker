@@ -1,5 +1,15 @@
 # Spec: Company Intelligence Enrichment
 
+> **Historical — this is the original build spec, kept for decision context. Do not read it as a description of current behavior.**
+>
+> Last accurate around #209. Since then, at minimum:
+>
+> - **There is no `CompanyProfile` model.** It was dropped in `20260815185348_drop_company_profile` (#193); enrichment columns live directly on `Company`.
+> - **`workLifeBalance` and `founded` were removed** (#282), as were **`address`, `headquarters`, and their `*LowConfidence` flags** (#283) — which retired the whole address/HQ confidence-guard subsystem described below.
+> - `remotePolicy` is called `workPolicy`.
+>
+> **Current sources of truth:** `backend/CLAUDE.md` (live schema and relationships), `docs/specs/target-companies.md` (which enrichment fields exist and why), `docs/decisions/` (ADRs).
+
 ## Objective
 
 When a user adds a job application, an LLM agent automatically researches the company in the background and surfaces structured intelligence: what the company does, their tech stack, work culture, size, and remote policy.

@@ -1,5 +1,16 @@
 # Company Profile Enrichment — End-to-End
 
+> **Historical — a point-in-time walkthrough (see §10, "This PR's decision log"), kept for decision context. Do not read it as a description of current behavior.**
+>
+> Last accurate around #209. Since then, at minimum:
+>
+> - **There is no `CompanyProfile` model.** It was dropped in `20260815185348_drop_company_profile` (#193); enrichment columns live directly on `Company`. ADR-003, linked below, is superseded by that.
+> - **The deterministic address/HQ confidence guard in §6 no longer exists.** `address`, `headquarters`, and their `*LowConfidence` flags were dropped in #283, taking the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI with them.
+> - **`workLifeBalance` and `founded` were removed** in #282. `cultureSummary` was dropped in #283 and restored in #285.
+> - Redirect handling in §4 predates ADR-037.
+>
+> **Current sources of truth:** `backend/CLAUDE.md` (live schema and relationships), `docs/specs/target-companies.md` (which enrichment fields exist and why), `docs/decisions/` (ADRs).
+
 How a job's `CompanyProfile` (industry, headquarters, tech stack, culture, address, etc.) gets researched, extracted, guarded, and shown to the user. Covers the full path: job creation → BullMQ queue → search/fetch → LLM extraction → deterministic guards → DB write → frontend polling/display.
 
 Related ADRs (decision history, not repeated here): [001](decisions/001-async-enrichment-queue.md) (why BullMQ), [002](decisions/002-llm-tool-use-extraction.md) (why tool-call extraction), [003](decisions/003-company-profile-separate-model.md) (why a separate model), [007](decisions/007-groq-llm-migration.md) (Groq migration), [011](decisions/011-enrichment-search-disambiguation.md) (search disambiguation), [013](decisions/013-enrichment-address-trust-guard.md) (the address guard this doc's guard section extends).
@@ -131,6 +142,8 @@ Two labeled sections are sent to the LLM: `=== OFFICIAL COMPANY WEBSITE (domain)
 - `sanitize()` normalizes the raw tool-call JSON: any blank/whitespace-only string field becomes `"Unknown"`, `techStack` filters to only actual non-empty strings (defends against the model returning `null`/mixed-type arrays).
 
 ## 6. Deterministic post-extraction guards
+
+> **Removed — this entire subsystem was deleted in #283.** `address`, `headquarters` and their `addressLowConfidence`/`headquartersLowConfidence` flags were dropped from `Company`, and with them the token-overlap check, the address-only prompt hardening, and the "unverified" badge described here. `city` and `location` carry the location signal now. Everything below is retained as the reasoning behind a guard that no longer runs.
 
 Prompt instructions alone don't stop the model from taking a value from a same-name collision company in the search results (see ADR-013's production incident). Two fields get a hard, code-level check *after* extraction, not just a prompt instruction:
 
