@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logBoundaryError } from '../../lib/log-error';
 import { Button } from '../../components/ui/button';
 
 export default function DashboardErrorPage({
@@ -11,7 +12,7 @@ export default function DashboardErrorPage({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    logBoundaryError(error, 'dashboard');
   }, [error]);
 
   return (

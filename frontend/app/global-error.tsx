@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { logBoundaryError } from '../lib/log-error';
 
 export default function GlobalError({
   error,
@@ -10,7 +11,7 @@ export default function GlobalError({
   unstable_retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    logBoundaryError(error, 'global');
   }, [error]);
 
   return (
