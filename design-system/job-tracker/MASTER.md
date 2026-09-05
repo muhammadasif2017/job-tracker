@@ -54,6 +54,12 @@ token exists.
 | `--warning-soft` | `bg-warning-soft` | `#fdf3e0` | `rgba(245,181,68,.12)` | Warning tint |
 | `--success` | `text-success` | `#047857` | `#34d399` | Success outcomes (green, distinct from `--accent-2`) |
 | `--success-soft` | `bg-success-soft` | `#ecfdf5` | `rgba(52,211,153,.12)` | Success tint |
+| `--status-wishlist` | `fill-status-wishlist` etc. | `#64748b` | `#94a3b8` | Job-status categorical (see §2.4) |
+| `--status-applied` | " | `#0f766e` | `#38d4c6` | " |
+| `--status-interviewing` | " | `#b45e07` | `#ff9f45` | " |
+| `--status-offer` | " | `#15803d` | `#22c55e` | " |
+| `--status-rejected` | " | `#c73535` | `#ef4444` | " |
+| `--status-ghosted` | " | `#71717a` | `#71717a` | " |
 
 `color-scheme: light dark` is set on `:root`, so native form controls and scrollbars follow
 the mode.
@@ -157,6 +163,34 @@ admin role badge, and the matched-company banner in `job-form.tsx`.
 text directly on that tint — the job cards inside it are opaque `bg-paper`. That is why it
 is not in the list above.
 
+### 2.4 Chart and status colors
+
+Charts are colored through **CSS classes**, never `fill=` / `stroke=` props. `var()` does
+not resolve inside an SVG presentation attribute, but it does resolve in a CSS `fill`
+declaration, and an author class rule outranks the attribute (which has specificity 0). So
+`fill-status-applied` themes correctly and `fill="var(--status-applied)"` renders nothing.
+
+`frontend/types/index.ts` exports two maps over the same six tokens:
+
+- `STATUS_DOT_VARS` — `var(--status-…)` strings, for inline `style` (the kanban status dot
+  and card left border), where `var()` resolves normally.
+- `STATUS_FILL_CLASSES` — `fill-status-…` classes, for recharts `<Cell>`.
+
+Light values are `#64748b` / `#0f766e` / `#b45e07` / `#15803d` / `#c73535` / `#71717a`,
+measuring 4.76 / 5.47 / 4.62 / 5.02 / 5.26 / 4.83 against light `--paper` — all clear the
+3:1 bar for a non-text UI element. Dark keeps the original values (3.73–9.78 on dark
+`--paper`). They are **not** aliases of `--accent` / `--danger` / `--success` even where a
+value coincides: these are categorical, and a brand tweak must not repaint the funnel.
+
+Recharts colors its own `<Legend>` swatch from the series' `fill`/`stroke` **prop**, so a
+class-colored series would legend in recharts' default gray-blue. `ChartLegend`
+(`components/dashboard/chart-legend.tsx`) replaces it — same tokens for swatch and series,
+and the labels become real selectable text. `components/dashboard/chart-colors.test.tsx`
+pins the `<Cell className>` forwarding, since a chart that silently lost its fill would
+still render and still pass every other test.
+
+---
+
 ## 3. Typography
 
 Loaded via `next/font/google` in `frontend/app/layout.tsx`, exposed as CSS variables and
@@ -244,8 +278,9 @@ recharts, on the dashboard. Rules:
 
 - Never encode meaning by color alone — pair with a label, pattern or direct annotation.
 - Every series needs a legend or direct label; every interactive chart needs a tooltip.
-- Categorical series draw from the badge color families already in `types/` so a status
-  means the same color in a chart as it does in a table row.
+- Categorical series draw from the `--status-*` tokens in `types/index.ts` so a status means
+  the same color in a chart, a kanban dot and a card border. Apply them as classes, never as
+  `fill=` props — see §2.4 for why.
 - Chart text respects the same minimums as body text (§2.1, §3).
 - Reserve chart container height before data arrives — a chart that pops in shifts the page.
 - Per `CLAUDE.md`, run `npm run build` after touching recharts props: the production
@@ -344,20 +379,15 @@ changed and why.
    `--warning` / `--warning-soft` and applied them in `duplicate-suggestions-banner.tsx`,
    `csv-import-dialog.tsx` and `company-profile-card.tsx`.
 
-7. **Charts hardcode dark-mode token values.** `trend-chart.tsx` uses `fill="#38d4c6"` and
-   `stroke="#ff9f45"`; `funnel-chart.tsx` uses `color: '#ff9f45'`. Those are the *dark*
-   values of `--accent-2` and `--accent`, rendered unchanged in light mode where the tokens
-   are `#0c7a6e` and `#b45e07`. Against light `--paper` they measure 1.84:1 and 2.04:1,
-   under the 3:1 bar for a non-text UI component such as a 2px line or a bar fill. The
-   correct light values measure 5.22:1 and 4.62:1. `STATUS_DOT_COLORS` (also
-   `frontend/types/index.ts`, raw hex) has the same problem — on light `--paper`:
-   WISHLIST `#94a3b8` 2.56, APPLIED `#38d4c6` 1.84, INTERVIEWING `#ff9f45` 2.04,
-   OFFER `#22c55e` 2.28 all fail 3:1; REJECTED 3.76 and GHOSTED 4.83 pass. It feeds the
-   kanban status dot, the card left border, and three chart series.
-   Fix needs a decision: six `--status-*` tokens consumed as `var(--color-…)`, or migrating
-   the recharts props to CSS variables. Recharts and SVG presentation attributes do not
-   always resolve `var()` as expected, and `STATUS_DOT_COLORS` also feeds inline `style` in
-   three components, so this needs testing rather than a blind swap. Not applied.
+7. ~~**Charts hardcoded dark-mode token values** — `trend-chart.tsx` `fill="#38d4c6"` /
+   `stroke="#ff9f45"`, `funnel-chart.tsx` `color: '#ff9f45'`, and `STATUS_DOT_COLORS` raw
+   hex, all rendered unchanged in light mode where four of six status values fell below
+   3:1.~~ **Fixed:** six `--status-*` tokens, consumed as `fill-status-*` classes in
+   recharts and `var(--status-*)` in inline styles; the two trend series use
+   `fill-accent-2` / `stroke-accent`. `STATUS_DOT_COLORS` was replaced by `STATUS_DOT_VARS`
+   and `STATUS_FILL_CLASSES` — renamed rather than redefined, so a missed consumer fails
+   loudly instead of rendering unstyled. Recharts' `<Legend>` was replaced by `ChartLegend`
+   for the same reason. See §2.4.
 8. **`global-error.tsx` hardcodes an inaccessible button.** White text on `#ff9f45` is
    2.04:1 at `0.875rem`, and its muted paragraph `#8b97a3` on white is 2.98:1. The file
    deliberately uses inline styles — it replaces the root layout when the app crashes, so

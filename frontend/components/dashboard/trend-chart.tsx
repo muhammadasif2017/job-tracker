@@ -8,11 +8,11 @@ import {
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import type { TrendStats } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
+import { ChartLegend } from './chart-legend';
 
 export function TrendChart({ data }: { data: TrendStats }) {
   const chartData = useMemo(
@@ -30,35 +30,46 @@ export function TrendChart({ data }: { data: TrendStats }) {
   }
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <ComposedChart data={chartData} margin={{ left: -16 }}>
-        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-        <YAxis yAxisId="count" allowDecimals={false} tick={{ fontSize: 12 }} />
-        <YAxis
-          yAxisId="cumulative"
-          orientation="right"
-          allowDecimals={false}
-          tick={{ fontSize: 12 }}
-        />
-        <Tooltip />
-        <Legend />
-        <Bar
-          yAxisId="count"
-          dataKey="count"
-          name="New applications"
-          fill="#38d4c6"
-          radius={4}
-        />
-        <Line
-          yAxisId="cumulative"
-          type="monotone"
-          dataKey="cumulative"
-          name="Cumulative total"
-          stroke="#ff9f45"
-          strokeWidth={2}
-          dot={false}
-        />
-      </ComposedChart>
-    </ResponsiveContainer>
+    <>
+      <ResponsiveContainer width="100%" height={220}>
+        <ComposedChart data={chartData} margin={{ left: -16 }}>
+          <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+          <YAxis
+            yAxisId="count"
+            allowDecimals={false}
+            tick={{ fontSize: 12 }}
+          />
+          <YAxis
+            yAxisId="cumulative"
+            orientation="right"
+            allowDecimals={false}
+            tick={{ fontSize: 12 }}
+          />
+          <Tooltip />
+          <Bar
+            yAxisId="count"
+            dataKey="count"
+            name="New applications"
+            className="fill-accent-2"
+            radius={4}
+          />
+          <Line
+            yAxisId="cumulative"
+            type="monotone"
+            dataKey="cumulative"
+            name="Cumulative total"
+            className="stroke-accent"
+            strokeWidth={2}
+            dot={false}
+          />
+        </ComposedChart>
+      </ResponsiveContainer>
+      <ChartLegend
+        items={[
+          { label: 'New applications', color: 'var(--accent-2)' },
+          { label: 'Cumulative total', color: 'var(--accent)' },
+        ]}
+      />
+    </>
   );
 }

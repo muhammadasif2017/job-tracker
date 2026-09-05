@@ -14,7 +14,7 @@ import {
 import {
   type FunnelStats,
   STATUS_LABELS,
-  STATUS_DOT_COLORS,
+  STATUS_FILL_CLASSES,
   APPLICATION_CHANNEL_LABELS,
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
@@ -29,7 +29,7 @@ function RangeBarChart({
   valueLabel = 'Value',
   showValueLabels = false,
 }: {
-  data: { name: string; value: number; color: string }[];
+  data: { name: string; value: number; className: string }[];
   height: number;
   valueFormatter?: (v: number) => string;
   valueLabel?: string;
@@ -52,7 +52,7 @@ function RangeBarChart({
         <Tooltip formatter={(v) => [valueFormatter(Number(v)), valueLabel]} />
         <Bar dataKey="value" radius={4}>
           {data.map((entry) => (
-            <Cell key={entry.name} fill={entry.color} />
+            <Cell key={entry.name} className={entry.className} />
           ))}
           {showValueLabels && (
             <LabelList
@@ -73,7 +73,7 @@ function MiniBarChart({
   valueFormatter,
   valueLabel,
 }: {
-  data: { name: string; value: number; color: string }[];
+  data: { name: string; value: number; className: string }[];
   valueFormatter?: (v: number) => string;
   valueLabel?: string;
 }) {
@@ -96,7 +96,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
       data.funnel.map((f) => ({
         name: STATUS_LABELS[f.status],
         value: f.reached,
-        color: STATUS_DOT_COLORS[f.status],
+        className: STATUS_FILL_CLASSES[f.status],
       })),
     [data.funnel],
   );
@@ -106,7 +106,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
       data.dropoff.map((d) => ({
         name: STATUS_LABELS[d.status],
         value: d.count,
-        color: STATUS_DOT_COLORS[d.status],
+        className: STATUS_FILL_CLASSES[d.status],
       })),
     [data.dropoff],
   );
@@ -116,7 +116,8 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
       Object.entries(data.avgTimeInStageDays).map(([status, days]) => ({
         name: STATUS_LABELS[status as keyof typeof STATUS_LABELS],
         value: days as number,
-        color: STATUS_DOT_COLORS[status as keyof typeof STATUS_DOT_COLORS],
+        className:
+          STATUS_FILL_CLASSES[status as keyof typeof STATUS_FILL_CLASSES],
       })),
     [data.avgTimeInStageDays],
   );
@@ -129,7 +130,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
             ? 'Unspecified'
             : APPLICATION_CHANNEL_LABELS[s.source],
         value: s.responseRate,
-        color: '#ff9f45',
+        className: 'fill-accent',
       })),
     [data.responseRateBySource],
   );

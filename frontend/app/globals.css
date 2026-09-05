@@ -25,6 +25,15 @@
   --warning-soft: #fdf3e0;
   --success: #047857;
   --success-soft: #ecfdf5;
+
+  /* Categorical job-status colors. Not aliases of the semantic tokens even
+     where a value coincides — a brand tweak must not repaint the funnel. */
+  --status-wishlist: #64748b;
+  --status-applied: #0f766e;
+  --status-interviewing: #b45e07;
+  --status-offer: #15803d;
+  --status-rejected: #c73535;
+  --status-ghosted: #71717a;
 }
 
 .dark {
@@ -48,6 +57,13 @@
   --warning-soft: rgba(245, 181, 68, 0.12);
   --success: #34d399;
   --success-soft: rgba(52, 211, 153, 0.12);
+
+  --status-wishlist: #94a3b8;
+  --status-applied: #38d4c6;
+  --status-interviewing: #ff9f45;
+  --status-offer: #22c55e;
+  --status-rejected: #ef4444;
+  --status-ghosted: #71717a;
 }
 
 @theme inline {
@@ -75,6 +91,13 @@
   --color-warning-soft: var(--warning-soft);
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);
+
+  --color-status-wishlist: var(--status-wishlist);
+  --color-status-applied: var(--status-applied);
+  --color-status-interviewing: var(--status-interviewing);
+  --color-status-offer: var(--status-offer);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-ghosted: var(--status-ghosted);
 }
 
 @layer base {
