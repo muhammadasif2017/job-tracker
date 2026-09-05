@@ -137,8 +137,17 @@ same value as `--accent` (`#ff9f45`), which already clears AAA there.
 Rule: `bg-accent` → `text-accent-fg`. `bg-accent-soft` → `text-accent-ink`. Plain
 `text-accent` on an untinted surface stays for icons, emphasis and headings.
 
+In dark mode `--accent-ink` is deliberately the same value as `--accent` (`#ff9f45`): the
+dark tint is a 12% alpha wash over a near-black surface, so the ordinary accent already
+measures ~8.4:1 on it. The duplication is intentional — a distinct dark value would only
+break the light/dark pairing.
+
 Sites using it: the sidebar active nav item and avatar initials, the profile avatar, the
 admin role badge, and the matched-company banner in `job-form.tsx`.
+
+`kanban-board.tsx` also uses `bg-accent-soft`, on the drag-over column, but nothing renders
+text directly on that tint — the job cards inside it are opaque `bg-paper`. That is why it
+is not in the list above.
 
 ## 3. Typography
 
