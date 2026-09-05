@@ -420,13 +420,32 @@ export const DERIVED_STATUS_COLORS: Partial<
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
 };
 
-export const STATUS_DOT_COLORS: Record<JobStatus, string> = {
-  WISHLIST: '#94a3b8',
-  APPLIED: '#38d4c6',
-  INTERVIEWING: '#ff9f45',
-  OFFER: '#22c55e',
-  REJECTED: '#ef4444',
-  GHOSTED: '#71717a',
+// Two shapes for the same six status colors, because the consumers need
+// different things. Both resolve to the --status-* tokens in globals.css, so
+// they follow the theme; the old raw-hex map did not — it held the dark-mode
+// values and rendered them unchanged in light mode, where several fell below
+// the 3:1 bar for a non-text UI element.
+
+// For CSS contexts: inline style, where var() resolves normally.
+export const STATUS_DOT_VARS: Record<JobStatus, string> = {
+  WISHLIST: 'var(--status-wishlist)',
+  APPLIED: 'var(--status-applied)',
+  INTERVIEWING: 'var(--status-interviewing)',
+  OFFER: 'var(--status-offer)',
+  REJECTED: 'var(--status-rejected)',
+  GHOSTED: 'var(--status-ghosted)',
+};
+
+// For recharts <Cell>: var() does NOT resolve inside an SVG `fill=`
+// presentation attribute, so pass a class instead — a CSS `fill` declaration
+// does resolve it, and an author rule outranks the attribute.
+export const STATUS_FILL_CLASSES: Record<JobStatus, string> = {
+  WISHLIST: 'fill-status-wishlist',
+  APPLIED: 'fill-status-applied',
+  INTERVIEWING: 'fill-status-interviewing',
+  OFFER: 'fill-status-offer',
+  REJECTED: 'fill-status-rejected',
+  GHOSTED: 'fill-status-ghosted',
 };
 
 // --- Target Companies ---

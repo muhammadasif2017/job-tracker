@@ -69,14 +69,14 @@ export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
           <>
             <p className="text-sm">
               Imported{' '}
-              <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+              <span className="font-semibold text-success">
                 {result.imported}
               </span>{' '}
               compan{result.imported === 1 ? 'y' : 'ies'}
               {result.errors.length > 0 && (
                 <>
                   , skipped{' '}
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  <span className="font-semibold text-warning">
                     {result.errors.length}
                   </span>{' '}
                   row{result.errors.length === 1 ? '' : 's'}

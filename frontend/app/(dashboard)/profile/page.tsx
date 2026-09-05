@@ -148,7 +148,7 @@ export default function ProfilePage() {
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
         <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Personal Info</h2>
         <div className="flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft font-mono text-lg font-bold text-accent">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft font-mono text-lg font-bold text-accent-ink">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0">
