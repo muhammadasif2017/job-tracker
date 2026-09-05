@@ -16,7 +16,13 @@ describe('DashboardErrorPage', () => {
   it('logs the error on mount', () => {
     const error = Object.assign(new Error('boom'), { digest: 'abc123' });
     render(<DashboardErrorPage error={error} unstable_retry={vi.fn()} />);
-    expect(consoleErrorSpy).toHaveBeenCalledWith(error);
+    // Tagged with the boundary name and handed the raw error last; the
+    // context object's fields are covered in `lib/log-error.test.ts`.
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      '[dashboard]',
+      expect.objectContaining({ message: 'boom', digest: 'abc123' }),
+      error,
+    );
   });
 
   it('calls unstable_retry when "Try again" is clicked', () => {
@@ -29,7 +35,9 @@ describe('DashboardErrorPage', () => {
   });
 
   it('shows the generic error message', () => {
-    render(<DashboardErrorPage error={new Error('boom')} unstable_retry={vi.fn()} />);
+    render(
+      <DashboardErrorPage error={new Error('boom')} unstable_retry={vi.fn()} />,
+    );
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();
   });
 });
