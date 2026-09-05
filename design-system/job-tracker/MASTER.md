@@ -42,13 +42,15 @@ token exists.
 | `--ink` | `text-ink` | `#10151b` | `#f2f4f6` | Primary text |
 | `--muted` | `text-muted` | `#626d7a` | `#8b97a3` | Secondary text, labels |
 | `--muted-2` | `text-muted-2` | `#96a1ac` | `#5a6570` | Tertiary text, placeholders |
-| `--accent` | `bg-accent` / `text-accent` | `#d9740c` | `#ff9f45` | Primary action, brand |
+| `--accent` | `bg-accent` / `text-accent` | `#b45e07` | `#ff9f45` | Primary action, brand |
 | `--accent-fg` | `text-accent-fg` | `#ffffff` | `#100a04` | Foreground on accent fill |
 | `--accent-soft` | `bg-accent-soft` | `#fdf1e3` | `rgba(255,159,69,.12)` | Accent tint background |
-| `--accent-2` | `text-accent-2` | `#0f8a7c` | `#38d4c6` | Secondary / success |
+| `--accent-2` | `text-accent-2` | `#0c7a6e` | `#38d4c6` | Secondary / success |
 | `--accent-2-soft` | `bg-accent-2-soft` | `#e5f6f3` | `rgba(56,212,198,.12)` | Secondary tint |
-| `--danger` | `text-danger` | `#d64545` | `#ff5d5d` | Errors, destructive |
+| `--danger` | `text-danger` | `#c73535` | `#ff5d5d` | Errors, destructive |
 | `--danger-soft` | `bg-danger-soft` | `#fbeaea` | `rgba(255,93,93,.12)` | Error tint |
+| `--warning` | `text-warning` | `#96590a` | `#f5b544` | Warnings, recoverable problems |
+| `--warning-soft` | `bg-warning-soft` | `#fdf3e0` | `rgba(245,181,68,.12)` | Warning tint |
 
 `color-scheme: light dark` is set on `:root`, so native form controls and scrollbars follow
 the mode.
@@ -65,45 +67,51 @@ the mode.
 | `accent-2` on `paper` (dark) | 9.78 | Pass AAA |
 | `accent` / `accent-fg` (dark) | 9.65 | Pass AAA |
 | `danger` on `paper` (dark) | 5.98 | Pass AA body |
-| `accent-2` on white (light) | 4.25 | **Fails 4.5:1 body text** — large/bold ≥18.66px or non-text only |
-| `danger` on white (light) | 4.38 | **Fails 4.5:1 body text** — marginal |
-| `accent` / `accent-fg` (light) | 3.25 | **Fails 4.5:1 body text** — passes 3:1 for UI components and large text |
-| `accent` on `surface` (light) | 3.06 | **Fails 4.5:1 body text** — do not use for body copy in light mode |
+| `accent` / `accent-fg` (light) | 4.62 | Pass AA body |
+| `accent-2` on white (light) | 5.22 | Pass AA body |
+| `accent-2` on `accent-2-soft` (light) | 4.67 | Pass AA body |
+| `danger` on white (light) | 5.26 | Pass AA body |
+| `danger` on `danger-soft` (light) | 4.53 | Pass AA body |
+| `warning` on white (light) | 5.63 | Pass AA body |
+| `warning` on `warning-soft` (light) | 5.11 | Pass AA body |
+| `warning` on `paper` (dark) | 9.93 | Pass AAA |
+| `ink` on `paper-raised` (light) | 16.35 | Pass AAA |
+| `muted` on `paper-raised` (light) | 4.70 | Pass AA body |
+| `accent` on `surface` (light) | 4.35 | Just under 4.5 — emphasis and headings, not paragraphs |
+| `accent` on `accent-soft` (light) | 4.15 | **Fails 4.5:1 body text** — see §11.1 |
 | `muted-2` on `paper` (light) | 2.63 | **Fails 3:1** — decorative and disabled states only, never meaningful text |
 | `line` on `paper` (both) | 1.26 | Expected — border, not text; do not carry meaning by border color alone |
 
 **Constraints that follow:**
 
 - `bg-accent text-accent-fg` at body size (the `Button` `primary` variant uses `text-sm`)
-  measures 3.25:1 in light mode. It clears the 3:1 bar for non-text UI components but not
-  the 4.5:1 bar for text. Do not build new body-size text on an accent fill in light mode
-  without either darkening `--accent` (`#b45e07` reaches 4.62:1 against white; `#b85f08` is 4.49:1, still short) or
-  using a dark foreground.
-- `text-accent` on `surface`/`paper` in light mode is for emphasis, icons and large
-  headings — not for paragraph text.
+  measures 4.62:1 in light mode — passes. This was 3.25:1 before `--accent` was darkened
+  from `#d9740c` to `#b45e07`.
+- `text-accent` on a **tinted** background (`bg-accent-soft`) is still only 4.15:1, and no
+  accent value fixes it — the ceiling for accent text is 4.62:1 on pure white. Use
+  `text-ink` on accent tints for anything at body size. See §11.1.
 - `text-muted-2` is placeholder/disabled only. Anything a user must read uses `text-muted`
   or `text-ink`.
-- Dark mode passes across the board. Every failure above is light-mode only.
+- Dark mode passes across the board and was not changed.
 
-These are recorded as known constraints, not applied changes — `--accent` is load-bearing
-across the whole app and changing it is a product decision.
+### 2.2 Remaining raw-palette usage
 
-### 2.2 Known drift: no warning token
+Warning states now use `--warning` / `--warning-soft`. Raw Tailwind palette colors survive
+in exactly two non-test files, both deliberate:
 
-There is no `--warning` token, so warning states fall back to raw Tailwind palette values
-(`text-amber-600 dark:text-amber-400`, `bg-amber-100 text-amber-700`). Until `--warning` /
-`--warning-soft` exist, match that exact amber pairing rather than inventing a third
-warning color.
+- **`badge.tsx`** — the categorical color maps (status, priority, job type, discovery
+  source, channel, city, business mode) plus `ENRICHMENT_STATUS_COLORS`. The enrichment map
+  is semantic rather than categorical, but it sits among seven categorical maps and shares
+  their visual language; converting one map alone would make the file inconsistent. Left
+  as-is on purpose — see §11.2.
+- **`csv-import-dialog.tsx`** — `text-emerald-600 dark:text-emerald-400` on the imported
+  count. Emerald green is not `--accent-2` teal; swapping it would change what "success"
+  looks like, so it stays until a real `--success` decision is made.
 
-Raw Tailwind palette colors appear in exactly four non-test files — `badge.tsx`,
-`csv-import-dialog.tsx`, `duplicate-suggestions-banner.tsx`, `company-profile-card.tsx` —
-using the `amber-*`, `red-*` and `emerald-*` families (audited across `bg-`, `text-`,
-`border-`, `ring-`, `from-`, `to-` prefixes). Nowhere else in `frontend/**/*.tsx` bypasses
-the semantic tokens.
-
-`badge.tsx` uses raw Tailwind palette colors for its many categorical dimensions
-(status, priority, job type, discovery source, channel, city, business mode). That is a
-categorical-encoding decision, not drift — see §7.
+Audited across `bg-`, `text-`, `border-`, `ring-`, `from-`, `to-` prefixes over all
+`amber`/`red`/`green`/`emerald`/`blue`/`sky`/`slate`/`gray`/`zinc`/`violet`/`rose`/`orange`/
+`yellow`/`teal`/`indigo`/`purple`/`pink`/`cyan`/`lime` families. Nothing else in
+`frontend/**/*.tsx` bypasses the semantic tokens.
 
 ---
 
@@ -262,12 +270,20 @@ Run before calling any frontend change done:
 
 ## 11. Open items
 
-1. **Light-mode accent contrast** (§2.1). `bg-accent` + body text is 3.25:1. Fix requires
-   darkening `--accent` to about `#b45e07` (4.62:1) or using a dark foreground on the fill. Product
-   decision — not applied.
-2. **No `--warning` token** (§2.2). Warning states use raw `amber-*` across four files.
-3. **`danger` and `accent-2` on white** sit just under 4.5:1 in light mode (4.38 / 4.25).
-   Fine as icon/border/large-text colors, marginal for body copy.
+1. **Text on the accent tint.** `text-accent` on `bg-accent-soft` is 4.15:1 — improved from
+   2.92:1 by the accent darkening, but still short of 4.5:1 for body text, and unfixable by
+   token value (accent text tops out at 4.62:1 on pure white). Affected: the sidebar active
+   nav item (`bg-accent-soft text-accent`, 13px), the sidebar and profile avatar initials,
+   the admin role badge (11px), and the matched-company banner in `job-form.tsx`
+   (`text-sm text-accent`). Fix is per-site — `text-ink` on the tint, or a dedicated
+   `--accent-ink` token darker than the brand accent. Not applied: it changes the look of
+   the primary navigation and is a design call.
+2. **`badge.tsx` `ENRICHMENT_STATUS_COLORS` still uses raw `amber`/`emerald`/`red`** (§2.2).
+   Semantically it maps to warning/success/danger, but converting it alone would split
+   `badge.tsx` between two color systems. Convert the whole file or none of it.
+3. **No `--success` token.** `--accent-2` is documented as "secondary / success" but the
+   emerald in `csv-import-dialog.tsx` and `badge.tsx` is a different green. Decide whether
+   success is teal (fold into `--accent-2`) or green (add `--success`).
 4. ~~**`--paper-raised` was `#ffffff` in light mode — the same value as `--paper`**, so
    `hover:bg-paper-raised` on `Button` `secondary` and `ghost` produced no visible hover
    feedback in light mode.~~ **Fixed:** light `--paper-raised` is now `#f0f2f5`

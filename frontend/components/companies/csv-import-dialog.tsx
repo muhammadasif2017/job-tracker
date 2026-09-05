@@ -76,7 +76,7 @@ export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
               {result.errors.length > 0 && (
                 <>
                   , skipped{' '}
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  <span className="font-semibold text-warning">
                     {result.errors.length}
                   </span>{' '}
                   row{result.errors.length === 1 ? '' : 's'}
