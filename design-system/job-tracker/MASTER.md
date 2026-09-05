@@ -45,12 +45,15 @@ token exists.
 | `--accent` | `bg-accent` / `text-accent` | `#b45e07` | `#ff9f45` | Primary action, brand |
 | `--accent-fg` | `text-accent-fg` | `#ffffff` | `#100a04` | Foreground on accent fill |
 | `--accent-soft` | `bg-accent-soft` | `#fdf1e3` | `rgba(255,159,69,.12)` | Accent tint background |
-| `--accent-2` | `text-accent-2` | `#0c7a6e` | `#38d4c6` | Secondary / success |
+| `--accent-ink` | `text-accent-ink` | `#9c4f06` | `#ff9f45` | Accent-colored **text on an accent tint** (see §2.3) |
+| `--accent-2` | `text-accent-2` | `#0c7a6e` | `#38d4c6` | Secondary accent (teal) |
 | `--accent-2-soft` | `bg-accent-2-soft` | `#e5f6f3` | `rgba(56,212,198,.12)` | Secondary tint |
 | `--danger` | `text-danger` | `#c73535` | `#ff5d5d` | Errors, destructive |
 | `--danger-soft` | `bg-danger-soft` | `#fbeaea` | `rgba(255,93,93,.12)` | Error tint |
 | `--warning` | `text-warning` | `#96590a` | `#f5b544` | Warnings, recoverable problems |
 | `--warning-soft` | `bg-warning-soft` | `#fdf3e0` | `rgba(245,181,68,.12)` | Warning tint |
+| `--success` | `text-success` | `#047857` | `#34d399` | Success outcomes (green, distinct from `--accent-2`) |
+| `--success-soft` | `bg-success-soft` | `#ecfdf5` | `rgba(52,211,153,.12)` | Success tint |
 
 `color-scheme: light dark` is set on `:root`, so native form controls and scrollbars follow
 the mode.
@@ -81,8 +84,13 @@ dark-mode row involving a tint is an approximation, not a measurement of the ren
 | `warning` on `paper` (dark) | 9.93 | Pass AAA |
 | `ink` on `paper-raised` (light) | 16.35 | Pass AAA |
 | `muted` on `paper-raised` (light) | 4.70 | Pass AA body |
+| `accent-ink` on `accent-soft` (light) | 5.34 | Pass AA body |
+| `accent-ink` on white (light) | 5.94 | Pass AA body |
+| `success` on white (light) | 5.48 | Pass AA body |
+| `success` on `success-soft` (light) | 5.21 | Pass AA body |
+| `success` on `paper` (dark) | 9.37 | Pass AAA |
 | `accent` on `surface` (light) | 4.35 | Just under 4.5 — emphasis and headings, not paragraphs |
-| `accent` on `accent-soft` (light) | 4.15 | **Fails 4.5:1 body text** — see §11.1 |
+| `accent` on `accent-soft` (light) | 4.15 | **Fails 4.5:1 body text** — use `text-accent-ink` on tints instead (§2.3) |
 | `muted-2` on `paper` (light) | 2.63 | **Fails 3:1** — decorative and disabled states only, never meaningful text |
 | `line` on `paper` (both) | 1.26 | Expected — border, not text; do not carry meaning by border color alone |
 
@@ -91,33 +99,46 @@ dark-mode row involving a tint is an approximation, not a measurement of the ren
 - `bg-accent text-accent-fg` at body size (the `Button` `primary` variant uses `text-sm`)
   measures 4.62:1 in light mode — passes. This was 3.25:1 before `--accent` was darkened
   from `#d9740c` to `#b45e07`.
-- `text-accent` on a **tinted** background (`bg-accent-soft`) is still only 4.15:1, and no
-  accent value fixes it — the ceiling for accent text is 4.62:1 on pure white. Use
-  `text-ink` on accent tints for anything at body size. See §11.1.
+- `text-accent` on a **tinted** background (`bg-accent-soft`) is only 4.15:1, and no accent
+  value fixes it — the ceiling for accent text is 4.62:1 on pure white. Use
+  `text-accent-ink` there instead (5.34:1). See §2.3.
 - `text-muted-2` is placeholder/disabled only. Anything a user must read uses `text-muted`
   or `text-ink`.
 - Dark mode passes across the board and was not changed.
 
 ### 2.2 Remaining raw-palette usage
 
-Warning states now use `--warning` / `--warning-soft`. Raw Tailwind palette colors survive
-in exactly two non-test files, both deliberate:
+Warning and success states now use `--warning` / `--warning-soft` and `--success` /
+`--success-soft`. Raw Tailwind palette colors survive in exactly one non-test file:
 
 - **`badge.tsx`** — the categorical color maps (status, priority, job type, discovery
-  source, channel, city, business mode) plus `ENRICHMENT_STATUS_COLORS`. The enrichment map
-  is semantic rather than categorical, but it sits among seven categorical maps and shares
-  their visual language; converting one map alone would make the file inconsistent. Left
-  as-is on purpose — see §11.2.
-- **`csv-import-dialog.tsx`** — `text-emerald-600 dark:text-emerald-400` on the imported
-  count. Emerald green is not `--accent-2` teal; swapping it would change what "success"
-  looks like, so it stays until a real `--success` decision is made.
+  source, channel, city, business mode) plus `ENRICHMENT_STATUS_COLORS`. The categorical
+  maps need more distinct hues than the token set provides. The enrichment map is semantic
+  rather than categorical and could use `--warning` / `--success` / `--danger`, but it sits
+  among seven categorical maps and shares their visual language; converting one map alone
+  would split the file across two color systems. Left as-is on purpose — convert the whole
+  file or none of it.
 
 Audited across `bg-`, `text-`, `border-`, `ring-`, `from-`, `to-` prefixes over all
 `amber`/`red`/`green`/`emerald`/`blue`/`sky`/`slate`/`gray`/`zinc`/`violet`/`rose`/`orange`/
 `yellow`/`teal`/`indigo`/`purple`/`pink`/`cyan`/`lime` families. Nothing else in
 `frontend/**/*.tsx` bypasses the semantic tokens.
 
----
+### 2.3 Accent text on accent tints
+
+`--accent` is tuned as a **fill** color: white on it is 4.62:1, which passes. As a *text*
+color on the accent tint it is only 4.15:1, and darkening `--accent` cannot fix that — its
+own ceiling against pure white is 4.62:1, so the tinted case can never reach AA.
+
+`--accent-ink` (`#9c4f06`) exists for exactly that case: accent-colored text sitting on
+`bg-accent-soft`. It measures 5.34:1 on the tint and 5.94:1 on white. In dark mode it is the
+same value as `--accent` (`#ff9f45`), which already clears AAA there.
+
+Rule: `bg-accent` → `text-accent-fg`. `bg-accent-soft` → `text-accent-ink`. Plain
+`text-accent` on an untinted surface stays for icons, emphasis and headings.
+
+Sites using it: the sidebar active nav item and avatar initials, the profile avatar, the
+admin role badge, and the matched-company banner in `job-form.tsx`.
 
 ## 3. Typography
 
@@ -274,22 +295,36 @@ Run before calling any frontend change done:
 
 ## 11. Open items
 
-1. **Text on the accent tint.** `text-accent` on `bg-accent-soft` is 4.15:1 — improved from
-   2.92:1 by the accent darkening, but still short of 4.5:1 for body text, and unfixable by
-   token value (accent text tops out at 4.62:1 on pure white). Affected: the sidebar active
-   nav item (`bg-accent-soft text-accent`, 13px), the sidebar and profile avatar initials,
-   the admin role badge (11px), and the matched-company banner in `job-form.tsx`
-   (`text-sm text-accent`). Fix is per-site — `text-ink` on the tint, or a dedicated
-   `--accent-ink` token darker than the brand accent. Not applied: it changes the look of
-   the primary navigation and is a design call.
+All items raised by the initial audit are now resolved. Kept here as a record of what
+changed and why.
+
+1. ~~**Text on the accent tint** was 2.92:1, then 4.15:1 after the accent darkening — still
+   short of 4.5:1 and unfixable by accent value.~~ **Fixed:** added `--accent-ink`
+   (`#9c4f06`, 5.34:1 on the tint). Applied to the sidebar active nav item and avatar
+   initials, the profile avatar, the admin role badge, and the matched-company banner in
+   `job-form.tsx`. See §2.3.
 2. **`badge.tsx` `ENRICHMENT_STATUS_COLORS` still uses raw `amber`/`emerald`/`red`** (§2.2).
-   Semantically it maps to warning/success/danger, but converting it alone would split
-   `badge.tsx` between two color systems. Convert the whole file or none of it.
-3. **No `--success` token.** `--accent-2` is documented as "secondary / success" but the
-   emerald in `csv-import-dialog.tsx` and `badge.tsx` is a different green. Decide whether
-   success is teal (fold into `--accent-2`) or green (add `--success`).
+   Deliberate, not a defect: it lives among seven categorical maps that need more distinct
+   hues than the token set provides, and converting one map alone would split the file
+   across two color systems. Revisit only as a whole-file change.
+3. ~~**No `--success` token** — `--accent-2` claimed the success role but the emerald in use
+   was a different green.~~ **Fixed:** added `--success` / `--success-soft` (`#047857` /
+   `#ecfdf5`, dark `#34d399` / `rgba(52,211,153,.12)`), matching the green already in use
+   rather than folding success into teal. This also fixed a contrast failure — the previous
+   `text-emerald-600` was 3.77:1 on white; `--success` is 5.48:1. `--accent-2` is now
+   documented as a plain secondary accent.
 4. ~~**`--paper-raised` was `#ffffff` in light mode — the same value as `--paper`**, so
    `hover:bg-paper-raised` on `Button` `secondary` and `ghost` produced no visible hover
    feedback in light mode.~~ **Fixed:** light `--paper-raised` is now `#f0f2f5`
    (1.12:1 against `--paper`, enough to read as a raised surface without becoming a second
    border; `ink` 16.35:1 and `muted` 4.70:1 both still pass on it).
+5. ~~**Light-mode `--accent`, `--accent-2` and `--danger` failed AA for body text**
+   (3.25 / 4.25 / 4.38).~~ **Fixed:** darkened to `#b45e07` / `#0c7a6e` / `#c73535`
+   (4.62 / 5.22 / 5.26). Dark mode already passed and was not touched.
+6. ~~**No `--warning` token** — warning states used raw `amber-*`.~~ **Fixed:** added
+   `--warning` / `--warning-soft` and applied them in `duplicate-suggestions-banner.tsx`,
+   `csv-import-dialog.tsx` and `company-profile-card.tsx`.
+
+**Known, unrelated:** `company-profile-card.tsx`'s `tone === 'red'` branch is dead code —
+both `FAILURE_COPY` entries are `tone: 'amber'`, so the `danger` arm of those three
+ternaries never executes. Pre-existing; left in place.
