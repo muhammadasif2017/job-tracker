@@ -109,20 +109,28 @@ dark-mode row involving a tint is an approximation, not a measurement of the ren
 ### 2.2 Remaining raw-palette usage
 
 Warning and success states now use `--warning` / `--warning-soft` and `--success` /
-`--success-soft`. Raw Tailwind palette colors survive in exactly one non-test file:
+`--success-soft`. Raw Tailwind palette colors survive in two places, both deliberate:
 
-- **`badge.tsx`** — the categorical color maps (status, priority, job type, discovery
-  source, channel, city, business mode) plus `ENRICHMENT_STATUS_COLORS`. The categorical
-  maps need more distinct hues than the token set provides. The enrichment map is semantic
-  rather than categorical and could use `--warning` / `--success` / `--danger`, but it sits
-  among seven categorical maps and shares their visual language; converting one map alone
-  would split the file across two color systems. Left as-is on purpose — convert the whole
-  file or none of it.
+- **`frontend/types/index.ts`** — the categorical badge maps: `STATUS_COLORS`,
+  `PRIORITY_COLORS`, `JOB_TYPE_COLORS`, `DISCOVERY_SOURCE_COLORS`,
+  `APPLICATION_CHANNEL_COLORS`, `DERIVED_STATUS_COLORS`, `CITY_COLORS`,
+  `BUSINESS_MODE_COLORS`. Thirteen distinct hues, more than any semantic token set should
+  provide — the whole point is that these values are *not* semantic.
+- **`badge.tsx`** — imports those maps and adds `ENRICHMENT_STATUS_COLORS`. That one map is
+  semantic (queued / researching / done / failed) and could use `--warning` / `--success` /
+  `--danger`, but it renders alongside the categorical badges and shares their visual
+  language; converting it alone would split badge rendering across two color systems.
 
-Audited across `bg-`, `text-`, `border-`, `ring-`, `from-`, `to-` prefixes over all
-`amber`/`red`/`green`/`emerald`/`blue`/`sky`/`slate`/`gray`/`zinc`/`violet`/`rose`/`orange`/
-`yellow`/`teal`/`indigo`/`purple`/`pink`/`cyan`/`lime` families. Nothing else in
-`frontend/**/*.tsx` bypasses the semantic tokens.
+**Measured, so this is a decision and not an unknown:** every `bg-<hue>-100 text-<hue>-700`
+pair in those maps passes AA in light mode (lowest 4.51, amber) and every
+`dark:bg-<hue>-900/40 dark:text-<hue>-300` pair passes in dark (lowest 7.82, indigo, with
+the alpha composited over `--paper`). There is no contrast reason to convert them, and
+converting would mean ~52 token declarations that only restate Tailwind.
+
+Audited across `bg-`, `text-`, `border-`, `ring-`, `from-`, `to-` prefixes and bare hex
+literals over `frontend/**/*.{ts,tsx}` — note `.ts` as well as `.tsx`, which is where the
+maps above and `STATUS_DOT_COLORS` live. That wider sweep surfaced the raw-hex chart and
+error-boundary colors recorded in §11.7 and §11.8.
 
 ### 2.3 Accent text on accent tints
 
@@ -312,10 +320,12 @@ changed and why.
    (`#9c4f06`, 5.34:1 on the tint). Applied to the sidebar active nav item and avatar
    initials, the profile avatar, the admin role badge, and the matched-company banner in
    `job-form.tsx`. See §2.3.
-2. **`badge.tsx` `ENRICHMENT_STATUS_COLORS` still uses raw `amber`/`emerald`/`red`** (§2.2).
-   Deliberate, not a defect: it lives among seven categorical maps that need more distinct
-   hues than the token set provides, and converting one map alone would split the file
-   across two color systems. Revisit only as a whole-file change.
+2. ~~**`badge.tsx` `ENRICHMENT_STATUS_COLORS` and the categorical maps still use raw
+   Tailwind palette colors** (§2.2).~~ **Closed, verified no defect:** all 13 hue pairs were
+   measured — light `-100`/`-700` pairs bottom out at 4.51:1 (amber), dark `-900/40`/`-300`
+   pairs at 7.82:1 (indigo). All pass AA. Converting them would add ~52 token declarations
+   that only restate Tailwind, for no accessibility gain. The maps live in
+   `frontend/types/index.ts`, not `badge.tsx` — the doc previously named the wrong file.
 3. ~~**No `--success` token** — `--accent-2` claimed the success role but the emerald in use
    was a different green.~~ **Fixed:** added `--success` / `--success-soft` (`#047857` /
    `#ecfdf5`, dark `#34d399` / `rgba(52,211,153,.12)`), matching the green already in use
@@ -333,6 +343,26 @@ changed and why.
 6. ~~**No `--warning` token** — warning states used raw `amber-*`.~~ **Fixed:** added
    `--warning` / `--warning-soft` and applied them in `duplicate-suggestions-banner.tsx`,
    `csv-import-dialog.tsx` and `company-profile-card.tsx`.
+
+7. **Charts hardcode dark-mode token values.** `trend-chart.tsx` uses `fill="#38d4c6"` and
+   `stroke="#ff9f45"`; `funnel-chart.tsx` uses `color: '#ff9f45'`. Those are the *dark*
+   values of `--accent-2` and `--accent`, rendered unchanged in light mode where the tokens
+   are `#0c7a6e` and `#b45e07`. Against light `--paper` they measure 1.84:1 and 2.04:1,
+   under the 3:1 bar for a non-text UI component such as a 2px line or a bar fill. The
+   correct light values measure 5.22:1 and 4.62:1. `STATUS_DOT_COLORS` (also
+   `frontend/types/index.ts`, raw hex) has the same problem — on light `--paper`:
+   WISHLIST `#94a3b8` 2.56, APPLIED `#38d4c6` 1.84, INTERVIEWING `#ff9f45` 2.04,
+   OFFER `#22c55e` 2.28 all fail 3:1; REJECTED 3.76 and GHOSTED 4.83 pass. It feeds the
+   kanban status dot, the card left border, and three chart series.
+   Fix needs a decision: six `--status-*` tokens consumed as `var(--color-…)`, or migrating
+   the recharts props to CSS variables. Recharts and SVG presentation attributes do not
+   always resolve `var()` as expected, and `STATUS_DOT_COLORS` also feeds inline `style` in
+   three components, so this needs testing rather than a blind swap. Not applied.
+8. **`global-error.tsx` hardcodes an inaccessible button.** White text on `#ff9f45` is
+   2.04:1 at `0.875rem`, and its muted paragraph `#8b97a3` on white is 2.98:1. The file
+   deliberately uses inline styles — it replaces the root layout when the app crashes, so
+   Tailwind classes are not available — but the values should at least be the light-mode
+   ones. Not applied.
 
 **Known, unrelated:** `company-profile-card.tsx`'s `tone === 'red'` branch is dead code —
 both `FAILURE_COPY` entries are `tone: 'amber'`, so the `danger` arm of those three
