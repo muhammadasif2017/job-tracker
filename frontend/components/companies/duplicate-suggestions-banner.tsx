@@ -30,9 +30,9 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
     <div
       role="region"
       aria-label="Duplicate company suggestions"
-      className="space-y-2 rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/40"
+      className="space-y-2 rounded-md border border-warning/40 bg-warning-soft p-3"
     >
-      <p className="text-sm font-medium text-amber-800 dark:text-amber-300">
+      <p className="text-sm font-medium text-warning">
         Possible duplicate {visible.length === 1 ? 'company' : 'companies'}
       </p>
       <ul className="space-y-1.5">
@@ -61,9 +61,7 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
                 <button
                   aria-label={`Dismiss suggestion: ${s.companyA.name} and ${s.companyB.name}`}
                   className="rounded p-1 text-muted-2 hover:bg-paper-raised hover:text-muted"
-                  onClick={() =>
-                    setDismissed((prev) => new Set(prev).add(key))
-                  }
+                  onClick={() => setDismissed((prev) => new Set(prev).add(key))}
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
