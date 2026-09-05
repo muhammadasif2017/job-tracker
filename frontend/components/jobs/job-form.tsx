@@ -228,8 +228,8 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         <div className="space-y-4">
           {matchedCompany && !bannerDismissed && (
             <div className="flex items-start gap-2 rounded-md bg-accent-soft p-3">
-              <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-accent" />
-              <p className="flex-1 text-sm text-accent">
+              <Building2 className="h-4 w-4 shrink-0 mt-0.5 text-accent-ink" />
+              <p className="flex-1 text-sm text-accent-ink">
                 You already saved{' '}
                 <Link
                   href={`/companies/${matchedCompany.id}`}
