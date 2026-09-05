@@ -59,7 +59,7 @@ token exists.
 | `--status-interviewing` | " | `#b45e07` | `#ff9f45` | " |
 | `--status-offer` | " | `#15803d` | `#22c55e` | " |
 | `--status-rejected` | " | `#c73535` | `#ef4444` | " |
-| `--status-ghosted` | " | `#71717a` | `#71717a` | " |
+| `--status-ghosted` | " | `#57534e` | `#71717a` | " |
 
 `color-scheme: light dark` is set on `:root`, so native form controls and scrollbars follow
 the mode.
@@ -176,10 +176,19 @@ declaration, and an author class rule outranks the attribute (which has specific
   and card left border), where `var()` resolves normally.
 - `STATUS_FILL_CLASSES` — `fill-status-…` classes, for recharts `<Cell>`.
 
-Light values are `#64748b` / `#0f766e` / `#b45e07` / `#15803d` / `#c73535` / `#71717a`,
-measuring 4.76 / 5.47 / 4.62 / 5.02 / 5.26 / 4.83 against light `--paper` — all clear the
+Light values are `#64748b` / `#0f766e` / `#b45e07` / `#15803d` / `#c73535` / `#57534e`,
+measuring 4.76 / 5.47 / 4.62 / 5.02 / 5.26 / 7.63 against light `--paper` — all clear the
 3:1 bar for a non-text UI element. Dark keeps the original values (3.73–9.78 on dark
-`--paper`). They are **not** aliases of `--accent` / `--danger` / `--success` even where a
+`--paper`).
+
+Categorical colors also have to be told apart from *each other*, which luminance contrast
+does not measure — hue does most of that work here. The one pair that shared both a
+luminance band and a desaturated near-gray hue was light WISHLIST vs GHOSTED (1.02:1
+apart), so GHOSTED's light value is `#57534e` (warm stone) rather than the dark-mode
+`#71717a`, putting them 1.60:1 apart in different hue families. Every other close-luminance
+pair differs clearly in hue (slate vs amber, teal vs red, green vs gray). Per §9, hue is
+never the only carrier anyway — every chart using these ships a `ChartLegend` with text
+labels. They are **not** aliases of `--accent` / `--danger` / `--success` even where a
 value coincides: these are categorical, and a brand tweak must not repaint the funnel.
 
 Recharts colors its own `<Legend>` swatch from the series' `fill`/`stroke` **prop**, so a
@@ -188,6 +197,13 @@ class-colored series would legend in recharts' default gray-blue. `ChartLegend`
 and the labels become real selectable text. `components/dashboard/chart-colors.test.tsx`
 pins the `<Cell className>` forwarding, since a chart that silently lost its fill would
 still render and still pass every other test.
+
+Two notes on that swap. The legend now sits *below* the chart's `ResponsiveContainer`
+rather than inside it, so a chart card is ~20px taller than before; `ChartCard` has no fixed
+height so nothing clips, but its `h-56` loading skeleton is now slightly shorter than the
+loaded chart. And `funnel-chart.tsx`'s response-rate breakdown uses `fill-accent`, a
+semantic token, which §2.4 otherwise warns against — it is a single-color series where every
+bar is the same channel measure, not a categorical encoding, so no status meaning is implied.
 
 ---
 
@@ -392,7 +408,9 @@ changed and why.
    2.04:1 at `0.875rem`, and its muted paragraph `#8b97a3` on white is 2.98:1. The file
    deliberately uses inline styles — it replaces the root layout when the app crashes, so
    Tailwind classes are not available — but the values should at least be the light-mode
-   ones. Not applied.
+   ones. Note before attempting a token fix: the file imports no stylesheet, and because it
+   replaces the root layout it never gets `globals.css`, so `var(--accent)` would resolve to
+   nothing there. It needs literal values, chosen for a light background. Not applied.
 
 **Known, unrelated:** `company-profile-card.tsx`'s `tone === 'red'` branch is dead code —
 both `FAILURE_COPY` entries are `tone: 'amber'`, so the `danger` arm of those three
