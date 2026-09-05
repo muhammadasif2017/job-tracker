@@ -42,6 +42,16 @@ jobs:
 
       - run: npm run lint
 
+      # Scoped to the generated file, not `npm run format:check` (which is
+      # repo-wide and currently fails on ~78 hand-written files — separate
+      # pre-existing debt). This one regenerates wholesale, so an unformatted
+      # commit rewrites all ~3.7k lines: #282 landed it raw from
+      # openapi-typescript, burying a 12-line semantic change in a 7k-line
+      # diff. `generate:api-types` now pipes through prettier; this keeps it
+      # that way. `.husky/` is empty, so the lint-staged config in
+      # package.json never runs on commit — CI is the only enforcement point.
+      - run: npx prettier --check types/api.generated.ts
+
       - run: npx tsc --noEmit
 
       - run: npm test
