@@ -57,6 +57,10 @@ the mode.
 
 ### 2.1 Contrast audit (measured, WCAG 2.1 relative luminance)
 
+Every ratio below is opaque-pair math against a nominal background. The dark-mode `*-soft`
+tints are alpha (`rgba(…, .12)`) and composite over whatever sits behind them, so any
+dark-mode row involving a tint is an approximation, not a measurement of the rendered pixel.
+
 | Pair | Ratio | Verdict |
 |---|---|---|
 | `ink` on `paper` (light) | 18.34 | Pass AAA |
