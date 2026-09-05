@@ -43,6 +43,13 @@ describe('WebFetchService', () => {
     service = module.get(WebFetchService);
     fetchSpy = jest.spyOn(global, 'fetch');
     dnsLookup.mockReset();
+    // `mockLogger` is module-level, so without this every warn assertion below
+    // reads as "logged at some point in this file" rather than "logged by this
+    // test" — and a `.not.toHaveBeenCalledWith` can never pass once any
+    // earlier test has logged that event.
+    mockLogger.warn.mockClear();
+    mockLogger.log.mockClear();
+    mockLogger.error.mockClear();
   });
 
   afterEach(() => {
@@ -167,6 +174,27 @@ describe('WebFetchService', () => {
     );
   });
 
+  it('spends one timeout budget across the whole redirect chain, not one per hop', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy
+      .mockResolvedValueOnce(redirectTo('https://www.acme.com/'))
+      .mockResolvedValueOnce(redirectTo('https://www.acme.com/home'))
+      .mockResolvedValueOnce(pageOk());
+
+    await service.fetchPageText('https://acme.com');
+
+    // Same AbortSignal object on every hop. A fresh signal per hop would let
+    // 1 + MAX_REDIRECTS hops run for 4x the intended budget, which is what
+    // pushes a slow host past the processor's 90s BullMQ lock.
+    const signals = fetchSpy.mock.calls.map(
+      (c) => (c[1] as RequestInit | undefined)?.signal,
+    );
+    expect(signals).toHaveLength(3);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signals[1]).toBe(signals[0]);
+    expect(signals[2]).toBe(signals[0]);
+  });
+
   it('resolves a relative Location against the URL that issued it', async () => {
     mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy
@@ -214,6 +242,30 @@ describe('WebFetchService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       'web_fetch_too_many_redirects',
       expect.objectContaining({ url: 'https://acme.com' }),
+    );
+  });
+
+  it('reports a 3xx with no Location as malformed, not as too many redirects', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue({
+      status: 302,
+      ok: false,
+      headers: { get: () => null },
+    });
+
+    const text = await service.fetchPageText('https://acme.com');
+
+    expect(text).toBe('');
+    // Nothing to follow, so it stops at the first response rather than
+    // burning hops on a redirect it can never resolve.
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      'web_fetch_redirect_no_location',
+      expect.objectContaining({ url: 'https://acme.com', status: 302 }),
+    );
+    expect(mockLogger.warn).not.toHaveBeenCalledWith(
+      'web_fetch_too_many_redirects',
+      expect.anything(),
     );
   });
 

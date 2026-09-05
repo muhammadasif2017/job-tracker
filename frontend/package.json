@@ -12,7 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "generate:api-types": "openapi-typescript http://localhost:3001/api/docs-json -o types/api.generated.ts"
+    "generate:api-types": "openapi-typescript http://localhost:3001/api/docs-json -o types/api.generated.ts && prettier --write types/api.generated.ts"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
