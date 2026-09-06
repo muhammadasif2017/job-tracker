@@ -16,6 +16,17 @@ import {
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 
+// Character budget for each labeled section of the assembled LLM context.
+// Both sit well inside gpt-oss-120b's window: the previous 6000/3500 pair
+// capped the whole context at ~9500 characters, which made the budget - not
+// the model - the binding constraint on extraction quality. 16000 admits a
+// full homepage and /about (WebFetchService caps each page at
+// LLM_CONTEXT_BUDGET = 8000), and 8000 admits all five Tavily snippets plus
+// the `[Summary]` that SearchService deliberately appends last; at 3500 that
+// summary was routinely cut off entirely. See ADR-038.
+const OFFICIAL_SECTION_BUDGET = 16_000;
+const SEARCH_SECTION_BUDGET = 8_000;
+
 @Injectable()
 // See EnrichmentProcessor for why 90s — same stall-detection margin, same
 // BullMQ renewal cadence.
@@ -86,11 +97,11 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       //
       // Homepage first, then /about: those two carry the industry,
       // positioning and culture prose the five extracted fields are made of,
-      // and the official-section budget is spent in that order. ADR-013 placed
+      // and OFFICIAL_SECTION_BUDGET is spent in that order. ADR-013 placed
       // contact-page text ahead of the homepage so a street address would
       // survive the budget, but the `address` field it protected no longer
       // exists on any model - so fetching /contact and /contact-us bought
-      // nothing and evicted the homepage.
+      // nothing and evicted the homepage. See ADR-038.
       const [homepageText, aboutText] = await Promise.all([
         domain
           ? this.webFetch.fetchPageText(`https://${domain}`)
@@ -124,13 +135,13 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       const sections: string[] = [];
       if (officialParts.length && domain) {
         sections.push(
-          `=== OFFICIAL COMPANY WEBSITE (${domain}) ===\n${officialParts.join('\n\n').slice(0, 6000)}`,
+          `=== OFFICIAL COMPANY WEBSITE (${domain}) ===\n${officialParts.join('\n\n').slice(0, OFFICIAL_SECTION_BUDGET)}`,
         );
       }
       if (searchParts.length) {
         sections.push(
           `=== WEB SEARCH RESULTS (may describe other companies with similar names) ===\n` +
-            searchParts.join('\n\n').slice(0, 3500),
+            searchParts.join('\n\n').slice(0, SEARCH_SECTION_BUDGET),
         );
       }
       const context = sections.join('\n\n');

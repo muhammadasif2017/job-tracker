@@ -8,6 +8,9 @@
 > - **The deterministic address/HQ confidence guard in §6 no longer exists.** `address`, `headquarters`, and their `*LowConfidence` flags were dropped in #283, taking the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI with them.
 > - **`workLifeBalance` and `founded` were removed** in #282. `cultureSummary` was dropped in #283 and restored in #285.
 > - Redirect handling in §4 predates ADR-037.
+> - **The `/contact` and `/contact-us` fetches in §4 are gone, and the
+>   contact-text-first ordering in §4.5 is reversed** — homepage now comes
+>   first, and the section caps are 16000/8000, not 6000/3500 (ADR-038).
 >
 > **Current sources of truth:** `backend/CLAUDE.md` (live schema and relationships), `docs/specs/target-companies.md` (which enrichment fields exist and why), `docs/decisions/` (ADRs).
 

@@ -474,7 +474,7 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
   });
 
-  it('does not fetch contact pages - they feed no extracted field ', async () => {
+  it('does not fetch contact pages - they feed no extracted field (ADR-038)', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -508,6 +508,24 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(context.indexOf('Homepage text.')).toBeLessThan(
       context.indexOf('About text.'),
     );
+  });
+
+  it('keeps official content past the old 6000-character section cap', async () => {
+    const homepage = 'A'.repeat(5000);
+    const about = 'B'.repeat(5000);
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) =>
+      Promise.resolve(url.endsWith('/about') ? about : homepage),
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+
+    await processor.process(bullJob);
+
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain(homepage);
+    expect(context).toContain(about);
   });
 
   it('fires a domain-scoped fallback search when official content is thin', async () => {

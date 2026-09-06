@@ -44,6 +44,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [035](./035-enrichment-search-quota-conservation.md) | Enrich a company once, not once per job; don't retry an out-of-quota search | Accepted |
 | [036](./036-same-name-guard-scoped-per-snippet.md) | Judge same-name search snippets individually; one impostor must not discard the whole extraction | Accepted |
 | [037](./037-web-fetch-follows-validated-redirects.md) | Follow redirects with per-hop SSRF revalidation — failing closed on every 3xx broke official-site fetches | Accepted |
+| [038](./038-enrichment-context-budget.md) | Drop contact-page fetches, put the homepage first, and raise the 6000/3500 context caps | Accepted |
 
 ## How to read an ADR
 
