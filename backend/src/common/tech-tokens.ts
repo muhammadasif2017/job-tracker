@@ -65,13 +65,30 @@ const TOKEN_PATTERNS: { token: string; pattern: RegExp }[] = TECH_TOKENS.map(
   }),
 );
 
+// A token is redundant when a longer token matched in the SAME title contains
+// it as a whole word: "React Native Engineer" names React Native, not React
+// and React Native. Scoped per title on purpose - a company tracking both a
+// "React Developer" and a "React Native Engineer" genuinely uses both, and a
+// global filter would erase the plain React the first title established.
+function dropContained(matched: string[]): string[] {
+  return matched.filter(
+    (token) =>
+      !matched.some(
+        (other) =>
+          other !== token &&
+          TOKEN_PATTERNS.find((p) => p.token === token)?.pattern.test(other),
+      ),
+  );
+}
+
 /** Technology names mentioned in any of the given job titles, deduped. */
 export function techFromJobTitles(titles: string[]): string[] {
   const found = new Set<string>();
   for (const title of titles) {
-    for (const { token, pattern } of TOKEN_PATTERNS) {
-      if (pattern.test(title)) found.add(token);
-    }
+    const matched = TOKEN_PATTERNS.filter(({ pattern }) =>
+      pattern.test(title),
+    ).map(({ token }) => token);
+    for (const token of dropContained(matched)) found.add(token);
   }
   return [...found];
 }

@@ -21,6 +21,18 @@ describe('techFromJobTitles', () => {
     expect(techFromJobTitles(['Gopher Wrangler'])).toEqual([]);
   });
 
+  it('keeps only the longer name when one token contains another', () => {
+    expect(techFromJobTitles(['React Native Engineer'])).toEqual([
+      'React Native',
+    ]);
+  });
+
+  it('keeps both when separate titles establish each independently', () => {
+    expect(
+      techFromJobTitles(['React Developer', 'React Native Engineer']).sort(),
+    ).toEqual(['React', 'React Native']);
+  });
+
   it('dedupes a technology named across several titles', () => {
     expect(
       techFromJobTitles(['React Developer', 'Senior React Engineer']),

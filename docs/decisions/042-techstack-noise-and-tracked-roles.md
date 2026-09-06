@@ -71,6 +71,11 @@ the prompt.
   acceptable here because a wrong `techStack` entry is cosmetic, where a wrong
   street address was not. If it proves insufficient, the next step is a
   post-extraction filter, not more prompt text.
+- A token contained in a longer token matched in the same title is dropped, so
+  "React Native Engineer" yields `React Native` alone. The check is per title,
+  not global: a company tracking both a "React Developer" and a "React Native
+  Engineer" keeps both, because the first title establishes plain React on its
+  own.
 - `TECH_TOKENS` is a maintained list and will miss technologies nobody has put
   in a tracked job title yet. That is the intended failure mode: it adds
   entries it is sure of and never removes what the model found.
