@@ -11,7 +11,7 @@ import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
-import type { Company, CompanyProfile } from '../types';
+import { BUSINESS_MODE_LABELS, type Company, type CompanyProfile } from '../types';
 
 // Company and CompanyProfile share the exact same enrichment-field subset
 // (status, industry, ..., enrichedAt) — Company is that subset plus identity
@@ -128,6 +128,20 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
             <FieldValue value={profile.companySize} />
           </p>
         </div>
+        <div>
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
+            Business Mode
+          </p>
+          <p className="break-words">
+            <FieldValue
+              value={
+                profile.businessMode
+                  ? BUSINESS_MODE_LABELS[profile.businessMode]
+                  : null
+              }
+            />
+          </p>
+        </div>
       </div>
 
       {profile.techStack?.length > 0 && (
@@ -150,10 +164,10 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
 
       <div>
         <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Work Policy
+          What They Build
         </p>
-        <p className="text-sm break-words">
-          <FieldValue value={profile.workPolicy} />
+        <p className="text-sm text-muted break-words">
+          <FieldValue value={profile.productDescription} />
         </p>
       </div>
 
@@ -199,7 +213,7 @@ export function CompanyProfileCard({
   // longer true — these same columns are also directly user-editable
   // (CompanyForm) and mergeable (fieldOverrides), independent of enrichment
   // ever completing, so a fresh company sitting in PENDING/PROCESSING can
-  // still have a real, user-set industry/workPolicy/etc. worth showing
+  // still have a real, user-set industry/businessMode/etc. worth showing
   // immediately rather than stuck behind a loading skeleton. Checking the
   // fields themselves (not just `enrichedAt`) covers both contexts — on the
   // job page these are equivalent, since enrichedAt and the fields are only
@@ -210,7 +224,8 @@ export function CompanyProfileCard({
     profile.companySize ||
     profile.techStack?.length > 0 ||
     profile.cultureSummary ||
-    profile.workPolicy,
+    profile.productDescription ||
+    profile.businessMode,
   );
   const inFlight =
     profile.status === 'PENDING' || profile.status === 'PROCESSING';

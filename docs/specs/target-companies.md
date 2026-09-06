@@ -14,7 +14,7 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 
 `businessMode` and `productDescription` are set by the user only — via the company form or the `name,city,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.
 
-**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `workPolicy`, `cultureSummary`, `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
+**AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `cultureSummary`, `productDescription`, `businessMode`, `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
 
 **Deliberately not storing** (no job-search decision value, or stale on arrival): revenue/financials (unreliable for private Pakistani companies), legal/registration/tax IDs, current open-position count (decays the moment it's saved — that's what the `Job` list already tracks), awards/certifications, social links beyond LinkedIn.
 
@@ -24,7 +24,7 @@ Also dropped after the fact, once the list had been used in anger — every one 
 - `address`, `headquarters` (+ their `addressLowConfidence`/`headquartersLowConfidence` guard flags): the only two fields carrying a confidence guard, so dropping both retired the whole guard subsystem with them — the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI. `city` (indexed, filterable) and `location` (the enrichment disambiguation anchor) already carry the location signal this list needs.
 - `cultureSummary` was dropped alongside them in #283, then **restored in #285**: `workPolicy`'s Remote/Hybrid/On-site enum answers *where* you'd work but nothing about *how* — team structure, pace, engineering norms — which is the half of the apply/skip decision the rest of the field set doesn't cover. It is the one field here whose value is prose rather than a facet, so it is display-only by design: never filtered, sorted, or indexed on.
 
-That leaves `extract_company_data` with five properties — `industry`, `companySize`, `techStack`, `workPolicy`, `cultureSummary` — each of which actually moves an apply/skip decision. `cultureSummary` is the only one **not** in the tool's `required` list: it is free prose with no guaranteed public source, and forcing it makes the model invent culture claims rather than return nothing. `workPolicy` is still a `String` column rather than an enum, so it cannot be filtered on; enum-ifying it is the open follow-up here.
+That leaves `extract_company_data` with these properties — `industry`, `companySize`, `techStack`, `cultureSummary`, `productDescription`, `businessMode` (`workPolicy` was removed in ADR-041) — each of which actually moves an apply/skip decision. `cultureSummary` is the only one **not** in the tool's `required` list: it is free prose with no guaranteed public source, and forcing it makes the model invent culture claims rather than return nothing. `workPolicy` was later removed entirely (ADR-041): work arrangement is a property of an individual application, recorded on `Job.jobType`, not of the employer. `productDescription` and `businessMode` took its place in the tool schema.
 
 ## Assumptions
 
@@ -61,7 +61,7 @@ backend/prisma/schema.prisma
   → new enum CompanyCity { LAHORE, ISLAMABAD, KARACHI, OTHER }
   → new enum BusinessMode { PRODUCT, SERVICES, HYBRID }
   → new model Company (owned by userId; businessMode + productDescription (user-editable);
-     own EnrichmentStatus/industry/companySize/techStack/workPolicy/errorMessage/enrichedAt
+     own EnrichmentStatus/industry/companySize/techStack/productDescription/errorMessage/enrichedAt
      columns, mirroring CompanyProfile's shape but on its own table — see Assumption 2)
   → Contact: jobId String → String?, add companyId String? + relation, both indexed
 

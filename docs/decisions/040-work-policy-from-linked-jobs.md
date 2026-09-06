@@ -1,7 +1,11 @@
 # ADR-040: Derive `workPolicy` from Linked Jobs, Not From a Careers-Page Fetch
 
 ## Status
-Accepted
+Superseded by [ADR-041](./041-company-profile-drops-work-policy.md)
+
+`Company.workPolicy` no longer exists, so there is nothing for the derivation
+below to fill. The measurement that killed the `/careers` fetch still stands
+and is the reason ADR-041 does not reach for one either.
 
 ## Date
 2026-09-06

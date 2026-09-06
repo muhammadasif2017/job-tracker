@@ -35,7 +35,7 @@ const CONFLICT_FIELDS: {
   { key: 'companySize', label: 'Company Size' },
   { key: 'techStack', label: 'Tech Stack' },
   { key: 'cultureSummary', label: 'Culture' },
-  { key: 'workPolicy', label: 'Work Policy' },
+  { key: 'productDescription', label: 'What They Build' },
 ];
 
 function normalize(value: unknown): string {

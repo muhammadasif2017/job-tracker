@@ -23,7 +23,8 @@ const baseInput = {
   companySize: 'Mid-size (200-1000)',
   techStack: ['React', 'Node.js', 'PostgreSQL'],
   cultureSummary: 'Fast-paced culture with strong engineering standards.',
-  workPolicy: 'Hybrid',
+  productDescription: 'Payments infrastructure for internet businesses.',
+  businessMode: 'PRODUCT',
 };
 
 function groqResponse(input: Record<string, unknown>) {
@@ -76,7 +77,20 @@ describe('LlmService', () => {
     expect(result.cultureSummary).toBe(
       'Fast-paced culture with strong engineering standards.',
     );
-    expect(result.workPolicy).toBe('Hybrid');
+    expect(result.productDescription).toBe(
+      'Payments infrastructure for internet businesses.',
+    );
+    expect(result.businessMode).toBe('PRODUCT');
+  });
+
+  it('rejects a businessMode outside the Prisma enum rather than passing it through', async () => {
+    mockCreate.mockResolvedValue(
+      groqResponse({ ...baseInput, businessMode: 'CONSULTING' }),
+    );
+
+    const result = await service.extract('Acme', 'context');
+
+    expect(result.businessMode).toBeNull();
   });
 
   it('includes the company name and context in the prompt sent to Groq', async () => {
@@ -207,13 +221,13 @@ describe('LlmService', () => {
 
   it('converts empty string and whitespace-only fields to null', async () => {
     mockCreate.mockResolvedValue(
-      groqResponse({ ...baseInput, industry: '', workPolicy: '   ' }),
+      groqResponse({ ...baseInput, industry: '', productDescription: '   ' }),
     );
 
     const result = await service.extract('Acme', 'context');
 
     expect(result.industry).toBeNull();
-    expect(result.workPolicy).toBeNull();
+    expect(result.productDescription).toBeNull();
   });
 });
 

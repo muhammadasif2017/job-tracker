@@ -43,7 +43,8 @@ const extracted = {
   companySize: 'Large (1000-5000)',
   techStack: ['Java', '.NET'],
   cultureSummary: 'Structured, process-driven culture.',
-  workPolicy: 'Hybrid',
+  productDescription: 'Digital transformation services for enterprises.',
+  businessMode: 'SERVICES',
 };
 const bullJob = {
   data: { companyId: 'company-123' },
@@ -63,8 +64,8 @@ describe('CompanyEnrichmentProcessor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // No linked jobs unless a test says otherwise - deriveWorkPolicy then
-    // contributes nothing and `workPolicy` stays whatever the LLM returned.
+    // No linked jobs unless a test says otherwise, so the ROLES context
+    // section is absent by default.
     mockPrisma.job.findMany.mockResolvedValue([]);
     processor = new CompanyEnrichmentProcessor(
       mockPrisma as never,
@@ -101,7 +102,7 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
-  it('reads Job only to derive workPolicy, and writes to Company alone', async () => {
+  it('reads Job only for tracked role titles, and writes to Company alone', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -115,93 +116,30 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(Object.keys(mockPrisma.job)).toEqual(['findMany']);
     expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
       where: { companyId: 'company-123', userId: 'user-1' },
-      select: { jobType: true },
+      select: { position: true },
     });
     expect(mockPrisma).not.toHaveProperty('companyProfile');
   });
 
-  it('derives workPolicy from linked jobs at the company when extraction returns none', async () => {
+  it('passes tracked job titles to the LLM as a first-party section', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
     mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
-    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
+    mockLlm.extract.mockResolvedValue(extracted);
     mockPrisma.job.findMany.mockResolvedValue([
-      { jobType: JobType.REMOTE },
-      { jobType: JobType.REMOTE },
-      { jobType: JobType.ONSITE },
+      { position: 'Senior React Developer', jobType: JobType.ONSITE },
+      { position: 'Django Engineer', jobType: JobType.ONSITE },
+      { position: 'Django Engineer', jobType: JobType.REMOTE },
     ]);
 
     await processor.process(bullJob);
 
-    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ workPolicy: 'Remote' }),
-      }),
-    );
-  });
-
-  it('keeps an extracted workPolicy rather than the value derived from job types', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
-    mockLlm.extract.mockResolvedValue(extracted); // workPolicy: 'Hybrid'
-    mockPrisma.job.findMany.mockResolvedValue([{ jobType: JobType.REMOTE }]);
-
-    await processor.process(bullJob);
-
-    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ workPolicy: 'Hybrid' }),
-      }),
-    );
-  });
-
-  it('reads an all-ONSITE job set as no signal, since ONSITE is the schema default', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue({
-      ...dbCompany,
-      workPolicy: null,
-    });
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
-    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
-    mockPrisma.job.findMany.mockResolvedValue([
-      { jobType: JobType.ONSITE },
-      { jobType: JobType.ONSITE },
-    ]);
-
-    await processor.process(bullJob);
-
-    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ workPolicy: null }),
-      }),
-    );
-  });
-
-  it('answers nothing when two job types tie', async () => {
-    mockPrisma.company.findFirst.mockResolvedValue({
-      ...dbCompany,
-      workPolicy: null,
-    });
-    mockPrisma.company.update.mockResolvedValue({});
-    mockSearch.search.mockResolvedValue([]);
-    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
-    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
-    mockPrisma.job.findMany.mockResolvedValue([
-      { jobType: JobType.REMOTE },
-      { jobType: JobType.HYBRID },
-    ]);
-
-    await processor.process(bullJob);
-
-    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ workPolicy: null }),
-      }),
-    );
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('ROLES THE USER TRACKED AT THIS COMPANY');
+    expect(context).toContain('Senior React Developer');
+    // Deduped - the same title tracked twice is one line, not two.
+    expect(context.match(/Django Engineer/g)).toHaveLength(1);
   });
 
   it('has no job-posting page to fetch — official content comes only from websiteUrl-derived pages', async () => {
@@ -519,7 +457,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockPrisma.company.findFirst.mockResolvedValue({
       ...dbCompany,
       industry: 'FinTech',
-      workPolicy: 'Remote',
+      productDescription: 'Previously stored description.',
       cultureSummary: 'Small, senior-heavy team.',
       techStack: ['Python'],
     });
@@ -529,7 +467,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockLlm.extract.mockResolvedValue({
       ...extracted,
       industry: null,
-      workPolicy: null,
+      productDescription: null,
       cultureSummary: null,
       techStack: [],
     });
@@ -540,7 +478,7 @@ describe('CompanyEnrichmentProcessor', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           industry: 'FinTech',
-          workPolicy: 'Remote',
+          productDescription: 'Previously stored description.',
           cultureSummary: 'Small, senior-heavy team.',
           techStack: ['Python'],
         }),
