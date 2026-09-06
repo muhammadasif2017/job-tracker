@@ -1,13 +1,17 @@
 'use client';
 
 import { RefreshCw, AlertTriangle, SearchX } from 'lucide-react';
-import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQueryClient,
+  type QueryKey,
+} from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
-import type { Company, CompanyProfile } from '../types';
+import { BUSINESS_MODE_LABELS, type Company, type CompanyProfile } from '../types';
 
 // Company and CompanyProfile share the exact same enrichment-field subset
 // (status, industry, ..., enrichedAt) — Company is that subset plus identity
@@ -80,22 +84,20 @@ function FailureBanner({
     <div
       className={
         copy.tone === 'amber'
-          ? 'flex items-start gap-2 rounded-md bg-amber-50 p-3 dark:bg-amber-950/30'
-          : 'flex items-start gap-2 rounded-md bg-red-50 p-3 dark:bg-red-950/30'
+          ? 'flex items-start gap-2 rounded-md bg-warning-soft p-3'
+          : 'flex items-start gap-2 rounded-md bg-danger-soft p-3'
       }
     >
       <Icon
         className={
           copy.tone === 'amber'
-            ? 'h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400'
-            : 'h-4 w-4 shrink-0 mt-0.5 text-red-600 dark:text-red-400'
+            ? 'h-4 w-4 shrink-0 mt-0.5 text-warning'
+            : 'h-4 w-4 shrink-0 mt-0.5 text-danger'
         }
       />
       <p
         className={
-          copy.tone === 'amber'
-            ? 'text-sm text-amber-700 dark:text-amber-400'
-            : 'text-sm text-red-700 dark:text-red-400'
+          copy.tone === 'amber' ? 'text-sm text-warning' : 'text-sm text-danger'
         }
       >
         {prefix}
@@ -126,6 +128,20 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
             <FieldValue value={profile.companySize} />
           </p>
         </div>
+        <div>
+          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
+            Business Mode
+          </p>
+          <p className="break-words">
+            <FieldValue
+              value={
+                profile.businessMode
+                  ? BUSINESS_MODE_LABELS[profile.businessMode]
+                  : null
+              }
+            />
+          </p>
+        </div>
       </div>
 
       {profile.techStack?.length > 0 && (
@@ -148,10 +164,10 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
 
       <div>
         <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Work Policy
+          What They Build
         </p>
-        <p className="text-sm break-words">
-          <FieldValue value={profile.workPolicy} />
+        <p className="text-sm text-muted break-words">
+          <FieldValue value={profile.productDescription} />
         </p>
       </div>
 
@@ -167,7 +183,11 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   );
 }
 
-export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props) {
+export function CompanyProfileCard({
+  profile,
+  companyId,
+  invalidateKey,
+}: Props) {
   const qc = useQueryClient();
 
   const refresh = useMutation({
@@ -193,20 +213,22 @@ export function CompanyProfileCard({ profile, companyId, invalidateKey }: Props)
   // longer true — these same columns are also directly user-editable
   // (CompanyForm) and mergeable (fieldOverrides), independent of enrichment
   // ever completing, so a fresh company sitting in PENDING/PROCESSING can
-  // still have a real, user-set industry/workPolicy/etc. worth showing
+  // still have a real, user-set industry/businessMode/etc. worth showing
   // immediately rather than stuck behind a loading skeleton. Checking the
   // fields themselves (not just `enrichedAt`) covers both contexts — on the
   // job page these are equivalent, since enrichedAt and the fields are only
   // ever written together in the same completed-run update.
   const hasData = Boolean(
     profile.enrichedAt ||
-      profile.industry ||
-      profile.companySize ||
-      profile.techStack?.length > 0 ||
-      profile.cultureSummary ||
-      profile.workPolicy,
+    profile.industry ||
+    profile.companySize ||
+    profile.techStack?.length > 0 ||
+    profile.cultureSummary ||
+    profile.productDescription ||
+    profile.businessMode,
   );
-  const inFlight = profile.status === 'PENDING' || profile.status === 'PROCESSING';
+  const inFlight =
+    profile.status === 'PENDING' || profile.status === 'PROCESSING';
 
   if (inFlight && !hasData) {
     return (

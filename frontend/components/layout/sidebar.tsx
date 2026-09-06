@@ -78,7 +78,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
               className={cn(
                 'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 font-mono text-[13px] font-medium uppercase tracking-wide transition-colors',
                 active
-                  ? 'bg-accent-soft text-accent'
+                  ? 'bg-accent-soft text-accent-ink'
                   : 'text-muted hover:bg-paper-raised hover:text-ink',
               )}
             >
@@ -94,7 +94,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <div className="border-t border-line p-3">
         <div className="mb-2 flex items-center gap-3 rounded-md px-3 py-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent-soft font-mono text-xs font-semibold text-accent-ink">
             {user?.name?.charAt(0).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">

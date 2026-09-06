@@ -32,6 +32,24 @@ describe('GlobalError', () => {
     expect(retry).toHaveBeenCalledOnce();
   });
 
+  // This boundary replaces the root layout, so it never gets globals.css —
+  // no Tailwind, no var(--token). The literal light-mode values are the only
+  // thing standing between it and the 2.04:1 white-on-#ff9f45 button it used
+  // to render, so pin them.
+  it('paints the light-mode palette explicitly', () => {
+    render(<GlobalError error={new Error('boom')} unstable_retry={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'Try again' })).toHaveStyle({
+      background: '#b45e07',
+      color: '#ffffff',
+    });
+    expect(
+      screen.getByText(
+        'The application hit an unexpected error. Try reloading.',
+      ),
+    ).toHaveStyle({ color: '#626d7a' });
+  });
+
   it('shows the generic error message', () => {
     render(<GlobalError error={new Error('boom')} unstable_retry={vi.fn()} />);
     expect(screen.getByText('Something went wrong')).toBeInTheDocument();

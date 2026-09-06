@@ -11,7 +11,7 @@ import { Pencil, ExternalLink } from 'lucide-react';
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import { formatCivilDate } from '../../lib/utils';
-import { STATUS_LABELS, STATUS_DOT_COLORS, type Job, type JobStatus } from '../../types';
+import { STATUS_LABELS, STATUS_DOT_VARS, type Job, type JobStatus } from '../../types';
 import {
   useKanbanJobsQuery,
   useKanbanPatchStatusMutation,
@@ -126,7 +126,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
             <div className="relative mb-3 flex items-center gap-2 border-b-2 border-dashed border-line pb-3">
               <span
                 className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-surface"
-                style={{ background: STATUS_DOT_COLORS[col] }}
+                style={{ background: STATUS_DOT_VARS[col] }}
               />
               <span className="font-mono text-xs font-medium uppercase tracking-wide text-ink">
                 {STATUS_LABELS[col]}
@@ -150,7 +150,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                           {...drag.draggableProps}
                           {...drag.dragHandleProps}
                           className={`rounded-md border border-line bg-paper p-3 shadow-sm ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
-                          style={{ borderLeft: `3px solid ${STATUS_DOT_COLORS[col]}` }}
+                          style={{ borderLeft: `3px solid ${STATUS_DOT_VARS[col]}` }}
                         >
                           <p className="text-sm font-medium leading-tight break-words text-ink">
                             {job.company}

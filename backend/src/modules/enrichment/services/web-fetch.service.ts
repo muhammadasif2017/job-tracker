@@ -140,9 +140,37 @@ export class WebFetchService {
 
       const html = await res.text();
       const $ = cheerio.load(html);
-      $('script, style, noscript').remove();
 
-      const text = $('body').text().replace(/\s+/g, ' ').trim();
+      // Site chrome is stripped before text extraction because it competes
+      // for the same budget as real content. Measured on systemsltd.com:
+      // whole-<body> text is 12883 characters, of which 6794 is the
+      // navigation menu, and the page's own positioning prose starts only
+      // after ~700 characters of "Skip to main content / Main navigation /
+      // Services / Digital / ...". Since each page is truncated to
+      // LLM_CONTEXT_BUDGET, that boilerplate crowds the front of the context
+      // *and* pushes real content past the cut. `header` is included: on
+      // innovation-insight.com the entire nav lives inside <header>, and no
+      // measured site lost hero copy to removing it. See ADR-039.
+      $('script, style, noscript, nav, header, footer, aside, form').remove();
+
+      // Prefer the page's own content landmark when it declares one. Many
+      // marketing sites declare neither, so the stripped <body> is a normal
+      // fallback here, not an error case.
+      const scoped =
+        $('main').text() || $('article').text() || $('body').text();
+      let text = scoped.replace(/\s+/g, ' ').trim();
+
+      // Pathological markup - a page nesting everything inside <header>,
+      // say - strips down to nothing. Only an empty result triggers this:
+      // comparing lengths instead would always prefer the un-stripped text,
+      // since boilerplate makes it longer by construction, which is the
+      // opposite of what the strip above is for.
+      if (!text) {
+        const $unstripped = cheerio.load(html);
+        $unstripped('script, style, noscript').remove();
+        text = $unstripped('body').text().replace(/\s+/g, ' ').trim();
+      }
+
       return text.slice(0, LLM_CONTEXT_BUDGET);
     } catch (err) {
       this.logger.warn('web_fetch_failed', {

@@ -139,7 +139,7 @@ export default function AdminUsersPage() {
                       className={cn(
                         'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
                         u.role === 'ADMIN'
-                          ? 'bg-accent-soft text-accent'
+                          ? 'bg-accent-soft text-accent-ink'
                           : 'bg-paper-raised text-muted',
                       )}
                     >
