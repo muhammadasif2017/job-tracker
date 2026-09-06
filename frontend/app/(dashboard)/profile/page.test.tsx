@@ -4,14 +4,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ProfilePage from './page';
 import type { User } from '../../../types';
 
-const replace = vi.fn();
 const setUser = vi.fn();
 const logout = vi.fn();
 let storeUser: User | null = null;
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ replace }),
-}));
 
 vi.mock('../../../store/auth.store', () => ({
   useAuthStore: () => ({ user: storeUser, setUser, logout }),
@@ -81,6 +76,11 @@ function renderPage() {
 describe('ProfilePage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { href: '' },
+    });
     storeUser = null;
   });
 
@@ -326,7 +326,7 @@ describe('ProfilePage', () => {
         expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/users/me'),
       );
       expect(logout).toHaveBeenCalled();
-      expect(replace).toHaveBeenCalledWith('/login');
+      expect(window.location.href).toBe('/login');
     });
 
     it('shows an error toast on failure', async () => {
