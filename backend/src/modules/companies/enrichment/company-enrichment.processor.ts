@@ -1,6 +1,6 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
-import { EnrichmentStatus, type Company } from '@prisma/client';
+import { EnrichmentStatus, JobType, type Company } from '@prisma/client';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../prisma/prisma.service.js';
@@ -26,6 +26,15 @@ import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 // summary was routinely cut off entirely. See ADR-038.
 const OFFICIAL_SECTION_BUDGET = 16_000;
 const SEARCH_SECTION_BUDGET = 8_000;
+
+// Company-level `workPolicy` uses the same vocabulary as the LLM tool schema's
+// enum (see EXTRACT_TOOL in llm.service.ts), so a derived value is
+// indistinguishable from an extracted one downstream.
+const WORK_POLICY_BY_JOB_TYPE: Record<JobType, string> = {
+  [JobType.ONSITE]: 'On-site',
+  [JobType.HYBRID]: 'Hybrid',
+  [JobType.REMOTE]: 'Remote',
+};
 
 @Injectable()
 // See EnrichmentProcessor for why 90s — same stall-detection margin, same
@@ -184,6 +193,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       });
 
       extraction = data;
+      const derivedWorkPolicy = await this.deriveWorkPolicy(dbCompany);
 
       const stillExists = await this.prisma.company.findFirst({
         where: { id: companyId },
@@ -197,7 +207,11 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
 
       await this.prisma.company.update({
         where: { id: companyId },
-        data: this.buildCompletedProfileData(extraction, stillExists),
+        data: this.buildCompletedProfileData(
+          extraction,
+          stillExists,
+          derivedWorkPolicy,
+        ),
       });
 
       this.logger.log('company_enrichment_completed', {
@@ -285,14 +299,49 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
   // back to `previous` per-field means a weak run only fills gaps or
   // overwrites fields it actually found something for, instead of wiping
   // last-known-good data whenever any single field comes back empty.
-  private buildCompletedProfileData(data: CompanyData, previous: Company) {
+  // `workPolicy` came back null from every extraction observed against real
+  // Pakistani IT sites: company homepages and /about pages simply don't state
+  // Remote/Hybrid/On-site, so there is nothing in the fetched context for the
+  // model to read. A /careers fetch doesn't help either - measured on
+  // arbisoft.com and systemsltd.com, those pages are recruiting-brand copy
+  // with the listings themselves behind a JS widget, and contain no policy
+  // wording at all. The user's own jobs at this company do record it, so the
+  // value comes from there instead of from another fetch.
+  //
+  // ONSITE is `@default(ONSITE)` on Job, so a job whose jobType was never
+  // touched cannot be told apart from a deliberate on-site answer. An
+  // all-ONSITE set is therefore read as no signal rather than as "On-site",
+  // and a tie between two types answers nothing either.
+  private async deriveWorkPolicy(company: Company): Promise<string | null> {
+    const jobs = await this.prisma.job.findMany({
+      where: { companyId: company.id, userId: company.userId },
+      select: { jobType: true },
+    });
+    if (!jobs.length) return null;
+
+    const counts = new Map<JobType, number>();
+    for (const { jobType } of jobs) {
+      counts.set(jobType, (counts.get(jobType) ?? 0) + 1);
+    }
+    if (counts.size === 1 && counts.has(JobType.ONSITE)) return null;
+
+    const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+    if (ranked.length > 1 && ranked[0][1] === ranked[1][1]) return null;
+    return WORK_POLICY_BY_JOB_TYPE[ranked[0][0]];
+  }
+
+  private buildCompletedProfileData(
+    data: CompanyData,
+    previous: Company,
+    derivedWorkPolicy: string | null = null,
+  ) {
     return {
       status: EnrichmentStatus.COMPLETED,
       industry: data.industry ?? previous.industry,
       companySize: data.companySize ?? previous.companySize,
       techStack: data.techStack.length ? data.techStack : previous.techStack,
       cultureSummary: data.cultureSummary ?? previous.cultureSummary,
-      workPolicy: data.workPolicy ?? previous.workPolicy,
+      workPolicy: data.workPolicy ?? derivedWorkPolicy ?? previous.workPolicy,
       enrichedAt: new Date(),
     };
   }

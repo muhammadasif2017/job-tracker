@@ -1,5 +1,5 @@
 import { UnrecoverableError, type Job } from 'bullmq';
-import { EnrichmentStatus } from '@prisma/client';
+import { EnrichmentStatus, JobType } from '@prisma/client';
 import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
@@ -13,6 +13,7 @@ import { LlmService } from '../../enrichment/services/llm.service.js';
 // services, reused unmodified per docs/specs/target-companies.md Assumption 2.
 const mockPrisma = {
   company: { findFirst: jest.fn(), update: jest.fn() },
+  job: { findMany: jest.fn() },
 };
 const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
   WebFetchService,
@@ -32,6 +33,7 @@ const mockLogger = {
 
 const dbCompany = {
   id: 'company-123',
+  userId: 'user-1',
   name: 'Systems Limited',
   websiteUrl: 'https://systemsltd.com',
   location: null,
@@ -61,6 +63,9 @@ describe('CompanyEnrichmentProcessor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // No linked jobs unless a test says otherwise - deriveWorkPolicy then
+    // contributes nothing and `workPolicy` stays whatever the LLM returned.
+    mockPrisma.job.findMany.mockResolvedValue([]);
     processor = new CompanyEnrichmentProcessor(
       mockPrisma as never,
       mockWebFetch as never,
@@ -96,7 +101,7 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
-  it('never touches Job or CompanyProfile — only writes to Company', async () => {
+  it('reads Job only to derive workPolicy, and writes to Company alone', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -105,8 +110,98 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    expect(mockPrisma).not.toHaveProperty('job');
+    // Read-only, and scoped to the owning user: no write method exists on the
+    // Job mock at all, so a write would throw rather than pass silently.
+    expect(Object.keys(mockPrisma.job)).toEqual(['findMany']);
+    expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-123', userId: 'user-1' },
+      select: { jobType: true },
+    });
     expect(mockPrisma).not.toHaveProperty('companyProfile');
+  });
+
+  it('derives workPolicy from linked jobs at the company when extraction returns none', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
+    mockPrisma.job.findMany.mockResolvedValue([
+      { jobType: JobType.REMOTE },
+      { jobType: JobType.REMOTE },
+      { jobType: JobType.ONSITE },
+    ]);
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workPolicy: 'Remote' }),
+      }),
+    );
+  });
+
+  it('keeps an extracted workPolicy rather than the value derived from job types', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue(extracted); // workPolicy: 'Hybrid'
+    mockPrisma.job.findMany.mockResolvedValue([{ jobType: JobType.REMOTE }]);
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workPolicy: 'Hybrid' }),
+      }),
+    );
+  });
+
+  it('reads an all-ONSITE job set as no signal, since ONSITE is the schema default', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      workPolicy: null,
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
+    mockPrisma.job.findMany.mockResolvedValue([
+      { jobType: JobType.ONSITE },
+      { jobType: JobType.ONSITE },
+    ]);
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workPolicy: null }),
+      }),
+    );
+  });
+
+  it('answers nothing when two job types tie', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      workPolicy: null,
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue({ ...extracted, workPolicy: null });
+    mockPrisma.job.findMany.mockResolvedValue([
+      { jobType: JobType.REMOTE },
+      { jobType: JobType.HYBRID },
+    ]);
+
+    await processor.process(bullJob);
+
+    expect(mockPrisma.company.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ workPolicy: null }),
+      }),
+    );
   });
 
   it('has no job-posting page to fetch — official content comes only from websiteUrl-derived pages', async () => {
