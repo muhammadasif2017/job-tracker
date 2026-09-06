@@ -121,6 +121,26 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(mockPrisma).not.toHaveProperty('companyProfile');
   });
 
+  it('merges technologies named in tracked job titles into techStack', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue({ ...extracted, techStack: ['Java'] });
+    mockPrisma.job.findMany.mockResolvedValue([
+      { position: 'Senior React Developer' },
+      { position: 'Java Backend Engineer' },
+    ]);
+
+    await processor.process(bullJob);
+
+    const [call] = mockPrisma.company.update.mock.calls.slice(-1) as [
+      { data: { techStack: string[] } },
+    ];
+    // Extracted value kept, title-derived value added, no duplicate Java.
+    expect([...call[0].data.techStack].sort()).toEqual(['Java', 'React']);
+  });
+
   it('passes tracked job titles to the LLM as a first-party section', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});

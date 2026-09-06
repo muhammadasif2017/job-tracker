@@ -15,6 +15,7 @@ import {
 } from '../../enrichment/services/llm.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
+import { techFromJobTitles } from '../../../common/tech-tokens.js';
 
 // Character budget for each labeled section of the assembled LLM context.
 // Both sit well inside gpt-oss-120b's window: the previous 6000/3500 pair
@@ -146,12 +147,6 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
           `=== OFFICIAL COMPANY WEBSITE (${domain}) ===\n${officialParts.join('\n\n').slice(0, OFFICIAL_SECTION_BUDGET)}`,
         );
       }
-      if (searchParts.length) {
-        sections.push(
-          `=== WEB SEARCH RESULTS (may describe other companies with similar names) ===\n` +
-            searchParts.join('\n\n').slice(0, SEARCH_SECTION_BUDGET),
-        );
-      }
       // Job titles the user actually tracked at this company are the one
       // first-party source of technology names in the pipeline: a homepage
       // says what a company sells, and search snippets hand back site-scanner
@@ -169,6 +164,12 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         }
       }
 
+      if (searchParts.length) {
+        sections.push(
+          `=== WEB SEARCH RESULTS (may describe other companies with similar names) ===\n` +
+            searchParts.join('\n\n').slice(0, SEARCH_SECTION_BUDGET),
+        );
+      }
       const context = sections.join('\n\n');
 
       this.logger.debug('company_enrichment_context', {
@@ -208,7 +209,17 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         location,
       });
 
-      extraction = data;
+      // Technologies named in the titles the user tracked here are merged in
+      // deterministically. Three prompt revisions failed to make the model
+      // treat "Senior React Developer" as evidence that this company works
+      // with React - the same instruction-following ceiling ADR-013 hit - so
+      // the reliable half is done in code. Extraction still leads; these only
+      // add. See ADR-042.
+      const titleTech = techFromJobTitles(linkedJobs.map((j) => j.position));
+      extraction = {
+        ...data,
+        techStack: [...new Set([...data.techStack, ...titleTech])],
+      };
 
       const stillExists = await this.prisma.company.findFirst({
         where: { id: companyId },
