@@ -83,26 +83,24 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       // a target Company has no associated posting URL. Official-site
       // fetches only fire when websiteUrl resolves to a real (non-job-board)
       // domain.
-      const [homepageText, aboutText, primaryContactText] = await Promise.all([
+      //
+      // Homepage first, then /about: those two carry the industry,
+      // positioning and culture prose the five extracted fields are made of,
+      // and the official-section budget is spent in that order. ADR-013 placed
+      // contact-page text ahead of the homepage so a street address would
+      // survive the budget, but the `address` field it protected no longer
+      // exists on any model - so fetching /contact and /contact-us bought
+      // nothing and evicted the homepage.
+      const [homepageText, aboutText] = await Promise.all([
         domain
           ? this.webFetch.fetchPageText(`https://${domain}`)
           : Promise.resolve(''),
         domain
           ? this.webFetch.fetchPageText(`https://${domain}/about`)
           : Promise.resolve(''),
-        domain
-          ? this.webFetch.fetchPageText(`https://${domain}/contact`)
-          : Promise.resolve(''),
       ]);
-      const contactTexts = primaryContactText
-        ? [primaryContactText]
-        : domain
-          ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
-          : [];
 
-      const newOfficialText = [...contactTexts, aboutText, homepageText].join(
-        '',
-      );
+      const newOfficialText = [homepageText, aboutText].join('');
       // `searchUnavailableReason` set means the general search above already
       // came back 429/432 (quota) or 401/403 (bad key) — an account-level
       // failure, so this second search would fail the same way. Skipping it
@@ -119,12 +117,7 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         : [];
 
       const officialParts = [
-        ...new Set([
-          ...contactTexts,
-          aboutText,
-          homepageText,
-          ...domainSnippets,
-        ]),
+        ...new Set([homepageText, aboutText, ...domainSnippets]),
       ].filter(Boolean);
       const searchParts = [...new Set(snippets)].filter(Boolean);
 
@@ -146,7 +139,8 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         companyId,
         company,
         snippetCount: snippets.length,
-        contactTextLengths: contactTexts.map((t) => t.length),
+        homepageTextLength: homepageText.length,
+        aboutTextLength: aboutText.length,
         context,
       });
 

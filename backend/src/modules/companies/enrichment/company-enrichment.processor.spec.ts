@@ -118,16 +118,13 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    // homepage + about + contact = 3 calls; no fourth "job posting page" fetch
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(3);
+    // homepage + about = 2 calls; no third "job posting page" fetch
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(2);
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
       'https://systemsltd.com',
     );
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
       'https://systemsltd.com/about',
-    );
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact',
     );
   });
 
@@ -473,11 +470,11 @@ describe('CompanyEnrichmentProcessor', () => {
       { domain?: string; location?: string },
     ];
     expect(disambiguation.domain).toBeUndefined();
-    // No homepage/about/contact fetch without a real company domain.
+    // No homepage/about fetch without a real company domain.
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
   });
 
-  it('fetches the company contact page when a real domain is known, and skips /contact-us when /contact already has text', async () => {
+  it('does not fetch contact pages - they feed no extracted field ', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -486,7 +483,7 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+    expect(mockWebFetch.fetchPageText).not.toHaveBeenCalledWith(
       'https://systemsltd.com/contact',
     );
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalledWith(
@@ -494,25 +491,23 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
-  it('falls back to /contact-us when /contact is empty', async () => {
+  it('places homepage text ahead of /about in the official section', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
     mockWebFetch.fetchPageText.mockImplementation((url: string) =>
-      Promise.resolve(url.endsWith('/contact-us') ? 'Fallback text.' : ''),
+      Promise.resolve(
+        url.endsWith('/about') ? 'About text.' : 'Homepage text.',
+      ),
     );
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
 
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact',
-    );
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact-us',
-    );
     const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
-    expect(context).toContain('Fallback text.');
+    expect(context.indexOf('Homepage text.')).toBeLessThan(
+      context.indexOf('About text.'),
+    );
   });
 
   it('fires a domain-scoped fallback search when official content is thin', async () => {
