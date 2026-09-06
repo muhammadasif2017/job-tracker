@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { EnrichmentStatus } from '@prisma/client';
+import { BusinessMode, EnrichmentStatus } from '@prisma/client';
 
 export class CompanyProfileResponseDto {
   @ApiProperty({ format: 'cuid' })
@@ -27,8 +27,13 @@ export class CompanyProfileResponseDto {
   @ApiPropertyOptional({ example: 'Collaborative and fast-paced culture' })
   cultureSummary: string | null;
 
-  @ApiPropertyOptional({ example: 'Hybrid' })
-  workPolicy: string | null;
+  @ApiPropertyOptional({
+    example: 'Builds payments infrastructure for online businesses.',
+  })
+  productDescription: string | null;
+
+  @ApiPropertyOptional({ enum: BusinessMode, example: BusinessMode.PRODUCT })
+  businessMode: BusinessMode | null;
 
   @ApiPropertyOptional()
   errorMessage: string | null;

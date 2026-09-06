@@ -61,9 +61,6 @@ export class CompanyResponseDto {
   @ApiPropertyOptional({ example: 'Collaborative and fast-paced culture' })
   cultureSummary: string | null;
 
-  @ApiPropertyOptional({ example: 'Hybrid' })
-  workPolicy: string | null;
-
   @ApiPropertyOptional()
   errorMessage: string | null;
 

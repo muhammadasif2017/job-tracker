@@ -46,7 +46,6 @@ const schema = z.object({
   companySize: z.string().optional(),
   techStack: z.string().optional(),
   cultureSummary: z.string().optional(),
-  workPolicy: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -88,7 +87,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               companySize: company.companySize ?? '',
               techStack: company.techStack.join(', '),
               cultureSummary: company.cultureSummary ?? '',
-              workPolicy: company.workPolicy ?? '',
             }
           : { city: 'LAHORE', priority: 'MEDIUM' },
       );
@@ -127,7 +125,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
         ? data.techStack.split(',').map((t) => t.trim()).filter(Boolean)
         : [],
       cultureSummary: data.cultureSummary || null,
-      workPolicy: data.workPolicy || null,
     };
     if (isEdit) {
       updateMutation.mutate(payload);
@@ -279,11 +276,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                   label="Company Size"
                   placeholder="50-200 employees"
                   {...register('companySize')}
-                />
-                <Input
-                  label="Work Policy"
-                  placeholder="Hybrid"
-                  {...register('workPolicy')}
                 />
               </div>
               <div className="mt-4 flex flex-col gap-1">

@@ -72,6 +72,63 @@ describe('WebFetchService', () => {
     expect(result).not.toContain('color: red');
   });
 
+  it('strips site chrome so it cannot crowd out page content', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(`
+<html><body>
+  <header><nav>Home Services Contact</nav></header>
+  <p>We build great software.</p>
+  <aside>Newsletter signup</aside>
+  <form><label>Your email</label></form>
+  <footer>Copyright 2026 Acme</footer>
+</body></html>`),
+    });
+
+    const result = await service.fetchPageText('https://acme.com');
+
+    expect(result).toContain('We build great software.');
+    expect(result).not.toContain('Home Services Contact');
+    expect(result).not.toContain('Newsletter signup');
+    expect(result).not.toContain('Your email');
+    expect(result).not.toContain('Copyright 2026');
+  });
+
+  it('prefers <main> over the whole body when the page declares one', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(`
+<html><body>
+  <div>Sidebar promo</div>
+  <main><p>We build great software.</p></main>
+</body></html>`),
+    });
+
+    const result = await service.fetchPageText('https://acme.com');
+
+    expect(result).toContain('We build great software.');
+    expect(result).not.toContain('Sidebar promo');
+  });
+
+  it('falls back to un-stripped body text when stripping leaves nothing', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          '<html><body><header><p>Everything lives in the header.</p></header></body></html>',
+        ),
+    });
+
+    const result = await service.fetchPageText('https://acme.com');
+
+    expect(result).toContain('Everything lives in the header.');
+  });
+
   it('returns empty string when fetch rejects (network error)', async () => {
     mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy.mockRejectedValue(new Error('ECONNREFUSED'));
