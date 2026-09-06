@@ -3,7 +3,6 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from './sidebar';
 import type { User } from '../../types';
 
-const replace = vi.fn();
 const logout = vi.fn();
 let mockUser: User | null = null;
 
@@ -17,7 +16,6 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/jobs',
-  useRouter: () => ({ replace }),
 }));
 
 vi.mock('../../store/auth.store', () => ({
@@ -33,6 +31,11 @@ import api from '../../lib/api';
 describe('Sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { href: '' },
+    });
     mockUser = { id: 'u-1', name: 'Jane Doe', email: 'jane@example.com', role: 'USER' };
   });
 
@@ -66,7 +69,7 @@ describe('Sidebar', () => {
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/logout'));
     expect(logout).toHaveBeenCalled();
-    expect(replace).toHaveBeenCalledWith('/login');
+    expect(window.location.href).toBe('/login');
   });
 
   it('still logs out locally even if the logout request fails', async () => {
@@ -74,6 +77,6 @@ describe('Sidebar', () => {
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
     await waitFor(() => expect(logout).toHaveBeenCalled());
-    expect(replace).toHaveBeenCalledWith('/login');
+    expect(window.location.href).toBe('/login');
   });
 });

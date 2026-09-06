@@ -5,7 +5,6 @@ import { usePathname } from 'next/navigation';
 import { cn } from '../../lib/utils';
 import { useAuthStore } from '../../store/auth.store';
 import api from '../../lib/api';
-import { useRouter } from 'next/navigation';
 import {
   LogoMark,
   IconDashboard,
@@ -31,7 +30,6 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
-  const router = useRouter();
   const navItems =
     user?.role === 'ADMIN'
       ? [...nav, { href: '/admin/users', label: 'Admin', icon: IconAdmin }]
@@ -42,7 +40,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       await api.post('/auth/logout');
     } catch {}
     logout();
-    router.replace('/login');
+    window.location.href = '/login';
   };
 
   return (
