@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '../../lib/utils';
-import { useAuthStore } from '../../store/auth.store';
+import { clearAuthStorage, useAuthStore } from '../../store/auth.store';
 import api from '../../lib/api';
 import {
   LogoMark,
@@ -29,7 +29,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const navItems =
     user?.role === 'ADMIN'
       ? [...nav, { href: '/admin/users', label: 'Admin', icon: IconAdmin }]
@@ -39,7 +39,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     try {
       await api.post('/auth/logout');
     } catch {}
-    logout();
+    // Storage only, never the store: a reactive clear here would blank the
+    // page before the browser leaves it.
+    clearAuthStorage();
     window.location.href = '/login';
   };
 

@@ -6,10 +6,14 @@ import type { User } from '../../../types';
 
 const setUser = vi.fn();
 const logout = vi.fn();
+const { clearAuthStorage } = vi.hoisted(() => ({
+  clearAuthStorage: vi.fn(),
+}));
 let storeUser: User | null = null;
 
 vi.mock('../../../store/auth.store', () => ({
   useAuthStore: () => ({ user: storeUser, setUser, logout }),
+  clearAuthStorage,
 }));
 
 vi.mock('sonner', () => ({
@@ -325,8 +329,10 @@ describe('ProfilePage', () => {
       await waitFor(() =>
         expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/users/me'),
       );
-      expect(logout).toHaveBeenCalled();
+      expect(clearAuthStorage).toHaveBeenCalled();
       expect(window.location.href).toBe('/login');
+      // A reactive store clear would blank the page before it navigates.
+      expect(logout).not.toHaveBeenCalled();
     });
 
     it('shows an error toast on failure', async () => {

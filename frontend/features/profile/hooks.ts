@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
-import { useAuthStore } from '../../store/auth.store';
+import { clearAuthStorage, useAuthStore } from '../../store/auth.store';
 import type { DigestFrequency } from '../../types';
 
 export function useProfileQuery() {
@@ -67,11 +67,11 @@ export function useChangePasswordMutation(onChanged?: () => void) {
 }
 
 export function useDeleteAccountMutation() {
-  const { logout } = useAuthStore();
   return useMutation({
     mutationFn: () => api.delete('/users/me'),
     onSuccess: () => {
-      logout();
+      // Storage only, never the store - see clearAuthStorage.
+      clearAuthStorage();
       window.location.href = '/login';
     },
     onError: () => toast.error('Failed to delete account'),
