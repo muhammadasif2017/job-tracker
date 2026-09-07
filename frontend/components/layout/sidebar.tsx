@@ -38,7 +38,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const handleLogout = async () => {
     try {
       await api.post('/auth/logout');
-    } catch {}
+    } catch {
+      // Sign out locally whatever the server says: an expired token, an offline
+      // client, or a 500 must not strand the user in a signed-in shell.
+    }
     // Storage only, never the store: a reactive clear here would blank the
     // page before the browser leaves it.
     clearAuthStorage();

@@ -4,6 +4,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Boundaries
 
+- **Read `CONSTRAINTS.md` before writing code. Do not weaken it to make a change pass.** It holds this repo's quality floor, the enforced numbers, and the tracked exceptions. `npm run check:floor` checks the floor against your diff; `npm run check:migrations` checks a new migration declares its data-loss impact.
+
 - Never commit `.env` files or secrets — `.gitignore` covers `.env*`, but double-check diffs before pushing.
 - **Merging a migration to `main` migrates production automatically — there is no second approval gate.** `backend/Dockerfile.prod`'s CMD is `prisma migrate deploy && node dist/main`, so the deploy workflow's `docker compose up -d` restarts the container and the migration runs on startup. A destructive migration (`DROP COLUMN`, `DROP TABLE`) therefore takes effect on the prod Neon DB the moment the PR merges. Confirm the data loss with the user *before* merging, not before writing the migration — and note a green GitHub deploy run only proves the container started, so verify with `prisma migrate status` inside it afterwards.
 - Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it. See `backend/CLAUDE.md` ("Prisma 7 Quirks") for the post-migration `prisma generate` step.

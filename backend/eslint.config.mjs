@@ -47,6 +47,10 @@ export default tseslint.config(
     // Tests legitimately read untyped response bodies (supertest `res.body`).
     files: ['test/**/*.ts', '**/*.spec.ts'],
     rules: {
+      // `expect(logger.warn)` passes a method reference on purpose — it is never
+      // called through the reference, so the `this` scoping the rule warns about
+      // cannot happen. The rule has no way to tell that from a real unbound call.
+      '@typescript-eslint/unbound-method': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',

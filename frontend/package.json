@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "generate:api-types": "openapi-typescript http://localhost:3001/api/docs-json -o types/api.generated.ts && prettier --write types/api.generated.ts"
+    "generate:api-types": "openapi-typescript http://localhost:3001/api/docs-json -o types/api.generated.ts && prettier --write types/api.generated.ts",
+    "test:cov": "vitest run --coverage --testTimeout=20000",
+    "check:fast": "tsc --noEmit && eslint",
+    "check:task": "npm run check:fast && npm run test:cov && npm run build"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx}": [
@@ -55,6 +58,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "eslint": "^9.39.5",
     "eslint-config-next": "16.2.10",
     "eslint-config-prettier": "^10.1.8",

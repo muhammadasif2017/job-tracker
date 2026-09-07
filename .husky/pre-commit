@@ -1,2 +1,3 @@
 cd backend && npx lint-staged || exit 1
 cd ../frontend && npx lint-staged || exit 1
+cd .. && node scripts/floor-guard.mjs || exit 1

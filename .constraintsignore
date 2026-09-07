@@ -1,0 +1,4 @@
+# Paths exempt from scripts/floor-guard.mjs. One path prefix per line.
+# The guards match on suppression and stub patterns, so their own source is exempt.
+scripts/floor-guard.mjs
+scripts/migration-guard.mjs
