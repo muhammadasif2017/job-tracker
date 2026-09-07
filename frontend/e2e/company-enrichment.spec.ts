@@ -24,9 +24,9 @@ async function goToJob(page: Parameters<typeof injectAuth>[0], job: TestJob) {
   await injectAuth(page, user);
   await page.goto(`/jobs/${job.id}`);
   // First hit of this route can be slow under Turbopack dev's lazy compile.
-  await expect(
-    page.getByRole('heading', { name: job.company }),
-  ).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: job.company })).toBeVisible({
+    timeout: 15_000,
+  });
 }
 
 test.describe('Company enrichment card', () => {
@@ -66,9 +66,9 @@ test.describe('Company enrichment card', () => {
     // Worker does a real search + LLM extraction; give it real time to finish.
     // Both COMPLETED and FAILED render a "Refresh" button — PENDING/PROCESSING
     // do not — so its appearance is the terminal-state signal either way.
-    await expect(
-      page.getByRole('button', { name: 'Refresh' }),
-    ).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole('button', { name: 'Refresh' })).toBeVisible({
+      timeout: 45_000,
+    });
     await expect(page.getByText(/Queued…|Researching…/)).not.toBeVisible();
   });
 

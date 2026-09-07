@@ -15,7 +15,12 @@ describe('ChartCard', () => {
 
   it('shows the error message when error is true', () => {
     render(
-      <ChartCard title="Trend" loading={false} error errorMessage="Failed to load">
+      <ChartCard
+        title="Trend"
+        loading={false}
+        error
+        errorMessage="Failed to load"
+      >
         <div>content</div>
       </ChartCard>,
     );

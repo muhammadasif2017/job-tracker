@@ -2,7 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DashboardPage from './page';
-import type { JobStats, FunnelStats, TrendStats, PaginatedJobs, Job } from '../../types';
+import type {
+  JobStats,
+  FunnelStats,
+  TrendStats,
+  PaginatedJobs,
+  Job,
+} from '../../types';
 
 vi.mock('../../lib/api', () => ({
   default: { get: vi.fn() },
@@ -66,7 +72,10 @@ function makeJob(overrides: Partial<Job> = {}): Job {
 }
 
 function makeRecent(jobs: Job[] = []): PaginatedJobs {
-  return { data: jobs, meta: { total: jobs.length, page: 1, limit: 5, totalPages: 1 } };
+  return {
+    data: jobs,
+    meta: { total: jobs.length, page: 1, limit: 5, totalPages: 1 },
+  };
 }
 
 function mockApiRoutes({
@@ -83,10 +92,13 @@ function mockApiRoutes({
   attention?: unknown[];
 } = {}) {
   vi.mocked(api.get).mockImplementation((url: string) => {
-    if (url.startsWith('/jobs/stats/funnel')) return Promise.resolve({ data: funnel });
-    if (url.startsWith('/jobs/stats/trend')) return Promise.resolve({ data: trend });
+    if (url.startsWith('/jobs/stats/funnel'))
+      return Promise.resolve({ data: funnel });
+    if (url.startsWith('/jobs/stats/trend'))
+      return Promise.resolve({ data: trend });
     if (url.startsWith('/jobs/stats')) return Promise.resolve({ data: stats });
-    if (url.startsWith('/jobs/attention')) return Promise.resolve({ data: attention });
+    if (url.startsWith('/jobs/attention'))
+      return Promise.resolve({ data: attention });
     if (url.startsWith('/jobs')) return Promise.resolve({ data: recent });
     return Promise.reject(new Error(`unhandled url: ${url}`));
   });
@@ -109,11 +121,20 @@ describe('DashboardPage', () => {
   it('shows skeletons for the stat cards while loading', () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     const { container } = renderPage();
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('renders stat values once stats load', async () => {
-    mockApiRoutes({ stats: makeStats({ total: 12, thisMonth: 3, responseRate: 40, ghostRate: 8 }) });
+    mockApiRoutes({
+      stats: makeStats({
+        total: 12,
+        thisMonth: 3,
+        responseRate: 40,
+        ghostRate: 8,
+      }),
+    });
     renderPage();
 
     await waitFor(() => expect(screen.getByText('12')).toBeInTheDocument());
@@ -124,24 +145,35 @@ describe('DashboardPage', () => {
 
   it('shows a failure message in the status chart card when stats fail', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
-      if (url.startsWith('/jobs/stats') && !url.includes('funnel') && !url.includes('trend')) {
+      if (
+        url.startsWith('/jobs/stats') &&
+        !url.includes('funnel') &&
+        !url.includes('trend')
+      ) {
         return Promise.reject(new Error('network error'));
       }
-      if (url.startsWith('/jobs/stats/funnel')) return Promise.resolve({ data: makeFunnel() });
-      if (url.startsWith('/jobs/stats/trend')) return Promise.resolve({ data: makeTrend() });
-      if (url.startsWith('/jobs/attention')) return Promise.resolve({ data: [] });
+      if (url.startsWith('/jobs/stats/funnel'))
+        return Promise.resolve({ data: makeFunnel() });
+      if (url.startsWith('/jobs/stats/trend'))
+        return Promise.resolve({ data: makeTrend() });
+      if (url.startsWith('/jobs/attention'))
+        return Promise.resolve({ data: [] });
       return Promise.resolve({ data: makeRecent() });
     });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Failed to load chart.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Failed to load chart.')).toBeInTheDocument(),
+    );
   });
 
   it('shows the empty state with a link to add a job when there is no recent activity', async () => {
     mockApiRoutes({ recent: makeRecent([]) });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('No jobs tracked yet.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('No jobs tracked yet.')).toBeInTheDocument(),
+    );
     expect(
       screen.getByRole('link', { name: /add your first application/i }),
     ).toHaveAttribute('href', '/jobs');
@@ -150,12 +182,19 @@ describe('DashboardPage', () => {
   it('lists recent jobs with company, position, status, and applied date', async () => {
     mockApiRoutes({
       recent: makeRecent([
-        makeJob({ id: 'j-1', company: 'Acme Corp', position: 'Backend Engineer', appliedAt: '2026-01-05T00:00:00Z' }),
+        makeJob({
+          id: 'j-1',
+          company: 'Acme Corp',
+          position: 'Backend Engineer',
+          appliedAt: '2026-01-05T00:00:00Z',
+        }),
       ]),
     });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Acme Corp')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument(),
+    );
     expect(screen.getByText('Backend Engineer')).toBeInTheDocument();
     expect(screen.getByText('Jan 5, 2026')).toBeInTheDocument();
   });
@@ -183,12 +222,18 @@ describe('DashboardPage', () => {
   it('omits the timeline summary caption when not yet generated', async () => {
     mockApiRoutes({
       recent: makeRecent([
-        makeJob({ id: 'j-1', company: 'Acme Corp', position: 'Backend Engineer' }),
+        makeJob({
+          id: 'j-1',
+          company: 'Acme Corp',
+          position: 'Backend Engineer',
+        }),
       ]),
     });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Acme Corp')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Acme Corp')).toBeInTheDocument(),
+    );
     expect(
       screen.queryByText('Applied, then moved to interviewing.'),
     ).not.toBeInTheDocument();
@@ -196,16 +241,25 @@ describe('DashboardPage', () => {
 
   it('shows a failure message for recent activity when that call fails, independent of stats', async () => {
     vi.mocked(api.get).mockImplementation((url: string) => {
-      if (url.startsWith('/jobs?')) return Promise.reject(new Error('network error'));
-      if (url.startsWith('/jobs/stats/funnel')) return Promise.resolve({ data: makeFunnel() });
-      if (url.startsWith('/jobs/stats/trend')) return Promise.resolve({ data: makeTrend() });
-      if (url.startsWith('/jobs/stats')) return Promise.resolve({ data: makeStats() });
-      if (url.startsWith('/jobs/attention')) return Promise.resolve({ data: [] });
+      if (url.startsWith('/jobs?'))
+        return Promise.reject(new Error('network error'));
+      if (url.startsWith('/jobs/stats/funnel'))
+        return Promise.resolve({ data: makeFunnel() });
+      if (url.startsWith('/jobs/stats/trend'))
+        return Promise.resolve({ data: makeTrend() });
+      if (url.startsWith('/jobs/stats'))
+        return Promise.resolve({ data: makeStats() });
+      if (url.startsWith('/jobs/attention'))
+        return Promise.resolve({ data: [] });
       return Promise.reject(new Error(`unhandled url: ${url}`));
     });
     renderPage();
 
-    await waitFor(() => expect(screen.getByText('Failed to load recent jobs.')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('Failed to load recent jobs.'),
+      ).toBeInTheDocument(),
+    );
     // stats query is independent — it still resolves fine despite the jobs failure.
     await waitFor(() => expect(screen.getByText('12')).toBeInTheDocument());
   });
@@ -223,7 +277,11 @@ describe('DashboardPage', () => {
     await waitFor(() =>
       expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats?range=30d'),
     );
-    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/funnel?range=30d');
-    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/trend?range=30d');
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+      '/jobs/stats/funnel?range=30d',
+    );
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+      '/jobs/stats/trend?range=30d',
+    );
   });
 });

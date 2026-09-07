@@ -10,7 +10,15 @@ const { clearAuthStorage } = vi.hoisted(() => ({
 let mockUser: User | null = null;
 
 vi.mock('next/link', () => ({
-  default: ({ href, children, onClick }: { href: string; children: React.ReactNode; onClick?: () => void }) => (
+  default: ({
+    href,
+    children,
+    onClick,
+  }: {
+    href: string;
+    children: React.ReactNode;
+    onClick?: () => void;
+  }) => (
     <a href={href} onClick={onClick}>
       {children}
     </a>
@@ -43,20 +51,44 @@ describe('Sidebar', () => {
       writable: true,
       value: { href: '' },
     });
-    mockUser = { id: 'u-1', name: 'Jane Doe', email: 'jane@example.com', role: 'USER' };
+    mockUser = {
+      id: 'u-1',
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      role: 'USER',
+    };
   });
 
   it('renders the standard nav items but not Admin for a regular user', () => {
     render(<Sidebar isOpen onClose={vi.fn()} />);
-    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute('href', '/');
-    expect(screen.getByRole('link', { name: /^jobs$/i })).toHaveAttribute('href', '/jobs');
-    expect(screen.getByRole('link', { name: /companies/i })).toHaveAttribute('href', '/companies');
-    expect(screen.getByRole('link', { name: /profile/i })).toHaveAttribute('href', '/profile');
-    expect(screen.queryByRole('link', { name: /admin/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /dashboard/i })).toHaveAttribute(
+      'href',
+      '/',
+    );
+    expect(screen.getByRole('link', { name: /^jobs$/i })).toHaveAttribute(
+      'href',
+      '/jobs',
+    );
+    expect(screen.getByRole('link', { name: /companies/i })).toHaveAttribute(
+      'href',
+      '/companies',
+    );
+    expect(screen.getByRole('link', { name: /profile/i })).toHaveAttribute(
+      'href',
+      '/profile',
+    );
+    expect(
+      screen.queryByRole('link', { name: /admin/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('adds the Admin nav item for an ADMIN user', () => {
-    mockUser = { id: 'u-1', name: 'Jane Doe', email: 'jane@example.com', role: 'ADMIN' };
+    mockUser = {
+      id: 'u-1',
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      role: 'ADMIN',
+    };
     render(<Sidebar isOpen onClose={vi.fn()} />);
     expect(screen.getByRole('link', { name: /admin/i })).toHaveAttribute(
       'href',
@@ -74,7 +106,9 @@ describe('Sidebar', () => {
     vi.mocked(api.post).mockResolvedValue({ data: {} });
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
-    await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/logout'));
+    await waitFor(() =>
+      expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/logout'),
+    );
     expect(clearAuthStorage).toHaveBeenCalled();
     expect(window.location.href).toBe('/login');
     // The reactive clear would re-render the mounted page with user: null,

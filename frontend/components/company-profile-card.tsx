@@ -11,7 +11,11 @@ import { Button } from './ui/button';
 import { Skeleton } from './ui/skeleton';
 import { FieldValue } from './ui/field-value';
 import api, { getErrorMessage } from '../lib/api';
-import { BUSINESS_MODE_LABELS, type Company, type CompanyProfile } from '../types';
+import {
+  BUSINESS_MODE_LABELS,
+  type Company,
+  type CompanyProfile,
+} from '../types';
 
 // Company and CompanyProfile share the exact same enrichment-field subset
 // (status, industry, ..., enrichedAt) — Company is that subset plus identity

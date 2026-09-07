@@ -103,9 +103,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
 
           {confirming ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-sm text-muted">
-                Remove resume?
-              </span>
+              <span className="text-sm text-muted">Remove resume?</span>
               <Button
                 type="button"
                 variant="danger"

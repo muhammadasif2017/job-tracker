@@ -3,7 +3,11 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { useForm } from 'react-hook-form';
 import { TimezoneField } from './timezone-field';
 
-function Harness({ onUseBrowserTimezone }: { onUseBrowserTimezone: (tz: string) => void }) {
+function Harness({
+  onUseBrowserTimezone,
+}: {
+  onUseBrowserTimezone: (tz: string) => void;
+}) {
   const { register } = useForm<{ timezone: string }>({
     defaultValues: { timezone: 'UTC' },
   });
@@ -19,9 +23,7 @@ describe('TimezoneField', () => {
   it('renders a select with UTC as an option', () => {
     render(<Harness onUseBrowserTimezone={vi.fn()} />);
     expect(screen.getByLabelText('Timezone')).toBeInTheDocument();
-    expect(
-      screen.getByRole('option', { name: 'UTC' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'UTC' })).toBeInTheDocument();
   });
 
   it('calls onUseBrowserTimezone with the resolved browser timezone', () => {

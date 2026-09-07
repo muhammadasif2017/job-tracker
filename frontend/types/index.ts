@@ -47,9 +47,7 @@ export const APPLICATION_CHANNELS = [
 export type ApplicationChannel = (typeof APPLICATION_CHANNELS)[number];
 
 export type JobEventType =
-  | 'CREATED'
-  | 'STATUS_CHANGE'
-  | 'INTERVIEW_ROUND_ADDED';
+  'CREATED' | 'STATUS_CHANGE' | 'INTERVIEW_ROUND_ADDED';
 
 export interface JobEvent {
   id: string;
@@ -414,7 +412,8 @@ export const DERIVED_STATUS_LABELS: Partial<
 export const DERIVED_STATUS_COLORS: Partial<
   Record<InterviewRoundDerivedStatus, string>
 > = {
-  SCHEDULED: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
+  SCHEDULED:
+    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
   AWAITING_RESPONSE:
     'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
   POSSIBLY_GHOSTED:

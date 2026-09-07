@@ -218,7 +218,9 @@ test.describe('Profile page', () => {
     await expect(
       revokeModal.getByRole('heading', { name: 'Revoke token?' }),
     ).toBeVisible();
-    await revokeModal.getByRole('button', { name: 'Yes, revoke token' }).click();
+    await revokeModal
+      .getByRole('button', { name: 'Yes, revoke token' })
+      .click();
     await expect(page.getByText('Token revoked')).toBeVisible();
     await expect(row).not.toBeVisible();
   });
@@ -259,7 +261,9 @@ test.describe('Profile page', () => {
     await expect(
       revokeModal.getByRole('heading', { name: 'Revoke token?' }),
     ).toBeVisible();
-    await revokeModal.getByRole('button', { name: 'Yes, revoke token' }).click();
+    await revokeModal
+      .getByRole('button', { name: 'Yes, revoke token' })
+      .click();
 
     await expect(page.getByText('Token revoked')).toBeVisible();
     await expect(row).not.toBeVisible();

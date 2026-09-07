@@ -45,7 +45,9 @@ const users: AdminUser[] = [
   },
 ];
 
-function page(overrides: Partial<PaginatedAdminUsers> = {}): PaginatedAdminUsers {
+function page(
+  overrides: Partial<PaginatedAdminUsers> = {},
+): PaginatedAdminUsers {
   return {
     data: users,
     meta: { total: 2, page: 1, limit: 10, totalPages: 1 },
@@ -76,18 +78,27 @@ describe('AdminUsersPage', () => {
     it('shows skeleton rows while the query is pending', () => {
       vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
       const { container } = render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
           <AdminUsersPage />
         </QueryClientProvider>,
       );
-      expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+      expect(
+        container.querySelectorAll('.animate-pulse').length,
+      ).toBeGreaterThan(0);
     });
   });
 
   describe('empty state', () => {
     it('shows "No users found" when there are no users', async () => {
       vi.mocked(api.get).mockResolvedValue({
-        data: page({ data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } }),
+        data: page({
+          data: [],
+          meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+        }),
       });
       renderPage();
       expect(await screen.findByText('No users found')).toBeInTheDocument();
@@ -98,7 +109,9 @@ describe('AdminUsersPage', () => {
     it('shows a failed-to-load message instead of an empty table when the query errors', async () => {
       vi.mocked(api.get).mockRejectedValue(new Error('network down'));
       renderPage();
-      expect(await screen.findByText('Failed to load users')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Failed to load users'),
+      ).toBeInTheDocument();
       expect(screen.queryByText('No users found')).not.toBeInTheDocument();
     });
   });
@@ -111,7 +124,9 @@ describe('AdminUsersPage', () => {
       expect(screen.getByText('jane@example.com')).toBeInTheDocument();
       expect(screen.getByText('ADMIN')).toBeInTheDocument();
       expect(screen.getByText('12')).toBeInTheDocument();
-      expect(screen.getByText(formatDateTime('2026-06-01T00:00:00Z'))).toBeInTheDocument();
+      expect(
+        screen.getByText(formatDateTime('2026-06-01T00:00:00Z')),
+      ).toBeInTheDocument();
       expect(screen.getByText('Bob Smith')).toBeInTheDocument();
       expect(screen.getByText('USER')).toBeInTheDocument();
       expect(screen.getByText('2 registered users')).toBeInTheDocument();
@@ -193,12 +208,16 @@ describe('AdminUsersPage', () => {
       renderPage();
       await screen.findByText('Jane Doe');
       expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /^next$/i })).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /^next$/i }),
+      ).not.toBeDisabled();
 
       fireEvent.click(screen.getByRole('button', { name: /^next$/i }));
       await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
       expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /previous/i })).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /previous/i }),
+      ).not.toBeDisabled();
       expect(screen.getByRole('button', { name: /^next$/i })).toBeDisabled();
     });
   });

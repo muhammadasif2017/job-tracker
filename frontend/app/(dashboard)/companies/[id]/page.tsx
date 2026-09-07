@@ -16,7 +16,10 @@ import { CompanyProfileCard } from '../../../../components/company-profile-card'
 import { CompanyForm } from '../../../../components/companies/company-form';
 import { CompanyContacts } from '../../../../components/companies/company-contacts';
 import { CompanyJobs } from '../../../../components/companies/company-jobs';
-import { useCompanyQuery, useDeleteCompanyMutation } from '../../../../features/companies/hooks';
+import {
+  useCompanyQuery,
+  useDeleteCompanyMutation,
+} from '../../../../features/companies/hooks';
 
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -60,7 +63,9 @@ export default function CompanyDetailPage() {
           <div className="rounded-md border border-line bg-paper p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">{company.name}</h1>
+                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">
+                  {company.name}
+                </h1>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <CityBadge city={company.city} />
                   <PriorityBadge priority={company.priority} />

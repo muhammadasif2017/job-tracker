@@ -43,14 +43,28 @@ vi.mock('../../../../components/jobs/resume-upload', () => ({
 }));
 
 vi.mock('../../../../components/jobs/interview-rounds', () => ({
-  InterviewRounds: ({ jobId, rounds }: { jobId: string; rounds: unknown[] }) => (
-    <div data-testid="interview-rounds" data-job-id={jobId} data-count={rounds.length} />
+  InterviewRounds: ({
+    jobId,
+    rounds,
+  }: {
+    jobId: string;
+    rounds: unknown[];
+  }) => (
+    <div
+      data-testid="interview-rounds"
+      data-job-id={jobId}
+      data-count={rounds.length}
+    />
   ),
 }));
 
 vi.mock('../../../../components/jobs/contacts', () => ({
   Contacts: ({ jobId, contacts }: { jobId: string; contacts: unknown[] }) => (
-    <div data-testid="contacts" data-job-id={jobId} data-count={contacts.length} />
+    <div
+      data-testid="contacts"
+      data-job-id={jobId}
+      data-count={contacts.length}
+    />
   ),
 }));
 
@@ -127,11 +141,17 @@ describe('JobDetailPage', () => {
     it('shows skeletons while the job query is pending', () => {
       vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
       const { container } = render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
           <JobDetailPage />
         </QueryClientProvider>,
       );
-      expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+      expect(
+        container.querySelectorAll('.animate-pulse').length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -146,15 +166,21 @@ describe('JobDetailPage', () => {
   describe('error state', () => {
     it('shows "Failed to load job." (not "Job not found.") on a non-404 failure', async () => {
       vi.mocked(api.get).mockImplementation((url: string) => {
-        if (url === '/jobs/j-1') return Promise.reject(new Error('network down'));
+        if (url === '/jobs/j-1')
+          return Promise.reject(new Error('network down'));
         if (url === '/jobs/j-1/events')
           return Promise.resolve({
-            data: { data: [], meta: { total: 0, page: 1, limit: 50, totalPages: 0 } },
+            data: {
+              data: [],
+              meta: { total: 0, page: 1, limit: 50, totalPages: 0 },
+            },
           });
         return Promise.reject(new Error(`unexpected GET ${url}`));
       });
       renderPage();
-      expect(await screen.findByText('Failed to load job.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Failed to load job.'),
+      ).toBeInTheDocument();
       expect(screen.queryByText('Job not found.')).not.toBeInTheDocument();
     });
   });
@@ -166,8 +192,12 @@ describe('JobDetailPage', () => {
       expect(await screen.findByText('Acme')).toBeInTheDocument();
       expect(screen.getByText('Senior Engineer')).toBeInTheDocument();
       expect(screen.getByDisplayValue('Interviewing')).toBeInTheDocument();
-      expect(screen.getByText(formatCivilDate('2026-06-01T00:00:00Z'))).toBeInTheDocument();
-      expect(screen.getByText(formatCivilDate('2026-06-15T00:00:00Z'))).toBeInTheDocument();
+      expect(
+        screen.getByText(formatCivilDate('2026-06-01T00:00:00Z')),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(formatCivilDate('2026-06-15T00:00:00Z')),
+      ).toBeInTheDocument();
       expect(screen.getByText('Austin, TX')).toBeInTheDocument();
       expect(screen.getByText('Great referral from Bob')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /open link/i })).toHaveAttribute(
@@ -223,10 +253,19 @@ describe('JobDetailPage', () => {
       });
       renderPage();
       await screen.findByText('Acme');
-      expect(screen.getByTestId('resume-upload')).toHaveAttribute('data-job-id', 'j-1');
-      expect(screen.getByTestId('interview-rounds')).toHaveAttribute('data-count', '1');
+      expect(screen.getByTestId('resume-upload')).toHaveAttribute(
+        'data-job-id',
+        'j-1',
+      );
+      expect(screen.getByTestId('interview-rounds')).toHaveAttribute(
+        'data-count',
+        '1',
+      );
       expect(screen.getByTestId('contacts')).toHaveAttribute('data-count', '1');
-      expect(screen.getByTestId('company-profile-card')).toHaveAttribute('data-job-id', 'j-1');
+      expect(screen.getByTestId('company-profile-card')).toHaveAttribute(
+        'data-job-id',
+        'j-1',
+      );
     });
   });
 
@@ -277,7 +316,9 @@ describe('JobDetailPage', () => {
   describe('status change', () => {
     it('patches the status and invalidates dependent queries', async () => {
       mockJobAndEvents(job);
-      vi.mocked(api.patch).mockResolvedValue({ data: { ...job, status: 'OFFER' } });
+      vi.mocked(api.patch).mockResolvedValue({
+        data: { ...job, status: 'OFFER' },
+      });
       const { qc } = renderPage();
       const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
       await screen.findByText('Acme');
@@ -289,10 +330,20 @@ describe('JobDetailPage', () => {
           status: 'OFFER',
         }),
       );
-      await waitFor(() => expect(screen.getByDisplayValue('Offer')).toBeInTheDocument());
-      const invalidatedKeys = invalidateSpy.mock.calls.map((c) => (c[0] as { queryKey: unknown[] }).queryKey[0]);
+      await waitFor(() =>
+        expect(screen.getByDisplayValue('Offer')).toBeInTheDocument(),
+      );
+      const invalidatedKeys = invalidateSpy.mock.calls.map(
+        (c) => (c[0] as { queryKey: unknown[] }).queryKey[0],
+      );
       expect(invalidatedKeys).toEqual(
-        expect.arrayContaining(['job-events', 'jobs', 'stats', 'analytics', 'attention']),
+        expect.arrayContaining([
+          'job-events',
+          'jobs',
+          'stats',
+          'analytics',
+          'attention',
+        ]),
       );
     });
 
@@ -336,14 +387,20 @@ describe('JobDetailPage', () => {
       vi.mocked(api.patch).mockResolvedValue({ data: patchResponse });
       renderPage();
       await screen.findByText('Acme');
-      expect(screen.getByTestId('interview-rounds')).toHaveAttribute('data-count', '1');
+      expect(screen.getByTestId('interview-rounds')).toHaveAttribute(
+        'data-count',
+        '1',
+      );
       fireEvent.change(screen.getByDisplayValue('Interviewing'), {
         target: { value: 'OFFER' },
       });
       await waitFor(() =>
         expect(screen.getByDisplayValue('Offer')).toBeInTheDocument(),
       );
-      expect(screen.getByTestId('interview-rounds')).toHaveAttribute('data-count', '1');
+      expect(screen.getByTestId('interview-rounds')).toHaveAttribute(
+        'data-count',
+        '1',
+      );
       expect(screen.getByTestId('contacts')).toHaveAttribute('data-count', '1');
     });
 
@@ -351,7 +408,10 @@ describe('JobDetailPage', () => {
       mockJobAndEvents(job);
       vi.mocked(api.patch).mockRejectedValue({
         isAxiosError: true,
-        response: { status: 409, data: { message: 'Status changed concurrently' } },
+        response: {
+          status: 409,
+          data: { message: 'Status changed concurrently' },
+        },
       });
       renderPage();
       await screen.findByText('Acme');
@@ -366,7 +426,8 @@ describe('JobDetailPage', () => {
       // Refetch after the conflict re-fetches /jobs/j-1 beyond the initial load.
       await waitFor(() =>
         expect(
-          vi.mocked(api.get).mock.calls.filter((c) => c[0] === '/jobs/j-1').length,
+          vi.mocked(api.get).mock.calls.filter((c) => c[0] === '/jobs/j-1')
+            .length,
         ).toBeGreaterThan(1),
       );
     });
@@ -410,7 +471,10 @@ describe('JobDetailPage', () => {
       renderPage();
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-      expect(screen.getByTestId('job-form')).toHaveAttribute('data-job-id', 'j-1');
+      expect(screen.getByTestId('job-form')).toHaveAttribute(
+        'data-job-id',
+        'j-1',
+      );
     });
   });
 });

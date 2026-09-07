@@ -2,7 +2,8 @@ import { cn } from '../../lib/utils';
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 const variants = {
-  primary: 'bg-accent text-accent-fg hover:brightness-110 focus-visible:ring-accent',
+  primary:
+    'bg-accent text-accent-fg hover:brightness-110 focus-visible:ring-accent',
   secondary: 'bg-paper-raised text-ink border border-line hover:border-muted-2',
   ghost: 'text-muted hover:bg-paper-raised hover:text-ink',
   danger: 'bg-danger text-white hover:brightness-110 focus-visible:ring-danger',

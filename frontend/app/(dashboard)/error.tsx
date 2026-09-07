@@ -17,10 +17,11 @@ export default function DashboardErrorPage({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">
-      <h2 className="font-display text-lg font-semibold text-ink">Something went wrong</h2>
+      <h2 className="font-display text-lg font-semibold text-ink">
+        Something went wrong
+      </h2>
       <p className="text-sm text-muted">
-        An unexpected error occurred. Try again or head back to the
-        dashboard.
+        An unexpected error occurred. Try again or head back to the dashboard.
       </p>
       <Button onClick={() => unstable_retry()}>Try again</Button>
     </div>

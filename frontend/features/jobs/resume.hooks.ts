@@ -5,7 +5,10 @@ import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type { Resume } from '../../types';
 
-export function useResumeQuery(jobId: string | null, initialResume?: Resume | null) {
+export function useResumeQuery(
+  jobId: string | null,
+  initialResume?: Resume | null,
+) {
   const [initialTimestamp] = useState<number | undefined>(() =>
     initialResume !== undefined ? Date.now() : undefined,
   );

@@ -45,13 +45,11 @@ test.describe('Resume upload', () => {
   test('uploads a PDF and shows it attached', async ({ page }) => {
     await goToJob(page, job);
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'resume.pdf',
-        mimeType: 'application/pdf',
-        buffer: pdfBuffer(1024),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdfBuffer(1024),
+    });
 
     await expect(page.getByText('Resume uploaded')).toBeVisible();
     await expect(page.getByText('resume.pdf')).toBeVisible();
@@ -60,13 +58,11 @@ test.describe('Resume upload', () => {
   test('rejects a non-PDF file client-side', async ({ page }) => {
     await goToJob(page, job);
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'resume.txt',
-        mimeType: 'text/plain',
-        buffer: Buffer.from('not a pdf'),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'resume.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('not a pdf'),
+    });
 
     await expect(page.getByText('Only PDF files are allowed')).toBeVisible();
     await expect(page.getByText('resume.txt')).not.toBeVisible();
@@ -75,13 +71,11 @@ test.describe('Resume upload', () => {
   test('rejects a PDF over 8 MB client-side', async ({ page }) => {
     await goToJob(page, job);
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'big.pdf',
-        mimeType: 'application/pdf',
-        buffer: pdfBuffer(8 * 1024 * 1024 + 1),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'big.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdfBuffer(8 * 1024 * 1024 + 1),
+    });
 
     await expect(page.getByText('File must be under 8 MB')).toBeVisible();
     await expect(page.getByText('big.pdf')).not.toBeVisible();
@@ -90,13 +84,11 @@ test.describe('Resume upload', () => {
   test('removes an attached resume after confirmation', async ({ page }) => {
     await goToJob(page, job);
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'resume.pdf',
-        mimeType: 'application/pdf',
-        buffer: pdfBuffer(1024),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdfBuffer(1024),
+    });
     await expect(page.getByText('Resume uploaded')).toBeVisible();
 
     await page.getByRole('button', { name: 'Remove' }).click();

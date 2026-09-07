@@ -96,9 +96,7 @@ describe('JobForm', () => {
     it('pre-fills fields from the job prop', () => {
       renderForm({ job });
       expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
-      expect(screen.getByLabelText(/position/i)).toHaveValue(
-        'Senior Engineer',
-      );
+      expect(screen.getByLabelText(/position/i)).toHaveValue('Senior Engineer');
       expect(screen.getByLabelText(/job url/i)).toHaveValue(
         'https://acme.example/jobs/1',
       );
@@ -125,9 +123,7 @@ describe('JobForm', () => {
       // Modal renders into a Radix portal on document.body, outside RTL's
       // container, so query the form from the document.
       fireEvent.submit(document.querySelector('form')!);
-      expect(
-        await screen.findByText('Enter a valid URL'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Enter a valid URL')).toBeInTheDocument();
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
 
@@ -144,9 +140,7 @@ describe('JobForm', () => {
         target: { value: 'not-a-url' },
       });
       fireEvent.click(screen.getByRole('button', { name: /add job/i }));
-      expect(
-        await screen.findByText('Enter a valid URL'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Enter a valid URL')).toBeInTheDocument();
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
   });
@@ -249,7 +243,9 @@ describe('JobForm', () => {
       expect(link).toHaveAttribute('href', '/companies/company-1');
 
       fireEvent.click(screen.getByRole('button', { name: /dismiss/i }));
-      expect(screen.queryByRole('link', { name: 'Systems Limited' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: 'Systems Limited' }),
+      ).not.toBeInTheDocument();
     });
 
     it('does not render a banner when there is no matched company', async () => {
@@ -261,7 +257,9 @@ describe('JobForm', () => {
       fireEvent.click(screen.getByRole('button', { name: /add job/i }));
 
       await screen.findByText('Job Added');
-      expect(screen.queryByRole('button', { name: /dismiss/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /dismiss/i }),
+      ).not.toBeInTheDocument();
     });
   });
 

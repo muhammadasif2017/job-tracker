@@ -43,7 +43,9 @@ export function useUpdateNotificationsMutation() {
       toast.success('Notification preferences updated');
     },
     onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Failed to update notification preferences')),
+      toast.error(
+        getErrorMessage(err, 'Failed to update notification preferences'),
+      ),
   });
 }
 

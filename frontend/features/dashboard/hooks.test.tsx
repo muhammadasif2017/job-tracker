@@ -47,8 +47,12 @@ describe('useFunnelQuery', () => {
     const { result } = renderHook(() => useFunnelQuery('90d'), { wrapper });
 
     await waitFor(() => expect(result.current.data).toEqual({ stages: [] }));
-    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/funnel?range=90d');
-    expect(qc.getQueryData(['analytics', 'funnel', '90d'])).toEqual({ stages: [] });
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+      '/jobs/stats/funnel?range=90d',
+    );
+    expect(qc.getQueryData(['analytics', 'funnel', '90d'])).toEqual({
+      stages: [],
+    });
   });
 });
 
@@ -61,8 +65,12 @@ describe('useTrendQuery', () => {
     const { result } = renderHook(() => useTrendQuery('all'), { wrapper });
 
     await waitFor(() => expect(result.current.data).toEqual({ points: [] }));
-    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats/trend?range=all');
-    expect(qc.getQueryData(['analytics', 'trend', 'all'])).toEqual({ points: [] });
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+      '/jobs/stats/trend?range=all',
+    );
+    expect(qc.getQueryData(['analytics', 'trend', 'all'])).toEqual({
+      points: [],
+    });
   });
 });
 
@@ -70,7 +78,10 @@ describe('useRecentJobsQuery', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('fetches the 5 most recent jobs under the shared jobs list key', async () => {
-    const data = { data: [], meta: { total: 0, page: 1, limit: 5, totalPages: 0 } };
+    const data = {
+      data: [],
+      meta: { total: 0, page: 1, limit: 5, totalPages: 0 },
+    };
     vi.mocked(api.get).mockResolvedValue({ data });
     const { qc, wrapper } = makeWrapper();
     const { result } = renderHook(() => useRecentJobsQuery(), { wrapper });

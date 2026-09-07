@@ -40,7 +40,9 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Admin — Users</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          Admin — Users
+        </h1>
         <p className="text-sm text-muted">
           {isError && !data
             ? 'Failed to load'
@@ -76,10 +78,7 @@ export default function AdminUsersPage() {
               ))}
             </tr>
           </thead>
-          <tbody
-            className="divide-y divide-line"
-            aria-busy={isLoading}
-          >
+          <tbody className="divide-y divide-line" aria-busy={isLoading}>
             {isLoading ? (
               <>
                 <tr>
@@ -128,12 +127,8 @@ export default function AdminUsersPage() {
                   key={u.id}
                   className="transition-colors hover:bg-paper-raised"
                 >
-                  <td className="px-4 py-3 font-medium text-ink">
-                    {u.name}
-                  </td>
-                  <td className="px-4 py-3 text-muted">
-                    {u.email}
-                  </td>
+                  <td className="px-4 py-3 font-medium text-ink">{u.name}</td>
+                  <td className="px-4 py-3 text-muted">{u.email}</td>
                   <td className="px-4 py-3">
                     <span
                       className={cn(
@@ -205,7 +200,10 @@ export default function AdminUsersPage() {
         }
       >
         <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" onClick={() => setDeleteTarget(undefined)}>
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteTarget(undefined)}
+          >
             Cancel
           </Button>
           <Button

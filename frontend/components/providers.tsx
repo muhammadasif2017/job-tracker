@@ -37,7 +37,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <Toaster position="top-right" richColors theme={isDark ? 'dark' : 'light'} />
+      <Toaster
+        position="top-right"
+        richColors
+        theme={isDark ? 'dark' : 'light'}
+      />
     </QueryClientProvider>
   );
 }

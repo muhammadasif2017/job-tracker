@@ -45,7 +45,9 @@ const baseCompany: Company = {
   updatedAt: '2026-06-01T00:00:00Z',
 };
 
-function renderForm(props: Partial<React.ComponentProps<typeof CompanyForm>> = {}) {
+function renderForm(
+  props: Partial<React.ComponentProps<typeof CompanyForm>> = {},
+) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const onClose = props.onClose ?? vi.fn();
   render(
@@ -108,9 +110,7 @@ describe('CompanyForm', () => {
     it('shows a required-field error when submitting blank', async () => {
       renderForm();
       fireEvent.click(screen.getByRole('button', { name: /add company/i }));
-      expect(
-        await screen.findByText('Name is required'),
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Name is required')).toBeInTheDocument();
       expect(vi.mocked(api.post)).not.toHaveBeenCalled();
     });
   });

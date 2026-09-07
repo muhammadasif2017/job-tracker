@@ -65,14 +65,12 @@ describe('Contacts', () => {
       renderContacts([contact]);
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
       expect(screen.getByText('Recruiter')).toBeInTheDocument();
-      expect(screen.getByRole('link', { name: /jane\.doe@example\.com/ })).toHaveAttribute(
-        'href',
-        'mailto:jane.doe@example.com',
-      );
-      expect(screen.getByRole('link', { name: /\+15551234567/ })).toHaveAttribute(
-        'href',
-        'tel:+15551234567',
-      );
+      expect(
+        screen.getByRole('link', { name: /jane\.doe@example\.com/ }),
+      ).toHaveAttribute('href', 'mailto:jane.doe@example.com');
+      expect(
+        screen.getByRole('link', { name: /\+15551234567/ }),
+      ).toHaveAttribute('href', 'tel:+15551234567');
       expect(screen.getByRole('link', { name: /linkedin/i })).toHaveAttribute(
         'href',
         'https://www.linkedin.com/in/janedoe',
@@ -81,7 +79,16 @@ describe('Contacts', () => {
     });
 
     it('omits optional fields that are null', () => {
-      renderContacts([{ ...contact, role: null, email: null, phone: null, linkedinUrl: null, notes: null }]);
+      renderContacts([
+        {
+          ...contact,
+          role: null,
+          email: null,
+          phone: null,
+          linkedinUrl: null,
+          notes: null,
+        },
+      ]);
       expect(screen.getByText('Jane Doe')).toBeInTheDocument();
       expect(screen.queryByText('Recruiter')).not.toBeInTheDocument();
       expect(screen.queryByRole('link')).not.toBeInTheDocument();
@@ -170,14 +177,18 @@ describe('Contacts', () => {
       renderContacts([contact]);
       fireEvent.click(screen.getByRole('button', { name: /edit jane doe/i }));
       expect(screen.getByLabelText(/^name$/i)).toHaveValue('Jane Doe');
-      expect(screen.getByLabelText(/email/i)).toHaveValue('jane.doe@example.com');
+      expect(screen.getByLabelText(/email/i)).toHaveValue(
+        'jane.doe@example.com',
+      );
     });
 
     it('sends email: null when an existing email is cleared, not omitted/undefined', async () => {
       vi.mocked(api.patch).mockResolvedValue({ data: contact });
       renderContacts([contact]);
       fireEvent.click(screen.getByRole('button', { name: /edit jane doe/i }));
-      fireEvent.change(screen.getByLabelText(/email/i), { target: { value: '' } });
+      fireEvent.change(screen.getByLabelText(/email/i), {
+        target: { value: '' },
+      });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
       const [url, payload] = vi.mocked(api.patch).mock.calls[0];
@@ -192,7 +203,9 @@ describe('Contacts', () => {
       fireEvent.click(screen.getByRole('button', { name: /edit jane doe/i }));
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() =>
-        expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Contact updated'),
+        expect(vi.mocked(toast.success)).toHaveBeenCalledWith(
+          'Contact updated',
+        ),
       );
     });
   });
@@ -213,7 +226,9 @@ describe('Contacts', () => {
   describe('delete flow', () => {
     it('toggles a confirm prompt and reverts on No', () => {
       renderContacts([contact]);
-      fireEvent.click(screen.getByRole('button', { name: /^remove jane doe$/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /^remove jane doe$/i }),
+      );
       expect(screen.getByText('Remove?')).toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: /cancel remove/i }));
       expect(screen.queryByText('Remove?')).not.toBeInTheDocument();
@@ -223,10 +238,16 @@ describe('Contacts', () => {
     it('deletes on Yes and shows a success toast', async () => {
       vi.mocked(api.delete).mockResolvedValue({ data: {} });
       renderContacts([contact]);
-      fireEvent.click(screen.getByRole('button', { name: /^remove jane doe$/i }));
-      fireEvent.click(screen.getByRole('button', { name: /confirm remove jane doe/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /^remove jane doe$/i }),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /confirm remove jane doe/i }),
+      );
       await waitFor(() =>
-        expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/jobs/j-1/contacts/c-1'),
+        expect(vi.mocked(api.delete)).toHaveBeenCalledWith(
+          '/jobs/j-1/contacts/c-1',
+        ),
       );
       expect(vi.mocked(toast.success)).toHaveBeenCalledWith('Contact removed');
     });
@@ -245,17 +266,25 @@ describe('Contacts', () => {
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() =>
-        expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Duplicate contact'),
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'Duplicate contact',
+        ),
       );
     });
 
     it('falls back to a generic message when the error has no server message', async () => {
       vi.mocked(api.delete).mockRejectedValue(new Error('network down'));
       renderContacts([contact]);
-      fireEvent.click(screen.getByRole('button', { name: /^remove jane doe$/i }));
-      fireEvent.click(screen.getByRole('button', { name: /confirm remove jane doe/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /^remove jane doe$/i }),
+      );
+      fireEvent.click(
+        screen.getByRole('button', { name: /confirm remove jane doe/i }),
+      );
       await waitFor(() =>
-        expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Failed to remove contact'),
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'Failed to remove contact',
+        ),
       );
     });
   });

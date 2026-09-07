@@ -33,7 +33,10 @@ import {
 // a real hydration mismatch on the <option> list. ssr: false keeps it out of
 // the server-rendered HTML entirely so there's nothing to mismatch.
 const TimezoneField = dynamic(
-  () => import('../../../components/profile/timezone-field').then((m) => m.TimezoneField),
+  () =>
+    import('../../../components/profile/timezone-field').then(
+      (m) => m.TimezoneField,
+    ),
   { ssr: false, loading: () => <Skeleton className="h-9 w-full max-w-xs" /> },
 );
 
@@ -134,19 +137,25 @@ export default function ProfilePage() {
       await navigator.clipboard.writeText(token);
       toast.success('Copied to clipboard');
     } catch {
-      toast.error('Could not copy — select the token text and copy it manually');
+      toast.error(
+        'Could not copy — select the token text and copy it manually',
+      );
     }
   };
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Profile</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          Profile
+        </h1>
         <p className="text-sm text-muted">Manage your account</p>
       </div>
 
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Personal Info</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Personal Info
+        </h2>
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft font-mono text-lg font-bold text-accent-ink">
             {user?.name?.charAt(0).toUpperCase()}
@@ -173,7 +182,9 @@ export default function ProfilePage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Email Notifications</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Email Notifications
+        </h2>
         <form
           onSubmit={notificationsForm.handleSubmit((d) =>
             updateNotifications.mutate(d),
@@ -232,7 +243,9 @@ export default function ProfilePage() {
 
       {user?.connectedProviders && user.connectedProviders.length > 0 && (
         <div className="rounded-md border border-line bg-paper p-5 space-y-3">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Connected Accounts</h2>
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Connected Accounts
+          </h2>
           {['github'].map((provider) => {
             const connected = user.connectedProviders!.includes(provider);
             return (
@@ -254,7 +267,9 @@ export default function ProfilePage() {
 
       {hasPassword && (
         <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Change Password</h2>
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+            Change Password
+          </h2>
           <form
             onSubmit={passwordForm.handleSubmit((d) =>
               changePassword.mutate(d),
@@ -289,7 +304,9 @@ export default function ProfilePage() {
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Personal access tokens</h2>
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+              Personal access tokens
+            </h2>
             <p className="text-sm text-muted">
               Used by the browser extension to import job postings.
             </p>
@@ -315,7 +332,9 @@ export default function ProfilePage() {
                 className="flex items-center justify-between gap-4 py-3"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-ink">{t.name}</p>
+                  <p className="truncate text-sm font-medium text-ink">
+                    {t.name}
+                  </p>
                   <p className="text-xs text-muted">
                     Created {formatDate(t.createdAt)} &middot;{' '}
                     {t.lastUsedAt

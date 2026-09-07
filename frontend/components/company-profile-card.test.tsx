@@ -190,9 +190,7 @@ describe('CompanyProfileCard', () => {
       expect(
         screen.getByText(/couldn't find any public information/),
       ).toBeInTheDocument();
-      expect(
-        screen.getByText(/Adding a company website/),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/Adding a company website/)).toBeInTheDocument();
       expect(
         screen.queryByText(/No extractable content/),
       ).not.toBeInTheDocument();
@@ -317,7 +315,11 @@ describe('CompanyProfileCard', () => {
     // entirely, unlike every other "prior data" test above.
     it('shows fields instead of the loading skeleton while PENDING', () => {
       renderCard(
-        makeProfile({ status: 'PENDING', industry: 'Fintech', enrichedAt: undefined }),
+        makeProfile({
+          status: 'PENDING',
+          industry: 'Fintech',
+          enrichedAt: undefined,
+        }),
       );
       expect(screen.getByText('Fintech')).toBeInTheDocument();
     });
@@ -345,9 +347,7 @@ describe('CompanyProfileCard', () => {
           enrichedAt: undefined,
         }),
       );
-      expect(
-        screen.getByText('Small, senior-heavy team.'),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Small, senior-heavy team.')).toBeInTheDocument();
     });
   });
 

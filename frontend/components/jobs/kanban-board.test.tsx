@@ -57,7 +57,11 @@ vi.mock('@hello-pangea/dnd', () => ({
     ) => React.ReactNode;
   }) =>
     children(
-      { innerRef: () => {}, droppableProps: {}, placeholder: null } as unknown as DroppableProvided,
+      {
+        innerRef: () => {},
+        droppableProps: {},
+        placeholder: null,
+      } as unknown as DroppableProvided,
       { isDraggingOver: false } as unknown as DroppableStateSnapshot,
     ),
   Draggable: ({
@@ -69,7 +73,11 @@ vi.mock('@hello-pangea/dnd', () => ({
     ) => React.ReactNode;
   }) =>
     children(
-      { innerRef: () => {}, draggableProps: {}, dragHandleProps: {} } as unknown as DraggableProvided,
+      {
+        innerRef: () => {},
+        draggableProps: {},
+        dragHandleProps: {},
+      } as unknown as DraggableProvided,
       { isDragging: false } as unknown as DraggableStateSnapshot,
     ),
 }));
@@ -133,19 +141,25 @@ describe('KanbanBoard', () => {
 
   it('shows skeletons while loading', () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     const { container } = render(
       <QueryClientProvider client={qc}>
         <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
       </QueryClientProvider>,
     );
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(
+      0,
+    );
     expect(screen.queryByText('Acme')).not.toBeInTheDocument();
   });
 
   it('shows a failed-to-load message with a retry button when the query errors', async () => {
     vi.mocked(api.get).mockRejectedValue(new Error('network down'));
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
       <QueryClientProvider client={qc}>
         <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
@@ -207,13 +221,17 @@ describe('KanbanBoard', () => {
     vi.mocked(api.get).mockResolvedValue({
       data: paginated([makeJob({ id: 'j-1', status: 'APPLIED' })], 105),
     });
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
       <QueryClientProvider client={qc}>
         <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
       </QueryClientProvider>,
     );
-    expect(await screen.findByText(/104 more are not on the board/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/104 more are not on the board/i),
+    ).toBeInTheDocument();
   });
 
   it('shows no truncation notice when everything fits', async () => {
@@ -224,7 +242,9 @@ describe('KanbanBoard', () => {
 
   it('shows only the four active-pipeline columns', async () => {
     renderBoard([]);
-    await waitFor(() => expect(screen.getByText('Wishlist')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Wishlist')).toBeInTheDocument(),
+    );
     expect(screen.getByText('Applied')).toBeInTheDocument();
     expect(screen.getByText('Interviewing')).toBeInTheDocument();
     expect(screen.getByText('Offer')).toBeInTheDocument();
@@ -236,7 +256,11 @@ describe('KanbanBoard', () => {
     const jobs = [
       makeJob({ id: 'j-wishlist', company: 'WishCo', status: 'WISHLIST' }),
       makeJob({ id: 'j-applied', company: 'AppliedCo', status: 'APPLIED' }),
-      makeJob({ id: 'j-interviewing', company: 'IntCo', status: 'INTERVIEWING' }),
+      makeJob({
+        id: 'j-interviewing',
+        company: 'IntCo',
+        status: 'INTERVIEWING',
+      }),
       makeJob({ id: 'j-offer', company: 'OfferCo', status: 'OFFER' }),
       makeJob({ id: 'j-rejected', company: 'RejectedCo', status: 'REJECTED' }),
       makeJob({ id: 'j-ghosted', company: 'GhostedCo', status: 'GHOSTED' }),
@@ -257,7 +281,9 @@ describe('KanbanBoard', () => {
       makeJob({ id: 'j-3', status: 'OFFER' }),
     ];
     renderBoard(jobs);
-    await waitFor(() => expect(screen.getByText('Applied')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Applied')).toBeInTheDocument(),
+    );
     // Scope to the count badge itself (`.ml-auto` in the column header), not
     // the whole column div — the column also contains card text (dates,
     // company names) that can coincidentally contain the expected digit.
@@ -291,9 +317,15 @@ describe('KanbanBoard', () => {
 
   describe('drag and drop', () => {
     it('optimistically updates the cache and calls the patch API', async () => {
-      const job = makeJob({ id: 'j-drag', company: 'DragCo', status: 'APPLIED' });
+      const job = makeJob({
+        id: 'j-drag',
+        company: 'DragCo',
+        status: 'APPLIED',
+      });
       const { qc, invalidateSpy } = renderBoard([job]);
-      await waitFor(() => expect(screen.getByText('DragCo')).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText('DragCo')).toBeInTheDocument(),
+      );
 
       let resolvePatch!: (value: { data: unknown }) => void;
       vi.mocked(api.patch).mockReturnValue(
@@ -329,7 +361,11 @@ describe('KanbanBoard', () => {
     });
 
     it('rolls back the cache and shows an error toast when the patch fails', async () => {
-      const job = makeJob({ id: 'j-fail', company: 'FailCo', status: 'APPLIED' });
+      const job = makeJob({
+        id: 'j-fail',
+        company: 'FailCo',
+        status: 'APPLIED',
+      });
       // onSettled always invalidates ['jobs'], which would refetch through
       // api.get and could coincidentally restore APPLIED even if the onError
       // rollback were deleted. Make every GET after the first mount hang, so
@@ -337,13 +373,17 @@ describe('KanbanBoard', () => {
       vi.mocked(api.get)
         .mockResolvedValueOnce({ data: paginated([job]) })
         .mockReturnValue(new Promise(() => {}));
-      const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      const qc = new QueryClient({
+        defaultOptions: { queries: { retry: false } },
+      });
       render(
         <QueryClientProvider client={qc}>
           <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
         </QueryClientProvider>,
       );
-      await waitFor(() => expect(screen.getByText('FailCo')).toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.getByText('FailCo')).toBeInTheDocument(),
+      );
 
       vi.mocked(api.patch).mockRejectedValue(new Error('network error'));
 
@@ -372,7 +412,9 @@ describe('KanbanBoard', () => {
       const { invalidateSpy } = renderBoard([job]);
       await waitFor(() => expect(capturedOnDragEnd).toBeDefined());
 
-      vi.mocked(api.patch).mockResolvedValue({ data: { ...job, status: 'OFFER' } });
+      vi.mocked(api.patch).mockResolvedValue({
+        data: { ...job, status: 'OFFER' },
+      });
 
       capturedOnDragEnd!({
         destination: { droppableId: 'OFFER', index: 0 },

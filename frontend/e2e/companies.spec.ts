@@ -207,7 +207,9 @@ test.describe('Merge companies', () => {
     await goToCompanies(page);
 
     const row = page.locator('tr').filter({ hasText: 'Merge E2E Canonical' });
-    await row.getByRole('button', { name: /merge merge e2e canonical/i }).click();
+    await row
+      .getByRole('button', { name: /merge merge e2e canonical/i })
+      .click();
 
     const dialog = page.getByRole('dialog');
     await expect(
@@ -239,9 +241,7 @@ test.describe('Merge companies', () => {
     await expect(
       page.getByRole('link', { name: 'Merge E2E Reassigned Role' }),
     ).toBeVisible();
-    await expect(
-      page.getByText('Merge E2E Reassigned Contact'),
-    ).toBeVisible();
+    await expect(page.getByText('Merge E2E Reassigned Contact')).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id).catch(() => {});
     await deleteTestCompany(user.accessToken, canonical.id).catch(() => {});
@@ -277,11 +277,11 @@ test.describe('Merge companies', () => {
       .click();
 
     // Conflict step — Industry differs.
-    await expect(
-      dialog.getByText('Industry', { exact: true }),
-    ).toBeVisible();
+    await expect(dialog.getByText('Industry', { exact: true })).toBeVisible();
     await dialog
-      .getByRole('radio', { name: /merge e2e conflict duplicate: new industry/i })
+      .getByRole('radio', {
+        name: /merge e2e conflict duplicate: new industry/i,
+      })
       .click();
     await dialog.getByRole('button', { name: 'Continue' }).click();
 
@@ -315,9 +315,7 @@ test.describe('Duplicate suggestions banner', () => {
     const banner = page.getByRole('region', {
       name: 'Duplicate company suggestions',
     });
-    await expect(
-      banner.getByText('Suggestion E2E Widgets Ltd'),
-    ).toBeVisible();
+    await expect(banner.getByText('Suggestion E2E Widgets Ltd')).toBeVisible();
     await expect(
       banner.getByText('Suggestion E2E Widgets Limited'),
     ).toBeVisible();
@@ -418,9 +416,7 @@ test.describe('Search and filters', () => {
     await goToCompanies(page);
 
     await page.getByLabel('Filter by city').selectOption('KARACHI');
-    await expect(
-      page.getByRole('link', { name: 'Beta Target' }),
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Beta Target' })).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Alpha Target' }),
     ).not.toBeVisible();
@@ -512,9 +508,7 @@ test.describe('Company detail page', () => {
 // ── CSV import ────────────────────────────────────────────────────────────────
 
 test.describe('CSV import', () => {
-  test('imports valid rows and shows the imported count', async ({
-    page,
-  }) => {
+  test('imports valid rows and shows the imported count', async ({ page }) => {
     await goToCompanies(page);
 
     await page.getByRole('button', { name: 'Import CSV' }).click();
@@ -625,9 +619,7 @@ test.describe('Company contacts', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Contact added')).toBeVisible();
 
-    await page
-      .getByRole('button', { name: 'Edit Jane Recruiter' })
-      .click();
+    await page.getByRole('button', { name: 'Edit Jane Recruiter' }).click();
     await page.getByLabel('Name').fill('Jane Updated');
     await page.getByRole('button', { name: 'Save' }).click();
 
@@ -644,9 +636,7 @@ test.describe('Company contacts', () => {
     await page.getByRole('button', { name: 'Save' }).click();
     await expect(page.getByText('Contact added')).toBeVisible();
 
-    await page
-      .getByRole('button', { name: 'Remove Jane Recruiter' })
-      .click();
+    await page.getByRole('button', { name: 'Remove Jane Recruiter' }).click();
     await page
       .getByRole('button', { name: 'Confirm remove Jane Recruiter' })
       .click();
@@ -692,9 +682,7 @@ test.describe('Job creation matches an existing target company', () => {
     await expect(
       dialog.getByRole('link', { name: 'Match Corp' }),
     ).toBeVisible();
-    await expect(
-      dialog.getByText('as a target company'),
-    ).toBeVisible();
+    await expect(dialog.getByText('as a target company')).toBeVisible();
 
     // Clean up the created job via API.
     const res = await fetch(`http://localhost:3001/jobs?search=match+corp`, {

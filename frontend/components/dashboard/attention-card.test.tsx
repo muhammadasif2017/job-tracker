@@ -10,9 +10,7 @@ vi.mock('../../lib/api', () => ({
 
 vi.mock('../../lib/utils', async () => {
   const actual =
-    await vi.importActual<typeof import('../../lib/utils')>(
-      '../../lib/utils',
-    );
+    await vi.importActual<typeof import('../../lib/utils')>('../../lib/utils');
   return { ...actual, formatRelative: () => '2 days ago' };
 });
 
@@ -69,17 +67,29 @@ describe('AttentionCard', () => {
       {
         type: 'UPCOMING_INTERVIEW',
         since: '2026-01-10T00:00:00Z',
-        job: makeJob({ id: 'j-1', company: 'Acme Corp', position: 'Backend Engineer' }),
+        job: makeJob({
+          id: 'j-1',
+          company: 'Acme Corp',
+          position: 'Backend Engineer',
+        }),
       },
       {
         type: 'STALE_INTERVIEWING',
         since: '2026-01-05T00:00:00Z',
-        job: makeJob({ id: 'j-2', company: 'Globex', position: 'Frontend Engineer' }),
+        job: makeJob({
+          id: 'j-2',
+          company: 'Globex',
+          position: 'Frontend Engineer',
+        }),
       },
       {
         type: 'STALE_APPLIED',
         since: '2026-01-01T00:00:00Z',
-        job: makeJob({ id: 'j-3', company: 'Initech', position: 'Fullstack Engineer' }),
+        job: makeJob({
+          id: 'j-3',
+          company: 'Initech',
+          position: 'Fullstack Engineer',
+        }),
       },
     ];
     vi.mocked(api.get).mockResolvedValue({ data: items });
@@ -123,7 +133,9 @@ describe('AttentionCard', () => {
     });
     renderCard();
     await waitFor(() => {
-      expect(screen.getByText('Acme Corp', { exact: false })).toBeInTheDocument();
+      expect(
+        screen.getByText('Acme Corp', { exact: false }),
+      ).toBeInTheDocument();
     });
     expect(
       screen.queryByText('All caught up — nothing needs action right now.'),

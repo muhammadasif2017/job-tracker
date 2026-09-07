@@ -198,7 +198,10 @@ export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
       ) : (
         <ul className="divide-y divide-line">
           {contacts.map((contact) => (
-            <li key={contact.id} className="flex flex-wrap items-start gap-3 py-3">
+            <li
+              key={contact.id}
+              className="flex flex-wrap items-start gap-3 py-3"
+            >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ink">
                   {contact.name}
@@ -243,9 +246,7 @@ export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
 
               {confirmingId === contact.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted">
-                    Remove?
-                  </span>
+                  <span className="text-sm text-muted">Remove?</span>
                   <Button
                     type="button"
                     variant="danger"

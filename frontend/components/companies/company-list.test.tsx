@@ -23,7 +23,9 @@ const company: Company = {
   updatedAt: '2026-06-01T00:00:00Z',
 };
 
-function renderList(props: Partial<React.ComponentProps<typeof CompanyList>> = {}) {
+function renderList(
+  props: Partial<React.ComponentProps<typeof CompanyList>> = {},
+) {
   const onRetry = props.onRetry ?? vi.fn();
   const onEdit = props.onEdit ?? vi.fn();
   const onDelete = props.onDelete ?? vi.fn();
@@ -56,7 +58,9 @@ describe('CompanyList', () => {
         onMerge={vi.fn()}
       />,
     );
-    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(
+      0,
+    );
   });
 
   it('shows an error state with a retry button', () => {
@@ -82,10 +86,9 @@ describe('CompanyList', () => {
 
   it('links the name to the company detail page', () => {
     renderList({ companies: [company] });
-    expect(screen.getByRole('link', { name: 'Systems Limited' })).toHaveAttribute(
-      'href',
-      '/companies/c-1',
-    );
+    expect(
+      screen.getByRole('link', { name: 'Systems Limited' }),
+    ).toHaveAttribute('href', '/companies/c-1');
   });
 
   it('calls onEdit when the edit icon is clicked', () => {

@@ -51,7 +51,9 @@ describe('DuplicateSuggestionsBanner', () => {
     vi.mocked(api.get).mockResolvedValue({ data: [] });
     const { container } = render(
       <QueryClientProvider
-        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
       >
         <DuplicateSuggestionsBanner onReview={vi.fn()} />
       </QueryClientProvider>,
@@ -64,9 +66,7 @@ describe('DuplicateSuggestionsBanner', () => {
     vi.mocked(api.get).mockResolvedValue({ data: [suggestion] });
     const { onReview } = renderBanner();
 
-    expect(
-      await screen.findByText(/systems limited/i),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/systems limited/i)).toBeInTheDocument();
     expect(screen.getByText(/similar name/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /review/i }));

@@ -11,7 +11,12 @@ import { Pencil, ExternalLink } from 'lucide-react';
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
 import { formatCivilDate } from '../../lib/utils';
-import { STATUS_LABELS, STATUS_DOT_VARS, type Job, type JobStatus } from '../../types';
+import {
+  STATUS_LABELS,
+  STATUS_DOT_VARS,
+  type Job,
+  type JobStatus,
+} from '../../types';
 import {
   useKanbanJobsQuery,
   useKanbanPatchStatusMutation,
@@ -69,8 +74,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
     return (
       <div className="flex flex-col items-center gap-2 rounded-md border border-line bg-paper py-16 text-center">
         <p className="text-base font-medium text-ink">
-          {STATUS_LABELS[filters.status as JobStatus]} isn&apos;t a board
-          column
+          {STATUS_LABELS[filters.status as JobStatus]} isn&apos;t a board column
         </p>
         <p className="text-sm text-muted-2">
           The board shows the open pipeline only. Switch to list view to see
@@ -82,7 +86,10 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
 
   if (isLoading) {
     return (
-      <LoadingStatus label="Loading jobs" className="flex gap-4 overflow-x-auto pb-4">
+      <LoadingStatus
+        label="Loading jobs"
+        className="flex gap-4 overflow-x-auto pb-4"
+      >
         {KANBAN_COLS.map((col) => (
           <div key={col} className="w-64 shrink-0 space-y-3">
             <Skeleton className="h-6 w-32" />
@@ -116,8 +123,8 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
       {hiddenCount > 0 && (
         <p className="mb-3 rounded-md border border-line bg-paper px-3 py-2 text-sm text-muted">
           Showing the {KANBAN_PAGE_SIZE} most recent open applications.{' '}
-          {hiddenCount} more {hiddenCount === 1 ? 'is' : 'are'} not on the
-          board — use the list view to see everything.
+          {hiddenCount} more {hiddenCount === 1 ? 'is' : 'are'} not on the board
+          — use the list view to see everything.
         </p>
       )}
       <div className="flex gap-4 overflow-x-auto pb-4">
@@ -150,7 +157,9 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                           {...drag.draggableProps}
                           {...drag.dragHandleProps}
                           className={`rounded-md border border-line bg-paper p-3 shadow-sm ${snap.isDragging ? 'shadow-lg rotate-1' : ''}`}
-                          style={{ borderLeft: `3px solid ${STATUS_DOT_VARS[col]}` }}
+                          style={{
+                            borderLeft: `3px solid ${STATUS_DOT_VARS[col]}`,
+                          }}
                         >
                           <p className="text-sm font-medium leading-tight break-words text-ink">
                             {job.company}

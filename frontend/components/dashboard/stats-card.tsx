@@ -41,7 +41,10 @@ export function StatsCard({
         </p>
       )}
       {sub && <p className="mt-1 text-xs text-muted">{sub}</p>}
-      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-accent-2/60" aria-hidden="true" />
+      <span
+        className="absolute inset-x-0 bottom-0 h-0.5 bg-accent-2/60"
+        aria-hidden="true"
+      />
     </div>
   );
 }

@@ -56,10 +56,7 @@ function useDebounce<T>(value: T, delay = 300): T {
 // `attachment; filename="jobs-offer.csv"` -> `jobs-offer.csv`. Falls back to
 // the caller's default for a missing or unparseable header (e.g. a same-origin
 // dev setup where the header isn't exposed).
-function filenameFromDisposition(
-  header: unknown,
-  fallback: string,
-): string {
+function filenameFromDisposition(header: unknown, fallback: string): string {
   if (typeof header !== 'string') return fallback;
   const match = /filename="?([^";]+)"?/i.exec(header);
   return match?.[1]?.trim() || fallback;
@@ -157,7 +154,9 @@ export default function JobsPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Jobs</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            Jobs
+          </h1>
           <p className="text-sm text-muted">
             {isError && !data
               ? 'Failed to load'
@@ -305,10 +304,7 @@ export default function JobsPage() {
                 ))}
               </tr>
             </thead>
-            <tbody
-              className="divide-y divide-line"
-              aria-busy={isLoading}
-            >
+            <tbody className="divide-y divide-line" aria-busy={isLoading}>
               {isLoading ? (
                 <>
                   <tr>
@@ -360,9 +356,7 @@ export default function JobsPage() {
                     key={job.id}
                     className="transition-colors hover:bg-paper-raised"
                   >
-                    <td className="px-4 py-3 text-muted">
-                      {job.company}
-                    </td>
+                    <td className="px-4 py-3 text-muted">{job.company}</td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/jobs/${job.id}`}
@@ -460,10 +454,7 @@ export default function JobsPage() {
       )}
 
       <JobForm open={formOpen} onClose={closeForm} job={editJob} />
-      <QuickAdd
-        open={quickAddOpen}
-        onClose={() => setQuickAddOpen(false)}
-      />
+      <QuickAdd open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
 
       <Modal
         open={!!deleteTarget}

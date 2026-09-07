@@ -177,4 +177,3 @@ See the `add-frontend-page` skill for the step-by-step checklist.
 - `e2e/fixtures.ts` sets up shared page fixtures
 - Specs: `auth.spec.ts`, `dashboard.spec.ts`, `jobs.spec.ts`, `profile.spec.ts`
 - Run with: `npx playwright test` (requires both servers running)
-

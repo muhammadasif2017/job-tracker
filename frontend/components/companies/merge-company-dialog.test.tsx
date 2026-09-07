@@ -213,7 +213,9 @@ describe('MergeCompanyDialog', () => {
       ...duplicate,
       industry: 'Fintech',
     };
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const qc = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
     render(
       <QueryClientProvider client={qc}>
         <MergeCompanyDialog

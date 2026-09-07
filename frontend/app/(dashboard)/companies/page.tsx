@@ -42,7 +42,9 @@ export default function CompaniesPage() {
   const [editCompany, setEditCompany] = useState<Company | undefined>();
   const [deleteTarget, setDeleteTarget] = useState<Company | undefined>();
   const [mergeTarget, setMergeTarget] = useState<Company | undefined>();
-  const [preSeedDuplicate, setPreSeedDuplicate] = useState<Company | undefined>();
+  const [preSeedDuplicate, setPreSeedDuplicate] = useState<
+    Company | undefined
+  >();
 
   const debouncedSearch = useDebounce(search);
 
@@ -70,7 +72,9 @@ export default function CompaniesPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Target Companies</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            Target Companies
+          </h1>
           <p className="text-sm text-muted">
             {isError && !data
               ? 'Failed to load'
@@ -201,7 +205,10 @@ export default function CompaniesPage() {
         }
       >
         <div className="flex justify-end gap-3 pt-2">
-          <Button variant="secondary" onClick={() => setDeleteTarget(undefined)}>
+          <Button
+            variant="secondary"
+            onClick={() => setDeleteTarget(undefined)}
+          >
             Cancel
           </Button>
           <Button

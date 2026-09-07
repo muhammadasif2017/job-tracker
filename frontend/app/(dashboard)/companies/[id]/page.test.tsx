@@ -31,7 +31,9 @@ vi.mock('../../../../lib/api', () => ({
 
 vi.mock('../../../../components/companies/company-form', () => ({
   CompanyForm: ({ open, company }: { open: boolean; company?: Company }) =>
-    open ? <div data-testid="company-form" data-company-id={company?.id ?? ''} /> : null,
+    open ? (
+      <div data-testid="company-form" data-company-id={company?.id ?? ''} />
+    ) : null,
 }));
 
 vi.mock('../../../../components/companies/company-jobs', () => ({
@@ -41,8 +43,18 @@ vi.mock('../../../../components/companies/company-jobs', () => ({
 }));
 
 vi.mock('../../../../components/companies/company-contacts', () => ({
-  CompanyContacts: ({ companyId, contacts }: { companyId: string; contacts: unknown[] }) => (
-    <div data-testid="company-contacts" data-company-id={companyId} data-count={contacts.length} />
+  CompanyContacts: ({
+    companyId,
+    contacts,
+  }: {
+    companyId: string;
+    contacts: unknown[];
+  }) => (
+    <div
+      data-testid="company-contacts"
+      data-company-id={companyId}
+      data-count={contacts.length}
+    />
   ),
 }));
 
@@ -124,11 +136,17 @@ describe('CompanyDetailPage', () => {
     it('shows skeletons while the company query is pending', () => {
       vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
       const { container } = render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
           <CompanyDetailPage />
         </QueryClientProvider>,
       );
-      expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+      expect(
+        container.querySelectorAll('.animate-pulse').length,
+      ).toBeGreaterThan(0);
     });
   });
 
@@ -144,7 +162,9 @@ describe('CompanyDetailPage', () => {
     it('shows "Failed to load company." on a non-404 failure', async () => {
       vi.mocked(api.get).mockRejectedValue(new Error('network down'));
       renderPage();
-      expect(await screen.findByText('Failed to load company.')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Failed to load company.'),
+      ).toBeInTheDocument();
     });
   });
 
@@ -155,7 +175,10 @@ describe('CompanyDetailPage', () => {
       await screen.findByText('Acme');
       const card = screen.getByTestId('company-profile-card');
       expect(card).toHaveAttribute('data-status', 'COMPLETED');
-      expect(card).toHaveAttribute('data-invalidate-key', JSON.stringify(['company', 'c-1']));
+      expect(card).toHaveAttribute(
+        'data-invalidate-key',
+        JSON.stringify(['company', 'c-1']),
+      );
     });
 
     it('passes PENDING/PROCESSING/FAILED status through unchanged for CompanyProfileCard to render its own state', async () => {
@@ -216,9 +239,18 @@ describe('CompanyDetailPage', () => {
       );
       renderPage();
       await screen.findByText('Acme');
-      expect(screen.getByTestId('company-jobs')).toHaveAttribute('data-count', '1');
-      expect(screen.getByTestId('company-contacts')).toHaveAttribute('data-count', '1');
-      expect(screen.getByTestId('company-contacts')).toHaveAttribute('data-company-id', 'c-1');
+      expect(screen.getByTestId('company-jobs')).toHaveAttribute(
+        'data-count',
+        '1',
+      );
+      expect(screen.getByTestId('company-contacts')).toHaveAttribute(
+        'data-count',
+        '1',
+      );
+      expect(screen.getByTestId('company-contacts')).toHaveAttribute(
+        'data-company-id',
+        'c-1',
+      );
     });
   });
 
@@ -242,7 +274,10 @@ describe('CompanyDetailPage', () => {
       renderPage();
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: /^edit$/i }));
-      expect(screen.getByTestId('company-form')).toHaveAttribute('data-company-id', 'c-1');
+      expect(screen.getByTestId('company-form')).toHaveAttribute(
+        'data-company-id',
+        'c-1',
+      );
     });
   });
 });

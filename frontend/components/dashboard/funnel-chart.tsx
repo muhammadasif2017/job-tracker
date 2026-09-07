@@ -145,7 +145,9 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
 
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">Dropoff</p>
+          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+            Dropoff
+          </p>
           <MiniBarChart data={dropoffData} valueLabel="Count" />
         </div>
 

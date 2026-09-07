@@ -119,7 +119,9 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
   return (
     <div className="rounded-md border border-line bg-paper p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Contacts</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Contacts
+        </h2>
         {!formOpen && (
           <Button type="button" variant="outline" size="sm" onClick={startAdd}>
             <Plus className="h-4 w-4" />
@@ -200,7 +202,10 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
       ) : (
         <ul className="divide-y divide-line">
           {contacts.map((contact) => (
-            <li key={contact.id} className="flex flex-wrap items-start gap-3 py-3">
+            <li
+              key={contact.id}
+              className="flex flex-wrap items-start gap-3 py-3"
+            >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-ink">
                   {contact.name}
@@ -245,9 +250,7 @@ export function Contacts({ jobId, contacts }: ContactsProps) {
 
               {confirmingId === contact.id ? (
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted">
-                    Remove?
-                  </span>
+                  <span className="text-sm text-muted">Remove?</span>
                   <Button
                     type="button"
                     variant="danger"
