@@ -132,7 +132,13 @@ Two more were opened and closed the same day rather than tracked: the empty
 
 Per the setup decision on 2026-09-07: the floor blocks immediately; the numbered
 rows marked **warn** report without failing the build until **2026-09-21**, so they
-can be watched firing on real PRs before they gate a merge. To flip them:
+can be watched firing on real PRs before they gate a merge. A warn-phase check still shows **red** on the PR. `continue-on-error: true` stops a
+job from failing the workflow, but the check run itself reports a failure, and that
+is deliberate: a warn row that renders green is indistinguishable from a passing
+one, and nobody watches a check that always looks fine. Red-but-non-blocking is the
+honest signal. Do not "fix" it with `|| true` inside the step.
+
+To flip them:
 
 1. Drop `--warn` from the three `scripts/coverage-diff.mjs` call sites —
    `.github/workflows/deploy.yml`, `.github/workflows/frontend-ci.yml`, and the
