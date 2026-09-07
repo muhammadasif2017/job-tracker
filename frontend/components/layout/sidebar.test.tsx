@@ -3,8 +3,10 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { Sidebar } from './sidebar';
 import type { User } from '../../types';
 
-const replace = vi.fn();
 const logout = vi.fn();
+const { clearAuthStorage } = vi.hoisted(() => ({
+  clearAuthStorage: vi.fn(),
+}));
 let mockUser: User | null = null;
 
 vi.mock('next/link', () => ({
@@ -17,11 +19,14 @@ vi.mock('next/link', () => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => '/jobs',
-  useRouter: () => ({ replace }),
 }));
 
 vi.mock('../../store/auth.store', () => ({
-  useAuthStore: () => ({ user: mockUser, logout }),
+  useAuthStore: (selector?: (s: unknown) => unknown) => {
+    const state = { user: mockUser, logout };
+    return selector ? selector(state) : state;
+  },
+  clearAuthStorage,
 }));
 
 vi.mock('../../lib/api', () => ({
@@ -33,6 +38,11 @@ import api from '../../lib/api';
 describe('Sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { href: '' },
+    });
     mockUser = { id: 'u-1', name: 'Jane Doe', email: 'jane@example.com', role: 'USER' };
   });
 
@@ -65,15 +75,19 @@ describe('Sidebar', () => {
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/logout'));
-    expect(logout).toHaveBeenCalled();
-    expect(replace).toHaveBeenCalledWith('/login');
+    expect(clearAuthStorage).toHaveBeenCalled();
+    expect(window.location.href).toBe('/login');
+    // The reactive clear would re-render the mounted page with user: null,
+    // blanking the profile before the browser navigates away.
+    expect(logout).not.toHaveBeenCalled();
   });
 
   it('still logs out locally even if the logout request fails', async () => {
     vi.mocked(api.post).mockRejectedValue(new Error('network down'));
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
-    await waitFor(() => expect(logout).toHaveBeenCalled());
-    expect(replace).toHaveBeenCalledWith('/login');
+    await waitFor(() => expect(clearAuthStorage).toHaveBeenCalled());
+    expect(window.location.href).toBe('/login');
+    expect(logout).not.toHaveBeenCalled();
   });
 });

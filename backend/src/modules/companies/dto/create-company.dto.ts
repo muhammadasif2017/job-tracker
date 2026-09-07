@@ -103,10 +103,4 @@ export class CreateCompanyDto {
   @IsString()
   @MaxLength(2000)
   cultureSummary?: string | null;
-
-  @ApiPropertyOptional({ example: 'Hybrid', maxLength: 100 })
-  @IsOptional()
-  @IsString()
-  @MaxLength(100)
-  workPolicy?: string | null;
 }

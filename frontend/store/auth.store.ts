@@ -13,6 +13,24 @@ interface AuthState {
   logout: () => void;
 }
 
+/**
+ * Wipe every trace of the session from storage without touching the store.
+ *
+ * Sign-out paths must call this instead of `logout()`: `logout()` runs a
+ * zustand `set()`, and every component subscribed to the store re-renders
+ * with `user: null` while the page is still mounted, blanking the profile
+ * before the browser has navigated away. Clearing storage only is invisible
+ * to React, so the old view stays intact until the new document commits.
+ */
+export function clearAuthStorage(): void {
+  tokenStorage.clear();
+  // zustand's `persist` key - left behind, the next document rehydrates an
+  // authenticated store with no token to back it.
+  localStorage.removeItem('jt-auth');
+  document.cookie = 'jt_authed=; path=/; max-age=0';
+  document.cookie = 'jt_role=; path=/; max-age=0';
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -30,9 +48,7 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user) => set({ user }),
 
       logout: () => {
-        tokenStorage.clear();
-        document.cookie = 'jt_authed=; path=/; max-age=0';
-        document.cookie = 'jt_role=; path=/; max-age=0';
+        clearAuthStorage();
         set({ user: null, isAuthenticated: false });
       },
     }),

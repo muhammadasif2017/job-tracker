@@ -15,6 +15,18 @@ import {
 } from '../../enrichment/services/llm.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
+import { techFromJobTitles } from '../../../common/tech-tokens.js';
+
+// Character budget for each labeled section of the assembled LLM context.
+// Both sit well inside gpt-oss-120b's window: the previous 6000/3500 pair
+// capped the whole context at ~9500 characters, which made the budget - not
+// the model - the binding constraint on extraction quality. 16000 admits a
+// full homepage and /about (WebFetchService caps each page at
+// LLM_CONTEXT_BUDGET = 8000), and 8000 admits all five Tavily snippets plus
+// the `[Summary]` that SearchService deliberately appends last; at 3500 that
+// summary was routinely cut off entirely. See ADR-038.
+const OFFICIAL_SECTION_BUDGET = 16_000;
+const SEARCH_SECTION_BUDGET = 8_000;
 
 @Injectable()
 // See EnrichmentProcessor for why 90s — same stall-detection margin, same
@@ -75,6 +87,14 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         data: { status: EnrichmentStatus.PROCESSING, errorMessage: null },
       });
 
+      // Only `position` is selected: `notes` is the user's private free text
+      // (recruiter names, salary talk) and carries no technology signal, so it
+      // stays out of the prompt.
+      const linkedJobs = await this.prisma.job.findMany({
+        where: { companyId, userId: dbCompany.userId },
+        select: { position: true },
+      });
+
       const locationSuffix = location ? ` ${location}` : '';
       const generalQuery = `"${company}"${locationSuffix} company overview employees industry tech stack work culture`;
       const snippets = await search(generalQuery);
@@ -83,26 +103,24 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       // a target Company has no associated posting URL. Official-site
       // fetches only fire when websiteUrl resolves to a real (non-job-board)
       // domain.
-      const [homepageText, aboutText, primaryContactText] = await Promise.all([
+      //
+      // Homepage first, then /about: those two carry the industry,
+      // positioning and culture prose the five extracted fields are made of,
+      // and OFFICIAL_SECTION_BUDGET is spent in that order. ADR-013 placed
+      // contact-page text ahead of the homepage so a street address would
+      // survive the budget, but the `address` field it protected no longer
+      // exists on any model - so fetching /contact and /contact-us bought
+      // nothing and evicted the homepage. See ADR-038.
+      const [homepageText, aboutText] = await Promise.all([
         domain
           ? this.webFetch.fetchPageText(`https://${domain}`)
           : Promise.resolve(''),
         domain
           ? this.webFetch.fetchPageText(`https://${domain}/about`)
           : Promise.resolve(''),
-        domain
-          ? this.webFetch.fetchPageText(`https://${domain}/contact`)
-          : Promise.resolve(''),
       ]);
-      const contactTexts = primaryContactText
-        ? [primaryContactText]
-        : domain
-          ? [await this.webFetch.fetchPageText(`https://${domain}/contact-us`)]
-          : [];
 
-      const newOfficialText = [...contactTexts, aboutText, homepageText].join(
-        '',
-      );
+      const newOfficialText = [homepageText, aboutText].join('');
       // `searchUnavailableReason` set means the general search above already
       // came back 429/432 (quota) or 401/403 (bad key) — an account-level
       // failure, so this second search would fail the same way. Skipping it
@@ -119,25 +137,37 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         : [];
 
       const officialParts = [
-        ...new Set([
-          ...contactTexts,
-          aboutText,
-          homepageText,
-          ...domainSnippets,
-        ]),
+        ...new Set([homepageText, aboutText, ...domainSnippets]),
       ].filter(Boolean);
       const searchParts = [...new Set(snippets)].filter(Boolean);
 
       const sections: string[] = [];
       if (officialParts.length && domain) {
         sections.push(
-          `=== OFFICIAL COMPANY WEBSITE (${domain}) ===\n${officialParts.join('\n\n').slice(0, 6000)}`,
+          `=== OFFICIAL COMPANY WEBSITE (${domain}) ===\n${officialParts.join('\n\n').slice(0, OFFICIAL_SECTION_BUDGET)}`,
         );
       }
+      // Job titles the user actually tracked at this company are the one
+      // first-party source of technology names in the pipeline: a homepage
+      // says what a company sells, and search snippets hand back site-scanner
+      // output (Twemoji, JSON-LD) rather than an engineering stack. "Senior
+      // React Developer" does neither.
+      if (linkedJobs.length) {
+        const roles = [
+          ...new Set(linkedJobs.map((j) => j.position.trim()).filter(Boolean)),
+        ];
+        if (roles.length) {
+          sections.push(
+            `=== ROLES THE USER TRACKED AT THIS COMPANY (first-party) ===\n` +
+              roles.join('\n'),
+          );
+        }
+      }
+
       if (searchParts.length) {
         sections.push(
           `=== WEB SEARCH RESULTS (may describe other companies with similar names) ===\n` +
-            searchParts.join('\n\n').slice(0, 3500),
+            searchParts.join('\n\n').slice(0, SEARCH_SECTION_BUDGET),
         );
       }
       const context = sections.join('\n\n');
@@ -146,7 +176,8 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         companyId,
         company,
         snippetCount: snippets.length,
-        contactTextLengths: contactTexts.map((t) => t.length),
+        homepageTextLength: homepageText.length,
+        aboutTextLength: aboutText.length,
         context,
       });
 
@@ -178,7 +209,17 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
         location,
       });
 
-      extraction = data;
+      // Technologies named in the titles the user tracked here are merged in
+      // deterministically. Three prompt revisions failed to make the model
+      // treat "Senior React Developer" as evidence that this company works
+      // with React - the same instruction-following ceiling ADR-013 hit - so
+      // the reliable half is done in code. Extraction still leads; these only
+      // add. See ADR-042.
+      const titleTech = techFromJobTitles(linkedJobs.map((j) => j.position));
+      extraction = {
+        ...data,
+        techStack: [...new Set([...data.techStack, ...titleTech])],
+      };
 
       const stillExists = await this.prisma.company.findFirst({
         where: { id: companyId },
@@ -287,7 +328,16 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
       companySize: data.companySize ?? previous.companySize,
       techStack: data.techStack.length ? data.techStack : previous.techStack,
       cultureSummary: data.cultureSummary ?? previous.cultureSummary,
-      workPolicy: data.workPolicy ?? previous.workPolicy,
+      productDescription:
+        data.productDescription ?? previous.productDescription,
+      // Unlike every other field here, an existing `businessMode` wins over a
+      // freshly extracted one. It is the one AI-fillable column the user also
+      // sets deliberately - by hand on the company form, and as the third CSV
+      // column in `companies-import.service.ts` - so letting a re-run overwrite
+      // it would discard a stated answer in favour of a guess. The prose
+      // fields carry no such user intent and keep the usual overwrite
+      // behaviour from Assumption 9 of docs/specs/target-companies.md.
+      businessMode: previous.businessMode ?? data.businessMode,
       enrichedAt: new Date(),
     };
   }

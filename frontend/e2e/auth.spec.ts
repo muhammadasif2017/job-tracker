@@ -120,7 +120,7 @@ test.describe('Login', () => {
 test.describe('Logout', () => {
   test('clears session and redirects to /login', async ({ page }) => {
     const user = await createTestUser();
-    await injectAuth(page, user);
+    await injectAuth(page, user, { seedOnce: true });
 
     await page.goto('/');
     await page.getByText('Sign out').click();

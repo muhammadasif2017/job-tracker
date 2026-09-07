@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { BusinessMode } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
@@ -8,7 +9,8 @@ export interface CompanyData {
   companySize: string | null;
   techStack: string[];
   cultureSummary: string | null;
-  workPolicy: string | null;
+  productDescription: string | null;
+  businessMode: BusinessMode | null;
 }
 
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
@@ -31,20 +33,36 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
             'Unknown',
           ],
         },
-        techStack: { type: 'array', items: { type: 'string' } },
+        techStack: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Programming languages, frameworks, databases, and cloud platforms ' +
+            'the company builds its products with. Not website infrastructure.',
+        },
         cultureSummary: {
           type: 'string',
           description: '2-3 sentences about work culture',
         },
-        workPolicy: {
+        productDescription: {
           type: 'string',
-          enum: ['Remote', 'Hybrid', 'On-site', 'Unknown'],
+          description:
+            '1-2 sentences on what the company actually builds or sells - its ' +
+            'products, or the services it delivers to clients',
+        },
+        businessMode: {
+          type: 'string',
+          description:
+            'PRODUCT if it sells its own products, SERVICES if it delivers ' +
+            'client projects or staff augmentation, HYBRID if it does both',
+          enum: ['PRODUCT', 'SERVICES', 'HYBRID', 'Unknown'],
         },
       },
-      // `cultureSummary` is intentionally absent: it is the one free-prose
-      // field here, and forcing it makes the model invent culture claims for
-      // companies with no public write-up. Optional lets it return nothing.
-      required: ['industry', 'companySize', 'techStack', 'workPolicy'],
+      // `cultureSummary` and `productDescription` are intentionally absent:
+      // they are the free-prose fields here, and forcing them makes the model
+      // invent claims for companies with no public write-up. Optional lets it
+      // return nothing.
+      required: ['industry', 'companySize', 'techStack', 'businessMode'],
     },
   },
 };
@@ -118,6 +136,15 @@ function isToolUseFailedError(err: unknown): boolean {
   return e.status === 400 && e.error?.error?.code === 'tool_use_failed';
 }
 
+// `businessMode` is the only extracted field Prisma types as an enum rather
+// than a string, so an off-enum generation would reach the database as an
+// invalid value instead of merely reading oddly. Checked against the enum
+// itself rather than a copied literal list.
+function businessModeOrNull(val: unknown): BusinessMode | null {
+  const s = strOrNull(val);
+  return s !== null && s in BusinessMode ? (s as BusinessMode) : null;
+}
+
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
     industry: strOrNull(raw.industry),
@@ -128,7 +155,8 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
         )
       : [],
     cultureSummary: strOrNull(raw.cultureSummary),
-    workPolicy: strOrNull(raw.workPolicy),
+    productDescription: strOrNull(raw.productDescription),
+    businessMode: businessModeOrNull(raw.businessMode),
   };
 }
 
@@ -217,6 +245,15 @@ export class LlmService {
                   `brackets; use these to judge whether it is really about "${companyName}". ` +
                   `A snippet describing a different kind of business is about a different ` +
                   `company even if the name or city matches, so ignore it.\n\n` +
+                  `For techStack, list only what the company engineers with - languages, ` +
+                  `frameworks, databases, cloud platforms. Web-analytics, tag-manager, CDN, ` +
+                  `font, emoji and markup-format names (for example Google Analytics, ` +
+                  `Mixpanel, Microsoft Clarity, Cloudflare, Twemoji, JSON-LD, Webpack) ` +
+                  `describe how a marketing site was assembled, not what the company ` +
+                  `builds; third-party site scanners list those, so exclude them. Return [] ` +
+                  `rather than a list of them.
+
+` +
                   `If information is not available in the provided content, use "Unknown" for ` +
                   `string fields and [] for arrays. Do not guess or hallucinate data not present ` +
                   `in the content.\n\n` +

@@ -123,7 +123,6 @@ export class CompaniesService {
           companySize: dto.companySize,
           techStack: dto.techStack ?? [],
           cultureSummary: dto.cultureSummary,
-          workPolicy: dto.workPolicy,
         },
       });
     });
@@ -232,7 +231,6 @@ export class CompaniesService {
       companySize: dto.companySize,
       techStack: dto.techStack,
       cultureSummary: dto.cultureSummary,
-      workPolicy: dto.workPolicy,
     };
 
     if (dto.name === undefined) {

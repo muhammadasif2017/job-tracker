@@ -43,11 +43,11 @@ export class MergeFieldOverridesDto {
   @MaxLength(2000)
   cultureSummary?: string | null;
 
-  @ApiPropertyOptional({ maxLength: 100 })
+  @ApiPropertyOptional({ maxLength: 500 })
   @IsOptional()
   @IsString()
-  @MaxLength(100)
-  workPolicy?: string | null;
+  @MaxLength(500)
+  productDescription?: string | null;
 }
 
 export class MergeCompanyDto {
