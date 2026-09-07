@@ -2,12 +2,12 @@
   "name": "job-tracker",
   "version": "1.0.0",
   "private": true,
-  "description": "Job application tracker — NestJS backend + Next.js frontend",
+  "description": "Job application tracker \u2014 NestJS backend + Next.js frontend",
   "scripts": {
     "prepare": "husky",
     "check:floor": "node scripts/floor-guard.mjs",
     "check:migrations": "node scripts/migration-guard.mjs",
-    "check:coverage-diff": "node scripts/coverage-diff.mjs --warn"
+    "check:coverage-diff": "node scripts/coverage-diff.mjs"
   },
   "devDependencies": {
     "husky": "^9.1.7"

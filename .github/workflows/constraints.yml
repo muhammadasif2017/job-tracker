@@ -28,8 +28,6 @@ jobs:
   secrets:
     name: Secret scan
     runs-on: ubuntu-latest
-    # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
@@ -47,9 +45,6 @@ jobs:
   dependencies:
     name: Dependency scan
     runs-on: ubuntu-latest
-    # Warn phase until 2026-09-21 — see CONSTRAINTS.md. Red but non-blocking is
-    # deliberate; do not silence it with `|| true` on the gate step.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 

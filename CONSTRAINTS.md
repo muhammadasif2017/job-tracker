@@ -51,9 +51,9 @@ bottom.
 | Lint | Zero eslint **errors** (warnings ratcheted below) | `npm run check:fast` in each package | pre-commit\*, CI |
 | Formatting (frontend) | Zero files fail prettier | `cd frontend && npm run format:check` | pre-commit\*, CI |
 | Migrations | Every new `migration.sql` declares `-- data-loss:` | `npm run check:migrations` | CI |
-| Coverage: changed lines | ≥ 80% of changed executable lines covered | `node scripts/coverage-diff.mjs` | CI (**warn until 2026-09-21**) |
-| Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI (**warn until 2026-09-21**) |
-| Security: dependencies | No **production** package at CVSS 7.0+ | `osv-scanner` + `node scripts/dep-scan-gate.mjs` | CI (**warn until 2026-09-21**) |
+| Coverage: changed lines | ≥ 80% of changed executable lines covered | `node scripts/coverage-diff.mjs` | CI, blocking |
+| Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI, blocking |
+| Security: dependencies | No **production** package at CVSS 7.0+ | `osv-scanner` + `node scripts/dep-scan-gate.mjs` | CI, blocking |
 | E2E | Playwright suite green | `.github/workflows/e2e-pr.yml` | PR, merge-blocking (ADR-025) |
 
 \* pre-commit runs `lint-staged` (prettier + eslint --fix on staged files) plus the
@@ -153,21 +153,21 @@ Two more were opened and closed the same day rather than tracked: the empty
 `/auth/logout` must not block local sign-out, and the ~74 frontend files failing
 `prettier --check` were formatted in one pass so the check could go repo-wide.
 
-## Warn phase
+## Warn phase — ended
 
-Per the setup decision on 2026-09-07: the floor blocks immediately; the numbered
-rows marked **warn** report without failing the build until **2026-09-21**, so they
-can be watched firing on real PRs before they gate a merge. A warn-phase check still shows **red** on the PR. `continue-on-error: true` stops a
-job from failing the workflow, but the check run itself reports a failure, and that
-is deliberate: a warn row that renders green is indistinguishable from a passing
-one, and nobody watches a check that always looks fine. Red-but-non-blocking is the
-honest signal. Do not "fix" it with `|| true` inside the step.
+Every row above blocks. The warn phase ran from 2026-09-07 and was ended early, on
+the same day, once the dependency gate went green in CI and the secret scan had
+fired cleanly on eight consecutive PRs.
 
-To flip them:
+One row was flipped without ever having been exercised: **coverage of changed
+lines**. Every PR during the warn phase changed lockfiles rather than instrumented
+source, so in CI `coverage-diff` only ever printed `no instrumented lines changed`
+— it has never produced a real percentage there. Its first genuine measurement will
+therefore also be its first chance to block a merge. If it misfires, the failure to
+suspect first is a stale lcov: the check exits 2 (not 0) when a changed source file
+is newer than the coverage report, and the workflows run `test:cov` immediately
+before it so the report describes the code under test.
 
-1. Drop `--warn` from the three `scripts/coverage-diff.mjs` call sites —
-   `.github/workflows/deploy.yml`, `.github/workflows/frontend-ci.yml`, and the
-   `check:coverage-diff` script in the root `package.json`. (The flag is passed at
-   the call site; there is nothing to edit in the script itself.)
-2. Remove `continue-on-error: true` from the `secrets` and `dependencies` jobs in
-   `.github/workflows/constraints.yml`.
+To put a single row back into warn without reverting the rest: add `--warn` to that
+row's `Checked by` command in the workflow, or `continue-on-error: true` to the job.
+Say why in the commit, with a `Constraints-Change:` trailer.
