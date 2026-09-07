@@ -57,9 +57,8 @@ jobs:
 
       - run: npm run test:cov
 
-      # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
       - name: Coverage of changed lines
         working-directory: .
-        run: node scripts/coverage-diff.mjs --warn --base origin/${{ github.base_ref || 'main' }}
+        run: node scripts/coverage-diff.mjs --base origin/${{ github.base_ref || 'main' }}
 
       - run: npm run build
