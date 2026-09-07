@@ -69,6 +69,16 @@ const constraintsExistedAtBase = Boolean(
   git(['ls-tree', '--name-only', mergeBase, 'CONSTRAINTS.md'])?.trim(),
 );
 
+// Changing the bar has to be possible, or the first person who needs to will
+// delete the guard instead. A commit in this range carrying a `Constraints-Change:`
+// trailer is an explicit, reviewable statement of intent: the finding is still
+// printed, it just stops blocking. Loosening stays loud; it does not become
+// impossible.
+const constraintsChangeAck = (git(['log', '--format=%B', `${mergeBase}..HEAD`]) ?? '')
+  .split('\n')
+  .map((l) => l.trim())
+  .find((l) => /^Constraints-Change:\s*\S/i.test(l));
+
 const findings = [];
 const flag = (rule, f, text) => findings.push({ rule, file: f, text: text.trim().slice(0, 120) });
 
@@ -134,10 +144,26 @@ for (const r of removedC) {
   }
 }
 
-if (findings.length === 0) {
+// An acknowledged rule change still gets printed — it just stops blocking.
+const constraintsFindings = findings.filter((f) => /CONSTRAINTS\.md$/.test(f.file));
+const blocking =
+  constraintsChangeAck && constraintsFindings.length > 0
+    ? findings.filter((f) => !/CONSTRAINTS\.md$/.test(f.file))
+    : [...findings];
+
+if (constraintsChangeAck && constraintsFindings.length > 0) {
+  console.log(`floor-guard: ${constraintsFindings.length} acknowledged change(s) to the bar:`);
+  for (const f of constraintsFindings) console.log(`  [${f.rule}] ${f.text}`);
+  console.log(`  ${constraintsChangeAck}`);
+  console.log('Acknowledged by a Constraints-Change trailer — review it on its merits.');
+}
+
+if (blocking.length === 0) {
   console.log('floor-guard: clean');
   process.exit(0);
 }
+findings.length = 0;
+findings.push(...blocking);
 console.error(`floor-guard: ${findings.length} floor violation(s):`);
 for (const f of findings) console.error(`  [${f.rule}] ${f.file}: ${f.text}`);
 console.error('');

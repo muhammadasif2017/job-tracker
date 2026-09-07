@@ -47,13 +47,31 @@ jobs:
   dependencies:
     name: Dependency scan
     runs-on: ubuntu-latest
-    # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
+    # Warn phase until 2026-09-21 — see CONSTRAINTS.md. Red but non-blocking is
+    # deliberate; do not silence it with `|| true` on the gate step.
     continue-on-error: true
     steps:
       - uses: actions/checkout@v7
 
-      - uses: google/osv-scanner-action/osv-scanner-action@v2.5.1
+      - uses: actions/setup-node@v7
         with:
-          scan-args: |-
-            --lockfile=backend/package-lock.json
-            --lockfile=frontend/package-lock.json
+          node-version: 22
+
+      # osv-scanner has no severity or dependency-group gate of its own: it exits
+      # 1 on any finding at any severity, dev-only packages included. That is
+      # stricter than the rule this repo actually agreed to ("nothing at HIGH or
+      # above"), and a check that is red for reasons the rulebook does not endorse
+      # teaches everyone to ignore it. So the scan runs purely for data — the
+      # `|| true` here is deliberate — and dep-scan-gate.mjs applies the rule.
+      - name: Scan lockfiles
+        run: |
+          curl -sSfL -o osv-scanner \
+            https://github.com/google/osv-scanner/releases/download/v2.5.1/osv-scanner_linux_amd64
+          chmod +x osv-scanner
+          ./osv-scanner scan source \
+            --lockfile=backend/package-lock.json \
+            --lockfile=frontend/package-lock.json \
+            --format json > osv.json || true
+
+      - name: Apply the CONSTRAINTS.md rule
+        run: node scripts/dep-scan-gate.mjs osv.json
