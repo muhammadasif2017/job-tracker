@@ -39,7 +39,7 @@ bottom.
 | Migrations | Every new `migration.sql` declares `-- data-loss:` | `npm run check:migrations` | CI |
 | Coverage: changed lines | ≥ 80% of changed executable lines covered | `node scripts/coverage-diff.mjs` | CI (**warn until 2026-09-21**) |
 | Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI (**warn until 2026-09-21**) |
-| Security: dependencies | Nothing at HIGH or above | `osv-scanner-action@v2.5.1` (lockfiles) | CI (**warn until 2026-09-21**) |
+| Security: dependencies | No **production** package at CVSS 7.0+ | `osv-scanner` + `node scripts/dep-scan-gate.mjs` | CI (**warn until 2026-09-21**) |
 | E2E | Playwright suite green | `.github/workflows/e2e-pr.yml` | PR, merge-blocking (ADR-025) |
 
 \* pre-commit runs `lint-staged` (prettier + eslint --fix on staged files) plus the
@@ -62,6 +62,17 @@ reversible. `scripts/migration-guard.mjs` rejects a destructive migration
 (`DROP TABLE`/`DROP COLUMN`/`TRUNCATE`/`ALTER COLUMN ... TYPE`) that claims
 `data-loss: none`. Confirm the loss with the repo owner before merging, not before
 writing the migration.
+
+**Why the dependency row needs a gate script.** `osv-scanner` has no severity or
+dependency-group threshold: it exits 1 on any finding at any severity, including
+dev-only packages that ship nothing. Run raw, it is stricter than this rule — it
+was red on 42 findings the rule does not ask anyone to fix, which is how a check
+gets ignored. `scripts/dep-scan-gate.mjs` reads the scanner's JSON and enforces
+what is written here: production dependencies only (a package carrying
+`dependency_groups` is reachable only through dev or optional), CVSS 7.0+, which
+is the HIGH floor. Everything below the line is still printed, just not gated.
+Widen the rule by editing this row and the script's `--min`, never by removing the
+scan.
 
 **The one external opinion.** `osv-scanner` reads a vulnerability database nobody
 here maintains. Everything else in the table is judged by this project's own types,
