@@ -13,10 +13,7 @@ import {
   useRemoveInterviewRoundMutation,
   useSaveRoundDebriefMutation,
 } from '../../features/jobs/interview-rounds.hooks';
-import {
-  DERIVED_STATUS_COLORS,
-  DERIVED_STATUS_LABELS,
-} from '../../types';
+import { DERIVED_STATUS_COLORS, DERIVED_STATUS_LABELS } from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
 const OUTCOMES: InterviewOutcome[] = [
@@ -38,9 +35,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [notes, setNotes] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | undefined>();
-  const [editingDebriefId, setEditingDebriefId] = useState<string | null>(
-    null,
-  );
+  const [editingDebriefId, setEditingDebriefId] = useState<string | null>(null);
   const [debriefText, setDebriefText] = useState('');
 
   const createMutation = useCreateInterviewRoundMutation(jobId, () => {
@@ -76,7 +71,11 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     }
     if (!scheduledAt) return;
     setStageError(undefined);
-    createMutation.mutate({ stage: stage.trim(), scheduledAt, notes: notes || undefined });
+    createMutation.mutate({
+      stage: stage.trim(),
+      scheduledAt,
+      notes: notes || undefined,
+    });
   }
 
   async function handleDownloadIcs(roundId: string) {
@@ -87,8 +86,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       );
       const objectUrl = URL.createObjectURL(response.data as Blob);
       const disposition = response.headers['content-disposition'] as
-        | string
-        | undefined;
+        string | undefined;
       const filename =
         disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'interview.ics';
       const a = document.createElement('a');
@@ -106,7 +104,9 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   return (
     <div className="rounded-md border border-line bg-paper p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">Interview Rounds</h2>
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+          Interview Rounds
+        </h2>
         {!adding && (
           <Button
             type="button"
@@ -174,9 +174,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       )}
 
       {rounds.length === 0 ? (
-        <p className="text-sm text-muted-2">
-          No interview rounds logged yet.
-        </p>
+        <p className="text-sm text-muted-2">No interview rounds logged yet.</p>
       ) : (
         <ul className="divide-y divide-line">
           {rounds.map((round) => {
@@ -204,9 +202,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
 
                   {confirmingId === round.id ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted">
-                        Remove?
-                      </span>
+                      <span className="text-sm text-muted">Remove?</span>
                       <Button
                         type="button"
                         variant="danger"

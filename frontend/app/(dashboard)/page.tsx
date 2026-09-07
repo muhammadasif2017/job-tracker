@@ -2,7 +2,14 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { Briefcase, TrendingUp, Award, BarChart2, CalendarDays, Ghost } from 'lucide-react';
+import {
+  Briefcase,
+  TrendingUp,
+  Award,
+  BarChart2,
+  CalendarDays,
+  Ghost,
+} from 'lucide-react';
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
@@ -23,15 +30,24 @@ import {
 // All three point at the same module so Turbopack resolves the shared Recharts
 // vendor dependency once instead of duplicating it across three chunks.
 const StatusChart = dynamic(
-  () => import('../../components/dashboard/dashboard-charts').then((m) => m.StatusChart),
+  () =>
+    import('../../components/dashboard/dashboard-charts').then(
+      (m) => m.StatusChart,
+    ),
   { ssr: false },
 );
 const FunnelChart = dynamic(
-  () => import('../../components/dashboard/dashboard-charts').then((m) => m.FunnelChart),
+  () =>
+    import('../../components/dashboard/dashboard-charts').then(
+      (m) => m.FunnelChart,
+    ),
   { ssr: false },
 );
 const TrendChart = dynamic(
-  () => import('../../components/dashboard/dashboard-charts').then((m) => m.TrendChart),
+  () =>
+    import('../../components/dashboard/dashboard-charts').then(
+      (m) => m.TrendChart,
+    ),
   { ssr: false },
 );
 
@@ -66,7 +82,9 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">Dashboard</h1>
+          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+            Dashboard
+          </h1>
           <p className="text-sm text-muted">Your job search at a glance</p>
         </div>
         <DateRangeSelect value={range} onChange={setRange} />
@@ -130,7 +148,10 @@ export default function DashboardPage() {
             Recent Activity
           </h2>
           {recentLoading ? (
-            <LoadingStatus label="Loading recent activity" className="space-y-3">
+            <LoadingStatus
+              label="Loading recent activity"
+              className="space-y-3"
+            >
               {[...Array(4)].map((_, i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}

@@ -46,7 +46,9 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Welcome back</h1>
+          <h1 className="font-display text-2xl font-bold tracking-tight text-ink">
+            Welcome back
+          </h1>
           <p className="mt-1 text-sm text-muted">Sign in to your account</p>
         </div>
 
@@ -56,7 +58,9 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-line" />
-          <span className="font-mono text-[11px] uppercase tracking-wide text-muted-2">or continue with email</span>
+          <span className="font-mono text-[11px] uppercase tracking-wide text-muted-2">
+            or continue with email
+          </span>
           <div className="h-px flex-1 bg-line" />
         </div>
 

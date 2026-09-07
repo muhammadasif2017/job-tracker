@@ -94,9 +94,7 @@ describe('InterviewRounds', () => {
     });
 
     it('omits the badge once the round is resolved', () => {
-      renderRounds([
-        { ...round, outcome: 'PASSED', derivedStatus: 'PASSED' },
-      ]);
+      renderRounds([{ ...round, outcome: 'PASSED', derivedStatus: 'PASSED' }]);
       expect(screen.queryByText('Scheduled')).not.toBeInTheDocument();
       expect(screen.queryByText('Awaiting response')).not.toBeInTheDocument();
       expect(screen.queryByText('Possibly ghosted')).not.toBeInTheDocument();
@@ -379,9 +377,7 @@ describe('InterviewRounds', () => {
         headers: { 'content-disposition': 'attachment; filename="round.ics"' },
       });
       renderRounds([round]);
-      fireEvent.click(
-        screen.getByRole('button', { name: /add to calendar/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }));
       await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
       expect(clickSpy).toHaveBeenCalled();
 
@@ -391,7 +387,11 @@ describe('InterviewRounds', () => {
 
     it('falls back to interview.ics without a Content-Disposition header', async () => {
       const createObjectURL = vi.fn().mockReturnValue('blob:mock');
-      vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL: vi.fn() });
+      vi.stubGlobal('URL', {
+        ...URL,
+        createObjectURL,
+        revokeObjectURL: vi.fn(),
+      });
       let downloadedName = '';
       const clickSpy = vi
         .spyOn(HTMLAnchorElement.prototype, 'click')
@@ -404,9 +404,7 @@ describe('InterviewRounds', () => {
         headers: {},
       });
       renderRounds([round]);
-      fireEvent.click(
-        screen.getByRole('button', { name: /add to calendar/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }));
       await waitFor(() => expect(createObjectURL).toHaveBeenCalled());
       expect(downloadedName).toBe('interview.ics');
 
@@ -417,9 +415,7 @@ describe('InterviewRounds', () => {
     it('shows an error toast when the download fails', async () => {
       vi.mocked(api.get).mockRejectedValue(new Error('network down'));
       renderRounds([round]);
-      fireEvent.click(
-        screen.getByRole('button', { name: /add to calendar/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /add to calendar/i }));
       await waitFor(() =>
         expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
           'Failed to download calendar file',

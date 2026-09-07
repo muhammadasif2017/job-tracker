@@ -20,14 +20,7 @@ interface CompanyListProps {
   onMerge: (company: Company) => void;
 }
 
-const COLUMNS = [
-  'Name',
-  'City',
-  'Priority',
-  'Business Mode',
-  'Research',
-  '',
-];
+const COLUMNS = ['Name', 'City', 'Priority', 'Business Mode', 'Research', ''];
 
 export function CompanyList({
   companies,
@@ -53,10 +46,7 @@ export function CompanyList({
             ))}
           </tr>
         </thead>
-        <tbody
-          className="divide-y divide-line"
-          aria-busy={isLoading}
-        >
+        <tbody className="divide-y divide-line" aria-busy={isLoading}>
           {isLoading ? (
             <>
               <tr>

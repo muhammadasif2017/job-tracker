@@ -50,6 +50,9 @@ jobs:
         working-directory: ./backend
     steps:
       - uses: actions/checkout@v7
+        with:
+          # coverage-diff needs the merge base to know which lines changed.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
@@ -63,7 +66,12 @@ jobs:
 
       - run: npx tsc --noEmit
 
-      - run: npx jest
+      - run: npm run test:cov
+
+      # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
+      - name: Coverage of changed lines
+        working-directory: .
+        run: node scripts/coverage-diff.mjs --warn --base origin/${{ github.base_ref || 'main' }}
 
   build-push:
     if: github.ref == 'refs/heads/main'

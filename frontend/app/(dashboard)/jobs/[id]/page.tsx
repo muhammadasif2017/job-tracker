@@ -92,8 +92,7 @@ export default function JobDetailPage() {
 
   const { data: job, isLoading, isError, error, refetch } = useJobQuery(id);
 
-  const isNotFound =
-    isAxiosError(error) && error.response?.status === 404;
+  const isNotFound = isAxiosError(error) && error.response?.status === 404;
 
   const { data: events = [] } = useJobEventsQuery(id);
 
@@ -124,10 +123,10 @@ export default function JobDetailPage() {
           <div className="rounded-md border border-line bg-paper p-6 space-y-5">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">{job.company}</h1>
-                <p className="mt-0.5 text-muted break-words">
-                  {job.position}
-                </p>
+                <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">
+                  {job.company}
+                </h1>
+                <p className="mt-0.5 text-muted break-words">{job.position}</p>
               </div>
               <div className="flex gap-2">
                 <Button

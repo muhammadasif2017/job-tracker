@@ -107,13 +107,11 @@ test.describe('Resume upload on a narrow viewport', () => {
       page.getByRole('heading', { name: 'Narrow Co' }),
     ).toBeVisible();
 
-    await page
-      .locator('input[type="file"]')
-      .setInputFiles({
-        name: 'resume.pdf',
-        mimeType: 'application/pdf',
-        buffer: pdfBuffer(1024),
-      });
+    await page.locator('input[type="file"]').setInputFiles({
+      name: 'resume.pdf',
+      mimeType: 'application/pdf',
+      buffer: pdfBuffer(1024),
+    });
     await expect(page.getByText('Resume uploaded')).toBeVisible();
 
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({

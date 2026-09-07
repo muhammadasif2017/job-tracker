@@ -4,10 +4,7 @@ export function Skeleton({ className }: { className?: string }) {
   return (
     <div
       aria-hidden="true"
-      className={cn(
-        'animate-pulse rounded-md bg-line',
-        className,
-      )}
+      className={cn('animate-pulse rounded-md bg-line', className)}
     />
   );
 }
@@ -24,7 +21,12 @@ export function LoadingStatus({
   children: React.ReactNode;
 }) {
   return (
-    <div role="status" aria-live="polite" aria-busy="true" className={className}>
+    <div
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      className={className}
+    >
       <span className="sr-only">{label}</span>
       {children}
     </div>

@@ -44,9 +44,12 @@ describe('QuickAdd', () => {
     expect(
       screen.getByRole('button', { name: /parse & continue/i }),
     ).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'Senior Engineer at Acme' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'Senior Engineer at Acme' },
+      },
+    );
     expect(
       screen.getByRole('button', { name: /parse & continue/i }),
     ).not.toBeDisabled();
@@ -55,9 +58,12 @@ describe('QuickAdd', () => {
   it('sends free text as {text} to /jobs/parse', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { company: 'Acme' } });
     renderQuickAdd();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'Senior Engineer at Acme' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'Senior Engineer at Acme' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
     await waitFor(() =>
       expect(vi.mocked(api.post)).toHaveBeenCalledWith(
@@ -71,9 +77,12 @@ describe('QuickAdd', () => {
   it('sends a URL input as {url}', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: { company: 'Acme' } });
     renderQuickAdd();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'https://acme.example/jobs/1' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'https://acme.example/jobs/1' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
     await waitFor(() =>
       expect(vi.mocked(api.post)).toHaveBeenCalledWith(
@@ -89,9 +98,12 @@ describe('QuickAdd', () => {
       data: { company: 'Acme', position: 'Senior Engineer' },
     });
     renderQuickAdd();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'Senior Engineer at Acme' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'Senior Engineer at Acme' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
     expect(await screen.findByText('Add Job')).toBeInTheDocument();
     expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
@@ -103,9 +115,12 @@ describe('QuickAdd', () => {
       data: { company: 'Acme', position: null, location: null },
     });
     renderQuickAdd();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'Some posting text' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'Some posting text' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
     expect(await screen.findByText('Add Job')).toBeInTheDocument();
     expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
@@ -117,9 +132,12 @@ describe('QuickAdd', () => {
     // page fetch nor the search fallback gave the LLM anything to work with.
     vi.mocked(api.post).mockResolvedValue({ data: {} });
     renderQuickAdd();
-    fireEvent.change(screen.getByPlaceholderText(/paste the job description/i), {
-      target: { value: 'Some posting text' },
-    });
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      {
+        target: { value: 'Some posting text' },
+      },
+    );
     fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
 
     await waitFor(() =>

@@ -5,7 +5,12 @@ import { Modal } from './modal';
 describe('Modal', () => {
   it('renders title, description, and children when open', () => {
     render(
-      <Modal open onClose={vi.fn()} title="Add Job" description="Fill in the details">
+      <Modal
+        open
+        onClose={vi.fn()}
+        title="Add Job"
+        description="Fill in the details"
+      >
         <div>form content</div>
       </Modal>,
     );

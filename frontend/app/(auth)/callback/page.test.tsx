@@ -62,10 +62,9 @@ describe('CallbackPage', () => {
     });
     render(<CallbackPage />);
     await waitFor(() =>
-      expect(vi.mocked(api.post)).toHaveBeenCalledWith(
-        '/auth/exchange-code',
-        { code: 'abc123' },
-      ),
+      expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/exchange-code', {
+        code: 'abc123',
+      }),
     );
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/auth/me', {
       headers: { Authorization: 'Bearer tok-1' },

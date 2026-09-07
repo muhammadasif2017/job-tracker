@@ -69,8 +69,7 @@ describe('RootLayout structure', () => {
     const el = renderTree();
     const head = findByType(el.props.children, 'head')!;
     const link = findByType(head.props.children as unknown[], 'link') as
-      | { props: { href: string; rel: string } }
-      | undefined;
+      { props: { href: string; rel: string } } | undefined;
     expect(link?.props.href).toBe('http://localhost:3001');
     expect(link?.props.rel).toBe('preconnect');
     process.env.NEXT_PUBLIC_API_URL = prev;

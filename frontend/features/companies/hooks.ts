@@ -80,7 +80,9 @@ export function useDuplicateSuggestionsQuery() {
   });
 }
 
-export function useCreateCompanyMutation(onCreated?: (company: Company) => void) {
+export function useCreateCompanyMutation(
+  onCreated?: (company: Company) => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (dto: CompanyWritePayload) =>
@@ -269,7 +271,9 @@ export function useMergeCompaniesMutation(onMerged?: () => void) {
   });
 }
 
-export function useImportCompaniesCsvMutation(onSuccess?: (result: CsvImportResult) => void) {
+export function useImportCompaniesCsvMutation(
+  onSuccess?: (result: CsvImportResult) => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (file: File) => {

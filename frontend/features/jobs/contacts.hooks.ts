@@ -11,7 +11,10 @@ export interface ContactPayload {
   notes: string | null;
 }
 
-export function useCreateContactMutation(jobId: string, onSuccess?: () => void) {
+export function useCreateContactMutation(
+  jobId: string,
+  onSuccess?: () => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: ContactPayload) =>
@@ -29,7 +32,10 @@ export function useCreateContactMutation(jobId: string, onSuccess?: () => void) 
   });
 }
 
-export function useUpdateContactMutation(jobId: string, onSuccess?: () => void) {
+export function useUpdateContactMutation(
+  jobId: string,
+  onSuccess?: () => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({

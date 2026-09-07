@@ -53,14 +53,18 @@ describe('useResumeQuery', () => {
 
   it('does not call the API when jobId is null', async () => {
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useResumeQuery(null, null), { wrapper });
+    const { result } = renderHook(() => useResumeQuery(null, null), {
+      wrapper,
+    });
     expect(result.current.fetchStatus).toBe('idle');
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
   });
 
   it('seeds the cache from initialResume without hitting the API', () => {
     const { wrapper } = makeWrapper();
-    const { result } = renderHook(() => useResumeQuery('j-1', resume), { wrapper });
+    const { result } = renderHook(() => useResumeQuery('j-1', resume), {
+      wrapper,
+    });
     expect(result.current.data).toEqual(resume);
     expect(vi.mocked(api.get)).not.toHaveBeenCalled();
   });
@@ -111,7 +115,10 @@ describe('useResumeQuery', () => {
 
     it('resolves cleanly when a transient non-404 failure succeeds on retry', async () => {
       vi.mocked(api.get)
-        .mockRejectedValueOnce({ isAxiosError: true, response: { status: 500 } })
+        .mockRejectedValueOnce({
+          isAxiosError: true,
+          response: { status: 500 },
+        })
         .mockResolvedValueOnce({ data: resume });
       const { wrapper } = makeRetryWrapper();
       const { result } = renderHook(() => useResumeQuery('j-1'), { wrapper });
@@ -144,7 +151,9 @@ describe('useUploadResumeMutation', () => {
   it('writes the uploaded resume into the ["resume", jobId] cache on success', async () => {
     vi.mocked(api.post).mockResolvedValue({ data: resume });
     const { qc, wrapper } = makeWrapper();
-    const { result } = renderHook(() => useUploadResumeMutation('j-1'), { wrapper });
+    const { result } = renderHook(() => useUploadResumeMutation('j-1'), {
+      wrapper,
+    });
 
     await act(async () => {
       await result.current.mutateAsync(new File(['x'], 'cv.pdf'));
@@ -160,10 +169,14 @@ describe('useUploadResumeMutation', () => {
       response: { data: { message: 'Too large' } },
     });
     const { qc, wrapper } = makeWrapper();
-    const { result } = renderHook(() => useUploadResumeMutation('j-1'), { wrapper });
+    const { result } = renderHook(() => useUploadResumeMutation('j-1'), {
+      wrapper,
+    });
 
     await act(async () => {
-      await result.current.mutateAsync(new File(['x'], 'cv.pdf')).catch(() => {});
+      await result.current
+        .mutateAsync(new File(['x'], 'cv.pdf'))
+        .catch(() => {});
     });
 
     expect(qc.getQueryData(['resume', 'j-1'])).toBeUndefined();
@@ -181,9 +194,12 @@ describe('useRemoveResumeMutation', () => {
     const { qc, wrapper } = makeWrapper();
     qc.setQueryData(['resume', 'j-1'], resume);
     const onSettled = vi.fn();
-    const { result } = renderHook(() => useRemoveResumeMutation('j-1', onSettled), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useRemoveResumeMutation('j-1', onSettled),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       await result.current.mutateAsync();
@@ -202,9 +218,12 @@ describe('useRemoveResumeMutation', () => {
     const { qc, wrapper } = makeWrapper();
     qc.setQueryData(['resume', 'j-1'], resume);
     const onSettled = vi.fn();
-    const { result } = renderHook(() => useRemoveResumeMutation('j-1', onSettled), {
-      wrapper,
-    });
+    const { result } = renderHook(
+      () => useRemoveResumeMutation('j-1', onSettled),
+      {
+        wrapper,
+      },
+    );
 
     await act(async () => {
       await result.current.mutateAsync().catch(() => {});

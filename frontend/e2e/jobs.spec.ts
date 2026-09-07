@@ -120,9 +120,7 @@ test.describe('Create job', () => {
     );
     await expect(suggestion).not.toBeVisible();
 
-    await deleteTestCompany(user.accessToken, targetCompany.id).catch(
-      () => {},
-    );
+    await deleteTestCompany(user.accessToken, targetCompany.id).catch(() => {});
   });
 });
 

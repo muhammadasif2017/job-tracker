@@ -161,7 +161,7 @@ export function MergeCompanyDialog({
         step === 'search'
           ? 'Find the duplicate company to merge in. Its jobs and contacts move to this company, and the duplicate is deleted.'
           : step === 'conflicts'
-            ? 'These fields differ between the two companies. Pick which value to keep — unpicked fields keep this company\'s current value.'
+            ? "These fields differ between the two companies. Pick which value to keep — unpicked fields keep this company's current value."
             : undefined
       }
     >
@@ -278,7 +278,9 @@ export function MergeCompanyDialog({
           <div className="flex justify-end gap-3">
             <Button
               variant="secondary"
-              onClick={() => setStep(conflicts.length > 0 ? 'conflicts' : 'search')}
+              onClick={() =>
+                setStep(conflicts.length > 0 ? 'conflicts' : 'search')
+              }
               disabled={merge.isPending}
             >
               Back

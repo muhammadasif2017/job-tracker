@@ -34,9 +34,7 @@ export function useCreateInterviewRoundMutation(
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateInterviewRoundPayload) =>
-      api
-        .post(`/jobs/${jobId}/interview-rounds`, payload)
-        .then((r) => r.data),
+      api.post(`/jobs/${jobId}/interview-rounds`, payload).then((r) => r.data),
     onSuccess: () => {
       invalidateInterviewRoundCaches(qc, jobId);
       toast.success('Interview round added');

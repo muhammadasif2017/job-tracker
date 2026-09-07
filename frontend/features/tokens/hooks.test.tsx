@@ -101,7 +101,9 @@ describe('useCreateTokenMutation', () => {
       await result.current.mutateAsync('One too many').catch(() => {});
     });
 
-    expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Token limit reached (20)');
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Token limit reached (20)',
+    );
     expect(invalidateSpy).not.toHaveBeenCalled();
   });
 });
@@ -110,7 +112,9 @@ describe('useRevokeTokenMutation', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('deletes by id, invalidates ["tokens"], and toasts success', async () => {
-    vi.mocked(api.delete).mockResolvedValue({ data: { message: 'Token revoked' } });
+    vi.mocked(api.delete).mockResolvedValue({
+      data: { message: 'Token revoked' },
+    });
     const { qc, wrapper } = makeWrapper();
     const invalidateSpy = vi.spyOn(qc, 'invalidateQueries');
     const { result } = renderHook(() => useRevokeTokenMutation(), { wrapper });

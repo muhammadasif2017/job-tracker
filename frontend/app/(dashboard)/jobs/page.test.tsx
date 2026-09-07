@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import JobsPage from './page';
 import { formatCivilDate } from '../../../lib/utils';
@@ -24,7 +30,15 @@ vi.mock('../../../lib/api', () => ({
 }));
 
 vi.mock('../../../components/jobs/job-form', () => ({
-  JobForm: ({ open, onClose, job }: { open: boolean; onClose: () => void; job?: Job }) =>
+  JobForm: ({
+    open,
+    onClose,
+    job,
+  }: {
+    open: boolean;
+    onClose: () => void;
+    job?: Job;
+  }) =>
     open ? (
       <div data-testid="job-form" data-job-id={job?.id ?? ''}>
         <button onClick={onClose}>close-job-form</button>
@@ -119,17 +133,28 @@ describe('JobsPage', () => {
     it('shows skeleton rows while the query is pending', () => {
       vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
       const { container } = render(
-        <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <QueryClientProvider
+          client={
+            new QueryClient({ defaultOptions: { queries: { retry: false } } })
+          }
+        >
           <JobsPage />
         </QueryClientProvider>,
       );
-      expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+      expect(
+        container.querySelectorAll('.animate-pulse').length,
+      ).toBeGreaterThan(0);
     });
   });
 
   describe('empty state', () => {
     it('shows "No jobs found" when there are no jobs', async () => {
-      vi.mocked(api.get).mockResolvedValue({ data: page({ data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } }) });
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({
+          data: [],
+          meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+        }),
+      });
       renderPage();
       expect(await screen.findByText('No jobs found')).toBeInTheDocument();
     });
@@ -139,7 +164,9 @@ describe('JobsPage', () => {
     it('shows a failed-to-load message instead of an empty table when the query errors', async () => {
       vi.mocked(api.get).mockRejectedValue(new Error('network down'));
       renderPage();
-      expect(await screen.findByText('Failed to load jobs')).toBeInTheDocument();
+      expect(
+        await screen.findByText('Failed to load jobs'),
+      ).toBeInTheDocument();
       expect(screen.queryByText('No jobs found')).not.toBeInTheDocument();
       expect(
         screen.getByText((_, el) => el?.textContent === 'Failed to load'),
@@ -159,9 +186,13 @@ describe('JobsPage', () => {
       expect(row.getByText('High')).toBeInTheDocument();
       expect(row.getByText('Remote')).toBeInTheDocument();
       expect(row.getByText('Austin, TX')).toBeInTheDocument();
-      expect(row.getByText(formatCivilDate('2026-06-01T00:00:00Z'))).toBeInTheDocument();
       expect(
-        screen.getByText((_, el) => el?.textContent === '2 applications tracked'),
+        row.getByText(formatCivilDate('2026-06-01T00:00:00Z')),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          (_, el) => el?.textContent === '2 applications tracked',
+        ),
       ).toBeInTheDocument();
     });
 
@@ -222,7 +253,9 @@ describe('JobsPage', () => {
       fireEvent.change(screen.getByLabelText('Applied on or before'), {
         target: { value: '2026-06-30' },
       });
-      await waitFor(() => expect(lastGetUrl()).toContain('dateFrom=2026-01-01'));
+      await waitFor(() =>
+        expect(lastGetUrl()).toContain('dateFrom=2026-01-01'),
+      );
       expect(lastGetUrl()).toContain('dateTo=2026-06-30');
     });
 
@@ -274,7 +307,10 @@ describe('JobsPage', () => {
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: /board/i }));
       fireEvent.click(screen.getByRole('button', { name: /kanban-edit/i }));
-      expect(screen.getByTestId('job-form')).toHaveAttribute('data-job-id', 'j-1');
+      expect(screen.getByTestId('job-form')).toHaveAttribute(
+        'data-job-id',
+        'j-1',
+      );
     });
   });
 
@@ -300,7 +336,10 @@ describe('JobsPage', () => {
       renderPage();
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: 'Edit Globex' }));
-      expect(screen.getByTestId('job-form')).toHaveAttribute('data-job-id', 'j-2');
+      expect(screen.getByTestId('job-form')).toHaveAttribute(
+        'data-job-id',
+        'j-2',
+      );
     });
   });
 
@@ -389,11 +428,13 @@ describe('JobsPage', () => {
         .spyOn(HTMLAnchorElement.prototype, 'click')
         .mockImplementation(() => {});
       const downloads: string[] = [];
-      vi.spyOn(HTMLAnchorElement.prototype, 'download', 'set').mockImplementation(
-        function (this: HTMLAnchorElement, value: string) {
-          downloads.push(value);
-        },
-      );
+      vi.spyOn(
+        HTMLAnchorElement.prototype,
+        'download',
+        'set',
+      ).mockImplementation(function (this: HTMLAnchorElement, value: string) {
+        downloads.push(value);
+      });
 
       vi.mocked(api.get).mockImplementation((url: string) => {
         if (url.startsWith('/jobs/export')) {
@@ -447,12 +488,16 @@ describe('JobsPage', () => {
       renderPage();
       await screen.findByText('Acme');
       expect(screen.getByRole('button', { name: /previous/i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /^next$/i })).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /^next$/i }),
+      ).not.toBeDisabled();
 
       fireEvent.click(screen.getByRole('button', { name: /^next$/i }));
       await waitFor(() => expect(lastGetUrl()).toContain('page=2'));
       expect(await screen.findByText('Acme')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /previous/i })).not.toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /previous/i }),
+      ).not.toBeDisabled();
       expect(screen.getByRole('button', { name: /^next$/i })).toBeDisabled();
     });
   });

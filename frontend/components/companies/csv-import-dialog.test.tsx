@@ -116,7 +116,9 @@ describe('CsvImportDialog', () => {
         'Imported 1 companies, 1 row(s) skipped',
       ),
     );
-    expect(screen.getByText('Duplicate company name "Acme"')).toBeInTheDocument();
+    expect(
+      screen.getByText('Duplicate company name "Acme"'),
+    ).toBeInTheDocument();
   });
 
   it('shows an error toast and keeps the file picker when the import request fails', async () => {

@@ -111,7 +111,9 @@ describe('ProfilePage', () => {
       vi.mocked(api.get).mockResolvedValue({ data: profile });
       renderPage();
       await screen.findByDisplayValue('Jane Doe');
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: '' } });
+      fireEvent.change(screen.getByLabelText('Name'), {
+        target: { value: '' },
+      });
       fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
       expect(await screen.findByText('Name is required')).toBeInTheDocument();
       expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
@@ -179,7 +181,9 @@ describe('ProfilePage', () => {
       fireEvent.change(screen.getByLabelText('Email digest'), {
         target: { value: 'WEEKLY' },
       });
-      fireEvent.click(screen.getByRole('button', { name: /save preferences/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /save preferences/i }),
+      );
       await waitFor(() =>
         expect(vi.mocked(api.patch)).toHaveBeenCalledWith(
           '/users/me/notifications',
@@ -200,7 +204,9 @@ describe('ProfilePage', () => {
       vi.mocked(api.patch).mockRejectedValue(new Error('network down'));
       renderPage();
       await screen.findByDisplayValue('Jane Doe');
-      fireEvent.click(screen.getByRole('button', { name: /save preferences/i }));
+      fireEvent.click(
+        screen.getByRole('button', { name: /save preferences/i }),
+      );
       await waitFor(() =>
         expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
           'Failed to update notification preferences',
@@ -251,9 +257,7 @@ describe('ProfilePage', () => {
       fireEvent.change(screen.getByLabelText('Confirm new password'), {
         target: { value: 'short' },
       });
-      fireEvent.click(
-        screen.getByRole('button', { name: /update password/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /update password/i }));
       expect(await screen.findByText('Min 8 characters')).toBeInTheDocument();
       expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
 
@@ -263,9 +267,7 @@ describe('ProfilePage', () => {
       fireEvent.change(screen.getByLabelText('Confirm new password'), {
         target: { value: 'different1' },
       });
-      fireEvent.click(
-        screen.getByRole('button', { name: /update password/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /update password/i }));
       expect(
         await screen.findByText("Passwords don't match"),
       ).toBeInTheDocument();
@@ -286,9 +288,7 @@ describe('ProfilePage', () => {
       fireEvent.change(screen.getByLabelText('Confirm new password'), {
         target: { value: 'longenough1' },
       });
-      fireEvent.click(
-        screen.getByRole('button', { name: /update password/i }),
-      );
+      fireEvent.click(screen.getByRole('button', { name: /update password/i }));
       await waitFor(() =>
         expect(vi.mocked(api.patch)).toHaveBeenCalledWith(
           '/users/me/password',

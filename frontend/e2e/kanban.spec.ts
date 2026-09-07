@@ -42,9 +42,7 @@ async function dragJobToColumn(
   jobId: string,
   columnsToTheRight: number,
 ) {
-  const handle = page.locator(
-    `[data-rfd-drag-handle-draggable-id="${jobId}"]`,
-  );
+  const handle = page.locator(`[data-rfd-drag-handle-draggable-id="${jobId}"]`);
   await handle.focus();
   await page.keyboard.press('Space');
   await page.waitForTimeout(200);
@@ -62,7 +60,10 @@ test.describe('Kanban columns', () => {
     page,
   }) => {
     const jobs = await Promise.all([
-      createTestJob(user.accessToken, { company: 'Wish Co', status: 'WISHLIST' }),
+      createTestJob(user.accessToken, {
+        company: 'Wish Co',
+        status: 'WISHLIST',
+      }),
       createTestJob(user.accessToken, { company: 'App Co', status: 'APPLIED' }),
       createTestJob(user.accessToken, {
         company: 'Int Co',
@@ -90,12 +91,10 @@ test.describe('Kanban columns', () => {
     await expect(
       page.locator('[data-rfd-droppable-id="INTERVIEWING"]'),
     ).toBeVisible();
+    await expect(page.locator('[data-rfd-droppable-id="OFFER"]')).toBeVisible();
     await expect(
-      page.locator('[data-rfd-droppable-id="OFFER"]'),
-    ).toBeVisible();
-    await expect(page.locator('[data-rfd-droppable-id="REJECTED"]')).toHaveCount(
-      0,
-    );
+      page.locator('[data-rfd-droppable-id="REJECTED"]'),
+    ).toHaveCount(0);
     await expect(page.locator('[data-rfd-droppable-id="GHOSTED"]')).toHaveCount(
       0,
     );

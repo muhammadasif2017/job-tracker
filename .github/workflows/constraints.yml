@@ -1,0 +1,59 @@
+name: Constraints
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  floor:
+    name: Floor + migration guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The guards diff against the merge base, which a shallow clone does
+          # not have — without full history they exit 2 (could not run).
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - run: node scripts/floor-guard.mjs --base origin/${{ github.base_ref || 'main' }}
+
+      - run: node scripts/migration-guard.mjs --base origin/${{ github.base_ref || 'main' }}
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      # --redact keeps the matched value out of the log; a leaked key must not be
+      # reprinted by the thing that found it.
+      - name: gitleaks
+        run: |
+          curl -sSfL -o gitleaks.tar.gz \
+            https://github.com/gitleaks/gitleaks/releases/download/v8.30.0/gitleaks_8.30.0_linux_x64.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          # --no-git scans the working tree, not 300+ commits of history: a
+          # historical finding is a remediation project, not a merge gate.
+          ./gitleaks detect --no-git --redact --no-banner --exit-code 1
+
+  dependencies:
+    name: Dependency scan
+    runs-on: ubuntu-latest
+    # Warn phase until 2026-09-21 — see CONSTRAINTS.md.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.5.1
+        with:
+          scan-args: |-
+            --lockfile=backend/package-lock.json
+            --lockfile=frontend/package-lock.json

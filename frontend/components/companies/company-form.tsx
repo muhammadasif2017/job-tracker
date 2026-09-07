@@ -30,16 +30,8 @@ const schema = z.object({
   location: z.string().optional(),
   priority: z.enum(JOB_PRIORITIES),
   personalNotes: z.string().optional(),
-  websiteUrl: z
-    .string()
-    .url('Enter a valid URL')
-    .or(z.literal(''))
-    .optional(),
-  linkedinUrl: z
-    .string()
-    .url('Enter a valid URL')
-    .or(z.literal(''))
-    .optional(),
+  websiteUrl: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
+  linkedinUrl: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
   businessMode: z.enum(BUSINESS_MODES).or(z.literal('')).optional(),
   productDescription: z.string().optional(),
   industry: z.string().optional(),
@@ -122,7 +114,10 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
       industry: data.industry || null,
       companySize: data.companySize || null,
       techStack: data.techStack
-        ? data.techStack.split(',').map((t) => t.trim()).filter(Boolean)
+        ? data.techStack
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean)
         : [],
       cultureSummary: data.cultureSummary || null,
     };
