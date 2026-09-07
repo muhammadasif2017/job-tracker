@@ -39,7 +39,7 @@ bottom.
 | Migrations | Every new `migration.sql` declares `-- data-loss:` | `npm run check:migrations` | CI |
 | Coverage: changed lines | ≥ 80% of changed executable lines covered | `node scripts/coverage-diff.mjs` | CI (**warn until 2026-09-21**) |
 | Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI (**warn until 2026-09-21**) |
-| Security: dependencies | Nothing at HIGH or above | `osv-scanner scan source -r .` | CI (**warn until 2026-09-21**) |
+| Security: dependencies | Nothing at HIGH or above | `osv-scanner-action@v2.5.1` (lockfiles) | CI (**warn until 2026-09-21**) |
 | E2E | Playwright suite green | `.github/workflows/e2e-pr.yml` | PR, merge-blocking (ADR-025) |
 
 \* pre-commit runs `lint-staged` (prettier + eslint --fix on staged files) plus the
