@@ -148,6 +148,11 @@ switched off is worse than no gate, because the bar still looks like it exists.
 Exceptions carry an owner and an expiry because an exception unblocks you; deleting
 the constraint unblocks everyone forever.
 
+IDs are allocated once and never reused or renumbered, so a gap in the sequence is
+expected rather than a missing row. `E3` was never allocated: the table has run
+E1, E2, E4 since the file was created in 46c40bd, and no exception has ever carried
+that ID.
+
 Two more were opened and closed the same day rather than tracked: the empty
 `catch {}` in `components/layout/sidebar.tsx` now states why a failed
 `/auth/logout` must not block local sign-out, and the ~74 frontend files failing
