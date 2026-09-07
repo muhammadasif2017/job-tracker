@@ -44,6 +44,11 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [035](./035-enrichment-search-quota-conservation.md) | Enrich a company once, not once per job; don't retry an out-of-quota search | Accepted |
 | [036](./036-same-name-guard-scoped-per-snippet.md) | Judge same-name search snippets individually; one impostor must not discard the whole extraction | Accepted |
 | [037](./037-web-fetch-follows-validated-redirects.md) | Follow redirects with per-hop SSRF revalidation — failing closed on every 3xx broke official-site fetches | Accepted |
+| [038](./038-enrichment-context-budget.md) | Drop contact-page fetches, put the homepage first, and raise the 6000/3500 context caps | Accepted |
+| [039](./039-web-fetch-strips-site-chrome.md) | Strip nav/header/footer/aside/form and prefer <main> - menu text was outcompeting page content | Accepted |
+| [040](./040-work-policy-from-linked-jobs.md) | Derive workPolicy from linked jobs' jobType - careers pages carry no policy wording | Superseded by 041 |
+| [041](./041-company-profile-drops-work-policy.md) | Drop Company.workPolicy (it belongs to Job.jobType); enrich productDescription and businessMode instead | Accepted |
+| [042](./042-techstack-noise-and-tracked-roles.md) | Keep site-scanner output out of techStack; feed tracked job titles in as first-party tech signal | Accepted |
 
 ## How to read an ADR
 

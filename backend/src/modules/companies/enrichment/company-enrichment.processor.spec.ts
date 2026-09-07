@@ -1,5 +1,5 @@
 import { UnrecoverableError, type Job } from 'bullmq';
-import { EnrichmentStatus } from '@prisma/client';
+import { EnrichmentStatus, JobType } from '@prisma/client';
 import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
@@ -13,6 +13,7 @@ import { LlmService } from '../../enrichment/services/llm.service.js';
 // services, reused unmodified per docs/specs/target-companies.md Assumption 2.
 const mockPrisma = {
   company: { findFirst: jest.fn(), update: jest.fn() },
+  job: { findMany: jest.fn() },
 };
 const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
   WebFetchService,
@@ -32,6 +33,7 @@ const mockLogger = {
 
 const dbCompany = {
   id: 'company-123',
+  userId: 'user-1',
   name: 'Systems Limited',
   websiteUrl: 'https://systemsltd.com',
   location: null,
@@ -41,7 +43,8 @@ const extracted = {
   companySize: 'Large (1000-5000)',
   techStack: ['Java', '.NET'],
   cultureSummary: 'Structured, process-driven culture.',
-  workPolicy: 'Hybrid',
+  productDescription: 'Digital transformation services for enterprises.',
+  businessMode: 'SERVICES',
 };
 const bullJob = {
   data: { companyId: 'company-123' },
@@ -61,6 +64,9 @@ describe('CompanyEnrichmentProcessor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // No linked jobs unless a test says otherwise, so the ROLES context
+    // section is absent by default.
+    mockPrisma.job.findMany.mockResolvedValue([]);
     processor = new CompanyEnrichmentProcessor(
       mockPrisma as never,
       mockWebFetch as never,
@@ -96,7 +102,7 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
-  it('never touches Job or CompanyProfile — only writes to Company', async () => {
+  it('reads Job only for tracked role titles, and writes to Company alone', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -105,8 +111,55 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    expect(mockPrisma).not.toHaveProperty('job');
+    // Read-only, and scoped to the owning user: no write method exists on the
+    // Job mock at all, so a write would throw rather than pass silently.
+    expect(Object.keys(mockPrisma.job)).toEqual(['findMany']);
+    expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
+      where: { companyId: 'company-123', userId: 'user-1' },
+      select: { position: true },
+    });
     expect(mockPrisma).not.toHaveProperty('companyProfile');
+  });
+
+  it('merges technologies named in tracked job titles into techStack', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue({ ...extracted, techStack: ['Java'] });
+    mockPrisma.job.findMany.mockResolvedValue([
+      { position: 'Senior React Developer' },
+      { position: 'Java Backend Engineer' },
+    ]);
+
+    await processor.process(bullJob);
+
+    const [call] = mockPrisma.company.update.mock.calls.slice(-1) as [
+      { data: { techStack: string[] } },
+    ];
+    // Extracted value kept, title-derived value added, no duplicate Java.
+    expect([...call[0].data.techStack].sort()).toEqual(['Java', 'React']);
+  });
+
+  it('passes tracked job titles to the LLM as a first-party section', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockResolvedValue('Official text.');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockPrisma.job.findMany.mockResolvedValue([
+      { position: 'Senior React Developer', jobType: JobType.ONSITE },
+      { position: 'Django Engineer', jobType: JobType.ONSITE },
+      { position: 'Django Engineer', jobType: JobType.REMOTE },
+    ]);
+
+    await processor.process(bullJob);
+
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain('ROLES THE USER TRACKED AT THIS COMPANY');
+    expect(context).toContain('Senior React Developer');
+    // Deduped - the same title tracked twice is one line, not two.
+    expect(context.match(/Django Engineer/g)).toHaveLength(1);
   });
 
   it('has no job-posting page to fetch — official content comes only from websiteUrl-derived pages', async () => {
@@ -118,16 +171,13 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    // homepage + about + contact = 3 calls; no fourth "job posting page" fetch
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(3);
+    // homepage + about = 2 calls; no third "job posting page" fetch
+    expect(mockWebFetch.fetchPageText).toHaveBeenCalledTimes(2);
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
       'https://systemsltd.com',
     );
     expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
       'https://systemsltd.com/about',
-    );
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact',
     );
   });
 
@@ -427,7 +477,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockPrisma.company.findFirst.mockResolvedValue({
       ...dbCompany,
       industry: 'FinTech',
-      workPolicy: 'Remote',
+      productDescription: 'Previously stored description.',
       cultureSummary: 'Small, senior-heavy team.',
       techStack: ['Python'],
     });
@@ -437,7 +487,7 @@ describe('CompanyEnrichmentProcessor', () => {
     mockLlm.extract.mockResolvedValue({
       ...extracted,
       industry: null,
-      workPolicy: null,
+      productDescription: null,
       cultureSummary: null,
       techStack: [],
     });
@@ -448,7 +498,7 @@ describe('CompanyEnrichmentProcessor', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           industry: 'FinTech',
-          workPolicy: 'Remote',
+          productDescription: 'Previously stored description.',
           cultureSummary: 'Small, senior-heavy team.',
           techStack: ['Python'],
         }),
@@ -473,11 +523,11 @@ describe('CompanyEnrichmentProcessor', () => {
       { domain?: string; location?: string },
     ];
     expect(disambiguation.domain).toBeUndefined();
-    // No homepage/about/contact fetch without a real company domain.
+    // No homepage/about fetch without a real company domain.
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
   });
 
-  it('fetches the company contact page when a real domain is known, and skips /contact-us when /contact already has text', async () => {
+  it('does not fetch contact pages - they feed no extracted field (ADR-038)', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
@@ -486,7 +536,7 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await processor.process(bullJob);
 
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
+    expect(mockWebFetch.fetchPageText).not.toHaveBeenCalledWith(
       'https://systemsltd.com/contact',
     );
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalledWith(
@@ -494,25 +544,41 @@ describe('CompanyEnrichmentProcessor', () => {
     );
   });
 
-  it('falls back to /contact-us when /contact is empty', async () => {
+  it('places homepage text ahead of /about in the official section', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
     mockSearch.search.mockResolvedValue([]);
     mockWebFetch.fetchPageText.mockImplementation((url: string) =>
-      Promise.resolve(url.endsWith('/contact-us') ? 'Fallback text.' : ''),
+      Promise.resolve(
+        url.endsWith('/about') ? 'About text.' : 'Homepage text.',
+      ),
     );
     mockLlm.extract.mockResolvedValue(extracted);
 
     await processor.process(bullJob);
 
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact',
-    );
-    expect(mockWebFetch.fetchPageText).toHaveBeenCalledWith(
-      'https://systemsltd.com/contact-us',
-    );
     const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
-    expect(context).toContain('Fallback text.');
+    expect(context.indexOf('Homepage text.')).toBeLessThan(
+      context.indexOf('About text.'),
+    );
+  });
+
+  it('keeps official content past the old 6000-character section cap', async () => {
+    const homepage = 'A'.repeat(5000);
+    const about = 'B'.repeat(5000);
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue([]);
+    mockWebFetch.fetchPageText.mockImplementation((url: string) =>
+      Promise.resolve(url.endsWith('/about') ? about : homepage),
+    );
+    mockLlm.extract.mockResolvedValue(extracted);
+
+    await processor.process(bullJob);
+
+    const [, context] = mockLlm.extract.mock.calls[0] as [string, string];
+    expect(context).toContain(homepage);
+    expect(context).toContain(about);
   });
 
   it('fires a domain-scoped fallback search when official content is thin', async () => {

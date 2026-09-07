@@ -72,7 +72,8 @@ export interface CompanyProfile {
   companySize?: string | null;
   techStack: string[];
   cultureSummary?: string | null;
-  workPolicy?: string | null;
+  productDescription?: string | null;
+  businessMode?: BusinessMode | null;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;
@@ -522,7 +523,6 @@ export interface Company {
   companySize?: string | null;
   techStack: string[];
   cultureSummary?: string | null;
-  workPolicy?: string | null;
   errorMessage?: string | null;
   enrichedAt?: string | null;
   createdAt: string;

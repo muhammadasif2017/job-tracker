@@ -133,8 +133,19 @@ export async function deleteTestCompany(
 /**
  * Inject auth state into the browser context before the first page.goto().
  * Must be called before any navigation.
+ *
+ * `seedOnce` limits the localStorage seed to the first document load of the
+ * tab. Pass it in any test that asserts the app *cleared* auth state and then
+ * navigates hard (sign out, delete account): the init script otherwise re-runs
+ * on the new document and puts `jt_access` and an authenticated `jt-auth`
+ * straight back, so the assertion proves nothing. Everything else wants the
+ * default re-seed.
  */
-export async function injectAuth(page: Page, user: TestUser): Promise<void> {
+export async function injectAuth(
+  page: Page,
+  user: TestUser,
+  { seedOnce = false }: { seedOnce?: boolean } = {},
+): Promise<void> {
   // Cookie read by proxy.ts for route protection
   await page.context().addCookies([
     {
@@ -151,7 +162,13 @@ export async function injectAuth(page: Page, user: TestUser): Promise<void> {
   // localStorage keys used by the Axios interceptor and Zustand persist.
   // Refresh token is an httpOnly cookie now — not seeded here, not readable by JS.
   await page.addInitScript(
-    ({ access, id, email, name }) => {
+    ({ access, id, email, name, seedOnce: once }) => {
+      if (once) {
+        // sessionStorage survives reloads within the tab but starts empty, so
+        // this seeds the first document only.
+        if (sessionStorage.getItem('jt-e2e-seeded')) return;
+        sessionStorage.setItem('jt-e2e-seeded', '1');
+      }
       localStorage.setItem('jt_access', access);
       localStorage.setItem(
         'jt-auth',
@@ -170,6 +187,7 @@ export async function injectAuth(page: Page, user: TestUser): Promise<void> {
       id: user.id,
       email: user.email,
       name: user.name,
+      seedOnce,
     },
   );
 }

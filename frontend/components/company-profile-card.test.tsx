@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { CompanyProfileCard } from './company-profile-card';
-import type { CompanyProfile } from '../types';
+import { BUSINESS_MODE_LABELS, type CompanyProfile } from '../types';
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -326,11 +326,13 @@ describe('CompanyProfileCard', () => {
       renderCard(
         makeProfile({
           status: 'PROCESSING',
-          workPolicy: 'Hybrid',
+          productDescription: 'Builds logistics software.',
           enrichedAt: undefined,
         }),
       );
-      expect(screen.getByText('Hybrid')).toBeInTheDocument();
+      expect(
+        screen.getByText('Builds logistics software.'),
+      ).toBeInTheDocument();
     });
 
     // cultureSummary alone has to satisfy `hasData` — a company whose only
@@ -378,7 +380,8 @@ describe('CompanyProfileCard', () => {
           industry: null,
           companySize: 'Startup (<50)',
           cultureSummary: 'known',
-          workPolicy: 'known',
+          productDescription: 'known',
+          businessMode: 'PRODUCT',
         }),
       );
       expect(screen.getByText('Industry')).toBeInTheDocument();
@@ -401,9 +404,20 @@ describe('CompanyProfileCard', () => {
       ).toBeInTheDocument();
     });
 
-    it('shows remote policy when present', () => {
-      renderCard(makeProfile({ workPolicy: 'Fully remote' }));
-      expect(screen.getByText('Fully remote')).toBeInTheDocument();
+    it('shows what the company builds when present', () => {
+      renderCard(
+        makeProfile({ productDescription: 'Payments for online businesses.' }),
+      );
+      expect(
+        screen.getByText('Payments for online businesses.'),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the business mode using its display label', () => {
+      renderCard(makeProfile({ businessMode: 'SERVICES' }));
+      expect(
+        screen.getByText(BUSINESS_MODE_LABELS.SERVICES),
+      ).toBeInTheDocument();
     });
 
     it('shows a Refresh button', () => {
