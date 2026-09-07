@@ -4,6 +4,9 @@ import { Sidebar } from './sidebar';
 import type { User } from '../../types';
 
 const logout = vi.fn();
+const { clearAuthStorage } = vi.hoisted(() => ({
+  clearAuthStorage: vi.fn(),
+}));
 let mockUser: User | null = null;
 
 vi.mock('next/link', () => ({
@@ -19,7 +22,11 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('../../store/auth.store', () => ({
-  useAuthStore: () => ({ user: mockUser, logout }),
+  useAuthStore: (selector?: (s: unknown) => unknown) => {
+    const state = { user: mockUser, logout };
+    return selector ? selector(state) : state;
+  },
+  clearAuthStorage,
 }));
 
 vi.mock('../../lib/api', () => ({
@@ -68,15 +75,19 @@ describe('Sidebar', () => {
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
     await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/logout'));
-    expect(logout).toHaveBeenCalled();
+    expect(clearAuthStorage).toHaveBeenCalled();
     expect(window.location.href).toBe('/login');
+    // The reactive clear would re-render the mounted page with user: null,
+    // blanking the profile before the browser navigates away.
+    expect(logout).not.toHaveBeenCalled();
   });
 
   it('still logs out locally even if the logout request fails', async () => {
     vi.mocked(api.post).mockRejectedValue(new Error('network down'));
     render(<Sidebar isOpen onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
-    await waitFor(() => expect(logout).toHaveBeenCalled());
+    await waitFor(() => expect(clearAuthStorage).toHaveBeenCalled());
     expect(window.location.href).toBe('/login');
+    expect(logout).not.toHaveBeenCalled();
   });
 });
