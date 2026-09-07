@@ -24,6 +24,20 @@ Checked by `npm run check:floor` (`scripts/floor-guard.mjs`), diff-scoped agains
   a new Exceptions row is itself a floor violation, so it surfaces in review
   rather than sliding through. Tightening the bar is silent; loosening is loud.
 
+Changing the bar deliberately is still allowed, and has to be — a guard that makes
+every rule edit unmergeable just gets deleted by the first person who needs one.
+Put a `Constraints-Change:` trailer in the commit message saying what changes and
+why:
+
+```
+Constraints-Change: scope the dependency rule to production packages at CVSS 7.0+
+```
+
+The finding is still printed in full, with the trailer beside it; it stops
+blocking. That is the whole mechanism: an edit to this file cannot be silent, but
+it can be justified. A trailer with no reasoning is not a justification, and
+reviewing it is the reviewer's job, not the guard's.
+
 The floor passes on `main` as of the date above, with the exceptions listed at the
 bottom.
 
