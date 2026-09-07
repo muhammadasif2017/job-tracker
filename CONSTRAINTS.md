@@ -168,10 +168,20 @@ One row was flipped without ever having been exercised: **coverage of changed
 lines**. Every PR during the warn phase changed lockfiles rather than instrumented
 source, so in CI `coverage-diff` only ever printed `no instrumented lines changed`
 — it has never produced a real percentage there. Its first genuine measurement will
-therefore also be its first chance to block a merge. If it misfires, the failure to
-suspect first is a stale lcov: the check exits 2 (not 0) when a changed source file
-is newer than the coverage report, and the workflows run `test:cov` immediately
-before it so the report describes the code under test.
+therefore also be its first chance to block a merge. It has since been exercised
+locally against both packages — backend jest and frontend v8 each produced a real
+percentage and exited 1 on an undertested change — so the mechanism works; what is
+untested is the CI shape, where each job has only its own package's lcov on disk.
+
+If it misfires, the failure to suspect first is a stale lcov, and it has two shapes,
+not one. When no changed line maps to the report at all, the check exits 2 and says
+so. When some changed lines still map — line numbers shift as a file is edited — the
+staleness check never runs, because it sits inside the `total === 0` branch, and the
+gate reports a percentage computed from the stale report instead. That can pass. The
+same probe read `100.0% of 1 changed executable line(s)` against a stale report and
+`40.0% of 5` once the report was regenerated. Both workflows run `test:cov`
+immediately before the gate in the same job, so CI is not exposed; a local
+`npm run check:coverage-diff` against an old report is.
 
 To put a single row back into warn without reverting the rest: add `--warn` to that
 row's `Checked by` command in the workflow, or `continue-on-error: true` to the job.
