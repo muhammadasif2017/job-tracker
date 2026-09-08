@@ -564,3 +564,36 @@ export interface CsvImportResult {
   imported: number;
   errors: CsvImportError[];
 }
+
+export interface QueueCounts {
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+}
+
+export interface QueueSnapshot {
+  name: string;
+  /** False when BullMQ was unreachable; `counts` is null in that case. */
+  available: boolean;
+  counts: QueueCounts | null;
+}
+
+export interface CompanyStatusBucket {
+  /** Raw Company.status. `null` means enrichment was never triggered. */
+  status: EnrichmentStatus | null;
+  label: string;
+  count: number;
+}
+
+export interface QueueObservability {
+  queues: QueueSnapshot[];
+  companyStatuses: CompanyStatusBucket[];
+  /**
+   * Companies stuck at PENDING with no matching enrichment job in Redis.
+   * Null when the enrichment queue is unavailable — the subtraction would
+   * otherwise flag every legitimately queued row.
+   */
+  strandedPending: number | null;
+}
