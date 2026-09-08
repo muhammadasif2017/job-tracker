@@ -667,6 +667,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/admin/queues': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Queue depths, company enrichment status counts, and the mismatch
+     * @description Reports both halves of the enrichment pipeline — BullMQ job counts and the Company.status distribution in Postgres — because a row stranded in one is invisible in the other.
+     */
+    get: operations['AdminQueuesController_getObservability'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/tokens': {
     parameters: {
       query?: never;
@@ -709,7 +729,10 @@ export interface components {
     RegisterDto: {
       /** @example Jane Doe */
       name: string;
-      /** @example user@example.com */
+      /**
+       * Format: email
+       * @example user@example.com
+       */
       email: string;
       /** @example password123 */
       password: string;
@@ -719,7 +742,10 @@ export interface components {
       accessToken: string;
     };
     LoginDto: {
-      /** @example user@example.com */
+      /**
+       * Format: email
+       * @example user@example.com
+       */
       email: string;
       /** @example password123 */
       password: string;
@@ -756,7 +782,7 @@ export interface components {
       /** @example Jane Doe */
       name: string;
       /** @example https://example.com/avatar.png */
-      avatarUrl?: Record<string, never>;
+      avatarUrl?: string | null;
       /** @enum {string} */
       role: 'USER' | 'ADMIN';
     };
@@ -806,15 +832,15 @@ export interface components {
         | 'FAILED'
         | 'CANCELLED';
       /** @example Ask about on-call rotation */
-      notes?: Record<string, never>;
+      notes?: string | null;
       /**
        * @description LLM-generated talking points for this round, produced from the debrief notes on the previously-completed round for the same job.
        * @example - Review React hooks
        *     - Ask about on-call rotation
        */
-      prepSuggestions?: Record<string, never>;
+      prepSuggestions?: string | null;
       /** Format: date-time */
-      prepGeneratedAt?: Record<string, never>;
+      prepGeneratedAt?: string | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -837,15 +863,21 @@ export interface components {
       /** @example Jane Doe */
       name: string;
       /** @example Recruiter */
-      role?: Record<string, never>;
-      /** @example jane.doe@example.com */
-      email?: Record<string, never>;
+      role?: string | null;
+      /**
+       * Format: email
+       * @example jane.doe@example.com
+       */
+      email?: string | null;
       /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
-      /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
+      phone?: string | null;
+      /**
+       * Format: uri
+       * @example https://www.linkedin.com/in/janedoe
+       */
+      linkedinUrl?: string | null;
       /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
+      notes?: string | null;
     };
     ContactResponseDto: {
       /** Format: cuid */
@@ -863,15 +895,15 @@ export interface components {
       /** @example Jane Doe */
       name: string;
       /** @example Recruiter */
-      role?: Record<string, never>;
+      role?: string | null;
       /** @example jane.doe@example.com */
-      email?: Record<string, never>;
+      email?: string | null;
       /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
+      phone?: string | null;
       /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
+      linkedinUrl?: string | null;
       /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
+      notes?: string | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -881,15 +913,21 @@ export interface components {
       /** @example Jane Doe */
       name?: string;
       /** @example Recruiter */
-      role?: Record<string, never>;
-      /** @example jane.doe@example.com */
-      email?: Record<string, never>;
+      role?: string | null;
+      /**
+       * Format: email
+       * @example jane.doe@example.com
+       */
+      email?: string | null;
       /** @example +1 555 123 4567 */
-      phone?: Record<string, never>;
-      /** @example https://www.linkedin.com/in/janedoe */
-      linkedinUrl?: Record<string, never>;
+      phone?: string | null;
+      /**
+       * Format: uri
+       * @example https://www.linkedin.com/in/janedoe
+       */
+      linkedinUrl?: string | null;
       /** @example Met at the referral call, mentioned team is hiring fast */
-      notes?: Record<string, never>;
+      notes?: string | null;
     };
     CreateCompanyDto: {
       /** @example Systems Limited */
@@ -897,23 +935,29 @@ export interface components {
       /** @enum {string} */
       city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
       /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
+      location?: string | null;
       /** @enum {string} */
       priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @example Great engineering culture, met their CTO at a meetup */
-      personalNotes?: Record<string, never>;
-      /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
-      /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      personalNotes?: string | null;
+      /**
+       * Format: uri
+       * @example https://systemsltd.com
+       */
+      websiteUrl?: string | null;
+      /**
+       * Format: uri
+       * @example https://www.linkedin.com/company/systems-limited
+       */
+      linkedinUrl?: string | null;
+      /** @enum {string|null} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
       /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
+      productDescription?: string | null;
       /** @example Software Development */
-      industry?: Record<string, never>;
+      industry?: string | null;
       /** @example 50-200 employees */
-      companySize?: Record<string, never>;
+      companySize?: string | null;
       /**
        * @example [
        *       "React",
@@ -923,9 +967,7 @@ export interface components {
        */
       techStack?: string[];
       /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
+      cultureSummary?: string | null;
     };
     CompanyResponseDto: {
       /** Format: cuid */
@@ -935,27 +977,27 @@ export interface components {
       /** @enum {string} */
       city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
       /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
+      location?: string | null;
       /** @enum {string} */
       priority: 'LOW' | 'MEDIUM' | 'HIGH';
-      personalNotes?: Record<string, never>;
+      personalNotes?: string | null;
       /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
+      websiteUrl?: string | null;
       /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      linkedinUrl?: string | null;
+      /** @enum {string|null} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
       /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
+      productDescription?: string | null;
       /**
        * @description null means enrichment has never been triggered
-       * @enum {string}
+       * @enum {string|null}
        */
-      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
       /** @example Software Development */
-      industry?: Record<string, never>;
+      industry?: string | null;
       /** @example 50-200 employees */
-      companySize?: Record<string, never>;
+      companySize?: string | null;
       /**
        * @example [
        *       "React",
@@ -965,12 +1007,10 @@ export interface components {
        */
       techStack: string[];
       /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      errorMessage?: Record<string, never>;
+      cultureSummary?: string | null;
+      errorMessage?: string | null;
       /** Format: date-time */
-      enrichedAt?: Record<string, never>;
+      enrichedAt?: string | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -1002,23 +1042,29 @@ export interface components {
       /** @enum {string} */
       city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
       /** @example DHA Phase 5, Lahore */
-      location?: Record<string, never>;
+      location?: string | null;
       /** @enum {string} */
       priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @example Great engineering culture, met their CTO at a meetup */
-      personalNotes?: Record<string, never>;
-      /** @example https://systemsltd.com */
-      websiteUrl?: Record<string, never>;
-      /** @example https://www.linkedin.com/company/systems-limited */
-      linkedinUrl?: Record<string, never>;
-      /** @enum {string} */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID';
+      personalNotes?: string | null;
+      /**
+       * Format: uri
+       * @example https://systemsltd.com
+       */
+      websiteUrl?: string | null;
+      /**
+       * Format: uri
+       * @example https://www.linkedin.com/company/systems-limited
+       */
+      linkedinUrl?: string | null;
+      /** @enum {string|null} */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
       /** @example IT staff augmentation for US clients */
-      productDescription?: Record<string, never>;
+      productDescription?: string | null;
       /** @example Software Development */
-      industry?: Record<string, never>;
+      industry?: string | null;
       /** @example 50-200 employees */
-      companySize?: Record<string, never>;
+      companySize?: string | null;
       /**
        * @example [
        *       "React",
@@ -1028,16 +1074,14 @@ export interface components {
        */
       techStack?: string[];
       /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
+      cultureSummary?: string | null;
     };
     MergeFieldOverridesDto: {
-      industry?: Record<string, never>;
-      companySize?: Record<string, never>;
+      industry?: string | null;
+      companySize?: string | null;
       techStack?: string[];
-      cultureSummary?: Record<string, never>;
-      workPolicy?: Record<string, never>;
+      cultureSummary?: string | null;
+      productDescription?: string | null;
     };
     MergeCompanyDto: {
       /**
@@ -1070,7 +1114,7 @@ export interface components {
       /** @example Jane Doe */
       name: string;
       /** @example https://example.com/avatar.png */
-      avatarUrl?: Record<string, never>;
+      avatarUrl?: string | null;
       /** Format: date-time */
       createdAt: string;
       /**
@@ -1094,7 +1138,10 @@ export interface components {
     UpdateUserDto: {
       /** @example Jane Doe */
       name?: string;
-      /** @example user@example.com */
+      /**
+       * Format: email
+       * @example user@example.com
+       */
       email?: string;
     };
     UpdateNotificationPrefsDto: {
@@ -1118,9 +1165,12 @@ export interface components {
       /** @example Senior Engineer */
       position: string;
       /** @example Remote */
-      location?: Record<string, never>;
-      /** @example https://jobs.example.com/123 */
-      url?: Record<string, never>;
+      location?: string | null;
+      /**
+       * Format: uri
+       * @example https://jobs.example.com/123
+       */
+      url?: string | null;
       /** @enum {string} */
       status?:
         | 'WISHLIST'
@@ -1133,7 +1183,7 @@ export interface components {
       priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @enum {string} */
       jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
+      /** @enum {string|null} */
       discoverySource?:
         | 'LINKEDIN'
         | 'LINKEDIN_JOBS'
@@ -1144,8 +1194,9 @@ export interface components {
         | 'CAREER_EMAIL'
         | 'JOBLEADS'
         | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
+        | 'OTHER'
+        | null;
+      /** @enum {string|null} */
       applicationChannel?:
         | 'COMPANY_WEBSITE'
         | 'ATS'
@@ -1155,9 +1206,10 @@ export interface components {
         | 'REFERRAL'
         | 'CAREER_EMAIL'
         | 'TARAKI'
-        | 'OTHER';
+        | 'OTHER'
+        | null;
       /** @example Referral from John */
-      notes?: Record<string, never>;
+      notes?: string | null;
       /**
        * Format: date
        * @example 2024-03-15
@@ -1172,9 +1224,9 @@ export interface components {
       /** @enum {string} */
       status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
       /** @example Software */
-      industry?: Record<string, never>;
+      industry?: string | null;
       /** @example 1000-5000 */
-      companySize?: Record<string, never>;
+      companySize?: string | null;
       /**
        * @example [
        *       "TypeScript",
@@ -1183,12 +1235,17 @@ export interface components {
        */
       techStack: string[];
       /** @example Collaborative and fast-paced culture */
-      cultureSummary?: Record<string, never>;
-      /** @example Hybrid */
-      workPolicy?: Record<string, never>;
-      errorMessage?: Record<string, never>;
+      cultureSummary?: string | null;
+      /** @example Builds payments infrastructure for online businesses. */
+      productDescription?: string | null;
+      /**
+       * @example PRODUCT
+       * @enum {string|null}
+       */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
+      errorMessage?: string | null;
       /** Format: date-time */
-      enrichedAt?: Record<string, never>;
+      enrichedAt?: string | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -1208,9 +1265,9 @@ export interface components {
       /** @example Senior Engineer */
       position: string;
       /** @example Remote */
-      location?: Record<string, never>;
+      location?: string | null;
       /** @example https://jobs.example.com/123 */
-      url?: Record<string, never>;
+      url?: string | null;
       /** @enum {string} */
       status:
         | 'WISHLIST'
@@ -1223,7 +1280,7 @@ export interface components {
       priority: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @enum {string} */
       jobType: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
+      /** @enum {string|null} */
       discoverySource?:
         | 'LINKEDIN'
         | 'LINKEDIN_JOBS'
@@ -1234,8 +1291,9 @@ export interface components {
         | 'CAREER_EMAIL'
         | 'JOBLEADS'
         | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
+        | 'OTHER'
+        | null;
+      /** @enum {string|null} */
       applicationChannel?:
         | 'COMPANY_WEBSITE'
         | 'ATS'
@@ -1245,20 +1303,21 @@ export interface components {
         | 'REFERRAL'
         | 'CAREER_EMAIL'
         | 'TARAKI'
-        | 'OTHER';
+        | 'OTHER'
+        | null;
       /** @example Referral from John */
-      notes?: Record<string, never>;
+      notes?: string | null;
       /** Format: date-time */
       appliedAt: string;
       /** Format: date-time */
-      nextInterviewAt?: Record<string, never>;
+      nextInterviewAt?: string | null;
       /**
        * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
        * @example Applied, then moved to interviewing.
        */
-      timelineSummary?: Record<string, never>;
+      timelineSummary?: string | null;
       /** Format: date-time */
-      timelineSummaryAt?: Record<string, never>;
+      timelineSummaryAt?: string | null;
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
@@ -1266,26 +1325,30 @@ export interface components {
       /** Format: cuid */
       userId: string;
       /** Format: cuid */
-      companyId?: Record<string, never>;
-      companyProfile?: components['schemas']['CompanyProfileResponseDto'];
-      resume?: components['schemas']['ResumeResponseDto'];
+      companyId?: string | null;
+      companyProfile?:
+        components['schemas']['CompanyProfileResponseDto'] | null;
+      resume?: components['schemas']['ResumeResponseDto'] | null;
       interviewRounds?: components['schemas']['InterviewRoundResponseDto'][];
       /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
-      matchedCompany?: components['schemas']['MatchedCompanyDto'];
+      matchedCompany?: components['schemas']['MatchedCompanyDto'] | null;
     };
     ParseJobDto: {
-      /** @example https://jobs.example.com/123 */
+      /**
+       * Format: uri
+       * @example https://jobs.example.com/123
+       */
       url?: string;
       /** @example Senior Engineer at Acme... */
       text?: string;
     };
     ParsedJobDto: {
       /** @example Acme Corp */
-      company?: Record<string, never>;
+      company?: string | null;
       /** @example Senior Engineer */
-      position?: Record<string, never>;
+      position?: string | null;
       /** @example Remote */
-      location?: Record<string, never>;
+      location?: string | null;
       /** @example https://jobs.example.com/123 */
       url?: string;
       /** @enum {string} */
@@ -1442,14 +1505,15 @@ export interface components {
       jobId: string;
       /** @enum {string} */
       type: 'CREATED' | 'STATUS_CHANGE' | 'INTERVIEW_ROUND_ADDED';
-      /** @enum {string} */
+      /** @enum {string|null} */
       fromStatus?:
         | 'WISHLIST'
         | 'APPLIED'
         | 'INTERVIEWING'
         | 'OFFER'
         | 'REJECTED'
-        | 'GHOSTED';
+        | 'GHOSTED'
+        | null;
       /** @enum {string} */
       toStatus:
         | 'WISHLIST'
@@ -1458,7 +1522,7 @@ export interface components {
         | 'OFFER'
         | 'REJECTED'
         | 'GHOSTED';
-      note?: Record<string, never>;
+      note?: string | null;
       /** Format: date-time */
       createdAt: string;
     };
@@ -1472,9 +1536,12 @@ export interface components {
       /** @example Senior Engineer */
       position?: string;
       /** @example Remote */
-      location?: Record<string, never>;
-      /** @example https://jobs.example.com/123 */
-      url?: Record<string, never>;
+      location?: string | null;
+      /**
+       * Format: uri
+       * @example https://jobs.example.com/123
+       */
+      url?: string | null;
       /** @enum {string} */
       status?:
         | 'WISHLIST'
@@ -1487,7 +1554,7 @@ export interface components {
       priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @enum {string} */
       jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
+      /** @enum {string|null} */
       discoverySource?:
         | 'LINKEDIN'
         | 'LINKEDIN_JOBS'
@@ -1498,8 +1565,9 @@ export interface components {
         | 'CAREER_EMAIL'
         | 'JOBLEADS'
         | 'TARAKI'
-        | 'OTHER';
-      /** @enum {string} */
+        | 'OTHER'
+        | null;
+      /** @enum {string|null} */
       applicationChannel?:
         | 'COMPANY_WEBSITE'
         | 'ATS'
@@ -1509,9 +1577,10 @@ export interface components {
         | 'REFERRAL'
         | 'CAREER_EMAIL'
         | 'TARAKI'
-        | 'OTHER';
+        | 'OTHER'
+        | null;
       /** @example Referral from John */
-      notes?: Record<string, never>;
+      notes?: string | null;
       /**
        * Format: date
        * @example 2024-03-15
@@ -1533,6 +1602,54 @@ export interface components {
       data: components['schemas']['AdminUserDto'][];
       meta: components['schemas']['PaginationMetaDto'];
     };
+    QueueCountsDto: {
+      /** @example 3 */
+      waiting: number;
+      /** @example 1 */
+      active: number;
+      /** @example 0 */
+      delayed: number;
+      /** @example 2 */
+      failed: number;
+      /** @example 118 */
+      completed: number;
+    };
+    QueueSnapshotDto: {
+      /** @example company-target-enrichment */
+      name: string;
+      /**
+       * @description False when BullMQ could not be reached (Redis outage). The counts are null in that case; the database half of the response is still accurate.
+       * @example true
+       */
+      available: boolean;
+      /** @description Null when `available` is false. */
+      counts: components['schemas']['QueueCountsDto'] | null;
+    };
+    CompanyStatusBucketDto: {
+      /**
+       * @description The raw Company.status value. Null is a legitimate resting state — CSV-imported companies are never enqueued — not a failure.
+       * @example COMPLETED
+       * @enum {string|null}
+       */
+      status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+      /**
+       * @description Display label for the bucket. The null bucket is labelled "Never triggered".
+       * @example Completed
+       */
+      label: string;
+      /** @example 42 */
+      count: number;
+    };
+    QueueObservabilityDto: {
+      queues: components['schemas']['QueueSnapshotDto'][];
+      /** @description Global company enrichment status counts, not user-scoped. */
+      companyStatuses: components['schemas']['CompanyStatusBucketDto'][];
+      /**
+       * @description Companies stuck at status PENDING with no matching enrichment job in Redis: DB PENDING count minus (waiting + active + delayed), floored at 0. These rows show "Queued…" forever and the CAS in triggerEnrichment rejects a retry with 409, so no user can recover them from the UI. Null when the enrichment queue is unavailable, because the subtraction would then report every legitimately queued row as stranded.
+       * @example 0
+       */
+      strandedPending: number | null;
+    };
     CreateTokenDto: {
       /** @example Chrome extension */
       name: string;
@@ -1545,7 +1662,7 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
-      lastUsedAt?: Record<string, never>;
+      lastUsedAt?: string | null;
       /**
        * Format: date-time
        * @description Expires 180 days after creation absent a manual revoke
@@ -1565,7 +1682,7 @@ export interface components {
       /** Format: date-time */
       createdAt: string;
       /** Format: date-time */
-      lastUsedAt?: Record<string, never>;
+      lastUsedAt?: string | null;
       /**
        * Format: date-time
        * @description Expires 180 days after creation absent a manual revoke
@@ -2126,6 +2243,12 @@ export interface operations {
     };
     requestBody?: never;
     responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       /** @description Missing or invalid access token */
       401: {
         headers: {
@@ -3626,6 +3749,39 @@ export interface operations {
       };
       /** @description User not found */
       404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  AdminQueuesController_getObservability: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['QueueObservabilityDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Requires ADMIN role */
+      403: {
         headers: {
           [name: string]: unknown;
         };
