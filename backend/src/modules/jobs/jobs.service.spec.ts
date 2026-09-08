@@ -948,6 +948,99 @@ describe('JobsService', () => {
       );
     });
 
+    // Correcting a typo'd company name auto-creates a fresh Company with
+    // `status: null`, and findOne renders `status ?? PENDING` — without this
+    // enqueue the profile sat on "Queued…" forever with nothing queued.
+    it('enqueues enrichment for the company it re-linked to', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'https://acme.example.com',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      }); // findOwned
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+      mockCompanyEnrichment.enqueueIfStale.mockResolvedValue(undefined);
+
+      await service.update('user-1', 'job-1', { company: 'Acme' });
+
+      expect(mockCompanyEnrichment.enqueueIfStale).toHaveBeenCalledWith(
+        'company-new',
+      );
+    });
+
+    // The status-change branch writes inside a transaction and returns from a
+    // different statement — the enqueue has to fire on both write paths.
+    it('enqueues enrichment for the re-linked company on a status-changing update too', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      });
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+      mockCompanyEnrichment.enqueueIfStale.mockResolvedValue(undefined);
+
+      await service.update('user-1', 'job-1', {
+        company: 'Acme',
+        status: JobStatus.INTERVIEWING,
+      });
+
+      expect(mockCompanyEnrichment.enqueueIfStale).toHaveBeenCalledWith(
+        'company-new',
+      );
+    });
+
+    it('does not enqueue enrichment when the company label was not re-resolved', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { position: 'Staff Engineer' });
+
+      expect(mockCompanyEnrichment.enqueueIfStale).not.toHaveBeenCalled();
+    });
+
+    it('still returns the updated job when the enrichment enqueue throws', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+      });
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Acme',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+      mockCompanyEnrichment.enqueueIfStale.mockRejectedValue(
+        new Error('redis down'),
+      );
+
+      await expect(
+        service.update('user-1', 'job-1', { company: 'Acme' }),
+      ).resolves.toMatchObject({ id: 'job-1' });
+    });
+
     it('unlinks companyId when dto.company is cleared to a blank string', async () => {
       mockPrisma.job.findFirst.mockResolvedValueOnce({
         id: 'job-1',
