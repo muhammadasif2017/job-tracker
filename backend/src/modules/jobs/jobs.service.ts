@@ -18,7 +18,6 @@ import {
   JobPriority,
   JobType,
   CompanyCity,
-  EnrichmentStatus,
 } from '@prisma/client';
 import {
   STORAGE_SERVICE,
@@ -322,15 +321,20 @@ export class JobsService {
       // Company is the sole source of enrichment data (CompanyProfile
       // dropped in phase 4, docs/specs/company-fk-phase4.md) — reshaped into
       // the companyProfile response shape the frontend already expects.
-      // status defaults to PENDING for a manually-added target company that
-      // has never had enrichment triggered (Company.status has no DB
-      // default — null there means "never triggered", distinct from an
-      // in-flight PENDING/PROCESSING run).
+      //
+      // `status` is passed through as-is, null included. It used to be
+      // coerced to PENDING here, which collapsed "never triggered" into
+      // "queued and running": CompanyProfileCard renders PENDING as a
+      // "Queued…" spinner with no Refresh button, so a company nothing had
+      // ever enqueued (a CSV import, or the re-link bug fixed in #314)
+      // looked permanently in-flight and had no recovery path on this page.
+      // The company-detail page never coerced, which is why the same card
+      // showed a working Refresh button there and not here.
       companyProfile: companyLink
         ? {
             id: companyLink.id,
             jobId: job.id,
-            status: companyLink.status ?? EnrichmentStatus.PENDING,
+            status: companyLink.status,
             industry: companyLink.industry,
             companySize: companyLink.companySize,
             techStack: companyLink.techStack,

@@ -89,6 +89,49 @@ describe('CompanyProfileCard', () => {
     });
   });
 
+  // `status: null` means enrichment was never triggered — nothing is queued,
+  // so a spinner would be a lie and Refresh is the only way forward.
+  describe('when status is null (never triggered)', () => {
+    it('does not show the "Queued…" spinner label', () => {
+      renderCard(makeProfile({ status: null }));
+      expect(screen.queryByText('Queued…')).not.toBeInTheDocument();
+    });
+
+    it('explains that the company has not been researched yet', () => {
+      renderCard(makeProfile({ status: null }));
+      expect(screen.getByText(/not researched yet/i)).toBeInTheDocument();
+    });
+
+    it('offers a Research button', () => {
+      renderCard(makeProfile({ status: null }));
+      expect(
+        screen.getByRole('button', { name: /research/i }),
+      ).toBeInTheDocument();
+    });
+
+    it('posts to the company enrichment endpoint when clicked', async () => {
+      vi.mocked(api.post).mockResolvedValue({ data: {} });
+      renderCard(makeProfile({ status: null }), 'job-1', 'company-xyz');
+
+      fireEvent.click(screen.getByRole('button', { name: /research/i }));
+
+      await waitFor(() =>
+        expect(api.post).toHaveBeenCalledWith(
+          '/companies/company-xyz/enrichment',
+        ),
+      );
+    });
+
+    // A user-set industry/businessMode (CompanyForm, or a merge) is worth
+    // showing even before any enrichment run — that path keeps the normal
+    // field list, not this empty state.
+    it('renders the field list instead when the company already has data', () => {
+      renderCard(makeProfile({ status: null, industry: 'Software' }));
+      expect(screen.queryByText(/not researched yet/i)).not.toBeInTheDocument();
+      expect(screen.getByText('Software')).toBeInTheDocument();
+    });
+  });
+
   describe('when status is PROCESSING', () => {
     it('shows "Researching…" label', () => {
       renderCard(makeProfile({ status: 'PROCESSING' }));

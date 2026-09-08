@@ -65,7 +65,11 @@ export type EnrichmentStatus =
 export interface CompanyProfile {
   id: string;
   jobId: string;
-  status: EnrichmentStatus;
+  // Nullable for the same reason `Company.status` is — null means enrichment
+  // was never triggered, which is not the same as a queued PENDING run. The
+  // job-detail response used to coerce it to PENDING and hide the Refresh
+  // button behind a permanent "Queued…" spinner.
+  status: EnrichmentStatus | null;
   industry?: string | null;
   companySize?: string | null;
   techStack: string[];

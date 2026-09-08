@@ -259,6 +259,34 @@ export function CompanyProfileCard({
     );
   }
 
+  // Never triggered (`status: null`) with nothing to show. Distinct from
+  // PENDING above: nothing is queued, so there is no spinner to render and
+  // waiting accomplishes nothing — the only way forward is Refresh. The CSV
+  // importer deliberately leaves companies here, and so did the job-edit
+  // re-link bug fixed in #314.
+  if (profile.status === null && !hasData) {
+    return (
+      <div className="rounded-md border border-line bg-paper p-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
+            Company Profile
+          </h2>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={refresh.isPending}
+            onClick={() => refresh.mutate()}
+          >
+            <RefreshCw className="h-3.5 w-3.5" /> Research
+          </Button>
+        </div>
+        <p className="text-xs text-muted-2">
+          Not researched yet. Run Research to look this company up.
+        </p>
+      </div>
+    );
+  }
+
   if (profile.status === 'FAILED' && !hasData) {
     return (
       <div className="rounded-md border border-line bg-paper p-6 space-y-3">
