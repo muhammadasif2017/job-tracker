@@ -39,10 +39,16 @@ export function useDeleteAdminUserMutation(onDeleted?: () => void) {
 // state this panel exists to surface does not change second to second, and a
 // runaway 3s poll was half of the bug that motivated the panel — refreshing is
 // a button the admin presses.
-export function useAdminQueuesQuery() {
+// `enabled` exists for the sidebar badge, which renders for every admin page
+// view — the endpoint is ADMIN-only, so a non-admin session must not fire it
+// at all rather than collect 403s. The panel itself passes nothing and always
+// runs. Both share one cache entry, so opening /admin/queues right after the
+// badge fetched costs no second request.
+export function useAdminQueuesQuery(enabled = true) {
   return useQuery<QueueObservability>({
     queryKey: ['admin-queues'],
     queryFn: () => api.get('/admin/queues').then((r) => r.data),
     staleTime: 30_000,
+    enabled,
   });
 }

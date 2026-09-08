@@ -11,7 +11,6 @@ import {
   useAdminUsersQuery,
   useDeleteAdminUserMutation,
 } from '../../../../features/admin/hooks';
-import { QueueHealthPanel } from '../../../../components/admin/queue-health-panel';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -50,8 +49,6 @@ export default function AdminUsersPage() {
             : `${data?.meta.total ?? 0} registered users`}
         </p>
       </div>
-
-      <QueueHealthPanel />
 
       <div className="relative max-w-sm">
         <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />

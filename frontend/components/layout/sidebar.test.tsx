@@ -41,6 +41,14 @@ vi.mock('../../lib/api', () => ({
   default: { post: vi.fn() },
 }));
 
+// The badge's data source. Stubbed rather than wrapped in a QueryClient so
+// this file stays a pure nav test — the hook's own gating and caching are
+// exercised through the panel's tests.
+const { useAdminQueuesQuery } = vi.hoisted(() => ({
+  useAdminQueuesQuery: vi.fn(),
+}));
+vi.mock('../../features/admin/hooks', () => ({ useAdminQueuesQuery }));
+
 import api from '../../lib/api';
 
 describe('Sidebar', () => {
@@ -57,6 +65,7 @@ describe('Sidebar', () => {
       email: 'jane@example.com',
       role: 'USER',
     };
+    useAdminQueuesQuery.mockReturnValue({ data: undefined });
   });
 
   it('renders the standard nav items but not Admin for a regular user', () => {
@@ -94,6 +103,43 @@ describe('Sidebar', () => {
       'href',
       '/admin/users',
     );
+  });
+
+  describe('stranded-enrichment badge', () => {
+    function renderAsAdmin(strandedPending: number | null) {
+      mockUser = {
+        id: 'u-1',
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        role: 'ADMIN',
+      };
+      useAdminQueuesQuery.mockReturnValue({ data: { strandedPending } });
+      render(<Sidebar isOpen onClose={vi.fn()} />);
+    }
+
+    it('shows the count on the Admin item when companies are stranded', () => {
+      renderAsAdmin(3);
+      expect(screen.getByText('3')).toBeInTheDocument();
+    });
+
+    it('stays hidden when nothing is stranded', () => {
+      renderAsAdmin(0);
+      expect(screen.queryByText('0')).not.toBeInTheDocument();
+    });
+
+    // null means the enrichment queue is unreachable, so the count is unknown
+    // — an unknown must not render as an alarm.
+    it('stays hidden when detection is unavailable', () => {
+      renderAsAdmin(null);
+      expect(
+        screen.getByRole('link', { name: /admin/i }).textContent,
+      ).not.toMatch(/\d/);
+    });
+
+    it('never queries the admin-only endpoint for a regular user', () => {
+      render(<Sidebar isOpen onClose={vi.fn()} />);
+      expect(useAdminQueuesQuery).toHaveBeenCalledWith(false);
+    });
   });
 
   it('shows the current user name and email', () => {

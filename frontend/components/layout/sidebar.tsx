@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '../../lib/utils';
 import { clearAuthStorage, useAuthStore } from '../../store/auth.store';
 import api from '../../lib/api';
+import { useAdminQueuesQuery } from '../../features/admin/hooks';
 import {
   LogoMark,
   IconDashboard,
@@ -30,10 +31,22 @@ interface SidebarProps {
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
-  const navItems =
-    user?.role === 'ADMIN'
-      ? [...nav, { href: '/admin/users', label: 'Admin', icon: IconAdmin }]
-      : nav;
+  const isAdmin = user?.role === 'ADMIN';
+  const navItems = isAdmin
+    ? [...nav, { href: '/admin/users', label: 'Admin', icon: IconAdmin }]
+    : nav;
+
+  // A panel you have to remember to open only half-solves "no way to check" —
+  // this badge is what makes a stranded company find the admin rather than the
+  // other way round. That means it has to live in the sidebar, which renders on
+  // every dashboard route, so an admin browsing /jobs or /companies does fetch
+  // this: one request, then nothing for 30s (`staleTime`), refreshed on
+  // navigation rather than on a timer. Accepted deliberately — there is no
+  // interval, and the alternative (badge only on admin pages) shows the alert
+  // only to someone already looking at it. Gated on the ADMIN role because the
+  // endpoint is; a non-admin never calls it. Shares the panel's cache entry.
+  const { data: queues } = useAdminQueuesQuery(isAdmin);
+  const stranded = queues?.strandedPending ?? 0;
 
   const handleLogout = async () => {
     try {
@@ -99,6 +112,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 )}
                 <Icon className="h-4 w-4" />
                 {label}
+                {label === 'Admin' && stranded > 0 && (
+                  <span
+                    className="ml-auto rounded-full bg-danger px-1.5 py-0.5 text-[10px] font-semibold tabular-nums leading-none text-white"
+                    title={`${stranded} company enrichment${stranded === 1 ? '' : 's'} stranded at PENDING with nothing queued`}
+                  >
+                    {stranded}
+                    <span className="sr-only"> stranded companies</span>
+                  </span>
+                )}
               </Link>
             );
           })}
