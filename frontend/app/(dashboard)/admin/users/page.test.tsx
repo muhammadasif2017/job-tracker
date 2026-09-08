@@ -9,6 +9,13 @@ vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+// Stubbed so this file's single `api.get` mock keeps answering only the users
+// query. The panel owns its own fetch and is covered by
+// components/admin/queue-health-panel.test.tsx.
+vi.mock('../../../../components/admin/queue-health-panel', () => ({
+  QueueHealthPanel: () => <div data-testid="queue-health-panel" />,
+}));
+
 vi.mock('../../../../lib/api', () => ({
   default: { get: vi.fn(), delete: vi.fn() },
   getErrorMessage: (err: unknown, fallback: string) => {
@@ -197,6 +204,16 @@ describe('AdminUsersPage', () => {
           'Cannot delete the last admin',
         ),
       );
+    });
+  });
+
+  describe('queue health panel', () => {
+    it('renders the queue health panel above the users table', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      expect(
+        await screen.findByTestId('queue-health-panel'),
+      ).toBeInTheDocument();
     });
   });
 
