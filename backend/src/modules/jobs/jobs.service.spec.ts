@@ -460,7 +460,11 @@ describe('JobsService', () => {
       expect(result).not.toHaveProperty('companyLink');
     });
 
-    it('defaults status to PENDING for a manually-added target company that has never had enrichment triggered', async () => {
+    // Coercing this to PENDING made "never triggered" indistinguishable from
+    // "queued", and CompanyProfileCard renders PENDING as a spinner with no
+    // Refresh button — so the job page had no recovery path for a company
+    // nothing had ever enqueued.
+    it('passes a never-triggered company through as status: null, not PENDING', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         id: 'job-1',
         companyLink: { id: 'company-1', status: null },
@@ -470,8 +474,21 @@ describe('JobsService', () => {
 
       const result = await service.findOne('user-1', 'job-1');
 
+      expect(result.companyProfile).toMatchObject({ status: null });
+    });
+
+    it('passes a real enrichment status through unchanged', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        id: 'job-1',
+        companyLink: { id: 'company-1', status: EnrichmentStatus.PROCESSING },
+        resume: null,
+        interviewRounds: [],
+      });
+
+      const result = await service.findOne('user-1', 'job-1');
+
       expect(result.companyProfile).toMatchObject({
-        status: EnrichmentStatus.PENDING,
+        status: EnrichmentStatus.PROCESSING,
       });
     });
 

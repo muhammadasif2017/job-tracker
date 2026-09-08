@@ -1221,8 +1221,8 @@ export interface components {
       id: string;
       /** Format: cuid */
       jobId: string;
-      /** @enum {string} */
-      status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED';
+      /** @enum {string|null} */
+      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
       /** @example Software */
       industry?: string | null;
       /** @example 1000-5000 */
