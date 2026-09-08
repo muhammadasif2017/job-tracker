@@ -94,6 +94,28 @@ export class JobsService {
     }
   }
 
+  // Editing a job's company label re-resolves the FK, and resolveCompanyId
+  // auto-creates the row when no company of that name exists yet — a fresh
+  // row with `status: null`. Without this call nothing ever queued a run for
+  // it, and findOne renders `status ?? PENDING`, so correcting a typo'd
+  // company name left the profile showing "Queued…" forever with no work
+  // queued and the job page polling every 3s for a state that never changes.
+  // enqueueIfStale, not enqueueEnrichment: re-linking to a company that is
+  // already enriched, running, or failed must not re-burn Tavily quota
+  // (ADR-035) — same reasoning as create().
+  private async enqueueRelinkedCompany(
+    jobId: string,
+    companyId: string | null,
+  ): Promise<void> {
+    if (!companyId) return;
+    try {
+      await this.companyEnrichment.enqueueIfStale(companyId);
+    } catch (err: unknown) {
+      // Best-effort, same contract as create() — the job update stands.
+      this.logger.warn('Enrichment enqueue failed', { jobId, companyId, err });
+    }
+  }
+
   // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
   // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
   // 6). Never overwrites an existing company's user-edited/enriched fields
@@ -375,6 +397,11 @@ export class JobsService {
     // rewritten if the linked Company is later renamed or merged elsewhere —
     // only an explicit edit of this job's company field re-resolves it.
     let data = baseData as typeof baseData & { companyId?: string | null };
+    // Set only when this edit actually re-resolved the label to a Company —
+    // that row may have just been auto-created by resolveCompanyId, and
+    // nothing else would ever queue enrichment for it (see the enqueue after
+    // the write branches below).
+    let relinkedCompanyId: string | null = null;
     if (dto.company === null) {
       // Job.company is a required, non-nullable column — unlike the
       // optional profile fields this repo's convention lets a client clear
@@ -402,6 +429,7 @@ export class JobsService {
       if (!matchesCurrentLabel) {
         const { company } = await this.resolveCompanyId(userId, trimmedCompany);
         data = { ...baseData, companyId: company?.id ?? null };
+        relinkedCompanyId = company?.id ?? null;
       }
     }
 
@@ -441,6 +469,7 @@ export class JobsService {
         include: { resume: true },
         data,
       });
+      await this.enqueueRelinkedCompany(jobId, relinkedCompanyId);
       return withUpcomingInterview(updated);
     }
 
@@ -479,6 +508,7 @@ export class JobsService {
       });
     });
 
+    await this.enqueueRelinkedCompany(jobId, relinkedCompanyId);
     await this.enqueueTimelineSummary(jobId);
     return withUpcomingInterview(result);
   }
