@@ -88,6 +88,9 @@ api.interceptors.response.use(
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
       if (status === 401 || status === 403) {
         useAuthStore.getState().logout();
+        // Module scope, outside React — there is no router to call. A full
+        // load is also what we want: the session is definitively over, so its
+        // cached data should not outlive it. CONSTRAINTS.md E5.
         window.location.href = '/login';
       }
       return Promise.reject(err);

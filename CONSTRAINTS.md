@@ -143,6 +143,7 @@ switched off is worse than no gate, because the bar still looks like it exists.
 |----|------|------|--------|-------|---------|
 | E1 | floor: suppressions | `frontend/app/layout.test.tsx` | `eslint-disable no-eval` and `@ts-expect-error` for a jsdom `matchMedia` stub — both are test-harness plumbing, not silenced production checks | @muhammadasif2017 | 2026-12-06 |
 | E2 | floor: suppressions | `frontend/components/companies/merge-company-dialog.tsx:140` | `react-hooks/exhaustive-deps` disabled with a written reason at the call site | @muhammadasif2017 | 2026-12-06 |
+| E5 | `@next/next/no-location-assign-relative-destination` | `frontend/components/layout/sidebar.tsx`, `frontend/features/profile/hooks.ts`, `frontend/lib/api.ts` | Sign-out, account deletion, and the interceptor's definitive-401 eviction each assign `window.location.href` on purpose: a full document load is what discards the TanStack Query cache and the Zustand store, so one user's cached data cannot outlive their session on a shared browser. `router.push` would keep both alive, and `lib/api.ts` is an axios interceptor at module scope with no router to call. Turned off in `eslint.config.mjs` for those three files only, so the rule still guards every other navigation; each call site carries the reason inline | @muhammadasif2017 | permanent |
 | E4 | `@typescript-eslint/unbound-method` | `backend/**/*.spec.ts` | `expect(logger.warn)` passes a method reference that is never called through; the rule cannot tell that from a real unbound call. Turned off in `eslint.config.mjs` for spec files only | @muhammadasif2017 | permanent |
 
 Exceptions carry an owner and an expiry because an exception unblocks you; deleting
@@ -150,8 +151,8 @@ the constraint unblocks everyone forever.
 
 IDs are allocated once and never reused or renumbered, so a gap in the sequence is
 expected rather than a missing row. `E3` was never allocated: the table has run
-E1, E2, E4 since the file was created in 46c40bd, and no exception has ever carried
-that ID.
+E1, E2, E4 since the file was created in 46c40bd (E5 added later), and no exception
+has ever carried that ID.
 
 Two more were opened and closed the same day rather than tracked: the empty
 `catch {}` in `components/layout/sidebar.tsx` now states why a failed

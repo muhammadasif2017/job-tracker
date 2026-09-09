@@ -77,6 +77,10 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     // Storage only, never the store: a reactive clear here would blank the
     // page before the browser leaves it.
     clearAuthStorage();
+    // A full document load, not a router navigation: it is what drops the
+    // TanStack Query cache and the Zustand store, so the next person on this
+    // browser cannot read the previous user's cached jobs and profile. The
+    // lint rule against this is off for this file — CONSTRAINTS.md E5.
     window.location.href = '/login';
   };
 

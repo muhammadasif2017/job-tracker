@@ -74,6 +74,9 @@ export function useDeleteAccountMutation() {
     onSuccess: () => {
       // Storage only, never the store - see clearAuthStorage.
       clearAuthStorage();
+      // Full document load on purpose — the account is gone, so every cached
+      // query and store slice describing it goes with it. Same reasoning as
+      // the sign-out path in components/layout/sidebar.tsx; CONSTRAINTS.md E5.
       window.location.href = '/login';
     },
     onError: () => toast.error('Failed to delete account'),
