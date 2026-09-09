@@ -8,25 +8,29 @@ const { clearAuthStorage } = vi.hoisted(() => ({
   clearAuthStorage: vi.fn(),
 }));
 let mockUser: User | null = null;
+let mockPathname = '/jobs';
 
 vi.mock('next/link', () => ({
+  // Forwards the remaining props (aria-current, className) so active-state
+  // assertions see what the real anchor would render.
   default: ({
     href,
     children,
     onClick,
+    ...rest
   }: {
     href: string;
     children: React.ReactNode;
     onClick?: () => void;
   }) => (
-    <a href={href} onClick={onClick}>
+    <a href={href} onClick={onClick} {...rest}>
       {children}
     </a>
   ),
 }));
 
 vi.mock('next/navigation', () => ({
-  usePathname: () => '/jobs',
+  usePathname: () => mockPathname,
 }));
 
 vi.mock('../../store/auth.store', () => ({
@@ -66,6 +70,7 @@ describe('Sidebar', () => {
       role: 'USER',
     };
     useAdminQueuesQuery.mockReturnValue({ data: undefined });
+    mockPathname = '/jobs';
   });
 
   it('renders the standard nav items but not Admin for a regular user', () => {
@@ -103,6 +108,56 @@ describe('Sidebar', () => {
       'href',
       '/admin/users',
     );
+  });
+
+  // The Admin item links to its first tab, so a plain startsWith(href) check
+  // dropped the highlight the moment you opened the Queues tab.
+  describe('active highlighting', () => {
+    function renderAsAdminAt(pathname: string) {
+      mockPathname = pathname;
+      mockUser = {
+        id: 'u-1',
+        name: 'Jane Doe',
+        email: 'jane@example.com',
+        role: 'ADMIN',
+      };
+      render(<Sidebar isOpen onClose={vi.fn()} />);
+    }
+
+    it('keeps Admin highlighted on the Users tab', () => {
+      renderAsAdminAt('/admin/users');
+      expect(screen.getByRole('link', { name: /admin/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('keeps Admin highlighted on the Queues tab', () => {
+      renderAsAdminAt('/admin/queues');
+      expect(screen.getByRole('link', { name: /admin/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('does not highlight Admin from an unrelated route', () => {
+      renderAsAdminAt('/jobs');
+      expect(screen.getByRole('link', { name: /admin/i })).not.toHaveAttribute(
+        'aria-current',
+      );
+      expect(screen.getByRole('link', { name: /^jobs$/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('highlights Dashboard only on the root path', () => {
+      mockPathname = '/jobs';
+      render(<Sidebar isOpen onClose={vi.fn()} />);
+      expect(
+        screen.getByRole('link', { name: /dashboard/i }),
+      ).not.toHaveAttribute('aria-current');
+    });
   });
 
   describe('stranded-enrichment badge', () => {

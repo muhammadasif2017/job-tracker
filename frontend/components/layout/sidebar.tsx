@@ -16,7 +16,18 @@ import {
   IconSignOut,
 } from '../icons';
 
-const nav = [
+// `match` is the prefix that keeps an item highlighted, for a section whose
+// pages live under a path the link itself does not cover — Admin links
+// straight to its first tab (/admin/users) but stays active on /admin/queues
+// too. Defaults to `href` everywhere else.
+interface NavItem {
+  href: string;
+  label: string;
+  icon: typeof IconDashboard;
+  match?: string;
+}
+
+const nav: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: IconDashboard },
   { href: '/jobs', label: 'Jobs', icon: IconJobs },
   { href: '/companies', label: 'Companies', icon: IconCompanies },
@@ -33,7 +44,15 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
   const navItems = isAdmin
-    ? [...nav, { href: '/admin/users', label: 'Admin', icon: IconAdmin }]
+    ? [
+        ...nav,
+        {
+          href: '/admin/users',
+          label: 'Admin',
+          icon: IconAdmin,
+          match: '/admin',
+        },
+      ]
     : nav;
 
   // A panel you have to remember to open only half-solves "no way to check" —
@@ -93,14 +112,16 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         </div>
 
         <nav className="flex-1 space-y-0.5 p-3">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon, match }) => {
+            const prefix = match ?? href;
             const active =
-              href === '/' ? pathname === '/' : pathname.startsWith(href);
+              prefix === '/' ? pathname === '/' : pathname.startsWith(prefix);
             return (
               <Link
                 key={href}
                 href={href}
                 onClick={onClose}
+                aria-current={active ? 'page' : undefined}
                 className={cn(
                   'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 font-mono text-[13px] font-medium uppercase tracking-wide transition-colors',
                   active
