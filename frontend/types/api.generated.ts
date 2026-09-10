@@ -736,6 +736,8 @@ export interface components {
       email: string;
       /** @example password123 */
       password: string;
+      /** @example Asia/Karachi */
+      timezone?: string;
     };
     AuthTokensDto: {
       /** @description JWT access token (15 min) */
