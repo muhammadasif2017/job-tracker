@@ -74,6 +74,26 @@ describe('InterviewRounds', () => {
       ).toBeInTheDocument();
     });
 
+    it.each([
+      [90, '1 hr 30 min'],
+      [120, '2 hr'],
+      [45, '45 min'],
+    ])('renders a %i-minute length as "%s"', (minutes, expected) => {
+      renderRounds([{ ...round, durationMinutes: minutes }]);
+      expect(
+        screen.getByText(
+          `${formatDateTime('2026-06-10T14:00:00Z')} · ${expected}`,
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('shows the date alone for a round with no length', () => {
+      renderRounds([{ ...round, durationMinutes: null }]);
+      expect(
+        screen.getByText(formatDateTime('2026-06-10T14:00:00Z')),
+      ).toBeInTheDocument();
+    });
+
     it('omits the notes line when notes is null', () => {
       renderRounds([{ ...round, notes: null }]);
       expect(screen.getByText('Phone Screen')).toBeInTheDocument();
@@ -178,6 +198,25 @@ describe('InterviewRounds', () => {
         durationMinutes: 60,
         notes: undefined,
       });
+    });
+
+    it('posts an edited length', async () => {
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'r-new' } });
+      renderRounds([]);
+      fireEvent.click(screen.getByRole('button', { name: /add round/i }));
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: 'Onsite' },
+      });
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-07-01T09:30' },
+      });
+      fireEvent.change(screen.getByLabelText(/length/i), {
+        target: { value: '240' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
+      const [, payload] = vi.mocked(api.post).mock.calls[0];
+      expect(payload).toMatchObject({ durationMinutes: 240 });
     });
 
     it('shows a success toast and closes the form', async () => {
@@ -345,6 +384,18 @@ describe('InterviewRounds', () => {
       expect(payload).toEqual({
         scheduledAt: new Date('2026-06-12T09:30').toISOString(),
       });
+    });
+
+    it('patches only the changed length', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: { id: 'r-1' } });
+      openEdit();
+      fireEvent.change(screen.getByLabelText(/length/i), {
+        target: { value: '120' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      const [, payload] = vi.mocked(api.patch).mock.calls[0];
+      expect(payload).toEqual({ durationMinutes: 120 });
     });
 
     it('never patches when nothing changed and closes the form', async () => {
