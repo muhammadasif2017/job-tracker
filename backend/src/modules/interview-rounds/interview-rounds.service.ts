@@ -245,6 +245,10 @@ export class InterviewRoundsService {
       }
     }
 
+    // Same reason create() enqueues: the summary narrates the round's stage,
+    // date and outcome, so an edit here leaves it stale until regenerated.
+    await this.enqueueTimelineSummary(jobId);
+
     return result;
   }
 

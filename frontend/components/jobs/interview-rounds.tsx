@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { CalendarPlus, Plus, Trash2 } from 'lucide-react';
+import { CalendarPlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { formatDate } from '../../lib/utils';
@@ -11,10 +11,19 @@ import {
   useCreateInterviewRoundMutation,
   useInterviewRoundOutcomeMutation,
   useRemoveInterviewRoundMutation,
+  useUpdateInterviewRoundMutation,
   useSaveRoundDebriefMutation,
 } from '../../features/jobs/interview-rounds.hooks';
 import { DERIVED_STATUS_COLORS, DERIVED_STATUS_LABELS } from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
+
+// scheduledAt is a UTC-midnight instant standing for a bare calendar date
+// (the form only offers a date picker). Slicing the UTC date off the ISO
+// string keeps the day the user picked; local getters would shift it back one
+// day for anyone west of UTC.
+function toDateInputValue(scheduledAt: string): string {
+  return scheduledAt.slice(0, 10);
+}
 
 const OUTCOMES: InterviewOutcome[] = [
   'PENDING',
@@ -37,6 +46,11 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [stageError, setStageError] = useState<string | undefined>();
   const [editingDebriefId, setEditingDebriefId] = useState<string | null>(null);
   const [debriefText, setDebriefText] = useState('');
+  const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
+  const [editStage, setEditStage] = useState('');
+  const [editScheduledAt, setEditScheduledAt] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editStageError, setEditStageError] = useState<string | undefined>();
 
   const createMutation = useCreateInterviewRoundMutation(jobId, () => {
     setStage('');
@@ -50,8 +64,51 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     setConfirmingId(null),
   );
   const saveDebriefMutation = useSaveRoundDebriefMutation(jobId);
+  const updateMutation = useUpdateInterviewRoundMutation(jobId, () =>
+    setEditingRoundId(null),
+  );
+
+  function startEdit(round: InterviewRound) {
+    setAdding(false);
+    setEditingDebriefId(null);
+    setEditingRoundId(round.id);
+    setEditStage(round.stage);
+    setEditScheduledAt(toDateInputValue(round.scheduledAt));
+    setEditNotes(round.notes ?? '');
+    setEditStageError(undefined);
+  }
+
+  function handleSaveEdit(e: React.FormEvent, round: InterviewRound) {
+    e.preventDefault();
+    if (!editStage.trim()) {
+      setEditStageError('Stage is required');
+      return;
+    }
+    if (!editScheduledAt) return;
+    setEditStageError(undefined);
+
+    // Send only what changed — an unchanged scheduledAt would still clear the
+    // round's reminderSentAt on the backend and re-send a sent reminder.
+    const payload: {
+      stage?: string;
+      scheduledAt?: string;
+      notes?: string;
+    } = {};
+    if (editStage.trim() !== round.stage) payload.stage = editStage.trim();
+    if (editScheduledAt !== toDateInputValue(round.scheduledAt)) {
+      payload.scheduledAt = editScheduledAt;
+    }
+    if (editNotes !== (round.notes ?? '')) payload.notes = editNotes;
+
+    if (Object.keys(payload).length === 0) {
+      setEditingRoundId(null);
+      return;
+    }
+    updateMutation.mutate({ roundId: round.id, ...payload });
+  }
 
   function startDebrief(round: InterviewRound) {
+    setEditingRoundId(null);
     setEditingDebriefId(round.id);
     setDebriefText(round.notes ?? '');
   }
@@ -114,6 +171,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
             size="sm"
             onClick={() => {
               setAdding(true);
+              setEditingRoundId(null);
               setStageError(undefined);
             }}
           >
@@ -240,6 +298,15 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                           </option>
                         ))}
                       </select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        title={`Edit ${round.stage}`}
+                        onClick={() => startEdit(round)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                       {canDebrief && editingDebriefId !== round.id && (
                         <Button
                           type="button"
@@ -272,6 +339,58 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                     </div>
                   )}
                 </div>
+
+                {editingRoundId === round.id && (
+                  <form
+                    onSubmit={(e) => handleSaveEdit(e, round)}
+                    className="flex flex-col gap-3 rounded-md border border-line p-3"
+                  >
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Input
+                        id={`edit-stage-${round.id}`}
+                        label="Stage"
+                        value={editStage}
+                        onChange={(e) => {
+                          setEditStage(e.target.value);
+                          if (editStageError) setEditStageError(undefined);
+                        }}
+                        error={editStageError}
+                        required
+                      />
+                      <Input
+                        id={`edit-date-${round.id}`}
+                        label="Date"
+                        type="date"
+                        value={editScheduledAt}
+                        onChange={(e) => setEditScheduledAt(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Input
+                      id={`edit-notes-${round.id}`}
+                      label="Notes (optional)"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        size="sm"
+                        loading={updateMutation.isPending}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setEditingRoundId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
 
                 {editingDebriefId === round.id && (
                   <div className="flex flex-col gap-2 rounded-md border border-line p-3">

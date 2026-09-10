@@ -698,5 +698,26 @@ describe('InterviewRoundsService', () => {
 
       expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');
     });
+
+    it('enqueues a timeline-summary regen after a round is rescheduled', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        outcome: InterviewOutcome.PENDING,
+      });
+      mockPrisma.interviewRound.update.mockResolvedValue({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        outcome: InterviewOutcome.PENDING,
+        scheduledAt: new Date('2026-08-05'),
+        notes: null,
+      });
+
+      await service.update('user-1', 'job-1', 'round-1', {
+        scheduledAt: '2026-08-05',
+      });
+
+      expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');
+    });
   });
 });
