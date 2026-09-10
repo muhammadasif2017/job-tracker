@@ -23,7 +23,11 @@ function invalidateInterviewRoundCaches(qc: QueryClient, jobId: string) {
 
 export interface CreateInterviewRoundPayload {
   stage: string;
+  // A real instant with an explicit UTC offset. The backend rejects an
+  // offset-less `datetime-local` value outright, since it would resolve
+  // against the server's zone rather than the user's (see ADR-043).
   scheduledAt: string;
+  durationMinutes: number;
   notes?: string;
 }
 
@@ -48,6 +52,7 @@ export function useCreateInterviewRoundMutation(
 export interface UpdateInterviewRoundPayload {
   stage?: string;
   scheduledAt?: string;
+  durationMinutes?: number;
   notes?: string;
 }
 

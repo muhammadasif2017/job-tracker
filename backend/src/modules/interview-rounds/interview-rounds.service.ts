@@ -23,6 +23,10 @@ import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
 // are already scoped to the owning user).
 const MAX_ROUNDS_PER_JOB = 50;
 
+// Calendar-export fallback for rounds created before ADR-043, which carry no
+// durationMinutes. Every round created since carries a length the user typed.
+const DEFAULT_ROUND_MINUTES = 60;
+
 @Injectable()
 export class InterviewRoundsService {
   constructor(
@@ -78,6 +82,40 @@ export class InterviewRoundsService {
   // (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't carry a
   // nested create, so both statements run inside the caller's transaction
   // instead.
+  // The Timeline note is a frozen snapshot - it is plain text on JobEvent, not
+  // a join to the round - so the user's zone has to be resolved here at write
+  // time rather than at render time. A later reschedule does not rewrite it;
+  // the round list is the live view of when the interview actually is.
+  private async composeRoundNote(
+    userId: string,
+    stage: string,
+    scheduledAt: Date,
+  ): Promise<string> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    const timezone = user?.timezone ?? 'UTC';
+    let when: string;
+    try {
+      when = scheduledAt.toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZone: timezone,
+        timeZoneName: 'short',
+      });
+    } catch {
+      // A malformed timezone (hand-edited via Prisma Studio) must not fail the
+      // round creation - same tolerance NotificationsScheduler applies.
+      this.logger.warn('round_note_invalid_timezone', { userId, timezone });
+      when = scheduledAt.toISOString();
+    }
+    return `${stage} - ${when}`;
+  }
+
   private async logRoundEvent(
     tx: Prisma.TransactionClient,
     jobId: string,
@@ -151,6 +189,8 @@ export class InterviewRoundsService {
 
   async create(userId: string, jobId: string, dto: CreateInterviewRoundDto) {
     await this.ensureJobOwned(userId, jobId);
+    const scheduledAt = new Date(dto.scheduledAt);
+    const note = await this.composeRoundNote(userId, dto.stage, scheduledAt);
     const existingCount = await this.prisma.interviewRound.count({
       where: { jobId },
     });
@@ -167,11 +207,12 @@ export class InterviewRoundsService {
         data: {
           jobId,
           stage: dto.stage,
-          scheduledAt: new Date(dto.scheduledAt),
+          scheduledAt,
+          durationMinutes: dto.durationMinutes,
           notes: dto.notes,
         },
       });
-      await this.logRoundEvent(tx, jobId, dto.stage);
+      await this.logRoundEvent(tx, jobId, note);
       await this.recomputeNextInterviewAt(tx, jobId);
       return this.withDerivedStatus(round);
     });
@@ -216,6 +257,7 @@ export class InterviewRoundsService {
         data: {
           stage: dto.stage,
           scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+          durationMinutes: dto.durationMinutes,
           outcome: dto.outcome,
           notes: dto.notes,
           ...(reschedule || uncancelled ? { reminderSentAt: null } : {}),
@@ -321,29 +363,14 @@ export class InterviewRoundsService {
 
   // scheduledAt is TIMESTAMP(3) with no time zone, always written/compared as
   // UTC elsewhere (see recomputeNextInterviewAt) — format with a Z suffix to
-  // match that assumption rather than the server's local time zone. Only
-  // used for DTSTAMP now (when this file was generated) — DTSTART/DTEND use
-  // formatIcsDateOnly below.
+  // match that assumption rather than the server's local time zone. Used for
+  // DTSTAMP, DTSTART and DTEND alike — all three are real instants now that a
+  // round carries a time of day and a length (ADR-043).
   private formatIcsDate(date: Date): string {
     return date
       .toISOString()
       .replace(/[-:]/g, '')
       .replace(/\.\d{3}Z$/, 'Z');
-  }
-
-  // scheduledAt is date-only in intent (the form only ever offers a bare
-  // date picker, no time-of-day input) but stored as a UTC-midnight
-  // instant. Reading it back as a timed UTC instant — as formatIcsDate does
-  // — makes calendar apps convert it to the viewer's local time, shifting
-  // the event to the wrong day for anyone outside UTC. Reading the UTC
-  // calendar-date components instead and emitting an RFC 5545 all-day date
-  // value (VALUE=DATE, no time/zone) keeps the calendar day the user picked
-  // regardless of the viewer's time zone.
-  private formatIcsDateOnly(date: Date): string {
-    const y = date.getUTCFullYear();
-    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
-    const d = String(date.getUTCDate()).padStart(2, '0');
-    return `${y}${m}${d}`;
   }
 
   // RFC 5545 §3.1: content lines must be folded at 75 octets (excluding the
@@ -387,9 +414,11 @@ export class InterviewRoundsService {
     if (!round) throw new NotFoundException('Interview round not found');
 
     const start = round.scheduledAt;
-    // All-day event: RFC 5545 DTEND is exclusive, so a single calendar day
-    // ends the day after it starts.
-    const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
+    // A timed event, not an all-day one (ADR-043): the user picks the hour the
+    // interview starts and how long it runs. Rounds created before that change
+    // carry no length and fall back to DEFAULT_ROUND_MINUTES.
+    const minutes = round.durationMinutes ?? DEFAULT_ROUND_MINUTES;
+    const end = new Date(start.getTime() + minutes * 60 * 1000);
     const summary = this.escapeIcsText(
       `${round.stage} — ${job.company} (${job.position})`,
     );
@@ -405,8 +434,8 @@ export class InterviewRoundsService {
       'BEGIN:VEVENT',
       `UID:${round.id}@job-tracker`,
       `DTSTAMP:${this.formatIcsDate(new Date())}`,
-      `DTSTART;VALUE=DATE:${this.formatIcsDateOnly(start)}`,
-      `DTEND;VALUE=DATE:${this.formatIcsDateOnly(end)}`,
+      `DTSTART:${this.formatIcsDate(start)}`,
+      `DTEND:${this.formatIcsDate(end)}`,
       `SUMMARY:${summary}`,
       `DESCRIPTION:${description}`,
       'END:VEVENT',

@@ -26,7 +26,11 @@ describe('InterviewRoundsController', () => {
 
   describe('create', () => {
     it('delegates to service with userId, jobId, and dto', async () => {
-      const dto = { stage: 'Phone Screen', scheduledAt: '2026-08-01' };
+      const dto = {
+        stage: 'Phone Screen',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
+      };
       mockService.create.mockResolvedValue({ id: 'r-1' });
 
       await controller.create(user, 'j-1', dto);
@@ -40,7 +44,8 @@ describe('InterviewRoundsController', () => {
 
       const result = await controller.create(user, 'j-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2026-08-01',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(result).toEqual(round);
