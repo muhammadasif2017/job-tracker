@@ -36,6 +36,11 @@ const mockPrisma = {
   jobEvent: {
     create: jest.fn(),
   },
+  // Read by composeRoundNote to resolve the Timeline note's time-of-day into
+  // the user's own zone at write time (the note is a frozen string).
+  user: {
+    findUnique: jest.fn(),
+  },
   // recomputeNextInterviewAt is a single raw UPDATE (see interview-rounds.service.ts)
   // so there's nothing meaningful to assert about its *result* at the mock
   // level — that's what the backend e2e suite verifies against real Postgres.
@@ -92,7 +97,8 @@ describe('InterviewRoundsService', () => {
       await expect(
         service.create('user-1', 'job-1', {
           stage: 'Phone Screen',
-          scheduledAt: '2026-08-01',
+          scheduledAt: '2026-08-01T14:00:00.000Z',
+          durationMinutes: 60,
         }),
       ).rejects.toThrow(NotFoundException);
       expect(mockPrisma.interviewRound.create).not.toHaveBeenCalled();
@@ -106,7 +112,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2026-08-01',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expectRecomputeCalledFor('job-1');
@@ -118,7 +125,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Onsite',
-        scheduledAt: '2026-08-05',
+        scheduledAt: '2026-08-05T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
@@ -131,7 +139,8 @@ describe('InterviewRoundsService', () => {
       await expect(
         service.create('user-1', 'job-1', {
           stage: 'One too many',
-          scheduledAt: '2026-08-05',
+          scheduledAt: '2026-08-05T14:00:00.000Z',
+          durationMinutes: 60,
         }),
       ).rejects.toThrow(BadRequestException);
       expect(mockPrisma.$transaction).not.toHaveBeenCalled();
@@ -147,7 +156,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2026-08-01',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
@@ -160,7 +170,7 @@ describe('InterviewRoundsService', () => {
           type: JobEventType.STATUS_CHANGE,
           fromStatus: JobStatus.APPLIED,
           toStatus: JobStatus.INTERVIEWING,
-          note: 'Phone Screen',
+          note: 'Phone Screen - Aug 1, 2026, 2:00 PM UTC',
         },
       });
       expect(mockPrisma.job.findUniqueOrThrow).not.toHaveBeenCalled();
@@ -182,7 +192,8 @@ describe('InterviewRoundsService', () => {
 
         await service.create('user-1', 'job-1', {
           stage: 'Onsite',
-          scheduledAt: '2026-08-05',
+          scheduledAt: '2026-08-05T14:00:00.000Z',
+          durationMinutes: 60,
         });
 
         expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
@@ -194,7 +205,7 @@ describe('InterviewRoundsService', () => {
             jobId: 'job-1',
             type: JobEventType.INTERVIEW_ROUND_ADDED,
             toStatus: status,
-            note: 'Onsite',
+            note: 'Onsite - Aug 5, 2026, 2:00 PM UTC',
           },
         });
       },
@@ -213,7 +224,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2026-08-01',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(mockPrisma.jobEvent.create).toHaveBeenCalledTimes(1);
@@ -222,7 +234,7 @@ describe('InterviewRoundsService', () => {
           jobId: 'job-1',
           type: JobEventType.INTERVIEW_ROUND_ADDED,
           toStatus: JobStatus.INTERVIEWING,
-          note: 'Phone Screen',
+          note: 'Phone Screen - Aug 1, 2026, 2:00 PM UTC',
         },
       });
     });
@@ -258,7 +270,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Technical',
-        scheduledAt: '2026-08-05',
+        scheduledAt: '2026-08-05T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expectRecomputeCalledFor('job-1');
@@ -346,7 +359,7 @@ describe('InterviewRoundsService', () => {
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('builds an all-day VEVENT (no time-of-day component), UTC calendar date, and escaped text', async () => {
+    it("builds a timed VEVENT running for the round's length, and escapes text", async () => {
       mockPrisma.job.findFirst.mockResolvedValue({
         company: 'Acme, Inc.',
         position: 'Senior Engineer',
@@ -355,6 +368,7 @@ describe('InterviewRoundsService', () => {
         id: 'round-1',
         stage: 'Phone Screen',
         scheduledAt: new Date('2026-08-10T14:00:00.000Z'),
+        durationMinutes: 90,
         notes: 'Ask about; on-call, rotation\nand pay',
       });
 
@@ -367,10 +381,10 @@ describe('InterviewRoundsService', () => {
       expect(filename).toBe('interview-phone-screen.ics');
       expect(content).toContain('BEGIN:VCALENDAR');
       expect(content).toContain('UID:round-1@job-tracker');
-      // All-day VALUE=DATE, not a timed UTC instant — a calendar app must
-      // not be able to shift this to the viewer's local day.
-      expect(content).toContain('DTSTART;VALUE=DATE:20260810');
-      expect(content).toContain('DTEND;VALUE=DATE:20260811');
+      // A real instant, not an all-day value: the round carries a time of day
+      // and a length, and DTEND is DTSTART plus that length (ADR-043).
+      expect(content).toContain('DTSTART:20260810T140000Z');
+      expect(content).toContain('DTEND:20260810T153000Z');
       // This line is short enough to stay unfolded — assert the raw form.
       expect(content).toContain(
         'SUMMARY:Phone Screen — Acme\\, Inc. (Senior Engineer)',
@@ -466,7 +480,8 @@ describe('InterviewRoundsService', () => {
 
       const result = await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2099-01-01',
+        scheduledAt: '2099-01-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(result.derivedStatus).toBe('SCHEDULED');
@@ -686,6 +701,87 @@ describe('InterviewRoundsService', () => {
     });
   });
 
+  describe('duration and the timeline note', () => {
+    it('stores the length the user typed', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Onsite',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 240,
+      });
+
+      expect(mockPrisma.interviewRound.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ durationMinutes: 240 }),
+      });
+    });
+
+    it("writes the note in the user's own timezone, not UTC", async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.user.findUnique.mockResolvedValue({
+        timezone: 'Asia/Karachi',
+      });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Phone Screen',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
+      });
+
+      // 14:00Z is 19:00 in UTC+5 — the note must read the user's clock.
+      expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          note: expect.stringContaining('7:00 PM'),
+        }),
+      });
+    });
+
+    it('falls back to UTC and still logs when the timezone is unusable', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.interviewRound.create.mockResolvedValue({ id: 'round-1' });
+      mockPrisma.user.findUnique.mockResolvedValue({ timezone: 'Not/AZone' });
+
+      await service.create('user-1', 'job-1', {
+        stage: 'Phone Screen',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
+      });
+
+      expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          note: 'Phone Screen - 2026-08-01T14:00:00.000Z',
+        }),
+      });
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        'round_note_invalid_timezone',
+        expect.anything(),
+      );
+    });
+
+    it('exports a 60-minute event for a legacy round with no length', async () => {
+      mockPrisma.job.findFirst.mockResolvedValue({
+        company: 'Acme',
+        position: 'Engineer',
+      });
+      mockPrisma.interviewRound.findFirst.mockResolvedValue({
+        id: 'round-1',
+        stage: 'Phone Screen',
+        scheduledAt: new Date('2026-08-10T14:00:00.000Z'),
+        durationMinutes: null,
+        notes: null,
+      });
+
+      const { content } = await service.exportIcs('user-1', 'job-1', 'round-1');
+
+      expect(content).toContain('DTSTART:20260810T140000Z');
+      expect(content).toContain('DTEND:20260810T150000Z');
+    });
+  });
+
   describe('timeline summary enqueue', () => {
     it('enqueues a timeline-summary regen after a round is created', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
@@ -693,7 +789,8 @@ describe('InterviewRoundsService', () => {
 
       await service.create('user-1', 'job-1', {
         stage: 'Phone Screen',
-        scheduledAt: '2026-08-01',
+        scheduledAt: '2026-08-01T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');
@@ -714,7 +811,8 @@ describe('InterviewRoundsService', () => {
       });
 
       await service.update('user-1', 'job-1', 'round-1', {
-        scheduledAt: '2026-08-05',
+        scheduledAt: '2026-08-05T14:00:00.000Z',
+        durationMinutes: 60,
       });
 
       expect(mockTimelineSummary.enqueue).toHaveBeenCalledWith('job-1');

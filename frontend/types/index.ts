@@ -108,6 +108,9 @@ export interface InterviewRound {
   jobId: string;
   stage: string;
   scheduledAt: string;
+  // How long the interview runs. null only for rounds created before ADR-043;
+  // every round created since carries a length the user typed.
+  durationMinutes?: number | null;
   outcome: InterviewOutcome;
   derivedStatus: InterviewRoundDerivedStatus;
   notes?: string | null;

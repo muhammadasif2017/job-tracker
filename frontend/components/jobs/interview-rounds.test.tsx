@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { InterviewRounds } from './interview-rounds';
-import { formatDate } from '../../lib/utils';
+import { formatDateTime } from '../../lib/utils';
 import type { InterviewRound } from '../../types';
 
 vi.mock('sonner', () => ({
@@ -31,6 +31,7 @@ const round: InterviewRound = {
   jobId: 'j-1',
   stage: 'Phone Screen',
   scheduledAt: '2026-06-10T14:00:00Z',
+  durationMinutes: 45,
   outcome: 'PENDING',
   derivedStatus: 'SCHEDULED',
   notes: 'Ask about on-call rotation',
@@ -62,11 +63,11 @@ describe('InterviewRounds', () => {
   });
 
   describe('list rendering', () => {
-    it('renders stage, formatted date, and notes', () => {
+    it('renders stage, formatted date-time, length, and notes', () => {
       renderRounds([round]);
       expect(screen.getByText('Phone Screen')).toBeInTheDocument();
       expect(
-        screen.getByText(formatDate('2026-06-10T14:00:00Z')),
+        screen.getByText(`${formatDateTime('2026-06-10T14:00:00Z')} · 45 min`),
       ).toBeInTheDocument();
       expect(
         screen.getByText('Ask about on-call rotation'),
@@ -106,7 +107,7 @@ describe('InterviewRounds', () => {
       renderRounds([]);
       fireEvent.click(screen.getByRole('button', { name: /add round/i }));
       expect(screen.getByLabelText(/^stage$/i)).toHaveValue('');
-      expect(screen.getByLabelText(/^date$/i)).toHaveValue('');
+      expect(screen.getByLabelText(/date & time/i)).toHaveValue('');
     });
 
     it('never submits without stage and date', async () => {
@@ -130,8 +131,8 @@ describe('InterviewRounds', () => {
       fireEvent.change(screen.getByLabelText(/^stage$/i), {
         target: { value: '   ' },
       });
-      fireEvent.change(screen.getByLabelText(/^date$/i), {
-        target: { value: '2026-06-01' },
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-06-01T10:00' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       expect(await screen.findByText('Stage is required')).toBeInTheDocument();
@@ -144,8 +145,8 @@ describe('InterviewRounds', () => {
       fireEvent.change(screen.getByLabelText(/^stage$/i), {
         target: { value: '   ' },
       });
-      fireEvent.change(screen.getByLabelText(/^date$/i), {
-        target: { value: '2026-06-01' },
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-06-01T10:00' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       expect(await screen.findByText('Stage is required')).toBeInTheDocument();
@@ -161,16 +162,20 @@ describe('InterviewRounds', () => {
       fireEvent.change(screen.getByLabelText(/^stage$/i), {
         target: { value: 'Onsite' },
       });
-      fireEvent.change(screen.getByLabelText(/^date$/i), {
-        target: { value: '2026-07-01' },
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-07-01T09:30' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
       const [url, payload] = vi.mocked(api.post).mock.calls[0];
       expect(url).toBe('/jobs/j-1/interview-rounds');
+      // The wire value is a real instant with an offset, not the offset-less
+      // string the datetime-local input produces. Derived here rather than
+      // hardcoded so the assertion holds in any TZ the suite runs under.
       expect(payload).toEqual({
         stage: 'Onsite',
-        scheduledAt: '2026-07-01',
+        scheduledAt: new Date('2026-07-01T09:30').toISOString(),
+        durationMinutes: 60,
         notes: undefined,
       });
     });
@@ -182,8 +187,8 @@ describe('InterviewRounds', () => {
       fireEvent.change(screen.getByLabelText(/^stage$/i), {
         target: { value: 'Onsite' },
       });
-      fireEvent.change(screen.getByLabelText(/^date$/i), {
-        target: { value: '2026-07-01' },
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-07-01T09:30' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() =>
@@ -312,10 +317,16 @@ describe('InterviewRounds', () => {
       );
     }
 
-    it('pre-fills stage, UTC date, and notes', () => {
+    it('pre-fills stage, local date-time, length, and notes', () => {
       openEdit();
       expect(screen.getByLabelText(/^stage$/i)).toHaveValue('Phone Screen');
-      expect(screen.getByLabelText(/^date$/i)).toHaveValue('2026-06-10');
+      // Local basis, matching what the row renders through formatDateTime.
+      const local = new Date('2026-06-10T14:00:00Z');
+      const pad = (n: number) => String(n).padStart(2, '0');
+      expect(screen.getByLabelText(/date & time/i)).toHaveValue(
+        `${local.getFullYear()}-${pad(local.getMonth() + 1)}-${pad(local.getDate())}T${pad(local.getHours())}:${pad(local.getMinutes())}`,
+      );
+      expect(screen.getByLabelText(/length/i)).toHaveValue(45);
       expect(screen.getByLabelText(/notes/i)).toHaveValue(
         'Ask about on-call rotation',
       );
@@ -324,14 +335,16 @@ describe('InterviewRounds', () => {
     it('patches only the changed date, leaving reminderSentAt intact', async () => {
       vi.mocked(api.patch).mockResolvedValue({ data: { id: 'r-1' } });
       openEdit();
-      fireEvent.change(screen.getByLabelText(/^date$/i), {
-        target: { value: '2026-06-12' },
+      fireEvent.change(screen.getByLabelText(/date & time/i), {
+        target: { value: '2026-06-12T09:30' },
       });
       fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
       await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
       const [url, payload] = vi.mocked(api.patch).mock.calls[0];
       expect(url).toBe('/jobs/j-1/interview-rounds/r-1');
-      expect(payload).toEqual({ scheduledAt: '2026-06-12' });
+      expect(payload).toEqual({
+        scheduledAt: new Date('2026-06-12T09:30').toISOString(),
+      });
     });
 
     it('never patches when nothing changed and closes the form', async () => {

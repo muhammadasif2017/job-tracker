@@ -275,6 +275,10 @@ model InterviewRound {
   job            Job              @relation(fields: [jobId], references: [id], onDelete: Cascade)
   stage          String
   scheduledAt    DateTime
+  // How long the interview runs. Required on every round created through the
+  // app; nullable only because rounds written before ADR-043 have no value —
+  // those fall back to DEFAULT_ROUND_MINUTES for the calendar export.
+  durationMinutes Int?
   outcome        InterviewOutcome @default(PENDING)
   notes          String?
   reminderSentAt DateTime?

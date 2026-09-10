@@ -18,6 +18,11 @@ export class InterviewRoundResponseDto {
   @ApiProperty({ format: 'date-time' })
   scheduledAt: Date;
 
+  // null only for rounds created before ADR-043 — every round created since
+  // carries a length the user typed.
+  @ApiPropertyOptional({ example: 60, minimum: 5, maximum: 1440 })
+  durationMinutes: number | null;
+
   @ApiProperty({ enum: InterviewOutcome })
   outcome: InterviewOutcome;
 

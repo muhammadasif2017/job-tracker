@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { CalendarPlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { formatDate } from '../../lib/utils';
+import { formatDateTime } from '../../lib/utils';
 import api from '../../lib/api';
 import {
   useCreateInterviewRoundMutation,
@@ -17,12 +17,32 @@ import {
 import { DERIVED_STATUS_COLORS, DERIVED_STATUS_LABELS } from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
-// scheduledAt is a UTC-midnight instant standing for a bare calendar date
-// (the form only offers a date picker). Slicing the UTC date off the ISO
-// string keeps the day the user picked; local getters would shift it back one
-// day for anyone west of UTC.
-function toDateInputValue(scheduledAt: string): string {
-  return scheduledAt.slice(0, 10);
+const DEFAULT_ROUND_MINUTES = 60;
+
+// scheduledAt is a real instant (ADR-034, ADR-043) and renders through
+// formatDateTime, which reads local getters. The datetime-local input has to
+// be built on that same local basis or the row and the form disagree, and the
+// changed-field diff below has to compare on it too.
+function toLocalInputValue(scheduledAt: string): string {
+  const d = new Date(scheduledAt);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// `<input type="datetime-local">` yields `2026-11-19T14:00` with no offset.
+// Sent as-is the backend would resolve it against the *server's* zone, so the
+// same request means different instants on different hosts. Resolve it here,
+// where the user's own zone is the browser's, and send a real instant.
+function toInstant(localValue: string): string {
+  return new Date(localValue).toISOString();
+}
+
+function formatDuration(minutes: number | null | undefined): string | null {
+  if (!minutes) return null;
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
 const OUTCOMES: InterviewOutcome[] = [
@@ -41,6 +61,9 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [adding, setAdding] = useState(false);
   const [stage, setStage] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
+  const [durationMinutes, setDurationMinutes] = useState(
+    String(DEFAULT_ROUND_MINUTES),
+  );
   const [notes, setNotes] = useState('');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [stageError, setStageError] = useState<string | undefined>();
@@ -49,12 +72,14 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [editingRoundId, setEditingRoundId] = useState<string | null>(null);
   const [editStage, setEditStage] = useState('');
   const [editScheduledAt, setEditScheduledAt] = useState('');
+  const [editDuration, setEditDuration] = useState('');
   const [editNotes, setEditNotes] = useState('');
   const [editStageError, setEditStageError] = useState<string | undefined>();
 
   const createMutation = useCreateInterviewRoundMutation(jobId, () => {
     setStage('');
     setScheduledAt('');
+    setDurationMinutes(String(DEFAULT_ROUND_MINUTES));
     setNotes('');
     setAdding(false);
     setStageError(undefined);
@@ -73,7 +98,8 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     setEditingDebriefId(null);
     setEditingRoundId(round.id);
     setEditStage(round.stage);
-    setEditScheduledAt(toDateInputValue(round.scheduledAt));
+    setEditScheduledAt(toLocalInputValue(round.scheduledAt));
+    setEditDuration(String(round.durationMinutes ?? DEFAULT_ROUND_MINUTES));
     setEditNotes(round.notes ?? '');
     setEditStageError(undefined);
   }
@@ -84,7 +110,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       setEditStageError('Stage is required');
       return;
     }
-    if (!editScheduledAt) return;
+    if (!editScheduledAt || !editDuration) return;
     setEditStageError(undefined);
 
     // Send only what changed — an unchanged scheduledAt would still clear the
@@ -92,11 +118,17 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
     const payload: {
       stage?: string;
       scheduledAt?: string;
+      durationMinutes?: number;
       notes?: string;
     } = {};
     if (editStage.trim() !== round.stage) payload.stage = editStage.trim();
-    if (editScheduledAt !== toDateInputValue(round.scheduledAt)) {
-      payload.scheduledAt = editScheduledAt;
+    if (editScheduledAt !== toLocalInputValue(round.scheduledAt)) {
+      payload.scheduledAt = toInstant(editScheduledAt);
+    }
+    if (
+      Number(editDuration) !== (round.durationMinutes ?? DEFAULT_ROUND_MINUTES)
+    ) {
+      payload.durationMinutes = Number(editDuration);
     }
     if (editNotes !== (round.notes ?? '')) payload.notes = editNotes;
 
@@ -126,11 +158,12 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
       setStageError('Stage is required');
       return;
     }
-    if (!scheduledAt) return;
+    if (!scheduledAt || !durationMinutes) return;
     setStageError(undefined);
     createMutation.mutate({
       stage: stage.trim(),
-      scheduledAt,
+      scheduledAt: toInstant(scheduledAt),
+      durationMinutes: Number(durationMinutes),
       notes: notes || undefined,
     });
   }
@@ -199,13 +232,22 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
               required
             />
             <Input
-              label="Date"
-              type="date"
+              label="Date & time"
+              type="datetime-local"
               value={scheduledAt}
               onChange={(e) => setScheduledAt(e.target.value)}
               required
             />
           </div>
+          <Input
+            label="Length (minutes)"
+            type="number"
+            min={5}
+            max={1440}
+            value={durationMinutes}
+            onChange={(e) => setDurationMinutes(e.target.value)}
+            required
+          />
           <Input
             label="Notes (optional)"
             placeholder="Ask about on-call rotation"
@@ -244,7 +286,9 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium">{round.stage}</p>
                     <p className="text-xs text-muted">
-                      {formatDate(round.scheduledAt)}
+                      {formatDateTime(round.scheduledAt)}
+                      {formatDuration(round.durationMinutes) &&
+                        ` · ${formatDuration(round.durationMinutes)}`}
                     </p>
                     {round.notes && (
                       <p className="mt-1 text-xs text-muted">{round.notes}</p>
@@ -359,13 +403,23 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                       />
                       <Input
                         id={`edit-date-${round.id}`}
-                        label="Date"
-                        type="date"
+                        label="Date & time"
+                        type="datetime-local"
                         value={editScheduledAt}
                         onChange={(e) => setEditScheduledAt(e.target.value)}
                         required
                       />
                     </div>
+                    <Input
+                      id={`edit-duration-${round.id}`}
+                      label="Length (minutes)"
+                      type="number"
+                      min={5}
+                      max={1440}
+                      value={editDuration}
+                      onChange={(e) => setEditDuration(e.target.value)}
+                      required
+                    />
                     <Input
                       id={`edit-notes-${round.id}`}
                       label="Notes (optional)"
