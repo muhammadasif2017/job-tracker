@@ -45,6 +45,39 @@ export function useCreateInterviewRoundMutation(
   });
 }
 
+export interface UpdateInterviewRoundPayload {
+  stage?: string;
+  scheduledAt?: string;
+  notes?: string;
+}
+
+// Only the fields the user actually changed are sent. The backend clears
+// reminderSentAt whenever scheduledAt is present (see
+// InterviewRoundsService.update), so sending an unchanged date would re-arm a
+// reminder that already went out.
+export function useUpdateInterviewRoundMutation(
+  jobId: string,
+  onSuccess?: () => void,
+) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      roundId,
+      ...payload
+    }: UpdateInterviewRoundPayload & { roundId: string }) =>
+      api
+        .patch(`/jobs/${jobId}/interview-rounds/${roundId}`, payload)
+        .then((r) => r.data),
+    onSuccess: () => {
+      invalidateInterviewRoundCaches(qc, jobId);
+      toast.success('Interview round updated');
+      onSuccess?.();
+    },
+    onError: (err: unknown) =>
+      toast.error(getErrorMessage(err, 'Failed to update round')),
+  });
+}
+
 export function useInterviewRoundOutcomeMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({

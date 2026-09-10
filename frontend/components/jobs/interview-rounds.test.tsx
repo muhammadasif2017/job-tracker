@@ -304,6 +304,92 @@ describe('InterviewRounds', () => {
     });
   });
 
+  describe('edit flow', () => {
+    function openEdit() {
+      renderRounds([round]);
+      fireEvent.click(
+        screen.getByRole('button', { name: /edit phone screen/i }),
+      );
+    }
+
+    it('pre-fills stage, UTC date, and notes', () => {
+      openEdit();
+      expect(screen.getByLabelText(/^stage$/i)).toHaveValue('Phone Screen');
+      expect(screen.getByLabelText(/^date$/i)).toHaveValue('2026-06-10');
+      expect(screen.getByLabelText(/notes/i)).toHaveValue(
+        'Ask about on-call rotation',
+      );
+    });
+
+    it('patches only the changed date, leaving reminderSentAt intact', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: { id: 'r-1' } });
+      openEdit();
+      fireEvent.change(screen.getByLabelText(/^date$/i), {
+        target: { value: '2026-06-12' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      const [url, payload] = vi.mocked(api.patch).mock.calls[0];
+      expect(url).toBe('/jobs/j-1/interview-rounds/r-1');
+      expect(payload).toEqual({ scheduledAt: '2026-06-12' });
+    });
+
+    it('never patches when nothing changed and closes the form', async () => {
+      openEdit();
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() =>
+        expect(screen.queryByLabelText(/^stage$/i)).not.toBeInTheDocument(),
+      );
+      expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
+    });
+
+    it('shows an inline error and never patches on a whitespace-only stage', async () => {
+      openEdit();
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: '   ' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(await screen.findByText('Stage is required')).toBeInTheDocument();
+      expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
+    });
+
+    it('closes the form on Cancel without patching', () => {
+      openEdit();
+      fireEvent.click(screen.getByRole('button', { name: /^cancel$/i }));
+      expect(screen.queryByLabelText(/^stage$/i)).not.toBeInTheDocument();
+      expect(vi.mocked(api.patch)).not.toHaveBeenCalled();
+    });
+
+    it('shows a success toast and closes the form', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: { id: 'r-1' } });
+      openEdit();
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: 'Onsite' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() =>
+        expect(vi.mocked(toast.success)).toHaveBeenCalledWith(
+          'Interview round updated',
+        ),
+      );
+      expect(screen.queryByLabelText(/^stage$/i)).not.toBeInTheDocument();
+    });
+
+    it('falls back to a generic error message on failure', async () => {
+      vi.mocked(api.patch).mockRejectedValue(new Error('boom'));
+      openEdit();
+      fireEvent.change(screen.getByLabelText(/^stage$/i), {
+        target: { value: 'Onsite' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      await waitFor(() =>
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'Failed to update round',
+        ),
+      );
+    });
+  });
+
   describe('prep suggestions', () => {
     it('renders the suggested-prep block when prepSuggestions is set', () => {
       renderRounds([

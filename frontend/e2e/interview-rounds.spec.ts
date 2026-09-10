@@ -91,6 +91,33 @@ test.describe('Interview rounds', () => {
     await expect(page.getByText('Next Interview')).not.toBeVisible();
   });
 
+  test('corrects a wrong date in place, without delete and re-add', async ({
+    page,
+  }) => {
+    await goToJob(page, job);
+
+    await page.getByRole('button', { name: 'Add Round' }).click();
+    await page.getByLabel('Stage').fill('Phone Screen');
+    await page.getByLabel('Date').fill(futureDate(7));
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Interview round added')).toBeVisible();
+
+    const roundRow = page.locator('li', { hasText: 'Phone Screen' });
+    await roundRow.getByRole('button', { name: 'Edit Phone Screen' }).click();
+    await expect(page.getByLabel('Date')).toHaveValue(futureDate(7));
+
+    await page.getByLabel('Date').fill(futureDate(14));
+    await page.getByLabel('Stage').fill('Onsite');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Interview round updated')).toBeVisible();
+    await expect(page.getByText('Onsite', { exact: true })).toBeVisible();
+    await expect(
+      page.getByText('Phone Screen', { exact: true }),
+    ).not.toBeVisible();
+    await expect(page.locator('li', { hasText: 'Onsite' })).toHaveCount(1);
+  });
+
   test('removes a round after confirmation', async ({ page }) => {
     await goToJob(page, job);
 
