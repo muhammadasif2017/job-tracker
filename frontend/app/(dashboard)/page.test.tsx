@@ -99,6 +99,8 @@ function mockApiRoutes({
     if (url.startsWith('/jobs/stats')) return Promise.resolve({ data: stats });
     if (url.startsWith('/jobs/attention'))
       return Promise.resolve({ data: attention });
+    if (url.startsWith('/jobs/ghost-suggestions'))
+      return Promise.resolve({ data: [] });
     if (url.startsWith('/jobs')) return Promise.resolve({ data: recent });
     return Promise.reject(new Error(`unhandled url: ${url}`));
   });
@@ -158,12 +160,27 @@ describe('DashboardPage', () => {
         return Promise.resolve({ data: makeTrend() });
       if (url.startsWith('/jobs/attention'))
         return Promise.resolve({ data: [] });
+      if (url.startsWith('/jobs/ghost-suggestions'))
+        return Promise.resolve({ data: [] });
       return Promise.resolve({ data: makeRecent() });
     });
     renderPage();
 
     await waitFor(() =>
       expect(screen.getByText('Failed to load chart.')).toBeInTheDocument(),
+    );
+  });
+
+  it('shows the Looks Ghosted card beside Needs Attention', async () => {
+    mockApiRoutes();
+    renderPage();
+
+    expect(await screen.findByText('Looks Ghosted')).toBeInTheDocument();
+    expect(screen.getByText('Needs Attention')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+        '/jobs/ghost-suggestions',
+      ),
     );
   });
 
@@ -250,6 +267,8 @@ describe('DashboardPage', () => {
       if (url.startsWith('/jobs/stats'))
         return Promise.resolve({ data: makeStats() });
       if (url.startsWith('/jobs/attention'))
+        return Promise.resolve({ data: [] });
+      if (url.startsWith('/jobs/ghost-suggestions'))
         return Promise.resolve({ data: [] });
       return Promise.reject(new Error(`unhandled url: ${url}`));
     });
