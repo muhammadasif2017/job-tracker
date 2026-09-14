@@ -64,6 +64,7 @@ describe('CallbackPage', () => {
     await waitFor(() =>
       expect(vi.mocked(api.post)).toHaveBeenCalledWith('/auth/exchange-code', {
         code: 'abc123',
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     );
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/auth/me', {

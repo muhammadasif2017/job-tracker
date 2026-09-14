@@ -42,6 +42,7 @@ const mockPrisma = {
   user: {
     findUnique: jest.fn(),
     create: jest.fn(),
+    update: jest.fn(),
   },
   account: {
     findUnique: jest.fn(),
@@ -487,10 +488,11 @@ describe('AuthService', () => {
         user: { id: 'u1', email: 'u@g.com' },
       });
 
-      await service.handleOAuthUser(...args);
+      const result = await service.handleOAuthUser(...args);
 
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
       expect(mockPrisma.account.create).not.toHaveBeenCalled();
+      expect(result).toMatchObject({ userId: 'u1', isNewUser: false });
     });
 
     it('links a new Account to an existing User when email matches', async () => {
@@ -501,8 +503,10 @@ describe('AuthService', () => {
       });
       mockPrisma.account.create.mockResolvedValue({});
 
-      await service.handleOAuthUser(...args);
+      const result = await service.handleOAuthUser(...args);
 
+      // Linking is not a new signup: this user may already have a timezone.
+      expect(result).toMatchObject({ userId: 'u1', isNewUser: false });
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
       expect(mockPrisma.account.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -535,8 +539,9 @@ describe('AuthService', () => {
       mockPrisma.user.create.mockResolvedValue({ id: 'u2', email: 'u@g.com' });
       mockPrisma.account.create.mockResolvedValue({});
 
-      await service.handleOAuthUser(...args);
+      const result = await service.handleOAuthUser(...args);
 
+      expect(result).toMatchObject({ userId: 'u2', isNewUser: true });
       expect(mockPrisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({ email: 'u@g.com', name: 'Test' }),
@@ -559,6 +564,79 @@ describe('AuthService', () => {
       const tokens = { accessToken: 'at', refreshToken: 'rt' };
       const code = await service.storeOAuthCode(tokens);
       expect(await service.exchangeOAuthCode(code)).toEqual(tokens);
+    });
+
+    it('returns only the tokens, never the userId or isNewUser it stored', async () => {
+      const code = await service.storeOAuthCode({
+        accessToken: 'at',
+        refreshToken: 'rt',
+        userId: 'u2',
+        isNewUser: true,
+      });
+      expect(await service.exchangeOAuthCode(code, 'Asia/Karachi')).toEqual({
+        accessToken: 'at',
+        refreshToken: 'rt',
+      });
+    });
+
+    describe('signup timezone', () => {
+      const newUser = {
+        accessToken: 'at',
+        refreshToken: 'rt',
+        userId: 'u2',
+        isNewUser: true,
+      };
+
+      it('stores the browser timezone on a user this sign-in created', async () => {
+        const code = await service.storeOAuthCode(newUser);
+
+        await service.exchangeOAuthCode(code, 'Asia/Kolkata');
+
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+          where: { id: 'u2' },
+          data: { timezone: 'Asia/Kolkata' },
+        });
+      });
+
+      it('leaves an existing user timezone alone when they sign in from another zone', async () => {
+        const code = await service.storeOAuthCode({
+          ...newUser,
+          userId: 'u1',
+          isNewUser: false,
+        });
+
+        await service.exchangeOAuthCode(code, 'Europe/Berlin');
+
+        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('does not write when the browser sent no timezone', async () => {
+        const code = await service.storeOAuthCode(newUser);
+
+        await service.exchangeOAuthCode(code);
+
+        expect(mockPrisma.user.update).not.toHaveBeenCalled();
+      });
+
+      it('falls back to UTC for a timezone Intl cannot use', async () => {
+        const code = await service.storeOAuthCode(newUser);
+
+        await service.exchangeOAuthCode(code, 'Not/AZone');
+
+        expect(mockPrisma.user.update).toHaveBeenCalledWith({
+          where: { id: 'u2' },
+          data: { timezone: 'UTC' },
+        });
+      });
+
+      it('still completes the sign-in when the timezone write fails', async () => {
+        mockPrisma.user.update.mockRejectedValue(new Error('db down'));
+        const code = await service.storeOAuthCode(newUser);
+
+        await expect(
+          service.exchangeOAuthCode(code, 'Asia/Karachi'),
+        ).resolves.toEqual({ accessToken: 'at', refreshToken: 'rt' });
+      });
     });
 
     it('throws ForbiddenException for an unknown code', async () => {

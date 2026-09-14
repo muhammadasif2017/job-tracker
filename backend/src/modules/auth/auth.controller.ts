@@ -25,7 +25,7 @@ import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
-import { AuthService } from './auth.service.js';
+import { AuthService, type OAuthLoginResult } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { ExchangeCodeDto } from './dto/exchange-code.dto.js';
@@ -158,7 +158,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const { accessToken, refreshToken } =
-      await this.authService.exchangeOAuthCode(dto.code);
+      await this.authService.exchangeOAuthCode(dto.code, dto.timezone);
     this.setRefreshCookie(res, refreshToken);
     return { accessToken };
   }
@@ -220,7 +220,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiExcludeEndpoint()
   async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = req.user as { accessToken: string; refreshToken: string };
+    const tokens = req.user as OAuthLoginResult;
     const fe = this.config.get('FRONTEND_URL');
     const code = await this.authService.storeOAuthCode(tokens);
     res.redirect(`${fe}/callback?code=${code}`);
@@ -242,7 +242,7 @@ export class AuthController {
   @UseGuards(AuthGuard('github'))
   @ApiExcludeEndpoint()
   async githubCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = req.user as { accessToken: string; refreshToken: string };
+    const tokens = req.user as OAuthLoginResult;
     const fe = this.config.get('FRONTEND_URL');
     const code = await this.authService.storeOAuthCode(tokens);
     res.redirect(`${fe}/callback?code=${code}`);
