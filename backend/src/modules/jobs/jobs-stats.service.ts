@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { getAttentionItems } from './attention.helper.js';
-import { getGhostSuggestions } from './ghost-suggestions.helper.js';
+import type { AttentionType } from './dto/attention-item.dto.js';
+import {
+  buildGhostSuggestionWhere,
+  getGhostSuggestions,
+  ghostCutoff,
+} from './ghost-suggestions.helper.js';
 import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
 import {
   localCivilDay,
@@ -277,8 +282,37 @@ export class JobsStatsService {
     return getGhostSuggestions(this.prisma, userId);
   }
 
+  // Dashboard "Needs Attention" only. The digest email calls getAttentionItems
+  // directly and deliberately ignores both filters below.
   async getAttention(userId: string) {
-    return getAttentionItems(this.prisma, userId);
+    const items = await getAttentionItems(this.prisma, userId);
+    const isStale = (type: AttentionType) => type !== 'UPCOMING_INTERVIEW';
+
+    const staleJobIds = items
+      .filter((item) => isStale(item.type))
+      .map((item) => item.job.id);
+    if (staleJobIds.length === 0) return items;
+
+    const now = new Date();
+    // A job the "Looks ghosted" card already shows would otherwise appear in
+    // both cards. Only the stale jobs are checked, and only ids are loaded.
+    const ghosted = await this.prisma.job.findMany({
+      where: {
+        ...buildGhostSuggestionWhere(userId, now),
+        id: { in: staleJobIds },
+      },
+      select: { id: true },
+    });
+    const ghostedIds = new Set(ghosted.map((job) => job.id));
+    const cutoff = ghostCutoff(now);
+
+    return items.filter((item) => {
+      if (!isStale(item.type)) return true;
+      if (ghostedIds.has(item.job.id)) return false;
+      // A dismissal ("HR said wait") also quiets the follow-up nudges.
+      const dismissedAt = item.job.ghostSuggestionDismissedAt;
+      return !dismissedAt || dismissedAt <= cutoff;
+    });
   }
 
   async exportCsv(userId: string, query: JobQueryDto) {

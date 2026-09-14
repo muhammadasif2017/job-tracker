@@ -78,7 +78,9 @@ describe('JobsStatsService', () => {
       mockPrisma.job.findMany
         .mockResolvedValueOnce([interviewJob])
         .mockResolvedValueOnce([staleInterviewingJob])
-        .mockResolvedValueOnce([staleAppliedJob, duplicateJob]);
+        .mockResolvedValueOnce([staleAppliedJob, duplicateJob])
+        // ghost-suggested lookup over the stale jobs — none are ghosted here
+        .mockResolvedValueOnce([]);
 
       const items = await service.getAttention('user-1');
 
@@ -135,6 +137,94 @@ describe('JobsStatsService', () => {
         expect(typeof call[0].take).toBe('number');
         expect(call[0].take).toBeLessThanOrEqual(50);
       }
+    });
+
+    describe('ghost suggestion filtering (dashboard only)', () => {
+      const NOW = new Date('2026-09-14T12:00:00Z');
+      const daysAgo = (n: number) =>
+        new Date(NOW.getTime() - n * 24 * 60 * 60 * 1000);
+
+      beforeEach(() => jest.useFakeTimers({ now: NOW }));
+      afterEach(() => jest.useRealTimers());
+
+      it('drops stale items for jobs the "Looks ghosted" card already shows', async () => {
+        const ghosted = {
+          id: 'ghosted',
+          appliedAt: daysAgo(30),
+          ghostSuggestionDismissedAt: null,
+          events: [],
+        };
+        const stillStale = {
+          id: 'still-stale',
+          appliedAt: daysAgo(9),
+          ghostSuggestionDismissedAt: null,
+          events: [],
+        };
+        mockPrisma.job.findMany
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([ghosted, stillStale])
+          .mockResolvedValueOnce([{ id: 'ghosted' }]);
+
+        const items = await service.getAttention('user-1');
+
+        expect(items.map((i) => i.job.id)).toEqual(['still-stale']);
+        // Only the stale jobs are checked, and only their ids are loaded —
+        // the dashboard mount doesn't pull every ghost suggestion.
+        const ghostCall = mockPrisma.job.findMany.mock.calls[3][0];
+        expect(ghostCall.where.id).toEqual({ in: ['ghosted', 'still-stale'] });
+        expect(ghostCall.where.userId).toBe('user-1');
+        expect(ghostCall.select).toEqual({ id: true });
+      });
+
+      it('hides stale items dismissed within 14 days, never an upcoming interview', async () => {
+        const upcoming = {
+          id: 'upcoming',
+          nextInterviewAt: new Date(NOW.getTime() + 60 * 60 * 1000),
+          ghostSuggestionDismissedAt: daysAgo(1),
+        };
+        const dismissedRecently = {
+          id: 'dismissed-recently',
+          appliedAt: daysAgo(30),
+          ghostSuggestionDismissedAt: daysAgo(3),
+          events: [],
+        };
+        const dismissedLongAgo = {
+          id: 'dismissed-long-ago',
+          appliedAt: daysAgo(30),
+          ghostSuggestionDismissedAt: daysAgo(15),
+          events: [{ createdAt: daysAgo(10) }],
+        };
+        mockPrisma.job.findMany
+          .mockResolvedValueOnce([upcoming])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([dismissedRecently, dismissedLongAgo])
+          .mockResolvedValueOnce([]);
+
+        const items = await service.getAttention('user-1');
+
+        expect(items.map((i) => [i.type, i.job.id])).toEqual([
+          ['UPCOMING_INTERVIEW', 'upcoming'],
+          ['STALE_APPLIED', 'dismissed-long-ago'],
+        ]);
+      });
+
+      it('skips the ghost lookup when nothing is stale', async () => {
+        mockPrisma.job.findMany
+          .mockResolvedValueOnce([
+            {
+              id: 'upcoming',
+              nextInterviewAt: NOW,
+              ghostSuggestionDismissedAt: null,
+            },
+          ])
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([]);
+
+        await service.getAttention('user-1');
+
+        expect(mockPrisma.job.findMany).toHaveBeenCalledTimes(3);
+      });
     });
 
     it('returns an empty list when nothing needs attention', async () => {

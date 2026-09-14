@@ -510,6 +510,7 @@ describe('Job Tracker (e2e)', () => {
       };
       await seed('silent15', { status: 'APPLIED', lastEventDaysAgo: 15 });
       await seed('active13', { status: 'APPLIED', lastEventDaysAgo: 13 });
+      await seed('staleNotGhost', { status: 'APPLIED', lastEventDaysAgo: 10 });
       await seed('interviewingSilent', {
         status: 'INTERVIEWING',
         lastEventDaysAgo: 20,
@@ -562,6 +563,29 @@ describe('Job Tracker (e2e)', () => {
       expect(await suggestedKeys()).toEqual(
         ['dismissedLongAgo', 'interviewingSilent', 'silent15'].sort(),
       );
+    });
+
+    it('keeps ghosted and recently dismissed jobs out of Needs Attention', async () => {
+      const res = await agent
+        .get('/jobs/attention')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      const ids = new Set(
+        (res.body as { job: { id: string } }[]).map((item) => item.job.id),
+      );
+
+      expect(ids.has(seeded.staleNotGhost)).toBe(true);
+      for (const key of [
+        'silent15',
+        'interviewingSilent',
+        'dismissedLongAgo',
+        'dismissedRecently',
+      ]) {
+        expect({ key, shown: ids.has(seeded[key]) }).toEqual({
+          key,
+          shown: false,
+        });
+      }
     });
 
     it('dismiss hides the suggestion and stamps the job', async () => {

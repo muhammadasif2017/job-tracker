@@ -1,5 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { JobStatus } from '@prisma/client';
+import { JobStatus, Prisma } from '@prisma/client';
 
 // "Looks ghosted" suggestions (docs/specs/response-insights.md): applications
 // with no activity for GHOST_AFTER_DAYS that the user may want to mark GHOSTED.
@@ -17,35 +17,41 @@ export const GHOST_AFTER_DAYS = 14;
 // be a lot of jobs — the cap only bounds a pathological account.
 export const MAX_GHOST_SUGGESTIONS = 200;
 
+export function ghostCutoff(now: Date) {
+  return new Date(now.getTime() - GHOST_AFTER_DAYS * 24 * 60 * 60 * 1000);
+}
+
+// The rule itself, shared by the suggestions list and the dashboard attention
+// filter so the two can never disagree about which jobs look ghosted.
+export function buildGhostSuggestionWhere(userId: string, now: Date) {
+  const cutoff = ghostCutoff(now);
+  return {
+    userId,
+    status: { in: [JobStatus.APPLIED, JobStatus.INTERVIEWING] },
+    // Cheap indexed pre-filter, and the guard for a job with no events.
+    appliedAt: { lt: cutoff },
+    // Any event counts as activity, including INTERVIEW_ROUND_ADDED.
+    events: { none: { createdAt: { gt: cutoff } } },
+    AND: [
+      // A dismissal ("HR said wait") restarts the 14-day clock.
+      {
+        OR: [
+          { ghostSuggestionDismissedAt: null },
+          { ghostSuggestionDismissedAt: { lte: cutoff } },
+        ],
+      },
+      // A scheduled interview is not silence, however old the last event.
+      { OR: [{ nextInterviewAt: null }, { nextInterviewAt: { lt: now } }] },
+    ],
+  } satisfies Prisma.JobWhereInput;
+}
+
 export async function getGhostSuggestions(
   prisma: PrismaService,
   userId: string,
 ) {
-  const now = new Date();
-  const cutoff = new Date(
-    now.getTime() - GHOST_AFTER_DAYS * 24 * 60 * 60 * 1000,
-  );
-
   const jobs = await prisma.job.findMany({
-    where: {
-      userId,
-      status: { in: [JobStatus.APPLIED, JobStatus.INTERVIEWING] },
-      // Cheap indexed pre-filter, and the guard for a job with no events.
-      appliedAt: { lt: cutoff },
-      // Any event counts as activity, including INTERVIEW_ROUND_ADDED.
-      events: { none: { createdAt: { gt: cutoff } } },
-      AND: [
-        // A dismissal ("HR said wait") restarts the 14-day clock.
-        {
-          OR: [
-            { ghostSuggestionDismissedAt: null },
-            { ghostSuggestionDismissedAt: { lte: cutoff } },
-          ],
-        },
-        // A scheduled interview is not silence, however old the last event.
-        { OR: [{ nextInterviewAt: null }, { nextInterviewAt: { lt: now } }] },
-      ],
-    },
+    where: buildGhostSuggestionWhere(userId, new Date()),
     include: { events: { orderBy: { createdAt: 'desc' }, take: 1 } },
     orderBy: { appliedAt: 'asc' },
     take: MAX_GHOST_SUGGESTIONS,
