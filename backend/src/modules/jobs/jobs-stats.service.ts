@@ -7,8 +7,14 @@ import {
   buildGhostSuggestionWhere,
   getGhostSuggestions,
   ghostCutoff,
+  GHOST_AFTER_DAYS,
 } from './ghost-suggestions.helper.js';
-import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
+import {
+  JobStatus,
+  ApplicationChannel,
+  DiscoverySource,
+  JobEventType,
+} from '@prisma/client';
 import {
   localCivilDay,
   safeTimeZone,
@@ -17,6 +23,7 @@ import {
 import {
   FUNNEL_STAGES,
   DROPOFF_STAGES,
+  REPLIED_FILTER,
   RESPONDED_STATUSES,
   toPercent,
   type StatsRange,
@@ -32,6 +39,85 @@ import {
 // the guard.
 function civilDay(value: Date | null, timeZone: string): Date | null {
   return value ? localCivilDay(value, timeZone) : null;
+}
+
+type SourceCountRow = {
+  applicationChannel: ApplicationChannel | null;
+  discoverySource: DiscoverySource | null;
+  _count: { _all: number };
+};
+
+// Folds the (channel, discovery source) group counts down to one of the two
+// fields. A null field is its own UNSPECIFIED bucket rather than dropped, so
+// untagged applications still show how often they get replies.
+function rateBy<F extends 'applicationChannel' | 'discoverySource'>(
+  field: F,
+  sent: SourceCountRow[],
+  replied: SourceCountRow[],
+) {
+  type Source = NonNullable<SourceCountRow[F]> | 'UNSPECIFIED';
+  const buckets = new Map<Source, { total: number; replied: number }>();
+  const bucket = (row: SourceCountRow) => {
+    const key: Source = row[field] ?? 'UNSPECIFIED';
+    let entry = buckets.get(key);
+    if (!entry) buckets.set(key, (entry = { total: 0, replied: 0 }));
+    return entry;
+  };
+  for (const row of sent) bucket(row).total += row._count._all;
+  for (const row of replied) bucket(row).replied += row._count._all;
+  return Array.from(buckets, ([source, { total, replied }]) => ({
+    source,
+    total,
+    responseRate: toPercent(replied, total),
+  }));
+}
+
+// How long companies take to reply (docs/specs/response-insights.md): days
+// from appliedAt to a job's first stage-entry event into a replied status.
+// `stageEntries` must hold only CREATED/STATUS_CHANGE events, oldest first —
+// INTERVIEW_ROUND_ADDED carries the current status and would fake a reply.
+//
+// A job whose *first* event is already a replied status was added after the
+// fact (e.g. created straight as REJECTED): that timestamp is when the row was
+// entered, not when the company answered, so it has no usable reply date and is
+// left out of the timing — it still counts as replied in the response rates.
+//
+// repliedAfter14DaysPercent is measured against GHOST_AFTER_DAYS, so it shows
+// how many real replies the "looks ghosted" cutoff would have flagged early.
+function computeReplyTiming(
+  sentJobs: { id: string; appliedAt: Date }[],
+  stageEntries: Map<string, { toStatus: JobStatus; createdAt: Date }[]>,
+) {
+  const isReply = (status: JobStatus) =>
+    (RESPONDED_STATUSES as readonly JobStatus[]).includes(status);
+
+  const days: number[] = [];
+  for (const job of sentJobs) {
+    const entries = stageEntries.get(job.id) ?? [];
+    const firstReply = entries.findIndex((e) => isReply(e.toStatus));
+    if (firstReply <= 0) continue; // never replied, or no real reply date
+    const ms =
+      entries[firstReply].createdAt.getTime() - job.appliedAt.getTime();
+    // appliedAt is a civil date (UTC midnight), so a same-day reply can land
+    // a few hours "before" it for users west of UTC — clamp to zero.
+    days.push(Math.max(0, ms) / 86_400_000);
+  }
+
+  if (days.length === 0) {
+    return { repliedCount: 0, medianDays: null, repliedAfter14DaysPercent: 0 };
+  }
+  days.sort((a, b) => a - b);
+  const mid = Math.floor(days.length / 2);
+  const median =
+    days.length % 2 === 1 ? days[mid] : (days[mid - 1] + days[mid]) / 2;
+  return {
+    repliedCount: days.length,
+    medianDays: Math.round(median * 10) / 10,
+    repliedAfter14DaysPercent: toPercent(
+      days.filter((d) => d > GHOST_AFTER_DAYS).length,
+      days.length,
+    ),
+  };
 }
 
 @Injectable()
@@ -65,7 +151,7 @@ export class JobsStatsService {
       ...appliedAtRangeFilter(range, now, timeZone),
     };
 
-    const [counts, total, thisMonth] = await Promise.all([
+    const [counts, total, thisMonth, replied] = await Promise.all([
       // byStatus alone keeps WISHLIST — it backs the status pie chart, which
       // renders a Wishlist slice. Every other number below is an
       // "applications sent" metric and excludes it.
@@ -84,6 +170,11 @@ export class JobsStatsService {
           ...SENT_APPLICATION_FILTER,
         },
       }),
+      // Ever replied, from the event history — see REPLIED_FILTER. Not derived
+      // from byStatus, which only knows where each job is now.
+      this.prisma.job.count({
+        where: { ...rangeWhere, ...SENT_APPLICATION_FILTER, ...REPLIED_FILTER },
+      }),
     ]);
 
     const byStatus = Object.values(JobStatus).reduce(
@@ -92,11 +183,8 @@ export class JobsStatsService {
     );
     for (const row of counts) byStatus[row.status] = row._count._all;
 
-    const responded = RESPONDED_STATUSES.reduce(
-      (sum, s) => sum + byStatus[s],
-      0,
-    );
-    const responseRate = toPercent(responded, total);
+    // Can exceed 100% combined with ghostRate: a job can reply, then go ghosted.
+    const responseRate = toPercent(replied, total);
     const ghostRate = toPercent(byStatus[JobStatus.GHOSTED], total);
 
     return { total, byStatus, thisMonth, responseRate, ghostRate };
@@ -112,29 +200,44 @@ export class JobsStatsService {
       await this.userTimeZone(userId),
     );
 
-    const [events, channelStatusCounts] = await Promise.all([
-      // No upper bound on event history — acceptable at this app's scale
-      // (one user's own job search), but this becomes the slowest query on
-      // the page if event volume per user ever grows much larger.
-      this.prisma.jobEvent.findMany({
-        where: { job: { userId, ...jobRangeFilter } },
-        select: { jobId: true, type: true, toStatus: true, createdAt: true },
-        orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
-      }),
-      // Excludes WISHLIST: responseRateBySource is a rate over applications
-      // sent, not jobs merely saved for later. Grouped by applicationChannel
-      // (not discoverySource) — response rate is about the actual application
-      // path, not where the job was first seen.
-      this.prisma.job.groupBy({
-        by: ['applicationChannel', 'status'],
-        where: {
-          userId,
-          ...SENT_APPLICATION_FILTER,
-          ...jobRangeFilter,
-        },
-        _count: { _all: true },
-      }),
-    ]);
+    const sentWhere = {
+      userId,
+      ...SENT_APPLICATION_FILTER,
+      ...jobRangeFilter,
+    };
+    const [events, sentBySource, repliedBySource, sentJobs] = await Promise.all(
+      [
+        // No upper bound on event history — acceptable at this app's scale
+        // (one user's own job search), but this becomes the slowest query on
+        // the page if event volume per user ever grows much larger.
+        this.prisma.jobEvent.findMany({
+          where: { job: { userId, ...jobRangeFilter } },
+          select: { jobId: true, type: true, toStatus: true, createdAt: true },
+          orderBy: [{ jobId: 'asc' }, { createdAt: 'asc' }],
+        }),
+        // Per-source response rates: every sent application (WISHLIST excluded —
+        // a rate over applications sent, not jobs saved for later), then only
+        // the ones that ever replied. Grouped by both source fields at once so
+        // one pair of queries serves both breakdowns. REPLIED_FILTER is the same
+        // "ever replied" rule getStats.responseRate uses, so the headline rate
+        // and the per-source rates agree about what a reply is.
+        this.prisma.job.groupBy({
+          by: ['applicationChannel', 'discoverySource'],
+          where: sentWhere,
+          _count: { _all: true },
+        }),
+        this.prisma.job.groupBy({
+          by: ['applicationChannel', 'discoverySource'],
+          where: { ...sentWhere, ...REPLIED_FILTER },
+          _count: { _all: true },
+        }),
+        // appliedAt per sent application — the start of the reply clock.
+        this.prisma.job.findMany({
+          where: sentWhere,
+          select: { id: true, appliedAt: true },
+        }),
+      ],
+    );
 
     // reached[stage] = distinct jobs whose event history ever hit that stage,
     // for funnel and dropoff stages alike.
@@ -234,25 +337,29 @@ export class JobsStatsService {
       count: reached[status].size,
     }));
 
-    const bySource = new Map<string, { total: number; responded: number }>();
-    for (const row of channelStatusCounts) {
-      const key = row.applicationChannel ?? 'UNSPECIFIED';
-      const entry = bySource.get(key) ?? { total: 0, responded: 0 };
-      entry.total += row._count._all;
-      if ((RESPONDED_STATUSES as readonly JobStatus[]).includes(row.status)) {
-        entry.responded += row._count._all;
-      }
-      bySource.set(key, entry);
-    }
-    const responseRateBySource = Array.from(bySource.entries()).map(
-      ([source, { total, responded }]) => ({
-        source: source as ApplicationChannel | 'UNSPECIFIED',
-        total,
-        responseRate: toPercent(responded, total),
-      }),
+    // Channel is where the application went (portal, career email, HR);
+    // discovery source is where the job was found (LinkedIn, Rozee, referral).
+    const responseRateBySource = rateBy(
+      'applicationChannel',
+      sentBySource,
+      repliedBySource,
+    );
+    const responseRateByDiscoverySource = rateBy(
+      'discoverySource',
+      sentBySource,
+      repliedBySource,
     );
 
-    return { funnel, dropoff, avgTimeInStageDays, responseRateBySource };
+    const replyTiming = computeReplyTiming(sentJobs, eventsByJob);
+
+    return {
+      funnel,
+      dropoff,
+      avgTimeInStageDays,
+      responseRateBySource,
+      responseRateByDiscoverySource,
+      replyTiming,
+    };
   }
 
   async getTrend(userId: string, range: StatsRange) {

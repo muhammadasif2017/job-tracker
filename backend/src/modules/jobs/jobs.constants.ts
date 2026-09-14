@@ -1,4 +1,4 @@
-import { JobStatus } from '@prisma/client';
+import { Prisma, JobStatus } from '@prisma/client';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import {
   civilDaysAgo,
@@ -46,6 +46,20 @@ export const RESPONDED_STATUSES = [
   JobStatus.OFFER,
   JobStatus.REJECTED,
 ] as const;
+
+// "Did the company ever reply" — not "is the job in a replied status now".
+// A job that reached INTERVIEWING and later went GHOSTED still got a reply
+// (docs/specs/response-insights.md). Every stage a job lands on writes a
+// CREATED/STATUS_CHANGE event, so the history answers it as a relation filter
+// the database can count. INTERVIEW_ROUND_ADDED carries the job's *current*
+// status as toStatus, so it can't mark an APPLIED job as replied. The status
+// branch covers rows written before the event timeline existed.
+export const REPLIED_FILTER = {
+  OR: [
+    { status: { in: [...RESPONDED_STATUSES] } },
+    { events: { some: { toStatus: { in: [...RESPONDED_STATUSES] } } } },
+  ],
+} satisfies Prisma.JobWhereInput;
 
 export function toPercent(numerator: number, denominator: number): number {
   return denominator > 0
