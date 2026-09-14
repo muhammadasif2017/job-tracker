@@ -42,6 +42,10 @@ import { TrendStatsDto } from './dto/trend-stats.dto.js';
 import { StatsQueryDto } from './dto/stats-query.dto.js';
 import { AttentionItemDto } from './dto/attention-item.dto.js';
 import { GhostSuggestionDto } from './dto/ghost-suggestion.dto.js';
+import {
+  MarkGhostedDto,
+  MarkGhostedResultDto,
+} from './dto/mark-ghosted.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
@@ -166,6 +170,23 @@ export class JobsController {
   @ApiOkResponse({ type: GhostSuggestionDto, isArray: true })
   getGhostSuggestions(@CurrentUser() user: { id: string }) {
     return this.jobsStats.getGhostSuggestions(user.id);
+  }
+
+  @Post('ghost-suggestions/mark-ghosted')
+  @HttpCode(HttpStatus.OK)
+  // Bulk write (up to MAX_GHOST_SUGGESTIONS status changes per call), same
+  // cap as the other bulk write, POST /companies/import.
+  @Throttle({ default: { ttl: 60000, limit: 10 } })
+  @ApiOperation({
+    summary:
+      'Mark the listed jobs GHOSTED, skipping any that are no longer ghost suggestions',
+  })
+  @ApiOkResponse({ type: MarkGhostedResultDto })
+  markGhosted(
+    @CurrentUser() user: { id: string },
+    @Body() dto: MarkGhostedDto,
+  ) {
+    return this.jobsService.markGhosted(user.id, dto.jobIds);
   }
 
   @Get(':id')

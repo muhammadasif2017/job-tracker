@@ -613,6 +613,84 @@ describe('Job Tracker (e2e)', () => {
       expect(job.ghostSuggestionDismissedAt).toBeNull();
     });
 
+    it('mark-ghosted only moves ids that are still suggestions for the caller', async () => {
+      for (const key of ['bulkA', 'bulkB', 'bulkActive']) {
+        const job = await prisma.job.create({
+          data: {
+            userId,
+            company: `Ghost Co ${key}`,
+            position: 'Engineer',
+            status: 'APPLIED',
+            appliedAt: daysAgo(30),
+            events: {
+              create: {
+                type: 'CREATED',
+                toStatus: 'APPLIED',
+                createdAt: daysAgo(20),
+              },
+            },
+          },
+        });
+        seeded[key] = job.id;
+      }
+      // Activity after the card loaded: no longer a suggestion by confirm time.
+      await prisma.jobEvent.create({
+        data: {
+          jobId: seeded.bulkActive,
+          type: 'INTERVIEW_ROUND_ADDED',
+          toStatus: 'APPLIED',
+        },
+      });
+
+      const res = await agent
+        .post('/jobs/ghost-suggestions/mark-ghosted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          jobIds: [
+            seeded.bulkA,
+            seeded.bulkB,
+            seeded.bulkActive,
+            seeded.otherUser,
+          ],
+        })
+        .expect(200);
+
+      expect(res.body).toEqual({ updated: 2 });
+      const jobs = await prisma.job.findMany({
+        where: {
+          id: {
+            in: [
+              seeded.bulkA,
+              seeded.bulkB,
+              seeded.bulkActive,
+              seeded.otherUser,
+            ],
+          },
+        },
+        include: { events: { where: { type: 'STATUS_CHANGE' } } },
+      });
+      const byId = new Map(jobs.map((job) => [job.id, job]));
+      for (const key of ['bulkA', 'bulkB']) {
+        const job = byId.get(seeded[key])!;
+        expect(job.status).toBe('GHOSTED');
+        expect(job.events).toEqual([
+          expect.objectContaining({
+            fromStatus: 'APPLIED',
+            toStatus: 'GHOSTED',
+          }),
+        ]);
+      }
+      expect(byId.get(seeded.bulkActive)!.status).toBe('APPLIED');
+      expect(byId.get(seeded.otherUser)!.status).toBe('APPLIED');
+    });
+
+    it('mark-ghosted rejects an empty id list with 400', () =>
+      agent
+        .post('/jobs/ghost-suggestions/mark-ghosted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ jobIds: [] })
+        .expect(400));
+
     it('returns 401 without token', () =>
       agent.get('/jobs/ghost-suggestions').expect(401));
   });

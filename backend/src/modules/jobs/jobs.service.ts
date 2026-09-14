@@ -24,6 +24,7 @@ import {
   type IStorageService,
 } from '../../storage/storage.service.js';
 import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
+import { buildGhostSuggestionWhere } from './ghost-suggestions.helper.js';
 import { localCivilDay, safeTimeZone } from '../../common/timezone.util.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
@@ -515,6 +516,44 @@ export class JobsService {
     await this.enqueueRelinkedCompany(jobId, relinkedCompanyId);
     await this.enqueueTimelineSummary(jobId);
     return withUpcomingInterview(result);
+  }
+
+  // Bulk "Mark all ghosted". The ids are what the user saw on the card, which
+  // may be stale by the time they confirm — so each is re-checked against the
+  // live rule (scoped by userId, so another user's id never matches) and
+  // anything that got activity or was dismissed in between is skipped.
+  //
+  // Each job goes through update() one at a time rather than one updateMany:
+  // update() owns the compare-and-set status write, the STATUS_CHANGE event
+  // the funnel reads, and the timeline-summary enqueue. That queue coalesces
+  // per job and runs one summary at a time, so a burst only queues up.
+  async markGhosted(userId: string, jobIds: string[]) {
+    const eligible = await this.prisma.job.findMany({
+      where: {
+        ...buildGhostSuggestionWhere(userId, new Date()),
+        id: { in: [...new Set(jobIds)] },
+      },
+      select: { id: true },
+    });
+
+    let updated = 0;
+    for (const { id } of eligible) {
+      try {
+        await this.update(userId, id, { status: JobStatus.GHOSTED });
+        updated++;
+      } catch (err: unknown) {
+        // Status changed or job deleted since the eligibility read — the
+        // user's intent no longer applies to it. Anything else is real.
+        if (
+          err instanceof ConflictException ||
+          err instanceof NotFoundException
+        ) {
+          continue;
+        }
+        throw err;
+      }
+    }
+    return { updated };
   }
 
   async dismissGhostSuggestion(userId: string, jobId: string) {
