@@ -35,15 +35,15 @@ vi.mock('./auth', () => ({
 // Imported for its module-load side effect: registers the interceptors above.
 import './api';
 
-describe('api response interceptor — concurrent 401 refresh queue', () => {
-  let responseErrorHandler: (error: unknown) => Promise<unknown>;
+// Read at module scope: vitest 5 defaults to clearMocks, which wipes the
+// registration call recorded at import time before each test runs.
+const responseErrorHandler: (error: unknown) => Promise<unknown> =
+  responseUse.mock.calls[0][1];
 
+describe('api response interceptor — concurrent 401 refresh queue', () => {
   beforeEach(() => {
     instanceCall.mockClear();
     mockPost.mockClear();
-    // Captured once at module load; the module is only evaluated once across
-    // the whole test file, so re-read the same handler reference each time.
-    responseErrorHandler = responseUse.mock.calls[0][1];
   });
 
   it('stamps _retry on a queued request before it is retried, preventing a re-refresh loop', async () => {
