@@ -133,6 +133,7 @@ Pulls from `http://localhost:3001/api/docs-json` (Nest Swagger's auto-exposed JS
   - `['resume', jobId]` — resume metadata for a specific job; managed by `useUploadResumeMutation`/`useRemoveResumeMutation` (`features/jobs/resume.hooks.ts`) via `setQueryData` on mutation, not via invalidation
   - `['profile']` — user profile
   - `['tokens']` — personal access tokens (`features/tokens/hooks.ts`)
+  - `['ghost-suggestions']` — "Looks ghosted" jobs (`features/dashboard/hooks.ts`); `invalidateJobListCaches` (`features/jobs/hooks.ts`) invalidates it, so any job create/edit/delete/status change refreshes the card and the list/kanban badges
 - **Mutations always invalidate related keys on success.** When a job is created/edited/deleted, invalidate `['jobs']` and `['stats']`. On status change from job detail, also invalidate `['job-events', id]`.
 - Use `qc.setQueryData` for optimistic updates (see `KanbanBoard` drag-and-drop) — always roll back in `onError`.
 
