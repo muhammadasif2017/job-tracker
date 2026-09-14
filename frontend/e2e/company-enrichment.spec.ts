@@ -234,9 +234,6 @@ test.describe('Company enrichment card', () => {
 test.describe('Company enrichment auto-trigger gate', () => {
   const createdJobIds: string[] = [];
 
-  const isInFlight = (s: string | null | undefined) =>
-    s === 'PENDING' || s === 'PROCESSING';
-
   async function addJob(company: string): Promise<TestJob> {
     const job = await createTestJob(user.accessToken, { company });
     createdJobIds.push(job.id);
@@ -253,13 +250,20 @@ test.describe('Company enrichment auto-trigger gate', () => {
     return body.companyProfile?.status;
   }
 
-  // The auto-queued run does real search + LLM work, so "settled" has to be
-  // polled for rather than assumed.
-  async function waitForTerminalStatus(
+  // Waits until the worker has picked the run up, i.e. the status has moved
+  // off PENDING. Deliberately not "until terminal": with real API keys one
+  // run can take ~90s (Groq timeout 45s x maxRetries 1, and a 429 is retried
+  // after its retry-after), and a FAILED attempt isn't final anyway — BullMQ
+  // retries it 10s later and the processor writes PROCESSING again. Both made
+  // the old wait time out or see its "settled" status change underneath it.
+  // Only the worker's queue position bounds this wait, hence the budget.
+  const PICKUP_BUDGET_MS = 100_000;
+  async function waitUntilPickedUp(
     jobId: string,
   ): Promise<string | null | undefined> {
+    const deadline = Date.now() + PICKUP_BUDGET_MS;
     let status = await statusOf(jobId);
-    for (let attempt = 0; attempt < 90 && isInFlight(status); attempt++) {
+    while (status === 'PENDING' && Date.now() < deadline) {
       await new Promise((r) => setTimeout(r, 500));
       status = await statusOf(jobId);
     }
@@ -294,18 +298,25 @@ test.describe('Company enrichment auto-trigger gate', () => {
   // searches, doubled by the retry policy) to rediscover facts already on the
   // row.
   test('a second job at the same company does not re-queue enrichment', async () => {
+    // Above the pickup budget, so a slow queue fails on the assertion below
+    // with a clear message instead of a bare Playwright timeout.
+    test.setTimeout(PICKUP_BUDGET_MS + 20_000);
     const company = `Gate Repeat Co ${Date.now()}`;
     const first = await addJob(company);
 
-    const settled = await waitForTerminalStatus(first.id);
-    expect(isInFlight(settled)).toBe(false);
+    const pickedUp = await waitUntilPickedUp(first.id);
+    expect(pickedUp, 'worker never picked up the first run').not.toBe(
+      'PENDING',
+    );
+    expect(pickedUp).not.toBeNull();
 
     const second = await addJob(company);
     expect(second.companyId).toBe(first.companyId);
 
-    // The whole point: the second add must leave the terminal status alone.
-    // A regression here flips it back to PENDING and spends search credits.
-    expect(await statusOf(second.id)).toBe(settled);
-    expect(isInFlight(await statusOf(second.id))).toBe(false);
+    // The whole point: the second add must not re-queue. Only an enqueue
+    // writes PENDING — the worker's own retries write PROCESSING — so once the
+    // run has left PENDING, seeing PENDING again means the gate let a second
+    // run through (and spent search credits).
+    expect(await statusOf(second.id)).not.toBe('PENDING');
   });
 });
