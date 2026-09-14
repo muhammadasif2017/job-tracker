@@ -16,6 +16,7 @@ import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constan
 const EMAIL = `e2e-${Date.now()}@test.dev`;
 const ADMIN_TARGET_EMAIL = `e2e-admin-target-${Date.now()}@test.dev`;
 const GHOST_OTHER_EMAIL = `e2e-ghost-other-${Date.now()}@test.dev`;
+const REPLIED_EMAIL = `e2e-replied-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
@@ -59,7 +60,11 @@ describe('Job Tracker (e2e)', () => {
 
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { email: { in: [EMAIL, ADMIN_TARGET_EMAIL, GHOST_OTHER_EMAIL] } },
+      where: {
+        email: {
+          in: [EMAIL, ADMIN_TARGET_EMAIL, GHOST_OTHER_EMAIL, REPLIED_EMAIL],
+        },
+      },
     });
     await app.close();
   });
@@ -443,6 +448,144 @@ describe('Job Tracker (e2e)', () => {
       expect(res.body).toHaveProperty('total');
       expect(res.body).toHaveProperty('byStatus');
       expect(res.body).toHaveProperty('responseRate');
+    });
+
+    // Replied = ever reached a replied status, read from the event history
+    // (REPLIED_FILTER). A fresh user so the percentages are exact.
+    it('counts replies from event history, not current status', async () => {
+      const reg = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: REPLIED_EMAIL, password: PASSWORD, name: 'Replied' })
+        .expect(200);
+      const token = (reg.body as { accessToken: string }).accessToken;
+      const owner = await prisma.user.findUniqueOrThrow({
+        where: { email: REPLIED_EMAIL },
+      });
+      const now = Date.now();
+      const daysAgo = (n: number) => new Date(now - n * 86_400_000);
+      const seed = (
+        company: string,
+        status: 'WISHLIST' | 'APPLIED' | 'REJECTED' | 'GHOSTED',
+        events: {
+          type: 'CREATED' | 'STATUS_CHANGE' | 'INTERVIEW_ROUND_ADDED';
+          createdAt?: Date;
+          toStatus:
+            | 'WISHLIST'
+            | 'APPLIED'
+            | 'INTERVIEWING'
+            | 'REJECTED'
+            | 'GHOSTED';
+        }[],
+        extra: {
+          applicationChannel?: 'CAREER_EMAIL' | 'ATS';
+          discoverySource?: 'ROZEE' | 'LINKEDIN_JOBS';
+          appliedAt?: Date;
+        } = {},
+      ) =>
+        prisma.job.create({
+          data: {
+            userId: owner.id,
+            company,
+            position: 'Engineer',
+            status,
+            ...extra,
+            events: { create: events },
+          },
+        });
+
+      // Replied, then went silent: counts as replied AND as ghosted.
+      await seed(
+        'Interviewed Then Ghosted',
+        'GHOSTED',
+        [
+          { type: 'CREATED', toStatus: 'APPLIED', createdAt: daysAgo(10) },
+          // First reply 3 days after applying.
+          {
+            type: 'STATUS_CHANGE',
+            toStatus: 'INTERVIEWING',
+            createdAt: daysAgo(7),
+          },
+          { type: 'STATUS_CHANGE', toStatus: 'GHOSTED', createdAt: daysAgo(1) },
+        ],
+        {
+          applicationChannel: 'CAREER_EMAIL',
+          discoverySource: 'ROZEE',
+          appliedAt: daysAgo(10),
+        },
+      );
+      await seed(
+        'Rejected',
+        'REJECTED',
+        [
+          { type: 'CREATED', toStatus: 'APPLIED', createdAt: daysAgo(30) },
+          // Rejection 20 days after applying — past the 14-day ghost cutoff.
+          {
+            type: 'STATUS_CHANGE',
+            toStatus: 'REJECTED',
+            createdAt: daysAgo(10),
+          },
+        ],
+        {
+          applicationChannel: 'ATS',
+          discoverySource: 'ROZEE',
+          appliedAt: daysAgo(30),
+        },
+      );
+      // A round event carries the job's current status (APPLIED) — not a reply.
+      await seed(
+        'Round Logged',
+        'APPLIED',
+        [
+          { type: 'CREATED', toStatus: 'APPLIED' },
+          { type: 'INTERVIEW_ROUND_ADDED', toStatus: 'APPLIED' },
+        ],
+        {
+          applicationChannel: 'CAREER_EMAIL',
+          discoverySource: 'LINKEDIN_JOBS',
+        },
+      );
+      await seed('Silent', 'APPLIED', [
+        { type: 'CREATED', toStatus: 'APPLIED' },
+      ]);
+      // Not an application sent — excluded from every rate.
+      await seed('Saved', 'WISHLIST', [
+        { type: 'CREATED', toStatus: 'WISHLIST' },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/jobs/stats')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        total: 4,
+        responseRate: 50,
+        ghostRate: 25,
+      });
+
+      // Per-source rates use the same rule. The untagged job is UNSPECIFIED.
+      const funnel = await request(app.getHttpServer())
+        .get('/jobs/stats/funnel')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+      const bySource = (rows: { source: string }[]) =>
+        [...rows].sort((a, b) => a.source.localeCompare(b.source));
+      expect(bySource(funnel.body.responseRateBySource)).toEqual([
+        { source: 'ATS', total: 1, responseRate: 100 },
+        { source: 'CAREER_EMAIL', total: 2, responseRate: 50 },
+        { source: 'UNSPECIFIED', total: 1, responseRate: 0 },
+      ]);
+      expect(bySource(funnel.body.responseRateByDiscoverySource)).toEqual([
+        { source: 'LINKEDIN_JOBS', total: 1, responseRate: 0 },
+        { source: 'ROZEE', total: 2, responseRate: 100 },
+        { source: 'UNSPECIFIED', total: 1, responseRate: 0 },
+      ]);
+      // Dated replies: 3 days and 20 days — median 11.5, half after 14 days.
+      expect(funnel.body.replyTiming).toEqual({
+        repliedCount: 2,
+        medianDays: 11.5,
+        repliedAfter14DaysPercent: 50,
+      });
     });
   });
 

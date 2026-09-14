@@ -3,7 +3,11 @@ import { JobStatus, JobEventType } from '@prisma/client';
 import { JobsStatsService } from './jobs-stats.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { buildJobWhere, computeTrendBuckets } from './jobs.constants.js';
+import {
+  REPLIED_FILTER,
+  buildJobWhere,
+  computeTrendBuckets,
+} from './jobs.constants.js';
 
 const mockPrisma = {
   job: {
@@ -236,6 +240,34 @@ describe('JobsStatsService', () => {
     });
   });
 
+  describe('REPLIED_FILTER', () => {
+    it('matches a replied status now or anywhere in the event history', () => {
+      expect(REPLIED_FILTER).toEqual({
+        OR: [
+          // Rows with no events at all (pre-timeline data) still count.
+          {
+            status: {
+              in: [JobStatus.INTERVIEWING, JobStatus.OFFER, JobStatus.REJECTED],
+            },
+          },
+          {
+            events: {
+              some: {
+                toStatus: {
+                  in: [
+                    JobStatus.INTERVIEWING,
+                    JobStatus.OFFER,
+                    JobStatus.REJECTED,
+                  ],
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
+  });
+
   describe('getStats', () => {
     it('zero-fills every status when the DB returns no rows', async () => {
       mockPrisma.job.groupBy.mockResolvedValue([]);
@@ -259,7 +291,12 @@ describe('JobsStatsService', () => {
         { status: JobStatus.OFFER, _count: { _all: 1 } },
         { status: JobStatus.REJECTED, _count: { _all: 1 } },
       ]);
-      mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(4);
+      // total, thisMonth, then replied (jobs whose history reached a replied
+      // status — 5 here, matching the current-status rows above).
+      mockPrisma.job.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(4)
+        .mockResolvedValueOnce(5);
 
       const stats = await service.getStats('u1', 'all');
 
@@ -269,6 +306,33 @@ describe('JobsStatsService', () => {
       expect(stats.thisMonth).toBe(4);
       expect(stats.byStatus[JobStatus.APPLIED]).toBe(5);
       expect(stats.byStatus[JobStatus.WISHLIST]).toBe(0);
+    });
+
+    // Response rate asks "did the company ever reply", not "is the job in a
+    // replied status right now" — so it can't come from groupBy(status). A job
+    // that reached INTERVIEWING and then went silent (GHOSTED) replied once.
+    it('counts a job that replied and then went ghosted as replied', async () => {
+      mockPrisma.job.groupBy.mockResolvedValue([
+        { status: JobStatus.APPLIED, _count: { _all: 8 } },
+        { status: JobStatus.GHOSTED, _count: { _all: 2 } },
+      ]);
+      mockPrisma.job.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(2);
+
+      const stats = await service.getStats('u1', '90d');
+
+      // Current status alone would say 0% — nothing is in a replied status.
+      expect(stats.responseRate).toBe(20);
+      expect(stats.ghostRate).toBe(20);
+      const repliedWhere = mockPrisma.job.count.mock.calls[2][0].where;
+      expect(repliedWhere).toEqual({
+        userId: 'u1',
+        appliedAt: { gte: expect.any(Date) },
+        status: { not: JobStatus.WISHLIST },
+        ...REPLIED_FILTER,
+      });
     });
 
     it('calculates ghostRate correctly from grouped counts', async () => {
@@ -313,18 +377,25 @@ describe('JobsStatsService', () => {
         { status: JobStatus.APPLIED, _count: { _all: 5 } },
         { status: JobStatus.INTERVIEWING, _count: { _all: 5 } },
       ]);
-      mockPrisma.job.count.mockResolvedValueOnce(10).mockResolvedValueOnce(3);
+      mockPrisma.job.count
+        .mockResolvedValueOnce(10)
+        .mockResolvedValueOnce(3)
+        .mockResolvedValueOnce(5);
 
       const stats = await service.getStats('u1', 'all');
 
       // Job.appliedAt is @default(now()), so a wishlist save carries a date
       // and would otherwise inflate the "Total Applications" tile and deflate
       // responseRate. total counts only applications actually sent.
-      const [totalCall, thisMonthCall] = mockPrisma.job.count.mock.calls;
+      const [totalCall, thisMonthCall, repliedCall] =
+        mockPrisma.job.count.mock.calls;
       expect(totalCall[0].where).toMatchObject({
         status: { not: JobStatus.WISHLIST },
       });
       expect(thisMonthCall[0].where).toMatchObject({
+        status: { not: JobStatus.WISHLIST },
+      });
+      expect(repliedCall[0].where).toMatchObject({
         status: { not: JobStatus.WISHLIST },
       });
       // 5 INTERVIEWING responded / 10 sent — not / 14 tracked.
@@ -403,6 +474,13 @@ describe('JobsStatsService', () => {
   });
 
   describe('getFunnel', () => {
+    // replyTiming reads each sent job's appliedAt. Default it explicitly —
+    // jest.clearAllMocks() doesn't reset a mockResolvedValue left by an
+    // earlier describe.
+    beforeEach(() => {
+      mockPrisma.job.findMany.mockResolvedValue([]);
+    });
+
     it('returns zero-filled shape when the user has no jobs', async () => {
       mockPrisma.jobEvent.findMany.mockResolvedValue([]);
       mockPrisma.job.groupBy.mockResolvedValue([]);
@@ -421,6 +499,166 @@ describe('JobsStatsService', () => {
       ]);
       expect(result.avgTimeInStageDays).toEqual({});
       expect(result.responseRateBySource).toEqual([]);
+      expect(result.responseRateByDiscoverySource).toEqual([]);
+      expect(result.replyTiming).toEqual({
+        repliedCount: 0,
+        medianDays: null,
+        repliedAfter14DaysPercent: 0,
+      });
+    });
+
+    describe('replyTiming', () => {
+      const day = 86_400_000;
+      const applied = new Date('2026-06-01T00:00:00Z');
+      const daysAfter = (n: number) => new Date(applied.getTime() + n * day);
+      const event = (
+        jobId: string,
+        type: JobEventType,
+        toStatus: JobStatus,
+        createdAt: Date,
+      ) => ({ jobId, type, toStatus, createdAt });
+
+      beforeEach(() => {
+        mockPrisma.job.groupBy.mockResolvedValue([]);
+      });
+
+      it('takes the median of days from appliedAt to the first reply', async () => {
+        mockPrisma.job.findMany.mockResolvedValue(
+          ['j1', 'j2', 'j3'].map((id) => ({ id, appliedAt: applied })),
+        );
+        mockPrisma.jobEvent.findMany.mockResolvedValue([
+          event('j1', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'j1',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.INTERVIEWING,
+            daysAfter(2),
+          ),
+          // Only the first reply counts — the later OFFER isn't a second reply.
+          event(
+            'j1',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.OFFER,
+            daysAfter(30),
+          ),
+          event('j2', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'j2',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.REJECTED,
+            daysAfter(5),
+          ),
+          event('j3', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'j3',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.INTERVIEWING,
+            daysAfter(20),
+          ),
+        ]);
+
+        const { replyTiming } = await service.getFunnel('u1', 'all');
+
+        expect(replyTiming).toEqual({
+          repliedCount: 3,
+          medianDays: 5,
+          // 1 of 3 replies (j3 at 20 days) came after the 14-day ghost cutoff.
+          repliedAfter14DaysPercent: 33.3,
+        });
+      });
+
+      it('averages the two middle values for an even count', async () => {
+        mockPrisma.job.findMany.mockResolvedValue(
+          ['j1', 'j2'].map((id) => ({ id, appliedAt: applied })),
+        );
+        mockPrisma.jobEvent.findMany.mockResolvedValue([
+          event('j1', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'j1',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.REJECTED,
+            daysAfter(2),
+          ),
+          event('j2', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'j2',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.REJECTED,
+            daysAfter(7),
+          ),
+        ]);
+
+        const { replyTiming } = await service.getFunnel('u1', 'all');
+
+        expect(replyTiming.medianDays).toBe(4.5);
+        expect(replyTiming.repliedAfter14DaysPercent).toBe(0);
+      });
+
+      it('leaves out jobs with no real reply date', async () => {
+        mockPrisma.job.findMany.mockResolvedValue(
+          ['created-rejected', 'round-only', 'timed'].map((id) => ({
+            id,
+            appliedAt: applied,
+          })),
+        );
+        mockPrisma.jobEvent.findMany.mockResolvedValue([
+          // Added straight as REJECTED: the event time is when the row was
+          // entered, not when the company answered.
+          event(
+            'created-rejected',
+            JobEventType.CREATED,
+            JobStatus.REJECTED,
+            daysAfter(9),
+          ),
+          // A round event carries the current status — APPLIED, not a reply.
+          event('round-only', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'round-only',
+            JobEventType.INTERVIEW_ROUND_ADDED,
+            JobStatus.APPLIED,
+            daysAfter(3),
+          ),
+          event('timed', JobEventType.CREATED, JobStatus.APPLIED, applied),
+          event(
+            'timed',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.INTERVIEWING,
+            daysAfter(6),
+          ),
+          // A WISHLIST job's events arrive too, but it isn't a sent application
+          // (absent from the appliedAt lookup), so it's ignored.
+          event('wishlist', JobEventType.CREATED, JobStatus.WISHLIST, applied),
+          event(
+            'wishlist',
+            JobEventType.STATUS_CHANGE,
+            JobStatus.REJECTED,
+            daysAfter(1),
+          ),
+        ]);
+
+        const { replyTiming } = await service.getFunnel('u1', 'all');
+
+        expect(replyTiming).toEqual({
+          repliedCount: 1,
+          medianDays: 6,
+          repliedAfter14DaysPercent: 0,
+        });
+      });
+
+      it('loads appliedAt for in-range sent applications only', async () => {
+        mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+
+        await service.getFunnel('u1', '30d');
+
+        expect(mockPrisma.job.findMany).toHaveBeenCalledWith({
+          where: {
+            userId: 'u1',
+            status: { not: JobStatus.WISHLIST },
+            appliedAt: { gte: expect.any(Date) },
+          },
+          select: { id: true, appliedAt: true },
+        });
+      });
     });
 
     it('counts skipped funnel stages as reached when a job is created past APPLIED', async () => {
@@ -551,33 +789,26 @@ describe('JobsStatsService', () => {
           createdAt: at(0),
         },
       ]);
-      mockPrisma.job.groupBy.mockResolvedValue([
-        {
-          applicationChannel: 'LINKEDIN',
-          status: JobStatus.INTERVIEWING,
-          _count: { _all: 1 },
-        },
-        {
-          applicationChannel: 'LINKEDIN',
-          status: JobStatus.REJECTED,
-          _count: { _all: 1 },
-        },
-        {
-          applicationChannel: 'REFERRAL',
-          status: JobStatus.OFFER,
-          _count: { _all: 1 },
-        },
-        {
-          applicationChannel: 'CAREER_EMAIL',
-          status: JobStatus.APPLIED,
-          _count: { _all: 1 },
-        },
-        {
-          applicationChannel: 'ATS',
-          status: JobStatus.INTERVIEWING,
-          _count: { _all: 1 },
-        },
-      ]);
+      // Two groupBy calls over (channel, discovery source): every sent
+      // application, then only the ones that ever replied (REPLIED_FILTER).
+      const row = (
+        applicationChannel: string,
+        discoverySource: string | null,
+      ) => ({ applicationChannel, discoverySource, _count: { _all: 1 } });
+      mockPrisma.job.groupBy
+        .mockResolvedValueOnce([
+          row('LINKEDIN', 'ROZEE'),
+          row('LINKEDIN', 'LINKEDIN_JOBS'),
+          row('REFERRAL', 'REFERRAL'),
+          row('CAREER_EMAIL', 'ROZEE'),
+          row('ATS', null),
+        ])
+        .mockResolvedValueOnce([
+          row('LINKEDIN', 'ROZEE'),
+          row('LINKEDIN', 'LINKEDIN_JOBS'),
+          row('REFERRAL', 'REFERRAL'),
+          row('ATS', null),
+        ]);
 
       const result = await service.getFunnel('u1', 'all');
 
@@ -610,6 +841,16 @@ describe('JobsStatsService', () => {
         ]),
       );
       expect(result.responseRateBySource).toHaveLength(4);
+
+      expect(result.responseRateByDiscoverySource).toEqual(
+        expect.arrayContaining([
+          { source: 'ROZEE', total: 2, responseRate: 50 },
+          { source: 'LINKEDIN_JOBS', total: 1, responseRate: 100 },
+          { source: 'REFERRAL', total: 1, responseRate: 100 },
+          { source: 'UNSPECIFIED', total: 1, responseRate: 100 },
+        ]),
+      );
+      expect(result.responseRateByDiscoverySource).toHaveLength(4);
     });
 
     // InterviewRoundsService.logRoundEvent writes INTERVIEW_ROUND_ADDED with
@@ -653,6 +894,31 @@ describe('JobsStatsService', () => {
 
       // One 9-day stay, not the mean of 2, 3 and 4.
       expect(result.avgTimeInStageDays[JobStatus.INTERVIEWING]).toBe(9);
+    });
+
+    // Same "ever replied" rule as getStats.responseRate, so the per-source
+    // rates and the headline rate can't disagree about what a reply is.
+    it('counts per-source replies with REPLIED_FILTER over channel and discovery source', async () => {
+      mockPrisma.jobEvent.findMany.mockResolvedValue([]);
+      mockPrisma.job.groupBy.mockResolvedValue([]);
+
+      await service.getFunnel('u1', 'all');
+
+      const [allCall, repliedCall] = mockPrisma.job.groupBy.mock.calls;
+      expect(allCall[0]).toEqual({
+        by: ['applicationChannel', 'discoverySource'],
+        where: { userId: 'u1', status: { not: JobStatus.WISHLIST } },
+        _count: { _all: true },
+      });
+      expect(repliedCall[0]).toEqual({
+        by: ['applicationChannel', 'discoverySource'],
+        where: {
+          userId: 'u1',
+          status: { not: JobStatus.WISHLIST },
+          ...REPLIED_FILTER,
+        },
+        _count: { _all: true },
+      });
     });
 
     it('excludes WISHLIST jobs from the responseRateBySource query', async () => {
