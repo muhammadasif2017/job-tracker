@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  API,
   createTestUser,
   deleteTestUser,
   createTestCompany,
@@ -715,5 +716,71 @@ test.describe('Job creation matches an existing target company', () => {
     );
     const { data } = (await res.json()) as { data: Array<TestJob> };
     if (data[0]) await deleteTestJob(user.accessToken, data[0].id);
+  });
+});
+
+// ── Company reply history (docs/specs/company-reply-history.md) ─────────────
+
+test.describe('Company reply history', () => {
+  let company: TestCompany;
+  const jobIds: string[] = [];
+
+  test.beforeAll(async () => {
+    company = await createTestCompany(user.accessToken, {
+      name: 'History Corp',
+    });
+    const job = await createTestJob(user.accessToken, {
+      company: 'History Corp',
+      position: 'First Application',
+    });
+    jobIds.push(job.id);
+  });
+
+  test.afterAll(async () => {
+    for (const id of jobIds) await deleteTestJob(user.accessToken, id);
+    if (company) await deleteTestCompany(user.accessToken, company.id);
+  });
+
+  test('confirms before adding a job for a company already applied to, then shows the stats', async ({
+    page,
+  }) => {
+    await injectAuth(page, user);
+    await page.goto('/jobs');
+    await expect(page.getByRole('heading', { name: 'Jobs' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add Job' }).click();
+    const dialog = page.getByRole('dialog');
+    // Case-insensitive match against the company's saved name.
+    await dialog.getByPlaceholder('Google').fill('history corp');
+    await dialog.getByPlaceholder('Senior Engineer').fill('Second Application');
+    await dialog.getByRole('button', { name: 'Add job' }).click();
+
+    const confirm = dialog.getByRole('alertdialog');
+    await expect(confirm).toContainText('You applied to History Corp 1 time');
+    await expect(confirm.getByText('First Application')).toBeVisible();
+
+    await confirm.getByRole('button', { name: 'Add anyway' }).click();
+    await expect(
+      dialog.getByRole('heading', { name: 'Job Added' }),
+    ).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await expect(dialog).not.toBeVisible();
+
+    const res = await fetch(`${API}/jobs?search=Second+Application`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    const { data } = (await res.json()) as { data: TestJob[] };
+    expect(data).toHaveLength(1);
+    jobIds.push(data[0].id);
+
+    await page.goto(`/companies/${company.id}`);
+    const card = page
+      .getByRole('heading', { name: 'Application history' })
+      .locator('..');
+    await expect(card).toContainText(/Applied\s*2/);
+    await expect(card).toContainText(/Reply rate\s*0%/);
+
+    await page.goto('/companies');
+    await expect(page.getByText('2 applied · 0% replied')).toBeVisible();
   });
 });
