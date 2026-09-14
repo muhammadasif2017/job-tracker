@@ -510,6 +510,7 @@ describe('Job Tracker (e2e)', () => {
       };
       await seed('silent15', { status: 'APPLIED', lastEventDaysAgo: 15 });
       await seed('active13', { status: 'APPLIED', lastEventDaysAgo: 13 });
+      await seed('staleNotGhost', { status: 'APPLIED', lastEventDaysAgo: 10 });
       await seed('interviewingSilent', {
         status: 'INTERVIEWING',
         lastEventDaysAgo: 20,
@@ -564,6 +565,29 @@ describe('Job Tracker (e2e)', () => {
       );
     });
 
+    it('keeps ghosted and recently dismissed jobs out of Needs Attention', async () => {
+      const res = await agent
+        .get('/jobs/attention')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      const ids = new Set(
+        (res.body as { job: { id: string } }[]).map((item) => item.job.id),
+      );
+
+      expect(ids.has(seeded.staleNotGhost)).toBe(true);
+      for (const key of [
+        'silent15',
+        'interviewingSilent',
+        'dismissedLongAgo',
+        'dismissedRecently',
+      ]) {
+        expect({ key, shown: ids.has(seeded[key]) }).toEqual({
+          key,
+          shown: false,
+        });
+      }
+    });
+
     it('dismiss hides the suggestion and stamps the job', async () => {
       await agent
         .post(`/jobs/${seeded.silent15}/ghost-suggestion/dismiss`)
@@ -588,6 +612,84 @@ describe('Job Tracker (e2e)', () => {
       });
       expect(job.ghostSuggestionDismissedAt).toBeNull();
     });
+
+    it('mark-ghosted only moves ids that are still suggestions for the caller', async () => {
+      for (const key of ['bulkA', 'bulkB', 'bulkActive']) {
+        const job = await prisma.job.create({
+          data: {
+            userId,
+            company: `Ghost Co ${key}`,
+            position: 'Engineer',
+            status: 'APPLIED',
+            appliedAt: daysAgo(30),
+            events: {
+              create: {
+                type: 'CREATED',
+                toStatus: 'APPLIED',
+                createdAt: daysAgo(20),
+              },
+            },
+          },
+        });
+        seeded[key] = job.id;
+      }
+      // Activity after the card loaded: no longer a suggestion by confirm time.
+      await prisma.jobEvent.create({
+        data: {
+          jobId: seeded.bulkActive,
+          type: 'INTERVIEW_ROUND_ADDED',
+          toStatus: 'APPLIED',
+        },
+      });
+
+      const res = await agent
+        .post('/jobs/ghost-suggestions/mark-ghosted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          jobIds: [
+            seeded.bulkA,
+            seeded.bulkB,
+            seeded.bulkActive,
+            seeded.otherUser,
+          ],
+        })
+        .expect(200);
+
+      expect(res.body).toEqual({ updated: 2 });
+      const jobs = await prisma.job.findMany({
+        where: {
+          id: {
+            in: [
+              seeded.bulkA,
+              seeded.bulkB,
+              seeded.bulkActive,
+              seeded.otherUser,
+            ],
+          },
+        },
+        include: { events: { where: { type: 'STATUS_CHANGE' } } },
+      });
+      const byId = new Map(jobs.map((job) => [job.id, job]));
+      for (const key of ['bulkA', 'bulkB']) {
+        const job = byId.get(seeded[key])!;
+        expect(job.status).toBe('GHOSTED');
+        expect(job.events).toEqual([
+          expect.objectContaining({
+            fromStatus: 'APPLIED',
+            toStatus: 'GHOSTED',
+          }),
+        ]);
+      }
+      expect(byId.get(seeded.bulkActive)!.status).toBe('APPLIED');
+      expect(byId.get(seeded.otherUser)!.status).toBe('APPLIED');
+    });
+
+    it('mark-ghosted rejects an empty id list with 400', () =>
+      agent
+        .post('/jobs/ghost-suggestions/mark-ghosted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ jobIds: [] })
+        .expect(400));
 
     it('returns 401 without token', () =>
       agent.get('/jobs/ghost-suggestions').expect(401));

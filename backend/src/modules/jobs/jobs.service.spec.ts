@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import {
   CompanyCity,
   EnrichmentStatus,
@@ -1166,6 +1166,70 @@ describe('JobsService', () => {
         service.dismissGhostSuggestion('user-1', 'job-99'),
       ).rejects.toThrow('Job not found');
       expect(mockPrisma.job.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('markGhosted', () => {
+    const NOW = new Date('2026-09-14T12:00:00Z');
+
+    beforeEach(() => jest.useFakeTimers({ now: NOW }));
+    afterEach(() => jest.useRealTimers());
+
+    it('marks only the ids that are still ghost suggestions, through update', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([{ id: 'a' }, { id: 'c' }]);
+      const update = jest
+        .spyOn(service, 'update')
+        .mockResolvedValue({} as Awaited<ReturnType<JobsService['update']>>);
+
+      const result = await service.markGhosted('user-1', ['a', 'b', 'c', 'a']);
+
+      const { where, select } = mockPrisma.job.findMany.mock.calls[0][0];
+      // Re-checked against the live rule: a job that got activity or was
+      // dismissed since the card loaded is skipped, and another user's id
+      // never matches because the rule is scoped by userId.
+      expect(where.userId).toBe('user-1');
+      expect(where.status).toEqual({
+        in: [JobStatus.APPLIED, JobStatus.INTERVIEWING],
+      });
+      expect(where.id).toEqual({ in: ['a', 'b', 'c'] });
+      expect(select).toEqual({ id: true });
+      // update() writes the STATUS_CHANGE event and queues the timeline
+      // summary — a raw updateMany would skip both.
+      expect(update.mock.calls).toEqual([
+        ['user-1', 'a', { status: JobStatus.GHOSTED }],
+        ['user-1', 'c', { status: JobStatus.GHOSTED }],
+      ]);
+      expect(result).toEqual({ updated: 2 });
+    });
+
+    it('skips a job whose status changed or that was deleted mid-batch', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([
+        { id: 'a' },
+        { id: 'b' },
+        { id: 'c' },
+      ]);
+      jest
+        .spyOn(service, 'update')
+        .mockRejectedValueOnce(new ConflictException('changed concurrently'))
+        .mockRejectedValueOnce(new NotFoundException('Job not found'))
+        .mockResolvedValueOnce(
+          {} as Awaited<ReturnType<JobsService['update']>>,
+        );
+
+      await expect(
+        service.markGhosted('user-1', ['a', 'b', 'c']),
+      ).resolves.toEqual({
+        updated: 1,
+      });
+    });
+
+    it('rethrows unexpected errors instead of hiding them as skips', async () => {
+      mockPrisma.job.findMany.mockResolvedValue([{ id: 'a' }]);
+      jest.spyOn(service, 'update').mockRejectedValue(new Error('db down'));
+
+      await expect(service.markGhosted('user-1', ['a'])).rejects.toThrow(
+        'db down',
+      );
     });
   });
 
