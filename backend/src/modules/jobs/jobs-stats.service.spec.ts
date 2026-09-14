@@ -32,6 +32,27 @@ describe('JobsStatsService', () => {
     service = module.get(JobsStatsService);
   });
 
+  describe('getGhostSuggestions', () => {
+    it('returns the silent applications for the user', async () => {
+      const job = {
+        id: 'job-1',
+        appliedAt: new Date('2026-07-01T00:00:00Z'),
+        ghostSuggestionDismissedAt: null,
+        events: [],
+      };
+      mockPrisma.job.findMany.mockResolvedValue([job]);
+
+      const items = await service.getGhostSuggestions('user-1');
+
+      expect(mockPrisma.job.findMany.mock.calls[0][0].where.userId).toBe(
+        'user-1',
+      );
+      expect(items).toEqual([
+        { since: job.appliedAt, job: expect.objectContaining({ id: 'job-1' }) },
+      ]);
+    });
+  });
+
   describe('getAttention', () => {
     it('maps each rule to its attention type and dedupes by job', async () => {
       const interviewJob = {

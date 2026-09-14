@@ -41,6 +41,7 @@ import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
 import { TrendStatsDto } from './dto/trend-stats.dto.js';
 import { StatsQueryDto } from './dto/stats-query.dto.js';
 import { AttentionItemDto } from './dto/attention-item.dto.js';
+import { GhostSuggestionDto } from './dto/ghost-suggestion.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
@@ -91,7 +92,8 @@ export class JobsController {
     return this.jobsService.findAll(user.id, query);
   }
 
-  // 'stats', 'stats/funnel', 'stats/trend', 'export', and 'attention' must
+  // 'stats', 'stats/funnel', 'stats/trend', 'export', 'attention', and
+  // 'ghost-suggestions' must
   // remain above ':id' — fixed segments take priority over parameterized
   // ones only when registered first in the same router.
   @Get('stats')
@@ -156,6 +158,16 @@ export class JobsController {
     return this.jobsStats.getAttention(user.id);
   }
 
+  @Get('ghost-suggestions')
+  @ApiOperation({
+    summary:
+      'Applications with no activity for 14 days that may be ghosted (suggest-only)',
+  })
+  @ApiOkResponse({ type: GhostSuggestionDto, isArray: true })
+  getGhostSuggestions(@CurrentUser() user: { id: string }) {
+    return this.jobsStats.getGhostSuggestions(user.id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single job application' })
   @ApiParam({ name: 'id', description: 'Job ID' })
@@ -176,6 +188,22 @@ export class JobsController {
     @Query() query: JobEventsQueryDto,
   ) {
     return this.jobsService.getEvents(user.id, id, query.page, query.limit);
+  }
+
+  @Post(':id/ghost-suggestion/dismiss')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Dismiss the ghost suggestion for a job until 14 more days pass with no activity',
+  })
+  @ApiParam({ name: 'id', description: 'Job ID' })
+  @ApiOkResponse({ type: MessageDto })
+  @ApiNotFoundResponse({ description: 'Job not found' })
+  dismissGhostSuggestion(
+    @CurrentUser() user: { id: string },
+    @Param('id') id: string,
+  ) {
+    return this.jobsService.dismissGhostSuggestion(user.id, id);
   }
 
   @Patch(':id')

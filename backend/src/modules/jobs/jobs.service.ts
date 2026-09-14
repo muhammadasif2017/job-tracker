@@ -517,6 +517,17 @@ export class JobsService {
     return withUpcomingInterview(result);
   }
 
+  async dismissGhostSuggestion(userId: string, jobId: string) {
+    // Scoped updateMany so another user's job is indistinguishable from a
+    // missing one (404 for both), without a separate ownership SELECT.
+    const { count } = await this.prisma.job.updateMany({
+      where: { id: jobId, userId },
+      data: { ghostSuggestionDismissedAt: new Date() },
+    });
+    if (count === 0) throw new NotFoundException('Job not found');
+    return { message: 'Suggestion dismissed' };
+  }
+
   async remove(userId: string, jobId: string) {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
