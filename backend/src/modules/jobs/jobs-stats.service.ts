@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
 import { getAttentionItems } from './attention.helper.js';
+import { getGhostSuggestions } from './ghost-suggestions.helper.js';
 import { JobStatus, ApplicationChannel, JobEventType } from '@prisma/client';
 import {
   localCivilDay,
@@ -270,6 +271,10 @@ export class JobsStatsService {
       now,
       timeZone,
     );
+  }
+
+  async getGhostSuggestions(userId: string) {
+    return getGhostSuggestions(this.prisma, userId);
   }
 
   async getAttention(userId: string) {
