@@ -1142,6 +1142,33 @@ describe('JobsService', () => {
     });
   });
 
+  describe('dismissGhostSuggestion', () => {
+    it('stamps the dismissal time on the caller-owned job', async () => {
+      jest.useFakeTimers({ now: new Date('2026-09-14T12:00:00Z') });
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.dismissGhostSuggestion('user-1', 'job-1');
+
+      expect(mockPrisma.job.updateMany).toHaveBeenCalledWith({
+        where: { id: 'job-1', userId: 'user-1' },
+        data: { ghostSuggestionDismissedAt: new Date('2026-09-14T12:00:00Z') },
+      });
+      expect(result).toEqual({ message: 'Suggestion dismissed' });
+      jest.useRealTimers();
+    });
+
+    // Scoped write, not a findFirst-then-update: another user's job and a
+    // missing job both come back count 0 and are indistinguishable (404).
+    it('throws NotFoundException when the job does not belong to the user', async () => {
+      mockPrisma.job.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.dismissGhostSuggestion('user-1', 'job-99'),
+      ).rejects.toThrow('Job not found');
+      expect(mockPrisma.job.findFirst).not.toHaveBeenCalled();
+    });
+  });
+
   describe('remove', () => {
     it('returns success message when job is deleted', async () => {
       mockPrisma.resume.findFirst.mockResolvedValue(null);

@@ -15,6 +15,7 @@ import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constan
 // Unique email per run so tests are safe to run against the dev DB
 const EMAIL = `e2e-${Date.now()}@test.dev`;
 const ADMIN_TARGET_EMAIL = `e2e-admin-target-${Date.now()}@test.dev`;
+const GHOST_OTHER_EMAIL = `e2e-ghost-other-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
@@ -58,7 +59,7 @@ describe('Job Tracker (e2e)', () => {
 
   afterAll(async () => {
     await prisma.user.deleteMany({
-      where: { email: { in: [EMAIL, ADMIN_TARGET_EMAIL] } },
+      where: { email: { in: [EMAIL, ADMIN_TARGET_EMAIL, GHOST_OTHER_EMAIL] } },
     });
     await app.close();
   });
@@ -457,6 +458,139 @@ describe('Job Tracker (e2e)', () => {
 
     it('returns 401 without token', () =>
       agent.get('/jobs/attention').expect(401));
+  });
+
+  describe('GET /jobs/ghost-suggestions', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
+    const seeded: Record<string, string> = {};
+
+    // Row-level cases for the ghost rule: the unit spec pins the where clause,
+    // this proves the database evaluates it the way the spec means.
+    beforeAll(async () => {
+      const other = await prisma.user.create({
+        data: {
+          email: GHOST_OTHER_EMAIL,
+          name: 'Ghost Other',
+          password: 'unused',
+        },
+      });
+      const seed = async (
+        key: string,
+        data: {
+          status: 'WISHLIST' | 'APPLIED' | 'INTERVIEWING' | 'OFFER' | 'GHOSTED';
+          lastEventDaysAgo: number;
+          dismissedDaysAgo?: number;
+          nextInterviewAt?: Date;
+          owner?: string;
+        },
+      ) => {
+        const job = await prisma.job.create({
+          data: {
+            userId: data.owner ?? userId,
+            company: `Ghost Co ${key}`,
+            position: 'Engineer',
+            status: data.status,
+            appliedAt: daysAgo(30),
+            nextInterviewAt: data.nextInterviewAt,
+            ghostSuggestionDismissedAt:
+              data.dismissedDaysAgo === undefined
+                ? undefined
+                : daysAgo(data.dismissedDaysAgo),
+            events: {
+              create: {
+                type: 'CREATED',
+                toStatus: data.status,
+                createdAt: daysAgo(data.lastEventDaysAgo),
+              },
+            },
+          },
+        });
+        seeded[key] = job.id;
+      };
+      await seed('silent15', { status: 'APPLIED', lastEventDaysAgo: 15 });
+      await seed('active13', { status: 'APPLIED', lastEventDaysAgo: 13 });
+      await seed('interviewingSilent', {
+        status: 'INTERVIEWING',
+        lastEventDaysAgo: 20,
+      });
+      await seed('futureInterview', {
+        status: 'INTERVIEWING',
+        lastEventDaysAgo: 20,
+        nextInterviewAt: new Date(Date.now() + 2 * DAY),
+      });
+      await seed('dismissedRecently', {
+        status: 'APPLIED',
+        lastEventDaysAgo: 20,
+        dismissedDaysAgo: 3,
+      });
+      await seed('dismissedLongAgo', {
+        status: 'APPLIED',
+        lastEventDaysAgo: 20,
+        dismissedDaysAgo: 15,
+      });
+      await seed('wishlist', { status: 'WISHLIST', lastEventDaysAgo: 20 });
+      await seed('offer', { status: 'OFFER', lastEventDaysAgo: 20 });
+      await seed('ghosted', { status: 'GHOSTED', lastEventDaysAgo: 20 });
+      await seed('otherUser', {
+        status: 'APPLIED',
+        lastEventDaysAgo: 20,
+        owner: other.id,
+      });
+    });
+
+    afterAll(async () => {
+      await prisma.job.deleteMany({
+        where: { id: { in: Object.values(seeded) } },
+      });
+    });
+
+    const suggestedKeys = async () => {
+      const res = await agent
+        .get('/jobs/ghost-suggestions')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      const ids = new Set(
+        (res.body as { job: { id: string } }[]).map((item) => item.job.id),
+      );
+      return Object.keys(seeded)
+        .filter((key) => ids.has(seeded[key]))
+        .sort();
+    };
+
+    it('suggests only silent APPLIED/INTERVIEWING jobs owned by the caller', async () => {
+      expect(await suggestedKeys()).toEqual(
+        ['dismissedLongAgo', 'interviewingSilent', 'silent15'].sort(),
+      );
+    });
+
+    it('dismiss hides the suggestion and stamps the job', async () => {
+      await agent
+        .post(`/jobs/${seeded.silent15}/ghost-suggestion/dismiss`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(await suggestedKeys()).not.toContain('silent15');
+      const job = await prisma.job.findUniqueOrThrow({
+        where: { id: seeded.silent15 },
+      });
+      expect(job.ghostSuggestionDismissedAt).not.toBeNull();
+    });
+
+    it("dismiss returns 404 for another user's job and leaves it untouched", async () => {
+      await agent
+        .post(`/jobs/${seeded.otherUser}/ghost-suggestion/dismiss`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      const job = await prisma.job.findUniqueOrThrow({
+        where: { id: seeded.otherUser },
+      });
+      expect(job.ghostSuggestionDismissedAt).toBeNull();
+    });
+
+    it('returns 401 without token', () =>
+      agent.get('/jobs/ghost-suggestions').expect(401));
   });
 
   describe('GET /jobs/:id', () => {

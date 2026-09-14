@@ -183,6 +183,11 @@ model Job {
   // in a couple of days and has its own dedicated reminder email already.
   staleAppliedDigestedAt      DateTime?
   staleInterviewingDigestedAt DateTime?
+  // "Looks ghosted" dismissal (docs/specs/response-insights.md): stamped when
+  // the user dismisses a ghost suggestion. Hides the suggestion, and the
+  // dashboard's STALE_* nudges, until 14 more days pass with no activity.
+  // Dashboard-only — the digest email ignores it.
+  ghostSuggestionDismissedAt  DateTime?
   // LLM-generated one-line plain-English summary of this job's JobEvent
   // timeline, regenerated asynchronously (TimelineSummaryProcessor) whenever
   // a new event is written. null until the first background run completes.
