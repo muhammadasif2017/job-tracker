@@ -14,6 +14,8 @@ npm run test:e2e   # Playwright e2e (requires both dev servers running)
 
 **Turbopack cache corruption** — if pages enter an endless reload loop and the dev log shows `FATAL: ... Turbopack error` / `Next.js package not found`, the `.next` cache is corrupt (seen after disk I/O errors). Recovery: stop the dev server, verify nothing still listens on :3000 (a zombie node process serving the broken build will keep the loop alive, and a new server will silently start on :3002 where CORS/auth break), delete `.next`, restart.
 
+**`next dev` rewrites `AGENTS.md`** — every start re-adds its `nextjs-agent-rules` block to `frontend/AGENTS.md`. That shows up as an unrelated diff; revert it (`git checkout -- frontend/AGENTS.md`) rather than committing it with other work.
+
 ---
 
 ## Next.js 16 Breaking Changes
@@ -174,6 +176,7 @@ See the `add-frontend-page` skill for the step-by-step checklist.
 ## Playwright E2E Tests (`e2e/`)
 
 - Tests run against the live dev server (`http://localhost:3000`) and live backend
+- **Local runs use real LLM/search keys, CI doesn't.** A local backend reads `GROQ_API_KEY`/`TAVILY_API_KEY` from `backend/.env`, so company enrichment does real, slow, rate-limited work (one run can take ~90s under a Groq 429); `e2e-pr.yml` sets neither key, so enrichment fails instantly there. A test that waits on enrichment can be green in CI and still time out locally — wait on the state the test actually needs (e.g. the run being picked up), not on the pipeline finishing.
 - `e2e/fixtures.ts` sets up shared page fixtures
 - Specs: `auth.spec.ts`, `dashboard.spec.ts`, `jobs.spec.ts`, `profile.spec.ts`
 - Run with: `npx playwright test` (requires both servers running)
