@@ -21,9 +21,11 @@ export function ghostCutoff(now: Date) {
   return new Date(now.getTime() - GHOST_AFTER_DAYS * 24 * 60 * 60 * 1000);
 }
 
-// The rule itself, shared by the suggestions list and the dashboard attention
-// filter so the two can never disagree about which jobs look ghosted.
-export function buildGhostSuggestionWhere(userId: string, now: Date) {
+// "Silent for GHOST_AFTER_DAYS": an open application with no activity since the
+// cutoff and no interview still ahead. Shared with the per-company ghosted
+// count (docs/specs/company-reply-history.md), which must not honor a
+// dismissal — dismissing means "stop suggesting", not "the company replied".
+export function buildSilentJobWhere(userId: string, now: Date) {
   const cutoff = ghostCutoff(now);
   return {
     userId,
@@ -32,6 +34,20 @@ export function buildGhostSuggestionWhere(userId: string, now: Date) {
     appliedAt: { lt: cutoff },
     // Any event counts as activity, including INTERVIEW_ROUND_ADDED.
     events: { none: { createdAt: { gt: cutoff } } },
+    // A scheduled interview is not silence, however old the last event.
+    AND: [
+      { OR: [{ nextInterviewAt: null }, { nextInterviewAt: { lt: now } }] },
+    ],
+  } satisfies Prisma.JobWhereInput;
+}
+
+// The suggestion rule itself, shared by the suggestions list and the dashboard
+// attention filter so the two can never disagree about which jobs look ghosted.
+export function buildGhostSuggestionWhere(userId: string, now: Date) {
+  const silent = buildSilentJobWhere(userId, now);
+  const cutoff = ghostCutoff(now);
+  return {
+    ...silent,
     AND: [
       // A dismissal ("HR said wait") restarts the 14-day clock.
       {
@@ -40,8 +56,7 @@ export function buildGhostSuggestionWhere(userId: string, now: Date) {
           { ghostSuggestionDismissedAt: { lte: cutoff } },
         ],
       },
-      // A scheduled interview is not silence, however old the last event.
-      { OR: [{ nextInterviewAt: null }, { nextInterviewAt: { lt: now } }] },
+      ...silent.AND,
     ],
   } satisfies Prisma.JobWhereInput;
 }

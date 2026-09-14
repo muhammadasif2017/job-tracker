@@ -2,6 +2,7 @@ import { JobStatus } from '@prisma/client';
 import {
   GHOST_AFTER_DAYS,
   MAX_GHOST_SUGGESTIONS,
+  buildSilentJobWhere,
   getGhostSuggestions,
 } from './ghost-suggestions.helper.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
@@ -101,5 +102,21 @@ describe('getGhostSuggestions', () => {
     mockPrisma.job.findMany.mockResolvedValue([]);
 
     await expect(getGhostSuggestions(prisma, 'user-1')).resolves.toEqual([]);
+  });
+});
+
+describe('buildSilentJobWhere', () => {
+  // The per-company ghosted count reuses this; a dismissal must not hide a
+  // silent job from it, so the clause carries no dismissal filter.
+  it('matches silent open jobs without the dismissal clause', () => {
+    expect(buildSilentJobWhere('user-1', NOW)).toEqual({
+      userId: 'user-1',
+      status: { in: [JobStatus.APPLIED, JobStatus.INTERVIEWING] },
+      appliedAt: { lt: CUTOFF },
+      events: { none: { createdAt: { gt: CUTOFF } } },
+      AND: [
+        { OR: [{ nextInterviewAt: null }, { nextInterviewAt: { lt: NOW } }] },
+      ],
+    });
   });
 });
