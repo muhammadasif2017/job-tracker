@@ -51,7 +51,7 @@
     "ioredis": "^5.11.1",
     "ipaddr.js": "^2.5.0",
     "joi": "^18.2.3",
-    "nestjs-pino": "^4.6.1",
+    "nestjs-pino": "^5.1.0",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "passport-google-oauth20": "^2.0.0",
