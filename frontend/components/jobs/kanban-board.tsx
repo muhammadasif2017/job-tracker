@@ -10,6 +10,7 @@ import {
 import { Pencil, ExternalLink } from 'lucide-react';
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 import { Button } from '../ui/button';
+import { GhostBadge } from './ghost-badge';
 import { formatCivilDate } from '../../lib/utils';
 import {
   STATUS_LABELS,
@@ -167,6 +168,9 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                           <p className="mt-0.5 text-xs text-muted break-words">
                             {job.position}
                           </p>
+                          <div className="mt-1.5 empty:hidden">
+                            <GhostBadge jobId={job.id} company={job.company} />
+                          </div>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="font-mono text-[11px] text-muted-2">
                               {formatCivilDate(job.appliedAt)}

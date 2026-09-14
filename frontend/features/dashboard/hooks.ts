@@ -55,10 +55,23 @@ export function useAttentionQuery() {
   });
 }
 
+const ghostSuggestionsQuery = {
+  queryKey: ['ghost-suggestions'],
+  queryFn: (): Promise<GhostSuggestion[]> =>
+    api.get('/jobs/ghost-suggestions').then((r) => r.data),
+};
+
 export function useGhostSuggestionsQuery() {
-  return useQuery<GhostSuggestion[]>({
-    queryKey: ['ghost-suggestions'],
-    queryFn: () => api.get('/jobs/ghost-suggestions').then((r) => r.data),
+  return useQuery(ghostSuggestionsQuery);
+}
+
+// The suggested job ids as a Set, for per-job badges in the list and kanban
+// views. Same query key as the card, so a page full of badges shares one
+// request and one cache entry.
+export function useGhostSuggestedIds() {
+  return useQuery({
+    ...ghostSuggestionsQuery,
+    select: (items) => new Set(items.map(({ job }) => job.id)),
   });
 }
 

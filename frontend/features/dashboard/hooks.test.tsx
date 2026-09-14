@@ -9,6 +9,7 @@ import {
   useRecentJobsQuery,
   useAttentionQuery,
   useGhostSuggestionsQuery,
+  useGhostSuggestedIds,
   useMarkJobGhostedMutation,
   useDismissGhostSuggestionMutation,
   useMarkAllGhostedMutation,
@@ -134,6 +135,26 @@ describe('useGhostSuggestionsQuery', () => {
 
     await waitFor(() => expect(result.current.data).toEqual(items));
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/ghost-suggestions');
+    expect(qc.getQueryData(['ghost-suggestions'])).toEqual(items);
+  });
+});
+
+describe('useGhostSuggestedIds', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('derives a Set of job ids from the shared ghost-suggestions query', async () => {
+    const items = [
+      { since: '2026-08-01T00:00:00Z', job: { id: 'j-1' } },
+      { since: '2026-08-02T00:00:00Z', job: { id: 'j-2' } },
+    ];
+    vi.mocked(api.get).mockResolvedValue({ data: items });
+    const { qc, wrapper } = makeWrapper();
+    const { result } = renderHook(() => useGhostSuggestedIds(), { wrapper });
+
+    await waitFor(() =>
+      expect(result.current.data).toEqual(new Set(['j-1', 'j-2'])),
+    );
+    // Same cache entry as the card, so badges add no extra request.
     expect(qc.getQueryData(['ghost-suggestions'])).toEqual(items);
   });
 });

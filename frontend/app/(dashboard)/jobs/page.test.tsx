@@ -119,9 +119,15 @@ function renderPage() {
   );
 }
 
+// The last jobs-list request. The rows' ghost badges share one
+// /jobs/ghost-suggestions query that can fire after the list loads, so it is
+// skipped rather than read as the list's query params.
 function lastGetUrl() {
-  const calls = vi.mocked(api.get).mock.calls;
-  return calls[calls.length - 1][0] as string;
+  const urls = vi
+    .mocked(api.get)
+    .mock.calls.map((call) => call[0] as string)
+    .filter((url) => url !== '/jobs/ghost-suggestions');
+  return urls[urls.length - 1];
 }
 
 describe('JobsPage', () => {
@@ -144,6 +150,31 @@ describe('JobsPage', () => {
       expect(
         container.querySelectorAll('.animate-pulse').length,
       ).toBeGreaterThan(0);
+    });
+  });
+
+  describe('ghost badge', () => {
+    it('marks ghost-suggested rows with a "No reply 14d+" badge', async () => {
+      vi.mocked(api.get).mockImplementation((url: string) =>
+        Promise.resolve({
+          data:
+            url === '/jobs/ghost-suggestions'
+              ? [{ since: '2026-05-15T00:00:00Z', job: { id: 'j-2' } }]
+              : page(),
+        }),
+      );
+      renderPage();
+
+      expect(await screen.findByText('No reply 14d+')).toBeInTheDocument();
+      expect(screen.getAllByText('No reply 14d+')).toHaveLength(1);
+      expect(
+        screen.getByRole('button', {
+          name: 'Dismiss suggestion for Globex',
+        }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Dismiss suggestion for Acme' }),
+      ).not.toBeInTheDocument();
     });
   });
 

@@ -26,6 +26,7 @@ import { Skeleton } from '../../../components/ui/skeleton';
 import { JobForm } from '../../../components/jobs/job-form';
 import { QuickAdd } from '../../../components/jobs/quick-add';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
+import { GhostBadge } from '../../../components/jobs/ghost-badge';
 import { formatCivilDate } from '../../../lib/utils';
 import {
   JOB_STATUSES,
@@ -366,7 +367,10 @@ export default function JobsPage() {
                       </Link>
                     </td>
                     <td className="px-4 py-3">
-                      <StatusBadge status={job.status} />
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <StatusBadge status={job.status} />
+                        <GhostBadge jobId={job.id} company={job.company} />
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <PriorityBadge priority={job.priority} />

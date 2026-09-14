@@ -139,6 +139,39 @@ describe('KanbanBoard', () => {
     capturedOnDragEnd = undefined;
   });
 
+  it('shows the "No reply 14d+" badge only on ghost-suggested cards', async () => {
+    const jobs = [
+      makeJob({ id: 'j-1', company: 'Acme' }),
+      makeJob({ id: 'j-2', company: 'Globex' }),
+    ];
+    vi.mocked(api.get).mockImplementation((url: string) =>
+      Promise.resolve({
+        data:
+          url === '/jobs/ghost-suggestions'
+            ? [{ since: '2026-06-01T00:00:00Z', job: { id: 'j-2' } }]
+            : paginated(jobs),
+      }),
+    );
+    render(
+      <QueryClientProvider
+        client={
+          new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        }
+      >
+        <KanbanBoard onEdit={vi.fn()} filters={noFilters} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('No reply 14d+')).toBeInTheDocument();
+    expect(screen.getAllByText('No reply 14d+')).toHaveLength(1);
+    expect(
+      screen.getByRole('button', { name: 'Mark Globex as ghosted' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Mark Acme as ghosted' }),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows skeletons while loading', () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     const qc = new QueryClient({
