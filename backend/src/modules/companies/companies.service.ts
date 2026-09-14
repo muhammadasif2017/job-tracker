@@ -19,12 +19,18 @@ import {
   similarityRatio,
 } from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+import {
+  EMPTY_APPLICATION_STATS,
+  getCompanyApplicationStats,
+} from './company-application-stats.helper.js';
 
 // Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
 // docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
 // can't be driven arbitrarily large via CSV import; also a sane ceiling for
 // a personal target-companies list regardless of the duplicate-detection cost.
 const MAX_COMPANIES_PER_USER = 2000;
+
+const RECENT_HISTORY_JOBS = 3;
 
 @Injectable()
 export class CompaniesService {
@@ -171,9 +177,18 @@ export class CompaniesService {
       }),
       this.prisma.company.count({ where }),
     ]);
+    // Page ids only — a fixed three queries however large the page.
+    const stats = await getCompanyApplicationStats(
+      this.prisma,
+      userId,
+      companies.map((c) => c.id),
+    );
 
     return {
-      data: companies,
+      data: companies.map((c) => ({
+        ...c,
+        applicationStats: stats.get(c.id) ?? { ...EMPTY_APPLICATION_STATS },
+      })),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -201,7 +216,42 @@ export class CompaniesService {
       },
     });
     if (!company) throw new NotFoundException('Company not found');
-    return company;
+    const stats = await getCompanyApplicationStats(this.prisma, userId, [
+      company.id,
+    ]);
+    return {
+      ...company,
+      applicationStats: stats.get(company.id) ?? { ...EMPTY_APPLICATION_STATS },
+    };
+  }
+
+  // "Have I applied here before?" for the job-create confirm. Matches by name
+  // the same way JobsService.resolveCompanyId links a job (case-insensitive
+  // exact), since the create forms only know the typed name.
+  async findApplicationHistory(userId: string, name: string) {
+    const trimmed = name.trim();
+    const company = trimmed
+      ? await this.prisma.company.findFirst({
+          where: { userId, name: { equals: trimmed, mode: 'insensitive' } },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (!company) return { company: null, stats: null, recentJobs: [] };
+
+    const [stats, recentJobs] = await Promise.all([
+      getCompanyApplicationStats(this.prisma, userId, [company.id]),
+      this.prisma.job.findMany({
+        where: { userId, companyId: company.id },
+        orderBy: [{ appliedAt: 'desc' }, { createdAt: 'desc' }],
+        take: RECENT_HISTORY_JOBS,
+        select: { id: true, position: true, status: true, appliedAt: true },
+      }),
+    ]);
+    return {
+      company,
+      stats: stats.get(company.id) ?? { ...EMPTY_APPLICATION_STATS },
+      recentJobs,
+    };
   }
 
   // Lean ownership check for write operations that don't need the contacts JOIN.

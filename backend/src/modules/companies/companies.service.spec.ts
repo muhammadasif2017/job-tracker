@@ -22,7 +22,7 @@ const mockPrisma = {
     deleteMany: jest.fn(),
     delete: jest.fn(),
   },
-  job: { updateMany: jest.fn() },
+  job: { updateMany: jest.fn(), groupBy: jest.fn(), findMany: jest.fn() },
   contact: { updateMany: jest.fn() },
   // Mirrors Prisma's interactive-transaction shape closely enough for unit
   // tests: hands the callback the same mock client, ignoring isolationLevel.
@@ -42,6 +42,7 @@ describe('CompaniesService', () => {
     jest.clearAllMocks();
     mockCompanyEnrichment.enqueueEnrichment.mockResolvedValue(undefined);
     mockPrisma.company.count.mockResolvedValue(0);
+    mockPrisma.job.groupBy.mockResolvedValue([]);
     const module = await Test.createTestingModule({
       providers: [
         CompaniesService,
@@ -186,6 +187,109 @@ describe('CompaniesService', () => {
         totalPages: 1,
       });
     });
+
+    it("attaches application stats computed for the page's companies only", async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c1' },
+        { id: 'c2' },
+      ]);
+      mockPrisma.company.count.mockResolvedValue(12);
+      mockPrisma.job.groupBy
+        .mockResolvedValueOnce([
+          { companyId: 'c1', _count: { _all: 2 }, _max: { appliedAt: null } },
+        ])
+        .mockResolvedValueOnce([{ companyId: 'c1', _count: { _all: 1 } }])
+        .mockResolvedValueOnce([]);
+
+      const result = await service.findAll('user-1', { page: 1, limit: 2 });
+
+      expect(mockPrisma.job.groupBy).toHaveBeenCalledTimes(3);
+      expect(mockPrisma.job.groupBy.mock.calls[0][0].where.companyId).toEqual({
+        in: ['c1', 'c2'],
+      });
+      expect(result.data).toEqual([
+        {
+          id: 'c1',
+          applicationStats: {
+            applied: 2,
+            replied: 1,
+            ghosted: 0,
+            replyRate: 50,
+            lastAppliedAt: null,
+          },
+        },
+        {
+          id: 'c2',
+          applicationStats: {
+            applied: 0,
+            replied: 0,
+            ghosted: 0,
+            replyRate: 0,
+            lastAppliedAt: null,
+          },
+        },
+      ]);
+    });
+  });
+
+  describe('findApplicationHistory', () => {
+    it('returns nothing without querying for a blank name', async () => {
+      const result = await service.findApplicationHistory('user-1', '   ');
+
+      expect(result).toEqual({ company: null, stats: null, recentJobs: [] });
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.groupBy).not.toHaveBeenCalled();
+    });
+
+    it('returns nothing for an unknown name', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      const result = await service.findApplicationHistory('user-1', 'Nope');
+
+      expect(result).toEqual({ company: null, stats: null, recentJobs: [] });
+      expect(mockPrisma.job.findMany).not.toHaveBeenCalled();
+    });
+
+    it("matches the trimmed name case-insensitively within the user's companies", async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'Systems Limited',
+      });
+      const jobs = [
+        { id: 'j1', position: 'Dev', status: 'APPLIED', appliedAt: new Date() },
+      ];
+      mockPrisma.job.findMany.mockResolvedValue(jobs);
+
+      const result = await service.findApplicationHistory(
+        'user-1',
+        '  systems limited ',
+      );
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          name: { equals: 'systems limited', mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockPrisma.job.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'user-1', companyId: 'c1' },
+          take: 3,
+        }),
+      );
+      expect(result).toEqual({
+        company: { id: 'c1', name: 'Systems Limited' },
+        stats: {
+          applied: 0,
+          replied: 0,
+          ghosted: 0,
+          replyRate: 0,
+          lastAppliedAt: null,
+        },
+        recentJobs: jobs,
+      });
+    });
   });
 
   describe('findOne', () => {
@@ -205,7 +309,26 @@ describe('CompaniesService', () => {
 
       const result = await service.findOne('user-1', 'company-1');
 
-      expect(result).toEqual({ id: 'company-1', contacts: [] });
+      expect(result).toEqual({
+        id: 'company-1',
+        contacts: [],
+        applicationStats: {
+          applied: 0,
+          replied: 0,
+          ghosted: 0,
+          replyRate: 0,
+          lastAppliedAt: null,
+        },
+      });
+    });
+
+    it('does not query application stats for a company it cannot find', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      await expect(service.findOne('user-1', 'company-x')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(mockPrisma.job.groupBy).not.toHaveBeenCalled();
     });
 
     // Phase 6 (docs/specs/company-fk-phase6.md)

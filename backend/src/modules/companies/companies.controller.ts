@@ -42,6 +42,8 @@ import { CompanyResponseDto } from './dto/company-response.dto.js';
 import { DuplicateSuggestionDto } from './dto/duplicate-suggestion.dto.js';
 import { PaginatedCompaniesDto } from './dto/paginated-companies.dto.js';
 import { CsvImportResultDto } from './dto/csv-import-result.dto.js';
+import { CompanyApplicationHistoryQueryDto } from './dto/company-application-history-query.dto.js';
+import { CompanyApplicationHistoryDto } from './dto/company-application-history.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
@@ -97,6 +99,20 @@ export class CompaniesController {
   @ApiOkResponse({ type: DuplicateSuggestionDto, isArray: true })
   findDuplicates(@CurrentUser() user: { id: string }) {
     return this.companiesService.findDuplicateSuggestions(user.id);
+  }
+
+  @Get('application-history')
+  // Before GET :id for the same reason as /duplicates.
+  @ApiOperation({
+    summary:
+      'Past applications to a company, by case-insensitive name (job-create confirm)',
+  })
+  @ApiOkResponse({ type: CompanyApplicationHistoryDto })
+  findApplicationHistory(
+    @CurrentUser() user: { id: string },
+    @Query() query: CompanyApplicationHistoryQueryDto,
+  ) {
+    return this.companiesService.findApplicationHistory(user.id, query.name);
   }
 
   @Get(':id')
