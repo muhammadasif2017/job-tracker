@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { JobForm } from './job-form';
 import type { Job } from '../../types';
@@ -224,6 +230,147 @@ describe('JobForm', () => {
         discoverySource: 'LINKEDIN',
         applicationChannel: 'REFERRAL',
       });
+    });
+  });
+
+  describe('company history confirm (create only)', () => {
+    const history = {
+      company: { id: 'c-1', name: 'Acme' },
+      stats: {
+        applied: 2,
+        replied: 1,
+        ghosted: 1,
+        replyRate: 50,
+        lastAppliedAt: '2026-08-20T00:00:00.000Z',
+      },
+      recentJobs: [
+        {
+          id: 'old-1',
+          position: 'Backend Engineer',
+          status: 'GHOSTED' as const,
+          appliedAt: '2026-08-20T00:00:00.000Z',
+        },
+      ],
+    };
+
+    const mockHistory = (data: unknown) =>
+      vi
+        .mocked(api.get)
+        .mockImplementation((url: string) =>
+          url === '/companies/application-history'
+            ? Promise.resolve({ data })
+            : Promise.resolve({ data: { data: [] } }),
+        );
+
+    it('shows past jobs at the company instead of saving', async () => {
+      mockHistory(history);
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+        'You applied to Acme 2 times, last on Aug 20, 2026.',
+      );
+      expect(screen.getByText('1 replied, 1 ghosted.')).toBeInTheDocument();
+      expect(screen.getByText('Backend Engineer')).toBeInTheDocument();
+      expect(vi.mocked(api.get)).toHaveBeenCalledWith(
+        '/companies/application-history',
+        { params: { name: 'Acme' } },
+      );
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('saves on "Add anyway"', async () => {
+      mockHistory(history);
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      fireEvent.click(
+        await screen.findByRole('button', { name: /add anyway/i }),
+      );
+
+      await waitFor(() =>
+        expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+          '/jobs',
+          expect.objectContaining({ company: 'Acme' }),
+        ),
+      );
+      expect(await screen.findByText('Job Added')).toBeInTheDocument();
+    });
+
+    it('returns to the form on Cancel without saving', async () => {
+      mockHistory(history);
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      const dialog = await screen.findByRole('alertdialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /add job/i }),
+      ).toBeInTheDocument();
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it('re-checks when the company changed while the confirm was open', async () => {
+      mockHistory(history);
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await screen.findByRole('alertdialog');
+
+      mockHistory({ company: null, stats: null, recentJobs: [] });
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Globex' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add anyway/i }));
+
+      await waitFor(() =>
+        expect(vi.mocked(api.post)).toHaveBeenCalledWith(
+          '/jobs',
+          expect.objectContaining({ company: 'Globex' }),
+        ),
+      );
+      expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(
+        '/companies/application-history',
+        { params: { name: 'Globex' } },
+      );
+    });
+
+    it('saves straight away for a company with no jobs', async () => {
+      mockHistory({ company: null, stats: null, recentJobs: [] });
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    });
+
+    it('saves anyway when the history lookup fails', async () => {
+      vi.mocked(api.get).mockRejectedValue(new Error('network'));
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
+    });
+
+    it('never checks history when editing', async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: job });
+      renderForm({ job });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      expect(vi.mocked(api.get)).not.toHaveBeenCalledWith(
+        '/companies/application-history',
+        expect.anything(),
+      );
     });
   });
 

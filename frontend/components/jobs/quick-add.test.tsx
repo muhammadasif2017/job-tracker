@@ -110,6 +110,47 @@ describe('QuickAdd', () => {
     expect(screen.getByLabelText(/position/i)).toHaveValue('Senior Engineer');
   });
 
+  it('shows the company history confirm when saving the parsed job', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: { company: 'Acme', position: 'Senior Engineer' },
+    });
+    vi.mocked(api.get).mockResolvedValue({
+      data: {
+        company: { id: 'c-1', name: 'Acme' },
+        stats: {
+          applied: 1,
+          replied: 0,
+          ghosted: 1,
+          replyRate: 0,
+          lastAppliedAt: '2026-08-01T00:00:00.000Z',
+        },
+        recentJobs: [
+          {
+            id: 'old-1',
+            position: 'Old Role',
+            status: 'GHOSTED',
+            appliedAt: '2026-08-01T00:00:00.000Z',
+          },
+        ],
+      },
+    });
+    renderQuickAdd();
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      { target: { value: 'Senior Engineer at Acme' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+    await screen.findByText('Add Job');
+    vi.mocked(api.post).mockClear();
+
+    fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+    expect(await screen.findByRole('alertdialog')).toHaveTextContent(
+      'You applied to Acme 1 time',
+    );
+    expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+  });
+
   it('leaves the job-form field blank when the parser returns null for it', async () => {
     vi.mocked(api.post).mockResolvedValue({
       data: { company: 'Acme', position: null, location: null },

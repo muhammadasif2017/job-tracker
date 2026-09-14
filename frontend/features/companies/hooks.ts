@@ -4,6 +4,7 @@ import api, { getErrorMessage } from '../../lib/api';
 import type {
   BusinessMode,
   Company,
+  CompanyApplicationHistory,
   CompanyCity,
   CsvImportResult,
   DuplicateSuggestion,
@@ -43,6 +44,16 @@ export interface CompaniesFilters {
 
 function invalidateCompanyListCaches(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['companies'] });
+}
+
+// Not a query hook: the job-create confirm needs the history for exactly the
+// name being submitted, at submit time (docs/specs/company-reply-history.md).
+export function fetchCompanyApplicationHistory(name: string) {
+  return api
+    .get<CompanyApplicationHistory>('/companies/application-history', {
+      params: { name },
+    })
+    .then((r) => r.data);
 }
 
 export function useCompaniesQuery(filters: CompaniesFilters) {

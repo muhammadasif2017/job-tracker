@@ -108,6 +108,12 @@ export function CompanyList({
                   >
                     {company.name}
                   </Link>
+                  {!!company.applicationStats?.applied && (
+                    <p className="mt-0.5 text-xs text-muted">
+                      {company.applicationStats.applied} applied ·{' '}
+                      {company.applicationStats.replyRate}% replied
+                    </p>
+                  )}
                   {company.businessMode === null &&
                     company.productDescription && (
                       <p className="mt-0.5 text-xs text-muted">
