@@ -1145,7 +1145,11 @@ describe('Job Tracker (e2e)', () => {
       await agent
         .post(`/jobs/${promoJobId}/interview-rounds`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Phone Screen', scheduledAt: '2026-08-01' })
+        .send({
+          stage: 'Phone Screen',
+          scheduledAt: '2026-08-01',
+          durationMinutes: 60,
+        })
         .expect(201);
 
       const job = await agent
@@ -1171,7 +1175,11 @@ describe('Job Tracker (e2e)', () => {
       await agent
         .post(`/jobs/${promoJobId}/interview-rounds`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Technical Round', scheduledAt: '2026-08-10' })
+        .send({
+          stage: 'Technical Round',
+          scheduledAt: '2026-08-10',
+          durationMinutes: 60,
+        })
         .expect(201);
 
       const eventsAfterSecondRound = await agent
@@ -1183,7 +1191,7 @@ describe('Job Tracker (e2e)', () => {
           expect.objectContaining({
             type: 'INTERVIEW_ROUND_ADDED',
             toStatus: 'INTERVIEWING',
-            note: 'Technical Round',
+            note: 'Technical Round - Aug 10, 2026, 12:00 AM UTC',
           }),
         ]),
       );
@@ -1197,7 +1205,11 @@ describe('Job Tracker (e2e)', () => {
       const res = await agent
         .post(`/jobs/${jobId}/interview-rounds`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Phone Screen', scheduledAt: future })
+        .send({
+          stage: 'Phone Screen',
+          scheduledAt: future,
+          durationMinutes: 60,
+        })
         .expect(201);
 
       expect(res.body.stage).toBe('Phone Screen');
@@ -1215,21 +1227,33 @@ describe('Job Tracker (e2e)', () => {
       agent
         .post(`/jobs/${jobId}/interview-rounds`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Onsite', scheduledAt: '2099-01-01' })
+        .send({
+          stage: 'Onsite',
+          scheduledAt: '2099-01-01',
+          durationMinutes: 60,
+        })
         .expect(400));
 
     it('rejects a scheduledAt more than 2 years in the past with 400', () =>
       agent
         .post(`/jobs/${jobId}/interview-rounds`)
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Onsite', scheduledAt: '2001-01-01' })
+        .send({
+          stage: 'Onsite',
+          scheduledAt: '2001-01-01',
+          durationMinutes: 60,
+        })
         .expect(400));
 
     it('returns 404 for a non-existent job', () =>
       agent
         .post('/jobs/nonexistent-id/interview-rounds')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ stage: 'Phone Screen', scheduledAt: '2026-08-01' })
+        .send({
+          stage: 'Phone Screen',
+          scheduledAt: '2026-08-01',
+          durationMinutes: 60,
+        })
         .expect(404));
   });
 
