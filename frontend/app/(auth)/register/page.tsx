@@ -42,6 +42,14 @@ export default function RegisterPage() {
         name: data.name,
         email: data.email,
         password: data.password,
+        // Read here rather than at module scope so it reflects the browser at
+        // submit time. Without it every new account sits on the column default
+        // of UTC until the user happens to open Profile, and the Timeline
+        // notes on their interview rounds are stamped in UTC forever (they are
+        // written once, at create time). The backend falls back to UTC if this
+        // is missing or unusable, so a browser without Intl support still
+        // registers fine.
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       const { data: user } = await api.get('/auth/me', {
         headers: { Authorization: `Bearer ${tokens.accessToken}` },

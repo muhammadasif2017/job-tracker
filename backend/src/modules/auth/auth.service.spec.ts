@@ -197,6 +197,60 @@ describe('AuthService', () => {
       expect(mockPrisma.refreshToken.create).toHaveBeenCalled();
       expect(result).toEqual({ accessToken: 'token', refreshToken: 'token' });
     });
+
+    it('stores the timezone the browser reported', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ id: '1', email: 'a@b.com' });
+
+      await service.register({
+        email: 'a@b.com',
+        password: 'pass12345',
+        name: 'A',
+        timezone: 'Asia/Karachi',
+      });
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ timezone: 'Asia/Karachi' }),
+      });
+    });
+
+    // Intl.supportedValuesOf('timeZone') lists one name per zone, and on Node
+    // that is the legacy alias. Browsers report the modern name, so rejecting
+    // anything outside that list would block signup from India or Ukraine.
+    it('accepts a modern zone name Intl.supportedValuesOf omits', async () => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ id: '1', email: 'a@b.com' });
+
+      await service.register({
+        email: 'a@b.com',
+        password: 'pass12345',
+        name: 'A',
+        timezone: 'Asia/Kolkata',
+      });
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ timezone: 'Asia/Kolkata' }),
+      });
+    });
+
+    it.each([
+      ['omitted', undefined],
+      ['unusable', 'Not/AZone'],
+    ])('falls back to UTC when the timezone is %s', async (_label, tz) => {
+      mockPrisma.user.findUnique.mockResolvedValue(null);
+      mockPrisma.user.create.mockResolvedValue({ id: '1', email: 'a@b.com' });
+
+      await service.register({
+        email: 'a@b.com',
+        password: 'pass12345',
+        name: 'A',
+        timezone: tz,
+      });
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ timezone: 'UTC' }),
+      });
+    });
   });
 
   describe('exchangeApiToken', () => {

@@ -107,6 +107,9 @@ describe('RegisterPage', () => {
         name: 'Jane Doe',
         email: 'jane@example.com',
         password: 'longenough1',
+        // Detected from the browser so the account starts in the user's own
+        // zone instead of the UTC column default.
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       }),
     );
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/auth/me', {

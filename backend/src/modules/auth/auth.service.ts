@@ -14,6 +14,7 @@ import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { safeTimeZone } from '../../common/timezone.util.js';
 import {
   API_TOKEN_PREFIX,
   PAT_SCOPE,
@@ -97,7 +98,16 @@ export class AuthService implements OnModuleDestroy {
 
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
-      data: { name: dto.name, email: dto.email, password: hashed },
+      data: {
+        name: dto.name,
+        email: dto.email,
+        password: hashed,
+        // safeTimeZone accepts any zone Intl can actually use (including the
+        // modern names Intl.supportedValuesOf omits) and returns 'UTC' for
+        // anything it can't, so a missing or junk value lands on the same
+        // default the column would have used.
+        timezone: safeTimeZone(dto.timezone),
+      },
     });
 
     return this.issueTokens(user.id, user.email);
