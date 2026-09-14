@@ -544,6 +544,18 @@ export interface CompanyApplicationStats {
   lastAppliedAt: string | null;
 }
 
+// GET /companies/application-history — backs the job-create confirm.
+export interface CompanyApplicationHistory {
+  company: { id: string; name: string } | null;
+  stats: CompanyApplicationStats | null;
+  recentJobs: {
+    id: string;
+    position: string;
+    status: JobStatus;
+    appliedAt: string;
+  }[];
+}
+
 export interface Company {
   id: string;
   name: string;

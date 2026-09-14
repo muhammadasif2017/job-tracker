@@ -12,6 +12,7 @@ import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
 import { ResumeUpload } from './resume-upload';
+import { CompanyHistoryConfirm } from './company-history-confirm';
 import {
   JOB_PRIORITIES,
   DISCOVERY_SOURCES,
@@ -27,9 +28,11 @@ import {
   type MatchedCompany,
   type Company,
   type PaginatedCompanies,
+  type CompanyApplicationHistory,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
 import { toDateInputValue, todayInputValue } from '../../lib/utils';
+import { fetchCompanyApplicationHistory } from '../../features/companies/hooks';
 
 function useDebounce<T>(value: T, delay = 300): T {
   const [debounced, setDebounced] = useState(value);
@@ -90,6 +93,10 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     null,
   );
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  // Create only: past jobs at the submitted company, awaiting "Add anyway".
+  const [companyHistory, setCompanyHistory] =
+    useState<CompanyApplicationHistory | null>(null);
+  const [checkingHistory, setCheckingHistory] = useState(false);
 
   const {
     register,
@@ -142,6 +149,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   }, [debouncedCompany, companyFocused, isEdit]);
 
   const handleClose = () => {
+    setCompanyHistory(null);
     setCreatedJobId(null);
     setMatchedCompany(null);
     setBannerDismissed(false);
@@ -207,6 +215,9 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       qc.invalidateQueries({ queryKey: ['stats'] });
       qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
       qc.invalidateQueries({ queryKey: ['attention'] });
+      // Company list rows and detail pages carry application stats.
+      qc.invalidateQueries({ queryKey: ['companies'] });
+      qc.invalidateQueries({ queryKey: ['company'] });
       if (isEdit) {
         qc.invalidateQueries({ queryKey: ['job', job.id] });
         toast.success('Job updated');
@@ -214,12 +225,49 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         onClose();
       } else {
         toast.success('Job added');
+        setCompanyHistory(null);
         setCreatedJobId(data.id);
         setMatchedCompany(data.matchedCompany ?? null);
       }
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Something went wrong')),
+  });
+
+  // docs/specs/company-reply-history.md — before creating, show past jobs at
+  // the same company. Advisory only: a failed lookup saves anyway.
+  const submitCreate = async (data: FormData) => {
+    setCheckingHistory(true);
+    let history: CompanyApplicationHistory | null = null;
+    try {
+      history = await fetchCompanyApplicationHistory(data.company);
+    } catch {
+      history = null;
+    } finally {
+      setCheckingHistory(false);
+    }
+    // Optional chaining: an unexpected response shape must not block saving.
+    if (history?.recentJobs?.length) {
+      setCompanyHistory(history);
+    } else {
+      mutation.mutate(data);
+    }
+  };
+
+  const onSubmit = (data: FormData) =>
+    isEdit ? mutation.mutate(data) : submitCreate(data);
+
+  // "Add anyway" saves the form as it is now. If the company was edited while
+  // the confirm was open, the shown history is for another name, so check
+  // again instead.
+  const confirmCreate = handleSubmit((data) => {
+    const shown = companyHistory?.company?.name.toLowerCase();
+    if (shown === data.company.trim().toLowerCase()) {
+      mutation.mutate(data);
+      return;
+    }
+    setCompanyHistory(null);
+    return submitCreate(data);
   });
 
   if (createdJobId) {
@@ -274,11 +322,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
       onClose={handleClose}
       title={isEdit ? 'Edit Job' : 'Add Job'}
     >
-      <form
-        onSubmit={handleSubmit((d) => mutation.mutate(d))}
-        className="space-y-4"
-        noValidate
-      >
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="relative">
             <Input
@@ -452,14 +496,26 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         {isEdit && (
           <ResumeUpload jobId={job.id} initialResume={job.resume ?? null} />
         )}
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={mutation.isPending}>
-            {isEdit ? 'Save changes' : 'Add job'}
-          </Button>
-        </div>
+        {companyHistory ? (
+          <CompanyHistoryConfirm
+            history={companyHistory}
+            onConfirm={confirmCreate}
+            onCancel={() => setCompanyHistory(null)}
+            loading={mutation.isPending}
+          />
+        ) : (
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={mutation.isPending || checkingHistory}
+            >
+              {isEdit ? 'Save changes' : 'Add job'}
+            </Button>
+          </div>
+        )}
       </form>
     </Modal>
   );
