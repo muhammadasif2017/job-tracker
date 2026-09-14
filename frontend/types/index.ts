@@ -231,6 +231,13 @@ export interface AttentionItem {
   job: Job;
 }
 
+// A job with no activity for 14 days that may be ghosted (suggest-only).
+// `since` is the last activity: latest event, last dismissal, or applied date.
+export interface GhostSuggestion {
+  since: string;
+  job: Job;
+}
+
 export interface JobStats {
   total: number;
   byStatus: Record<JobStatus, number>;

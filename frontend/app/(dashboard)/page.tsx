@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
+import { GhostSuggestionsCard } from '../../components/dashboard/ghost-suggestions-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
@@ -131,7 +132,10 @@ export default function DashboardPage() {
         />
       </div>
 
-      <AttentionCard />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AttentionCard />
+        <GhostSuggestionsCard />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard

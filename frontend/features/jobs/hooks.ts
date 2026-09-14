@@ -45,11 +45,16 @@ export function jobFilterParams(filters: JobsFilterValues): URLSearchParams {
   return params;
 }
 
-function invalidateJobListCaches(qc: QueryClient) {
+// Exported for the dashboard's ghost-suggestion actions, which change the
+// same lists and counts.
+export function invalidateJobListCaches(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['jobs'] });
   qc.invalidateQueries({ queryKey: ['stats'] });
   qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
   qc.invalidateQueries({ queryKey: ['attention'] });
+  // Any status change can add or remove a "looks ghosted" suggestion — and
+  // the list/kanban badges read the same query.
+  qc.invalidateQueries({ queryKey: ['ghost-suggestions'] });
 }
 
 export function useJobsQuery(filters: JobsFilters) {
