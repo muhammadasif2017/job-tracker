@@ -5,6 +5,7 @@ import {
   createTestJob,
   deleteTestJob,
   injectAuth,
+  API,
   type TestUser,
 } from './fixtures';
 
@@ -64,7 +65,9 @@ test.describe('Dashboard', () => {
     await injectAuth(page, user);
     await page.goto('/');
 
-    await expect(page.getByText('Dash Corp')).toBeVisible();
+    // exact: the job's LLM timeline summary can mention the company name too,
+    // which made a substring match resolve to two elements.
+    await expect(page.getByText('Dash Corp', { exact: true })).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id);
   });
@@ -158,5 +161,61 @@ test.describe('Dashboard', () => {
 
     await expect(page.getByText(user.name)).toBeVisible();
     await expect(page.getByText(user.email)).toBeVisible();
+  });
+  test('Looks Ghosted card marks a silent application ghosted', async ({
+    page,
+  }) => {
+    const job = await createTestJob(user.accessToken, {
+      company: 'Silent Corp',
+    });
+
+    // Nothing here can make a job 14 days silent — the API can't backdate
+    // events, and this suite has no database access. So only the suggestion
+    // list is faked at the network boundary (the rule itself is covered
+    // against a real database in backend/test/app.e2e-spec.ts). The Mark
+    // ghosted click still goes to the real PATCH /jobs/:id.
+    let marked = false;
+    await page.route(`${API}/jobs/ghost-suggestions`, async (route) => {
+      if (marked) return route.continue();
+      await route.fulfill({
+        json: [{ since: new Date(Date.now() - 20 * 86_400_000), job }],
+      });
+    });
+    page.on('request', (request) => {
+      if (
+        request.method() === 'PATCH' &&
+        request.url() === `${API}/jobs/${job.id}`
+      ) {
+        marked = true;
+      }
+    });
+
+    await injectAuth(page, user);
+    await page.goto('/');
+
+    const card = page
+      .locator('.rounded-md')
+      .filter({ hasText: /^Looks Ghosted/ })
+      .first();
+    await expect(card.getByText('Silent Corp')).toBeVisible();
+    await expect(
+      card.getByRole('button', { name: 'Mark all ghosted (1)' }),
+    ).toBeVisible();
+
+    await card
+      .getByRole('button', { name: 'Mark Silent Corp as ghosted' })
+      .click();
+
+    await expect(
+      card.getByText(
+        'Nothing looks ghosted — every application had recent activity.',
+      ),
+    ).toBeVisible();
+    const res = await fetch(`${API}/jobs/${job.id}`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
+    expect(((await res.json()) as { status: string }).status).toBe('GHOSTED');
+
+    await deleteTestJob(user.accessToken, job.id);
   });
 });
