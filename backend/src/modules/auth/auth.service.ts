@@ -24,6 +24,16 @@ import {
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
 
+// What an OAuth sign-in hands to the callback controller and parks behind the
+// one-time code. `userId` and `isNewUser` stay server-side: exchangeOAuthCode
+// uses them and returns only the tokens.
+export interface OAuthLoginResult {
+  accessToken: string;
+  refreshToken: string;
+  userId?: string;
+  isNewUser?: boolean;
+}
+
 // Refresh tokens are signed JWTs — long, high-entropy secrets, not
 // user-chosen passwords — so a fast digest is the right primitive here.
 // bcrypt was not merely unnecessary, it was actively wrong: it silently
@@ -168,10 +178,7 @@ export class AuthService implements OnModuleDestroy {
     return { message: 'Logged out successfully' };
   }
 
-  async storeOAuthCode(tokens: {
-    accessToken: string;
-    refreshToken: string;
-  }): Promise<string> {
+  async storeOAuthCode(tokens: OAuthLoginResult): Promise<string> {
     const code = randomUUID();
     await this.redis.set(
       OAUTH_CODE_PREFIX + code,
@@ -184,6 +191,7 @@ export class AuthService implements OnModuleDestroy {
 
   async exchangeOAuthCode(
     code: string,
+    timezone?: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
     // GETDEL (Redis 6.2+; prod runs 7.4) reads and removes the key in one
     // atomic command, so exactly one caller can ever be handed a given code.
@@ -195,7 +203,32 @@ export class AuthService implements OnModuleDestroy {
     if (!raw) {
       throw new ForbiddenException('OAuth code expired or already used');
     }
-    return JSON.parse(raw) as { accessToken: string; refreshToken: string };
+    const { accessToken, refreshToken, userId, isNewUser } = JSON.parse(
+      raw,
+    ) as OAuthLoginResult;
+
+    // The OAuth user row is created during the provider's server-side
+    // redirect, where no browser timezone is available, so it starts on the
+    // UTC column default. This exchange is the first request the browser
+    // makes, so it carries the zone instead. Only a user this very sign-in
+    // created is updated: an existing user keeps whatever zone they chose,
+    // even when signing in from somewhere else. A failed write must not cost
+    // the sign-in, since the code above is already spent.
+    if (isNewUser && userId && timezone) {
+      try {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { timezone: safeTimeZone(timezone) },
+        });
+      } catch (err) {
+        this.logger.warn(
+          `Could not store the signup timezone for user ${userId}`,
+          err,
+        );
+      }
+    }
+
+    return { accessToken, refreshToken };
   }
 
   async handleOAuthUser(
@@ -204,13 +237,19 @@ export class AuthService implements OnModuleDestroy {
     email: string,
     name: string,
     avatarUrl?: string,
-  ) {
+  ): Promise<OAuthLoginResult> {
     // 1. Find by provider account
     const account = await this.prisma.account.findUnique({
       where: { provider_providerAccountId: { provider, providerAccountId } },
       include: { user: true },
     });
-    if (account) return this.issueTokens(account.user.id, account.user.email);
+    if (account) {
+      const tokens = await this.issueTokens(
+        account.user.id,
+        account.user.email,
+      );
+      return { ...tokens, userId: account.user.id, isNewUser: false };
+    }
 
     // 2. Find by email and link, or create new user
     let user = await this.prisma.user.findUnique({ where: { email } });
@@ -221,6 +260,9 @@ export class AuthService implements OnModuleDestroy {
         'An account with this email already exists. Log in with your password first, then link this provider from account settings.',
       );
     }
+    // Linking onto an existing password-less user is not a new user: they may
+    // already have chosen a timezone.
+    const isNewUser = !user;
     if (!user) {
       user = await this.prisma.user.create({
         data: { email, name, avatarUrl },
@@ -231,7 +273,8 @@ export class AuthService implements OnModuleDestroy {
       data: { provider, providerAccountId, userId: user.id },
     });
 
-    return this.issueTokens(user.id, user.email);
+    const tokens = await this.issueTokens(user.id, user.email);
+    return { ...tokens, userId: user.id, isNewUser };
   }
 
   // Exchanges a long-lived personal access token (see TokensModule) for a

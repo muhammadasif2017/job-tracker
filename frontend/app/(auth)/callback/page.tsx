@@ -23,7 +23,14 @@ function CallbackHandler() {
     }
 
     api
-      .post('/auth/exchange-code', { code })
+      .post('/auth/exchange-code', {
+        code,
+        // An OAuth account is created during the provider redirect, before any
+        // browser code runs, so this is the first chance to tell the backend
+        // the user's zone. It is only stored for an account this sign-in just
+        // created; returning users keep the timezone they already have.
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      })
       .then(({ data }) => {
         const { accessToken } = data;
         return api

@@ -758,6 +758,8 @@ export interface components {
        * @description Short-lived UUID code from OAuth redirect
        */
       code: string;
+      /** @example Asia/Karachi */
+      timezone?: string;
     };
     ExchangeApiTokenDto: {
       /**
