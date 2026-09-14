@@ -1311,6 +1311,71 @@ describe('Job Tracker (e2e)', () => {
       ).find((c) => c.id === companyId);
       expect(row?.applicationStats).toEqual(expected());
     });
+
+    it('returns history for a case-insensitive name match', async () => {
+      const res = await agent
+        .get('/companies/application-history')
+        .query({ name: '  e2e STATS co ' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.company).toEqual({ id: companyId, name: 'E2E Stats Co' });
+      expect(res.body.stats).toEqual(expected());
+      // Newest appliedAt first, any status: the wishlist job (1 day ago)
+      // leads, and another user's job is never listed.
+      expect(res.body.recentJobs).toHaveLength(3);
+      expect(res.body.recentJobs[0].status).toBe('WISHLIST');
+      expect(
+        (res.body.recentJobs as { id: string }[]).every((j) =>
+          jobIds.slice(0, 7).includes(j.id),
+        ),
+      ).toBe(true);
+    });
+
+    it('returns no history for an unknown or blank name', async () => {
+      for (const name of ['E2E No Such Co', '   ']) {
+        const res = await agent
+          .get('/companies/application-history')
+          .query({ name })
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+        expect(res.body).toEqual({
+          company: null,
+          stats: null,
+          recentJobs: [],
+        });
+      }
+    });
+
+    it("does not reveal another user's company", async () => {
+      const otherCompany = await prisma.company.create({
+        data: {
+          userId: (
+            await prisma.user.findUniqueOrThrow({
+              where: { email: STATS_OTHER_EMAIL },
+            })
+          ).id,
+          name: 'E2E Stats Other Only Co',
+          city: 'LAHORE',
+        },
+      });
+      try {
+        const res = await agent
+          .get('/companies/application-history')
+          .query({ name: 'E2E Stats Other Only Co' })
+          .set('Authorization', `Bearer ${accessToken}`)
+          .expect(200);
+        expect(res.body.company).toBeNull();
+      } finally {
+        await prisma.company.delete({ where: { id: otherCompany.id } });
+      }
+    });
+
+    it('rejects a missing name with 400', () =>
+      agent
+        .get('/companies/application-history')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400));
   });
 
   describe('DELETE /companies/:id', () => {

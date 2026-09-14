@@ -30,6 +30,8 @@ import {
 // a personal target-companies list regardless of the duplicate-detection cost.
 const MAX_COMPANIES_PER_USER = 2000;
 
+const RECENT_HISTORY_JOBS = 3;
+
 @Injectable()
 export class CompaniesService {
   constructor(
@@ -220,6 +222,35 @@ export class CompaniesService {
     return {
       ...company,
       applicationStats: stats.get(company.id) ?? { ...EMPTY_APPLICATION_STATS },
+    };
+  }
+
+  // "Have I applied here before?" for the job-create confirm. Matches by name
+  // the same way JobsService.resolveCompanyId links a job (case-insensitive
+  // exact), since the create forms only know the typed name.
+  async findApplicationHistory(userId: string, name: string) {
+    const trimmed = name.trim();
+    const company = trimmed
+      ? await this.prisma.company.findFirst({
+          where: { userId, name: { equals: trimmed, mode: 'insensitive' } },
+          select: { id: true, name: true },
+        })
+      : null;
+    if (!company) return { company: null, stats: null, recentJobs: [] };
+
+    const [stats, recentJobs] = await Promise.all([
+      getCompanyApplicationStats(this.prisma, userId, [company.id]),
+      this.prisma.job.findMany({
+        where: { userId, companyId: company.id },
+        orderBy: [{ appliedAt: 'desc' }, { createdAt: 'desc' }],
+        take: RECENT_HISTORY_JOBS,
+        select: { id: true, position: true, status: true, appliedAt: true },
+      }),
+    ]);
+    return {
+      company,
+      stats: stats.get(company.id) ?? { ...EMPTY_APPLICATION_STATS },
+      recentJobs,
     };
   }
 

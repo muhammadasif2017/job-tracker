@@ -22,7 +22,7 @@ const mockPrisma = {
     deleteMany: jest.fn(),
     delete: jest.fn(),
   },
-  job: { updateMany: jest.fn(), groupBy: jest.fn() },
+  job: { updateMany: jest.fn(), groupBy: jest.fn(), findMany: jest.fn() },
   contact: { updateMany: jest.fn() },
   // Mirrors Prisma's interactive-transaction shape closely enough for unit
   // tests: hands the callback the same mock client, ignoring isolationLevel.
@@ -229,6 +229,66 @@ describe('CompaniesService', () => {
           },
         },
       ]);
+    });
+  });
+
+  describe('findApplicationHistory', () => {
+    it('returns nothing without querying for a blank name', async () => {
+      const result = await service.findApplicationHistory('user-1', '   ');
+
+      expect(result).toEqual({ company: null, stats: null, recentJobs: [] });
+      expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
+      expect(mockPrisma.job.groupBy).not.toHaveBeenCalled();
+    });
+
+    it('returns nothing for an unknown name', async () => {
+      mockPrisma.company.findFirst.mockResolvedValue(null);
+
+      const result = await service.findApplicationHistory('user-1', 'Nope');
+
+      expect(result).toEqual({ company: null, stats: null, recentJobs: [] });
+      expect(mockPrisma.job.findMany).not.toHaveBeenCalled();
+    });
+
+    it("matches the trimmed name case-insensitively within the user's companies", async () => {
+      mockPrisma.company.findFirst.mockResolvedValue({
+        id: 'c1',
+        name: 'Systems Limited',
+      });
+      const jobs = [
+        { id: 'j1', position: 'Dev', status: 'APPLIED', appliedAt: new Date() },
+      ];
+      mockPrisma.job.findMany.mockResolvedValue(jobs);
+
+      const result = await service.findApplicationHistory(
+        'user-1',
+        '  systems limited ',
+      );
+
+      expect(mockPrisma.company.findFirst).toHaveBeenCalledWith({
+        where: {
+          userId: 'user-1',
+          name: { equals: 'systems limited', mode: 'insensitive' },
+        },
+        select: { id: true, name: true },
+      });
+      expect(mockPrisma.job.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: 'user-1', companyId: 'c1' },
+          take: 3,
+        }),
+      );
+      expect(result).toEqual({
+        company: { id: 'c1', name: 'Systems Limited' },
+        stats: {
+          applied: 0,
+          replied: 0,
+          ghosted: 0,
+          replyRate: 0,
+          lastAppliedAt: null,
+        },
+        recentJobs: jobs,
+      });
     });
   });
 
