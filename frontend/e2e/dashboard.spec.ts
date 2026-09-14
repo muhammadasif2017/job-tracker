@@ -64,7 +64,9 @@ test.describe('Dashboard', () => {
     await injectAuth(page, user);
     await page.goto('/');
 
-    await expect(page.getByText('Dash Corp')).toBeVisible();
+    // exact: the job's LLM timeline summary can mention the company name too,
+    // which made a substring match resolve to two elements.
+    await expect(page.getByText('Dash Corp', { exact: true })).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id);
   });
