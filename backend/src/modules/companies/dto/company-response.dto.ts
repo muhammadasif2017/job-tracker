@@ -5,6 +5,7 @@ import {
   EnrichmentStatus,
   JobPriority,
 } from '@prisma/client';
+import { CompanyApplicationStatsDto } from './company-application-stats.dto.js';
 
 export class CompanyResponseDto {
   @ApiProperty({ format: 'cuid' })
@@ -72,4 +73,8 @@ export class CompanyResponseDto {
 
   @ApiProperty({ format: 'date-time' })
   updatedAt: Date;
+
+  // Only the read endpoints (GET /companies, GET /companies/:id) compute it.
+  @ApiPropertyOptional({ type: () => CompanyApplicationStatsDto })
+  applicationStats?: CompanyApplicationStatsDto;
 }

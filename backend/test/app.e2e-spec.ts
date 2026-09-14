@@ -17,6 +17,7 @@ const EMAIL = `e2e-${Date.now()}@test.dev`;
 const ADMIN_TARGET_EMAIL = `e2e-admin-target-${Date.now()}@test.dev`;
 const GHOST_OTHER_EMAIL = `e2e-ghost-other-${Date.now()}@test.dev`;
 const REPLIED_EMAIL = `e2e-replied-${Date.now()}@test.dev`;
+const STATS_OTHER_EMAIL = `e2e-stats-other-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
@@ -62,7 +63,13 @@ describe('Job Tracker (e2e)', () => {
     await prisma.user.deleteMany({
       where: {
         email: {
-          in: [EMAIL, ADMIN_TARGET_EMAIL, GHOST_OTHER_EMAIL, REPLIED_EMAIL],
+          in: [
+            EMAIL,
+            ADMIN_TARGET_EMAIL,
+            GHOST_OTHER_EMAIL,
+            REPLIED_EMAIL,
+            STATS_OTHER_EMAIL,
+          ],
         },
       },
     });
@@ -1187,6 +1194,123 @@ describe('Job Tracker (e2e)', () => {
         });
       }
     }, 30_000);
+  });
+
+  describe('GET /companies application stats', () => {
+    const DAY = 24 * 60 * 60 * 1000;
+    const daysAgo = (n: number) => new Date(Date.now() - n * DAY);
+    const jobIds: string[] = [];
+    let companyId: string;
+    const recentAppliedAt = daysAgo(2);
+
+    // Row-level cases for docs/specs/company-reply-history.md: the helper's
+    // unit spec pins the where clauses, this proves the database agrees.
+    beforeAll(async () => {
+      const other = await prisma.user.create({
+        data: { email: STATS_OTHER_EMAIL, name: 'Stats Other', password: 'x' },
+      });
+      const company = await prisma.company.create({
+        data: { userId, name: 'E2E Stats Co', city: 'LAHORE' },
+      });
+      companyId = company.id;
+      const seed = async (data: {
+        status: 'WISHLIST' | 'APPLIED' | 'INTERVIEWING' | 'GHOSTED';
+        lastEventDaysAgo: number;
+        appliedAt?: Date;
+        dismissedDaysAgo?: number;
+        nextInterviewAt?: Date;
+        owner?: string;
+      }) => {
+        const job = await prisma.job.create({
+          data: {
+            userId: data.owner ?? userId,
+            companyId,
+            company: 'E2E Stats Co',
+            position: 'Engineer',
+            status: data.status,
+            appliedAt: data.appliedAt ?? daysAgo(30),
+            nextInterviewAt: data.nextInterviewAt,
+            ghostSuggestionDismissedAt:
+              data.dismissedDaysAgo === undefined
+                ? undefined
+                : daysAgo(data.dismissedDaysAgo),
+            events: {
+              create: {
+                type: 'CREATED',
+                toStatus: data.status,
+                createdAt: daysAgo(data.lastEventDaysAgo),
+              },
+            },
+          },
+        });
+        jobIds.push(job.id);
+      };
+      // Silent application: applied + ghosted.
+      await seed({ status: 'APPLIED', lastEventDaysAgo: 20 });
+      // Replied, then went silent: replied + ghosted.
+      await seed({ status: 'INTERVIEWING', lastEventDaysAgo: 20 });
+      // A dismissed suggestion still counts as ghosted.
+      await seed({
+        status: 'APPLIED',
+        lastEventDaysAgo: 20,
+        dismissedDaysAgo: 3,
+      });
+      // An interview still ahead is not silence: replied only.
+      await seed({
+        status: 'INTERVIEWING',
+        lastEventDaysAgo: 20,
+        nextInterviewAt: new Date(Date.now() + 2 * DAY),
+      });
+      await seed({ status: 'GHOSTED', lastEventDaysAgo: 20 });
+      // Recent and active: applied only, and the latest application.
+      await seed({
+        status: 'APPLIED',
+        lastEventDaysAgo: 2,
+        appliedAt: recentAppliedAt,
+      });
+      // Excluded: a wishlist job (newest appliedAt) and another user's job.
+      await seed({
+        status: 'WISHLIST',
+        lastEventDaysAgo: 20,
+        appliedAt: daysAgo(1),
+      });
+      await seed({ status: 'APPLIED', lastEventDaysAgo: 20, owner: other.id });
+    });
+
+    afterAll(async () => {
+      await prisma.job.deleteMany({ where: { id: { in: jobIds } } });
+      await prisma.company.deleteMany({ where: { id: companyId } });
+    });
+
+    const expected = () => ({
+      applied: 6,
+      replied: 2,
+      ghosted: 4,
+      replyRate: 33.3,
+      lastAppliedAt: recentAppliedAt.toISOString(),
+    });
+
+    it('returns application stats on the company detail', async () => {
+      const res = await agent
+        .get(`/companies/${companyId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.applicationStats).toEqual(expected());
+    });
+
+    it('returns application stats on each companies list row', async () => {
+      const res = await agent
+        .get('/companies')
+        .query({ search: 'E2E Stats Co' })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const row = (
+        res.body.data as { id: string; applicationStats: unknown }[]
+      ).find((c) => c.id === companyId);
+      expect(row?.applicationStats).toEqual(expected());
+    });
   });
 
   describe('DELETE /companies/:id', () => {

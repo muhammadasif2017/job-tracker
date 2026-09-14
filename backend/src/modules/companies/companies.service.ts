@@ -19,6 +19,10 @@ import {
   similarityRatio,
 } from '../../common/similarity.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+import {
+  EMPTY_APPLICATION_STATS,
+  getCompanyApplicationStats,
+} from './company-application-stats.helper.js';
 
 // Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
 // docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
@@ -171,9 +175,18 @@ export class CompaniesService {
       }),
       this.prisma.company.count({ where }),
     ]);
+    // Page ids only — a fixed three queries however large the page.
+    const stats = await getCompanyApplicationStats(
+      this.prisma,
+      userId,
+      companies.map((c) => c.id),
+    );
 
     return {
-      data: companies,
+      data: companies.map((c) => ({
+        ...c,
+        applicationStats: stats.get(c.id) ?? { ...EMPTY_APPLICATION_STATS },
+      })),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -201,7 +214,13 @@ export class CompaniesService {
       },
     });
     if (!company) throw new NotFoundException('Company not found');
-    return company;
+    const stats = await getCompanyApplicationStats(this.prisma, userId, [
+      company.id,
+    ]);
+    return {
+      ...company,
+      applicationStats: stats.get(company.id) ?? { ...EMPTY_APPLICATION_STATS },
+    };
   }
 
   // Lean ownership check for write operations that don't need the contacts JOIN.
