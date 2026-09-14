@@ -16,6 +16,7 @@ import {
   STATUS_LABELS,
   STATUS_FILL_CLASSES,
   APPLICATION_CHANNEL_LABELS,
+  DISCOVERY_SOURCE_LABELS,
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 
@@ -88,6 +89,30 @@ function MiniBarChart({
   );
 }
 
+const plural = (n: number, one: string, many: string) =>
+  `${n} ${n === 1 ? one : many}`;
+
+function ReplyTiming({ timing }: { timing: FunnelStats['replyTiming'] }) {
+  if (timing.medianDays === null) {
+    return <p className="text-muted-2">No replies yet</p>;
+  }
+  return (
+    <div>
+      <p className="font-display text-2xl font-semibold tracking-tight text-ink">
+        {plural(timing.medianDays, 'day', 'days')}
+      </p>
+      <p className="text-xs text-muted">
+        median across {plural(timing.repliedCount, 'reply', 'replies')}
+      </p>
+      {/* Measured against the 14-day "looks ghosted" cutoff — how often a
+          real reply came after a job would already have been flagged. */}
+      <p className="mt-1 text-xs text-muted">
+        {timing.repliedAfter14DaysPercent}% arrived after 14 days
+      </p>
+    </div>
+  );
+}
+
 export function FunnelChart({ data }: { data: FunnelStats }) {
   const hasData = data.funnel.some((f) => f.reached > 0);
 
@@ -135,6 +160,19 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
     [data.responseRateBySource],
   );
 
+  const discoveryRateData = useMemo(
+    () =>
+      data.responseRateByDiscoverySource.map((s) => ({
+        name:
+          s.source === 'UNSPECIFIED'
+            ? 'Unspecified'
+            : DISCOVERY_SOURCE_LABELS[s.source],
+        value: s.responseRate,
+        className: 'fill-accent',
+      })),
+    [data.responseRateByDiscoverySource],
+  );
+
   if (!hasData) {
     return <EmptyChartState />;
   }
@@ -168,6 +206,17 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
 
         <div>
           <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+            Time to reply
+          </p>
+          <ReplyTiming timing={data.replyTiming} />
+        </div>
+      </div>
+
+      {/* Side by side so the two answers to "what gets replies" compare at a
+          glance: how you applied vs. where you found the job. */}
+      <div className="grid gap-4 text-sm sm:grid-cols-2">
+        <div>
+          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
             Response rate by application channel
           </p>
           {responseRateData.length === 0 ? (
@@ -175,6 +224,21 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
           ) : (
             <MiniBarChart
               data={responseRateData}
+              valueFormatter={(v) => `${v}%`}
+              valueLabel="Response rate"
+            />
+          )}
+        </div>
+
+        <div>
+          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+            Response rate by discovery source
+          </p>
+          {discoveryRateData.length === 0 ? (
+            <p className="text-muted-2">—</p>
+          ) : (
+            <MiniBarChart
+              data={discoveryRateData}
               valueFormatter={(v) => `${v}%`}
               valueLabel="Response rate"
             />

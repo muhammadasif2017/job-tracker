@@ -257,11 +257,26 @@ export interface FunnelStats {
   funnel: { status: (typeof FUNNEL_STAGES)[number]; reached: number }[];
   dropoff: { status: 'REJECTED' | 'GHOSTED'; count: number }[];
   avgTimeInStageDays: Partial<Record<JobStatus, number>>;
+  // Response rates count any job that ever replied, even if it later went
+  // ghosted. By channel = where the application was sent; by discovery
+  // source = where the job was found.
   responseRateBySource: {
     source: ApplicationChannel | 'UNSPECIFIED';
     total: number;
     responseRate: number;
   }[];
+  responseRateByDiscoverySource: {
+    source: DiscoverySource | 'UNSPECIFIED';
+    total: number;
+    responseRate: number;
+  }[];
+  // Days from applying to the first reply. medianDays is null with no dated
+  // replies; jobs added straight into a replied status have no reply date.
+  replyTiming: {
+    repliedCount: number;
+    medianDays: number | null;
+    repliedAfter14DaysPercent: number;
+  };
 }
 
 export type DashboardRange = '30d' | '90d' | 'all';

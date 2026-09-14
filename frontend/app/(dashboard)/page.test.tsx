@@ -48,6 +48,12 @@ function makeFunnel(): FunnelStats {
     ],
     avgTimeInStageDays: {},
     responseRateBySource: [],
+    responseRateByDiscoverySource: [],
+    replyTiming: {
+      repliedCount: 0,
+      medianDays: null,
+      repliedAfter14DaysPercent: 0,
+    },
   };
 }
 
