@@ -75,6 +75,42 @@ describe('CompanyList', () => {
     expect(screen.getByText('No target companies yet')).toBeInTheDocument();
   });
 
+  it("shows the company's application count and reply rate", () => {
+    renderList({
+      companies: [
+        {
+          ...company,
+          applicationStats: {
+            applied: 4,
+            replied: 1,
+            ghosted: 2,
+            replyRate: 25,
+            lastAppliedAt: '2026-09-01T00:00:00.000Z',
+          },
+        },
+      ],
+    });
+    expect(screen.getByText('4 applied · 25% replied')).toBeInTheDocument();
+  });
+
+  it('shows no application line for a company never applied to', () => {
+    renderList({
+      companies: [
+        {
+          ...company,
+          applicationStats: {
+            applied: 0,
+            replied: 0,
+            ghosted: 0,
+            replyRate: 0,
+            lastAppliedAt: null,
+          },
+        },
+      ],
+    });
+    expect(screen.queryByText(/applied ·/)).not.toBeInTheDocument();
+  });
+
   it('renders a company row with its badges', () => {
     renderList({ companies: [company] });
     expect(screen.getByText('Systems Limited')).toBeInTheDocument();

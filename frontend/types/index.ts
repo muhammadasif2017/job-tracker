@@ -534,6 +534,16 @@ export interface CompanyJobSummary {
   appliedAt: string;
 }
 
+// docs/specs/company-reply-history.md — WISHLIST jobs excluded; `replied` and
+// `ghosted` can overlap (a job that replied, then went silent).
+export interface CompanyApplicationStats {
+  applied: number;
+  replied: number;
+  ghosted: number;
+  replyRate: number;
+  lastAppliedAt: string | null;
+}
+
 export interface Company {
   id: string;
   name: string;
@@ -557,6 +567,8 @@ export interface Company {
   updatedAt: string;
   contacts?: Contact[];
   jobs?: CompanyJobSummary[];
+  // Only the read endpoints (list and detail) compute it.
+  applicationStats?: CompanyApplicationStats;
 }
 
 export interface PaginatedCompanies {

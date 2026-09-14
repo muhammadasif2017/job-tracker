@@ -16,6 +16,7 @@ import { CompanyProfileCard } from '../../../../components/company-profile-card'
 import { CompanyForm } from '../../../../components/companies/company-form';
 import { CompanyContacts } from '../../../../components/companies/company-contacts';
 import { CompanyJobs } from '../../../../components/companies/company-jobs';
+import { CompanyApplicationStatsStrip } from '../../../../components/companies/company-application-stats';
 import {
   useCompanyQuery,
   useDeleteCompanyMutation,
@@ -157,6 +158,10 @@ export default function CompanyDetailPage() {
             companyId={id}
             invalidateKey={['company', id]}
           />
+
+          {company.applicationStats && (
+            <CompanyApplicationStatsStrip stats={company.applicationStats} />
+          )}
 
           <CompanyJobs jobs={company.jobs ?? []} />
 
