@@ -13,14 +13,34 @@ export class CompanyEnrichmentService {
   ) {}
 
   async enqueueEnrichment(companyId: string): Promise<void> {
-    // Company.status already exists with a PENDING default from creation
-    // (unlike Job's CompanyProfile, which is created lazily on first
-    // enrichment) — a plain update, no upsert needed.
+    // The Company row always exists by the time this runs (status starts
+    // null) — a plain update, no upsert needed.
     await this.prisma.company.update({
       where: { id: companyId },
       data: { status: EnrichmentStatus.PENDING, errorMessage: null },
     });
-    await this.enqueue(companyId);
+
+    // Same stranding hazard enqueueIfStale guards against below: a failed
+    // add would leave PENDING with nothing queued, and triggerEnrichment's
+    // CAS answers PENDING with a 409, so Refresh could never recover it.
+    // FAILED rather than the prior status: Refresh accepts it, and
+    // CompanyProfileCard renders prior fields plus a retry banner on it.
+    // Guarded on PENDING so a worker that did pick the job up (an add whose
+    // reply was lost) isn't clobbered.
+    try {
+      await this.enqueue(companyId);
+    } catch (err) {
+      await this.prisma.company
+        .updateMany({
+          where: { id: companyId, status: EnrichmentStatus.PENDING },
+          data: {
+            status: EnrichmentStatus.FAILED,
+            errorMessage: 'Could not queue enrichment',
+          },
+        })
+        .catch(() => undefined);
+      throw err;
+    }
   }
 
   // The auto-trigger path (adding a job at a company), as opposed to
