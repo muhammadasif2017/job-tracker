@@ -28,7 +28,7 @@ npx prisma studio                             # GUI DB browser
 - `prisma.config.ts` at the backend root is Prisma 7's required config file — do not delete it.
 - Always run `prisma generate` after any schema change or migration.
 - **Two indexes are raw SQL and are NOT represented in `schema.prisma`** — a functional UNIQUE index on `companies (userId, lower(name))` and four `pg_trgm` GIN indexes on `Job`'s searchable columns (migration `20260903090000_company_ci_unique_and_job_search_trgm`). Prisma has no syntax for expression or operator-class indexes, so **the next `prisma migrate dev` will generate `DROP INDEX` statements for all five — delete those lines from the generated migration before applying it.** Both models carry a comment saying so. `JobsService.resolveCompanyId` depends on the unique index for correctness (its `P2002` fallback), and `buildJobWhere`'s `ILIKE '%term%'` search is a sequential scan without the trigram indexes.
-- **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) *are* wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
+- **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) _are_ wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
 
 ---
 
@@ -145,7 +145,14 @@ const { count } = await tx.job.updateMany({
   data: { status: dto.status },
 });
 if (count === 0) throw new ConflictException(/* lost the race */);
-await tx.jobEvent.create({ data: { jobId, type: JobEventType.STATUS_CHANGE, fromStatus: existing.status, toStatus: dto.status } });
+await tx.jobEvent.create({
+  data: {
+    jobId,
+    type: JobEventType.STATUS_CHANGE,
+    fromStatus: existing.status,
+    toStatus: dto.status,
+  },
+});
 ```
 
 `updateMany` can't carry a nested `events: { create: ... } }`, so this can't be one Prisma call — the CAS is what closes the TOCTOU race where a concurrent status change (e.g. an interview-round auto-promotion racing a manual edit) would otherwise let a stale `existing.status` get written into `fromStatus`. See [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for the race this replaced and why single-statement writes weren't safe here.
@@ -180,13 +187,14 @@ See the `add-backend-module` skill for the step-by-step checklist.
 
 `Job.nextInterviewAt` is **not** in `CreateJobDto`/`UpdateJobDto` — it's computed
 by `InterviewRoundsService.recomputeNextInterviewAt(tx, jobId)` after every
-create/update/delete of an `InterviewRound`, as the earliest future (`scheduledAt
->= now`) round still `PENDING`, or `null` if none. It takes a `Prisma.TransactionClient`
-and always runs inside the same `$transaction` as the round mutation that
-triggered it — not as a standalone call. Never add it back to the job
-DTOs; the global `ValidationPipe` has `forbidNonWhitelisted: true`, so a client
-sending it gets a 400. See ADR-015 for the full rationale (why a separate 1:many
-model instead of embedding, why this field isn't user-writable), and
+create/update/delete of an `InterviewRound`, as the earliest future round
+(`scheduledAt >= now`) still `PENDING`, or `null` if none. It takes a
+`Prisma.TransactionClient` and always runs inside the same `$transaction` as
+the round mutation that triggered it — not as a standalone call. Never add it
+back to the job DTOs; the global `ValidationPipe` has
+`forbidNonWhitelisted: true`, so a client sending it gets a 400. See ADR-015
+for the full rationale (why a separate 1:many model instead of embedding, why
+this field isn't user-writable), and
 [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for
 a known, unfixed lost-update window under concurrent round mutations (low
 impact — this field only drives a "needs attention" heuristic and
@@ -202,7 +210,7 @@ from the existing `['job', id]` query; no separate fetch.
 
 `Job.appliedAt` holds a **civil date** — UTC midnight standing in for a
 calendar day, never a real time-of-day (ADR-034). The user's own
-`User.timezone` decides *which* calendar day, once, at write time.
+`User.timezone` decides _which_ calendar day, once, at write time.
 
 Two private helpers on `JobsService` are the only ways to produce a value for
 this column, and a third way must not appear: `civilDateFromInput` for a date
@@ -214,7 +222,7 @@ would write a real timestamp and break the invariant, so it must never fire.
 **Never re-project a value read out of this column.** It is civil already;
 resolving it through a zone a second time reads UTC midnight back as the
 previous day for any user west of UTC. The zone is still used in
-`JobsStatsService`, but only to place a *boundary* on the user's calendar —
+`JobsStatsService`, but only to place a _boundary_ on the user's calendar —
 which month is "this" month (`startOfCivilMonth`), which day a rolling 30d/90d
 window starts on (`rangeToCutoff`). Both boundaries are themselves civil
 dates; a real instant there carries a time-of-day the column never has and
@@ -268,10 +276,7 @@ at link time) from being retroactively rewritten just because the linked
 `Company` was renamed or merged elsewhere; see ADR-030 for the bug this
 replaced (the "only when sent" check alone wasn't sufficient). Don't
 reintroduce a separate inline find-or-create in either method — that's
-exactly the drift ADR-029 and ADR-030 fix. The CSV backfill
-script (`backend/scripts/backfill-company-fk.core.ts`) duplicates this same
-logic rather than importing it, since it runs standalone against a raw
-`PrismaClient` outside Nest's DI container.
+exactly the drift ADR-029 and ADR-030 fix.
 
 Enrichment has **two** enqueue methods and picking the wrong one costs Tavily
 quota. `CompanyEnrichmentService.enqueueIfStale` is the auto path (job
@@ -357,7 +362,7 @@ Key relationships: `User → Job[] / Company[] / Account[] / RefreshToken[] / Ap
 
 `Job.events` is populated automatically: a `CREATED` event is inserted on job create; a `STATUS_CHANGE` event (with `fromStatus`/`toStatus`) is inserted whenever `PATCH /jobs/:id` changes the status field.
 
-`Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row stores a **SHA-256** hash of the token, plus expiry, and cascades on user delete. Deliberately not bcrypt: its 72-byte input limit truncated the JWT to a prefix every token for that user shares, so any of a user's refresh tokens compared equal to any other (see the comment above `hashToken` in `auth.service.ts`). bcrypt is still correct for *passwords* and is used there.
+`Account` stores OAuth provider linkage with a compound unique on `[provider, providerAccountId]`. `RefreshToken` is a separate table (not a column on `User`) — each row stores a **SHA-256** hash of the token, plus expiry, and cascades on user delete. Deliberately not bcrypt: its 72-byte input limit truncated the JWT to a prefix every token for that user shares, so any of a user's refresh tokens compared equal to any other (see the comment above `hashToken` in `auth.service.ts`). bcrypt is still correct for _passwords_ and is used there.
 
 **There is no `CompanyProfile` model** — it was dropped in migration `20260815185348_drop_company_profile` (#193) and enrichment now lives directly on `Company`. The name survives only as `jobs/dto/company-profile-response.dto.ts` and the `CompanyProfileCard` component, both of which render `Company` data; don't take either as evidence the model exists. Enrichment columns on `Company`: `status` (`EnrichmentStatus?` — null means "never enriched", distinct from `PENDING`), `industry`, `companySize`, `techStack`, `cultureSummary`, `productDescription`, `businessMode`, `errorMessage`, `enrichedAt`. Fields removed as low-value: `founded`/`workLifeBalance` (#282), `address`/`headquarters` and their `*LowConfidence` guard flags (#283), `workPolicy` (ADR-041 - work arrangement belongs to `Job.jobType`, not to the employer). `productDescription` and `businessMode` were always on the model but user-set only; enrichment fills them as of ADR-041, and `businessMode` is the one field where an existing value wins over a freshly extracted one. `cultureSummary` was dropped in #283 too, then **restored in #285** — it is the one free-prose field, and is deliberately absent from the `extract_company_data` tool's `required` list so the model can return nothing rather than invent culture claims. See `docs/specs/target-companies.md` for why.
 
