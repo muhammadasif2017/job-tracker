@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ResumeUpload } from './resume-upload';
@@ -230,6 +230,84 @@ describe('ResumeUpload', () => {
       await waitFor(() => {
         expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Not found');
       });
+    });
+  });
+
+  describe('download', () => {
+    const API_URL = 'http://localhost:3001';
+
+    beforeEach(() => {
+      vi.stubEnv('NEXT_PUBLIC_API_URL', API_URL);
+      URL.createObjectURL = vi.fn(() => 'blob:resume');
+      URL.revokeObjectURL = vi.fn();
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+      vi.unstubAllGlobals();
+    });
+
+    it('saves a presigned file fetched without the API auth header', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        blob: () => Promise.resolve(new Blob(['%PDF'])),
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      vi.mocked(api.get).mockResolvedValue({
+        data: { url: 'https://objectstorage.example.com/cv.pdf?sig=abc' },
+      });
+      renderUpload('j-1', resume);
+      fireEvent.click(screen.getByRole('button', { name: /download/i }));
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalled();
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://objectstorage.example.com/cv.pdf?sig=abc',
+      );
+      expect(vi.mocked(toast.error)).not.toHaveBeenCalled();
+    });
+
+    // An expired presigned URL answers 403 with an XML error body — that body
+    // must not be saved to disk as the resume.
+    it('shows an error and saves nothing when the file response is not ok', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 403,
+          blob: () => Promise.resolve(new Blob(['<Error/>'])),
+        }),
+      );
+      vi.mocked(api.get).mockResolvedValue({
+        data: { url: 'https://objectstorage.example.com/cv.pdf?sig=old' },
+      });
+      renderUpload('j-1', resume);
+      fireEvent.click(screen.getByRole('button', { name: /download/i }));
+      await waitFor(() => {
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith('Download failed');
+      });
+      expect(URL.createObjectURL).not.toHaveBeenCalled();
+    });
+
+    // STORAGE_DRIVER=local hands back our own auth-gated /jobs/resumes/file
+    // URL; a bare fetch() carries no Bearer token and gets a 401.
+    it('fetches a backend-served file through the authenticated API client', async () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      const fileUrl = `${API_URL}/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf`;
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { url: fileUrl } })
+        .mockResolvedValueOnce({ data: new Blob(['%PDF']) });
+      renderUpload('j-1', resume);
+      fireEvent.click(screen.getByRole('button', { name: /download/i }));
+      await waitFor(() => {
+        expect(URL.createObjectURL).toHaveBeenCalled();
+      });
+      expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(fileUrl, {
+        responseType: 'blob',
+      });
+      expect(fetchMock).not.toHaveBeenCalled();
     });
   });
 
