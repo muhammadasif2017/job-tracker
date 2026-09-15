@@ -364,6 +364,8 @@ export class JobsService {
         company: true,
         companyId: true,
         appliedAt: true,
+        // Fallback enrichment anchor for a re-link that doesn't resend it.
+        location: true,
       },
     });
     if (!job) throw new NotFoundException('Job not found');
@@ -432,7 +434,14 @@ export class JobsService {
         existing.companyId !== null &&
         trimmedCompany.toLowerCase() === existing.company.toLowerCase();
       if (!matchesCurrentLabel) {
-        const { company } = await this.resolveCompanyId(userId, trimmedCompany);
+        // Same location anchor create() seeds onto an auto-created company.
+        // An explicit null (location cleared in this edit) wins over the
+        // stored value; only an omitted field falls back to it.
+        const { company } = await this.resolveCompanyId(
+          userId,
+          trimmedCompany,
+          dto.location !== undefined ? dto.location : existing.location,
+        );
         data = { ...baseData, companyId: company?.id ?? null };
         relinkedCompanyId = company?.id ?? null;
       }
