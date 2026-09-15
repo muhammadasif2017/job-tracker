@@ -10,7 +10,6 @@ import type {
   Job,
   JobEvent,
   JobStatus,
-  JobPriority,
   JobType,
   ApplicationChannel,
   PaginatedJobs,
@@ -20,7 +19,6 @@ export interface JobsFilters {
   page: number;
   search: string;
   status: JobStatus | '';
-  priority: JobPriority | '';
   // Both are date-only strings from <input type="date">, or '' for no bound.
   // The backend widens a date-only `dateTo` to the end of that day (see
   // buildJobWhere) so the named day is included.
@@ -39,7 +37,6 @@ export type JobsFilterValues = Omit<JobsFilters, 'page'>;
 export function jobFilterParams(filters: JobsFilterValues): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.search) params.set('search', filters.search);
-  if (filters.priority) params.set('priority', filters.priority);
   if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
   if (filters.dateTo) params.set('dateTo', filters.dateTo);
   return params;
@@ -186,7 +183,6 @@ export function kanbanQueryKey(filters: JobsFilterValues) {
       limit: KANBAN_PAGE_SIZE,
       statusIn: kanbanStatuses(filters.status),
       search: filters.search,
-      priority: filters.priority,
       dateFrom: filters.dateFrom,
       dateTo: filters.dateTo,
     },

@@ -88,7 +88,6 @@ import { toast } from 'sonner';
 const noFilters: JobsFilterValues = {
   search: '',
   status: '',
-  priority: '',
   dateFrom: '',
   dateTo: '',
 };
@@ -219,14 +218,13 @@ describe('KanbanBoard', () => {
     renderBoard([], vi.fn(), {
       search: 'acme',
       status: '',
-      priority: 'HIGH',
       dateFrom: '2026-01-01',
       dateTo: '2026-06-30',
     });
     await waitFor(() => expect(vi.mocked(api.get)).toHaveBeenCalled());
     const url = vi.mocked(api.get).mock.calls[0][0] as string;
     expect(url).toContain('search=acme');
-    expect(url).toContain('priority=HIGH');
+    expect(url).not.toContain('priority=');
     expect(url).toContain('dateFrom=2026-01-01');
     expect(url).toContain('dateTo=2026-06-30');
   });
