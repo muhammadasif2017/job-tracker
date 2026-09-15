@@ -525,5 +525,34 @@ describe('JobForm', () => {
       await new Promise((resolve) => setTimeout(resolve, 350));
       expect(vi.mocked(api.get)).not.toHaveBeenCalled();
     });
+
+    // Suggestions go through TanStack Query, so backspacing to a term already
+    // searched reuses the cached result instead of refetching it.
+    it('reuses the cached result when the same term is searched again', async () => {
+      vi.mocked(api.get).mockImplementation((_url, config) => {
+        const search = (config as { params: { search: string } }).params.search;
+        return Promise.resolve({
+          data: { data: [{ id: `c-${search}`, name: `${search} Ltd` }] },
+        });
+      });
+      renderForm();
+      const input = screen.getByLabelText(/company/i);
+
+      fireEvent.change(input, { target: { value: 'Sy' } });
+      await screen.findByRole('button', { name: 'Sy Ltd' });
+      fireEvent.change(input, { target: { value: 'Sys' } });
+      await screen.findByRole('button', { name: 'Sys Ltd' });
+      fireEvent.change(input, { target: { value: 'Sy' } });
+      await screen.findByRole('button', { name: 'Sy Ltd' });
+
+      const searches = vi
+        .mocked(api.get)
+        .mock.calls.filter(([url]) => url === '/companies')
+        .map(
+          ([, config]) =>
+            (config as { params: { search: string } }).params.search,
+        );
+      expect(searches).toEqual(['Sy', 'Sys']);
+    });
   });
 });
