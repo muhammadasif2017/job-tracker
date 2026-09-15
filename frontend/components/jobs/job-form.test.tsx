@@ -171,6 +171,18 @@ describe('JobForm', () => {
       });
     });
 
+    it('omits priority so the backend applies its MEDIUM default', async () => {
+      vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
+      renderForm();
+      expect(screen.queryByLabelText(/priority/i)).not.toBeInTheDocument();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
+      expect(vi.mocked(api.post).mock.calls[0][1]).not.toHaveProperty(
+        'priority',
+      );
+    });
+
     it('shows a success toast and stays open on the resume-attach step', async () => {
       vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
       const { onClose } = renderForm();
@@ -230,6 +242,16 @@ describe('JobForm', () => {
         discoverySource: 'LINKEDIN',
         applicationChannel: 'REFERRAL',
       });
+    });
+
+    it("omits priority so an edit keeps the job's stored value", async () => {
+      vi.mocked(api.patch).mockResolvedValue({ data: { ...job } });
+      renderForm({ job });
+      fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(vi.mocked(api.patch)).toHaveBeenCalled());
+      expect(vi.mocked(api.patch).mock.calls[0][1]).not.toHaveProperty(
+        'priority',
+      );
     });
   });
 
