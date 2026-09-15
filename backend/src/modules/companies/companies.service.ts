@@ -42,13 +42,11 @@ export class CompaniesService {
     private logger: Logger,
   ) {}
 
-  // Case-insensitive companion to the DB's case-sensitive @@unique([userId, name])
-  // — matches the check CompaniesImportService already does for CSV rows, so
-  // "Google" and "google" can't coexist via either path. Takes a client param
-  // so callers can run it inside a Serializable transaction (see create/update)
-  // to close the TOCTOU window between this read and the write that follows —
-  // Postgres aborts the loser with P2034, which we map back to the same
-  // ConflictException.
+  // Friendly-message pre-check for a case-insensitive name clash — matches the
+  // check CompaniesImportService does for CSV rows. Correctness under a race
+  // comes from the functional unique index on (userId, lower(name)), not from
+  // this read. Takes a client param so create() can run it inside its
+  // transaction.
   private async ensureNameAvailable(
     client: Pick<Prisma.TransactionClient, 'company'> | PrismaService,
     userId: string,
@@ -68,14 +66,12 @@ export class CompaniesService {
     }
   }
 
-  // Serializable isolation makes Postgres detect the read-write conflict
-  // between two concurrent ensureNameAvailable+write pairs and abort one
-  // — rather than letting both pass the pre-check and both write — the
-  // case-insensitive check alone can't close that window since the DB's own
-  // unique constraint is case-sensitive. `create()` also runs its
-  // MAX_COMPANIES_PER_USER count check inside this same transaction, so a
-  // conflict here isn't always a name collision; the message stays generic
-  // rather than assuming which check lost the race. Use
+  // Serializable isolation is here for create()'s MAX_COMPANIES_PER_USER
+  // count check: two concurrent creates could otherwise both read a count
+  // just under the cap and both write. No index can enforce that cap (name
+  // clashes are covered by the unique index, which is why update() needs no
+  // transaction). A conflict here isn't always a cap race, so the message
+  // stays generic rather than assuming which check lost. Use
   // isTransactionWriteConflict, not a bare `err.code === 'P2034'` check — a
   // conflict Postgres only detects at COMMIT time (common for a broad
   // predicate like this count()) surfaces as a raw, differently-shaped
@@ -285,21 +281,36 @@ export class CompaniesService {
       cultureSummary: dto.cultureSummary,
     };
 
-    if (dto.name === undefined) {
-      // Atomic ownership + write, same pattern as remove() — avoids relying
-      // solely on the separate findOwned check above.
-      const { count } = await this.prisma.company.updateMany({
-        where: { id: companyId, userId },
-        data,
-      });
-      if (count === 0) throw new NotFoundException('Company not found');
-      return this.prisma.company.findFirstOrThrow({ where: { id: companyId } });
+    // A rename needs no Serializable transaction: the functional unique index
+    // on (userId, lower(name)) rejects a case-variant duplicate that slips
+    // past this pre-check in a race, same as JobsService.resolveCompanyId
+    // (ADR-033). The pre-check stays for the common non-racing case.
+    if (dto.name !== undefined) {
+      await this.ensureNameAvailable(this.prisma, userId, dto.name, companyId);
     }
 
-    return this.runNameCheckedWrite(dto.name, async (tx) => {
-      await this.ensureNameAvailable(tx, userId, dto.name!, companyId);
-      return tx.company.update({ where: { id: companyId }, data });
-    });
+    // Atomic ownership + write, same pattern as remove() — avoids relying
+    // solely on the separate findOwned check above.
+    let count: number;
+    try {
+      ({ count } = await this.prisma.company.updateMany({
+        where: { id: companyId, userId },
+        data,
+      }));
+    } catch (err: unknown) {
+      const code =
+        err && typeof err === 'object' && 'code' in err
+          ? (err as { code?: unknown }).code
+          : undefined;
+      if (code === 'P2002' && dto.name !== undefined) {
+        throw new ConflictException(
+          `A company named "${dto.name}" already exists`,
+        );
+      }
+      throw err;
+    }
+    if (count === 0) throw new NotFoundException('Company not found');
+    return this.prisma.company.findFirstOrThrow({ where: { id: companyId } });
   }
 
   async remove(userId: string, companyId: string) {
