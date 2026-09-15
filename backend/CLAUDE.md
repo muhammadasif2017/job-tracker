@@ -187,17 +187,18 @@ See the `add-backend-module` skill for the step-by-step checklist.
 
 `Job.nextInterviewAt` is **not** in `CreateJobDto`/`UpdateJobDto` — it's computed
 by `InterviewRoundsService.recomputeNextInterviewAt(tx, jobId)` after every
-create/update/delete of an `InterviewRound`, as the earliest future (`scheduledAt
-
-> = now`) round still `PENDING`, or `null`if none. It takes a`Prisma.TransactionClient`and always runs inside the same`$transaction`as the round mutation that
-triggered it — not as a standalone call. Never add it back to the job
-DTOs; the global`ValidationPipe`has`forbidNonWhitelisted: true`, so a client
-> sending it gets a 400. See ADR-015 for the full rationale (why a separate 1:many
-> model instead of embedding, why this field isn't user-writable), and
-> [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for
-> a known, unfixed lost-update window under concurrent round mutations (low
-> impact — this field only drives a "needs attention" heuristic and
-> self-corrects on the next mutation).
+create/update/delete of an `InterviewRound`, as the earliest future round
+(`scheduledAt >= now`) still `PENDING`, or `null` if none. It takes a
+`Prisma.TransactionClient` and always runs inside the same `$transaction` as
+the round mutation that triggered it — not as a standalone call. Never add it
+back to the job DTOs; the global `ValidationPipe` has
+`forbidNonWhitelisted: true`, so a client sending it gets a 400. See ADR-015
+for the full rationale (why a separate 1:many model instead of embedding, why
+this field isn't user-writable), and
+[ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for
+a known, unfixed lost-update window under concurrent round mutations (low
+impact — this field only drives a "needs attention" heuristic and
+self-corrects on the next mutation).
 
 `JobsService.findOne` includes `interviewRounds: { orderBy: { scheduledAt: 'asc'
 } }` alongside `companyProfile`/`resume` — the frontend gets round data for free
