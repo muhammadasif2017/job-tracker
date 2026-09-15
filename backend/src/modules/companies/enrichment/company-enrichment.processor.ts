@@ -29,8 +29,9 @@ const OFFICIAL_SECTION_BUDGET = 16_000;
 const SEARCH_SECTION_BUDGET = 8_000;
 
 @Injectable()
-// See EnrichmentProcessor for why 90s — same stall-detection margin, same
-// BullMQ renewal cadence.
+// 90s is stall-detection margin, not a runtime ceiling: BullMQ renews the lock
+// while process() is running, so it only expires if the worker crashes or its
+// event loop is blocked. See docs/company-profile-enrichment.md §3.
 @Processor(COMPANY_ENRICHMENT_QUEUE, { lockDuration: 90_000 })
 export class CompanyEnrichmentProcessor extends WorkerHost {
   constructor(

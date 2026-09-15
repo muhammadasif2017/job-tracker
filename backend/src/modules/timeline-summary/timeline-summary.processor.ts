@@ -13,9 +13,8 @@ import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
 const MAX_EVENTS_FOR_SUMMARY = 50;
 
 @Injectable()
-// Same stall-detection margin as CompanyEnrichmentProcessor — single LLM
-// call per run, no search/fetch fan-out, so 90s is generous headroom rather
-// than a tight fit.
+// Same stall-detection margin as CompanyEnrichmentProcessor. Not a runtime
+// ceiling: BullMQ renews the lock while process() runs.
 @Processor(JOB_TIMELINE_SUMMARY_QUEUE, { lockDuration: 90_000 })
 export class TimelineSummaryProcessor extends WorkerHost {
   constructor(
