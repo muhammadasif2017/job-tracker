@@ -591,6 +591,7 @@ describe('JobsService', () => {
             company: true,
             companyId: true,
             appliedAt: true,
+            location: true,
           },
         }),
       );
@@ -988,6 +989,61 @@ describe('JobsService', () => {
 
       expect(mockCompanyEnrichment.enqueueIfStale).toHaveBeenCalledWith(
         'company-new',
+      );
+    });
+
+    // Same enrichment anchor create() seeds: a company auto-created by an edit
+    // must not lose the disambiguation hint just because it came from update.
+    it('seeds the submitted location onto a company auto-created by a re-link', async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+        location: 'Karachi, Pakistan',
+      });
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Codenzy',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', {
+        company: 'Codenzy',
+        location: '  Lahore, Pakistan  ',
+      });
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ location: 'Lahore, Pakistan' }),
+        }),
+      );
+    });
+
+    it("falls back to the job's stored location when the edit does not send one", async () => {
+      mockPrisma.job.findFirst.mockResolvedValueOnce({
+        id: 'job-1',
+        status: JobStatus.APPLIED,
+        company: 'Old Co',
+        companyId: 'company-1',
+        appliedAt: SAVED_AT,
+        location: 'Karachi, Pakistan',
+      });
+      mockPrisma.company.findFirst.mockResolvedValueOnce(null);
+      mockPrisma.company.create.mockResolvedValue({
+        id: 'company-new',
+        name: 'Codenzy',
+      });
+      mockPrisma.job.update.mockResolvedValue({ id: 'job-1' });
+
+      await service.update('user-1', 'job-1', { company: 'Codenzy' });
+
+      expect(mockPrisma.company.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ location: 'Karachi, Pakistan' }),
+        }),
       );
     });
 
