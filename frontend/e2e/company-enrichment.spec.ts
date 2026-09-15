@@ -29,6 +29,44 @@ async function goToJob(page: Parameters<typeof injectAuth>[0], job: TestJob) {
   });
 }
 
+async function companyStatus(
+  jobId: string,
+): Promise<string | null | undefined> {
+  const res = await fetch(`${API}/jobs/${jobId}`, {
+    headers: { Authorization: `Bearer ${user.accessToken}` },
+  });
+  const body = (await res.json()) as {
+    companyProfile?: { status?: string | null } | null;
+  };
+  return body.companyProfile?.status;
+}
+
+// Bounds every wait on the real worker. With real API keys one run can take
+// ~90s (Groq timeout 45s x maxRetries 1, and a 429 is retried after its
+// retry-after), and a FAILED attempt isn't final anyway — BullMQ retries it
+// 10s later and the processor writes PROCESSING again. Tests that wait on the
+// worker set their timeout above this, so a slow queue fails on the helper's
+// message below instead of a bare Playwright timeout.
+const WORKER_BUDGET_MS = 100_000;
+
+// Polls the job's company status until `done` accepts it. Running out of
+// budget fails the test with `what` and the last status seen, rather than
+// returning and letting the test carry on against a run still in flight.
+async function waitForCompanyStatus(
+  jobId: string,
+  done: (status: string | null | undefined) => boolean,
+  what: string,
+): Promise<string | null | undefined> {
+  const deadline = Date.now() + WORKER_BUDGET_MS;
+  let status = await companyStatus(jobId);
+  while (!done(status) && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 500));
+    status = await companyStatus(jobId);
+  }
+  expect(done(status), `${what} (last status: ${status})`).toBe(true);
+  return status;
+}
+
 test.describe('Company enrichment card', () => {
   let job: TestJob;
 
@@ -73,6 +111,7 @@ test.describe('Company enrichment card', () => {
   });
 
   test('a second enrichment request while one is in progress is rejected', async () => {
+    test.setTimeout(WORKER_BUDGET_MS + 20_000);
     // Racing a single extra request against the auto-queued run from job
     // creation isn't reliable in either direction: locally, a real search +
     // LLM round trip takes real seconds, so the auto-queued run is still
@@ -92,17 +131,11 @@ test.describe('Company enrichment card', () => {
     // and gets 202, the second re-evaluates the WHERE clause against that
     // now-updated row and gets 409. That's deterministic regardless of how
     // fast either run actually processes.
-    for (let attempt = 0; attempt < 90; attempt++) {
-      const res = await fetch(`${API}/jobs/${job.id}`, {
-        headers: { Authorization: `Bearer ${user.accessToken}` },
-      });
-      const body = (await res.json()) as {
-        companyProfile?: { status?: string } | null;
-      };
-      const status = body.companyProfile?.status;
-      if (status !== 'PENDING' && status !== 'PROCESSING') break;
-      await new Promise((r) => setTimeout(r, 500));
-    }
+    await waitForCompanyStatus(
+      job.id,
+      (status) => status !== 'PENDING' && status !== 'PROCESSING',
+      'auto-queued run never reached a terminal state',
+    );
 
     // Company-scoped, not job-scoped (docs/specs/company-fk-phase3b.md).
     const [res1, res2] = await Promise.all([
@@ -240,36 +273,6 @@ test.describe('Company enrichment auto-trigger gate', () => {
     return job;
   }
 
-  async function statusOf(jobId: string): Promise<string | null | undefined> {
-    const res = await fetch(`${API}/jobs/${jobId}`, {
-      headers: { Authorization: `Bearer ${user.accessToken}` },
-    });
-    const body = (await res.json()) as {
-      companyProfile?: { status?: string | null } | null;
-    };
-    return body.companyProfile?.status;
-  }
-
-  // Waits until the worker has picked the run up, i.e. the status has moved
-  // off PENDING. Deliberately not "until terminal": with real API keys one
-  // run can take ~90s (Groq timeout 45s x maxRetries 1, and a 429 is retried
-  // after its retry-after), and a FAILED attempt isn't final anyway — BullMQ
-  // retries it 10s later and the processor writes PROCESSING again. Both made
-  // the old wait time out or see its "settled" status change underneath it.
-  // Only the worker's queue position bounds this wait, hence the budget.
-  const PICKUP_BUDGET_MS = 100_000;
-  async function waitUntilPickedUp(
-    jobId: string,
-  ): Promise<string | null | undefined> {
-    const deadline = Date.now() + PICKUP_BUDGET_MS;
-    let status = await statusOf(jobId);
-    while (status === 'PENDING' && Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 500));
-      status = await statusOf(jobId);
-    }
-    return status;
-  }
-
   test.afterAll(async () => {
     await Promise.all(
       createdJobIds.map((id) => deleteTestJob(user.accessToken, id)),
@@ -289,8 +292,8 @@ test.describe('Company enrichment auto-trigger gate', () => {
     // Not `toBe('PENDING')` — the worker is real and may already have moved
     // the row to PROCESSING or past it. Any non-null status proves the CAS
     // matched and the enqueue happened.
-    expect(await statusOf(job.id)).not.toBeNull();
-    expect(await statusOf(job.id)).toBeDefined();
+    expect(await companyStatus(job.id)).not.toBeNull();
+    expect(await companyStatus(job.id)).toBeDefined();
   });
 
   // The leak this ADR exists to close: before the gate, every job added at an
@@ -298,15 +301,17 @@ test.describe('Company enrichment auto-trigger gate', () => {
   // searches, doubled by the retry policy) to rediscover facts already on the
   // row.
   test('a second job at the same company does not re-queue enrichment', async () => {
-    // Above the pickup budget, so a slow queue fails on the assertion below
-    // with a clear message instead of a bare Playwright timeout.
-    test.setTimeout(PICKUP_BUDGET_MS + 20_000);
+    test.setTimeout(WORKER_BUDGET_MS + 20_000);
     const company = `Gate Repeat Co ${Date.now()}`;
     const first = await addJob(company);
 
-    const pickedUp = await waitUntilPickedUp(first.id);
-    expect(pickedUp, 'worker never picked up the first run').not.toBe(
-      'PENDING',
+    // Waits for pickup, i.e. the status has moved off PENDING. Deliberately
+    // not "until terminal" (see WORKER_BUDGET_MS): only the worker's queue
+    // position bounds this wait.
+    const pickedUp = await waitForCompanyStatus(
+      first.id,
+      (status) => status !== 'PENDING',
+      'worker never picked up the first run',
     );
     expect(pickedUp).not.toBeNull();
 
@@ -317,6 +322,6 @@ test.describe('Company enrichment auto-trigger gate', () => {
     // writes PENDING — the worker's own retries write PROCESSING — so once the
     // run has left PENDING, seeing PENDING again means the gate let a second
     // run through (and spent search credits).
-    expect(await statusOf(second.id)).not.toBe('PENDING');
+    expect(await companyStatus(second.id)).not.toBe('PENDING');
   });
 });

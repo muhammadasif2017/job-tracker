@@ -17,6 +17,16 @@ export interface TestJob {
   companyId: string | null;
 }
 
+// Seed calls fail here, at the call that broke, with the status and body —
+// not later as a `/jobs/undefined` 404 or a card that never renders, which
+// is what a 400/409/429 body parsed as a TestJob used to turn into.
+async function okJson<T>(res: Response, what: string): Promise<T> {
+  if (!res.ok) {
+    throw new Error(`${what} failed (${res.status}): ${await res.text()}`);
+  }
+  return (await res.json()) as T;
+}
+
 // ── User helpers ─────────────────────────────────────────────────────────────
 
 export async function createTestUser(suffix = ''): Promise<TestUser> {
@@ -29,15 +39,15 @@ export async function createTestUser(suffix = ''): Promise<TestUser> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password, name }),
   });
-  if (!regRes.ok) throw new Error(`Register failed: ${await regRes.text()}`);
-  const { accessToken } = (await regRes.json()) as {
-    accessToken: string;
-  };
+  const { accessToken } = await okJson<{ accessToken: string }>(
+    regRes,
+    'Register',
+  );
 
   const meRes = await fetch(`${API}/auth/me`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  const { id } = (await meRes.json()) as { id: string };
+  const { id } = await okJson<{ id: string }>(meRes, 'GET /auth/me');
 
   return { id, email, name, password, accessToken };
 }
@@ -74,7 +84,7 @@ export async function createTestJob(
       ...overrides,
     }),
   });
-  return res.json() as Promise<TestJob>;
+  return okJson<TestJob>(res, 'Create test job');
 }
 
 export async function deleteTestJob(
@@ -115,7 +125,7 @@ export async function createTestCompany(
       ...overrides,
     }),
   });
-  return res.json() as Promise<TestCompany>;
+  return okJson<TestCompany>(res, 'Create test company');
 }
 
 export async function deleteTestCompany(
