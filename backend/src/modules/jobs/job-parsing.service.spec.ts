@@ -147,7 +147,38 @@ describe('JobParsingService', () => {
         text: 'pasted job description text',
       });
 
-      expect(result).toEqual({ url: undefined });
+      expect(result).toEqual({ url: undefined, parserUnavailable: true });
+    });
+
+    it('does not flag the parser as unavailable when it ran but found nothing', async () => {
+      mockLlm.extractJobPosting.mockResolvedValue({
+        company: null,
+        position: null,
+        location: null,
+        jobType: undefined,
+      });
+
+      const result = await service.parseJobPosting({ text: 'lorem ipsum' });
+
+      expect(result).not.toHaveProperty('parserUnavailable');
+      expect(result).toMatchObject({ company: null, position: null });
+    });
+
+    it('flags the parser as unavailable instead of throwing when the fetch was empty and extraction on the search fallback errored', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockSearch.search.mockResolvedValue(['Senior Engineer at Acme']);
+      mockLlm.extractJobPosting.mockRejectedValue(
+        new Error('Groq unavailable'),
+      );
+
+      const result = await service.parseJobPosting({
+        url: 'https://gated.example.com/job/1',
+      });
+
+      expect(result).toEqual({
+        url: 'https://gated.example.com/job/1',
+        parserUnavailable: true,
+      });
     });
 
     it('falls back to a Tavily search when LLM extraction on fetched content fails, and retries extraction on the snippets', async () => {
@@ -205,7 +236,10 @@ describe('JobParsingService', () => {
       // Only the primary content attempt should reach the LLM — an empty
       // fallback snippet list must not trigger a second, pointless call.
       expect(mockLlm.extractJobPosting).toHaveBeenCalledTimes(1);
-      expect(result).toEqual({ url: 'https://www.linkedin.com/jobs/view/123' });
+      expect(result).toEqual({
+        url: 'https://www.linkedin.com/jobs/view/123',
+        parserUnavailable: true,
+      });
     });
 
     it('falls back to a partial result instead of throwing when the Tavily fallback is out of quota', async () => {
@@ -221,7 +255,10 @@ describe('JobParsingService', () => {
         url: 'https://www.linkedin.com/jobs/view/123',
       });
 
-      expect(result).toEqual({ url: 'https://www.linkedin.com/jobs/view/123' });
+      expect(result).toEqual({
+        url: 'https://www.linkedin.com/jobs/view/123',
+        parserUnavailable: true,
+      });
     });
 
     it('recovers via the Tavily fallback when the URL fetch itself yields no content', async () => {

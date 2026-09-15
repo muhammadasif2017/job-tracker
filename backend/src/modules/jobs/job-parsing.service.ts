@@ -41,17 +41,22 @@ export class JobParsingService {
     }
   }
 
+  // `failed` separates "the LLM call errored" from "there was nothing to
+  // extract from", which the response reports as parserUnavailable.
   private async tryExtractJobPosting(
     content: string,
-  ): Promise<ParsedJobData | undefined> {
-    if (!content) return undefined;
+  ): Promise<{ parsed?: ParsedJobData; failed: boolean }> {
+    if (!content) return { failed: false };
     try {
-      return await this.llm.extractJobPosting(content);
+      return {
+        parsed: await this.llm.extractJobPosting(content),
+        failed: false,
+      };
     } catch (err: unknown) {
       this.logger.warn('parse_job_posting_failed', {
         error: err instanceof Error ? err.message : String(err),
       });
-      return undefined;
+      return { failed: true };
     }
   }
 
@@ -66,7 +71,9 @@ export class JobParsingService {
       dto.url && !dto.text ? await this.webFetch.fetchPageText(dto.url) : '';
     const content = dto.text || fetchedText || '';
 
-    let parsed = await this.tryExtractJobPosting(content);
+    const primary = await this.tryExtractJobPosting(content);
+    let parsed = primary.parsed;
+    let llmFailed = primary.failed;
     let applicationChannel =
       parsed && dto.url && content
         ? this.guessSourceFromUrl(dto.url)
@@ -88,7 +95,9 @@ export class JobParsingService {
         snippets = [];
       }
       const searchContent = snippets.filter(Boolean).join('\n\n');
-      parsed = await this.tryExtractJobPosting(searchContent);
+      const fallback = await this.tryExtractJobPosting(searchContent);
+      parsed = fallback.parsed;
+      llmFailed ||= fallback.failed;
       if (parsed) {
         applicationChannel = this.guessSourceFromUrl(dto.url);
       } else if (searchContent) {
@@ -99,6 +108,9 @@ export class JobParsingService {
     }
 
     if (!parsed) {
+      // An LLM error outranks "the page was blocked": there was content (the
+      // search fallback's, at least) and only the parser failed on it.
+      if (llmFailed) return { url: dto.url, parserUnavailable: true };
       if (!content && dto.url) {
         throw new BadRequestException(
           'Could not fetch that page - it may be blocking automated requests. Try pasting the job description text instead.',

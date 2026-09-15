@@ -243,6 +243,8 @@ export interface ParsedJob {
   url?: string;
   jobType?: JobType;
   applicationChannel?: ApplicationChannel;
+  // The LLM call failed (not "nothing found") — a retry may succeed.
+  parserUnavailable?: true;
 }
 
 function looksLikeUrl(value: string): boolean {
@@ -265,6 +267,11 @@ export function useParseJobMutation(onParsed?: (data: ParsedJob) => void) {
         .then((r) => r.data);
     },
     onSuccess: (data) => {
+      if (data.parserUnavailable) {
+        toast.error("Couldn't reach the job parser. Try again.");
+        onParsed?.(data);
+        return;
+      }
       // /jobs/parse answers 200 with an all-but-empty body when neither the
       // page fetch nor the search fallback gave the LLM anything to extract.
       // Quick Add then opens a blank form, which reads as a bug unless we say
