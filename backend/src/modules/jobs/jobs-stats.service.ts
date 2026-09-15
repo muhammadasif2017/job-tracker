@@ -17,9 +17,9 @@ import {
 } from '@prisma/client';
 import {
   localCivilDay,
-  safeTimeZone,
   startOfCivilMonth,
 } from '../../common/timezone.util.js';
+import { findUserTimeZone } from '../../common/user-timezone.js';
 import {
   FUNNEL_STAGES,
   DROPOFF_STAGES,
@@ -132,11 +132,7 @@ export class JobsStatsService {
   // so it's correct right after the user changes it in their profile. Missing
   // row (or a hand-edited invalid zone) falls back to UTC, the column default.
   private async userTimeZone(userId: string): Promise<string> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return safeTimeZone(user?.timezone);
+    return (await findUserTimeZone(this.prisma, userId)).timeZone;
   }
 
   async getStats(userId: string, range: StatsRange) {

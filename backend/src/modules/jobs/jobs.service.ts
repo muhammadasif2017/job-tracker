@@ -25,7 +25,8 @@ import {
 } from '../../storage/storage.service.js';
 import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
 import { buildGhostSuggestionWhere } from './ghost-suggestions.helper.js';
-import { localCivilDay, safeTimeZone } from '../../common/timezone.util.js';
+import { localCivilDay } from '../../common/timezone.util.js';
+import { findUserTimeZone } from '../../common/user-timezone.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
 // `Job.nextInterviewAt` goes stale on its own: InterviewRoundsService
@@ -76,11 +77,8 @@ export class JobsService {
   // local is on the next calendar day from a UTC server's point of view, and
   // the date they see in the list must be the one they'd write down.
   private async todayFor(userId: string): Promise<Date> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    return localCivilDay(new Date(), safeTimeZone(user?.timezone));
+    const { timeZone } = await findUserTimeZone(this.prisma, userId);
+    return localCivilDay(new Date(), timeZone);
   }
 
   // Timeline-summary regen is best-effort — a queue/LLM hiccup must never
