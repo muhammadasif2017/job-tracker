@@ -329,6 +329,35 @@ describe('ResumeUpload', () => {
       openSpy.mockRestore();
     });
 
+    // STORAGE_DRIVER=local: a new tab can't carry the Bearer token the
+    // auth-gated /jobs/resumes/file endpoint needs, so the file is fetched
+    // through the API client and opened as a blob URL instead.
+    it('opens a backend-served file as a blob URL fetched with auth', async () => {
+      vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://localhost:3001');
+      URL.createObjectURL = vi.fn(() => 'blob:resume');
+      URL.revokeObjectURL = vi.fn();
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+      const fileUrl =
+        'http://localhost:3001/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf';
+      vi.mocked(api.get)
+        .mockResolvedValueOnce({ data: { url: fileUrl } })
+        .mockResolvedValueOnce({ data: new Blob(['%PDF']) });
+      renderUpload('j-1', resume);
+      fireEvent.click(screen.getByRole('button', { name: /view/i }));
+      await waitFor(() => {
+        expect(openSpy).toHaveBeenCalledWith(
+          'blob:resume',
+          '_blank',
+          'noopener,noreferrer',
+        );
+      });
+      expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(fileUrl, {
+        responseType: 'blob',
+      });
+      openSpy.mockRestore();
+      vi.unstubAllEnvs();
+    });
+
     it('shows error toast when the URL fetch fails', async () => {
       vi.mocked(api.get).mockRejectedValue(new Error('Network error'));
       renderUpload('j-1', resume);
