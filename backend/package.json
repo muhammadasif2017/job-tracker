@@ -116,6 +116,10 @@
       "<rootDir>/../scripts"
     ],
     "testRegex": ".*\\.spec\\.ts$",
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "\\.dto\\.spec\\.ts$"
+    ],
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },
@@ -126,6 +130,7 @@
       "**/*.ts",
       "!**/*.spec.ts",
       "!**/*.module.ts",
+      "!**/*.dto.ts",
       "!main.ts"
     ],
     "coverageDirectory": "../coverage",
