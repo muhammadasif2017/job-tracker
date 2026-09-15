@@ -64,6 +64,37 @@ describe('CompanyEnrichmentService', () => {
     expect(order).toEqual(['update', 'add']);
   });
 
+  // A PENDING row with nothing queued is unrecoverable from the UI:
+  // CompaniesService.triggerEnrichment's CAS rejects PENDING with a 409.
+  describe('when the queue add fails', () => {
+    it('moves the claimed row to FAILED so the Refresh button can retry it, and rethrows', async () => {
+      const queueErr = new Error('Redis down');
+      mockQueue.add.mockRejectedValue(queueErr);
+
+      await expect(service.enqueueEnrichment('company-1')).rejects.toBe(
+        queueErr,
+      );
+
+      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith({
+        where: { id: 'company-1', status: EnrichmentStatus.PENDING },
+        data: {
+          status: EnrichmentStatus.FAILED,
+          errorMessage: expect.any(String),
+        },
+      });
+    });
+
+    it('still rethrows the queue error when the FAILED write also fails', async () => {
+      const queueErr = new Error('Redis down');
+      mockQueue.add.mockRejectedValue(queueErr);
+      mockPrisma.company.updateMany.mockRejectedValue(new Error('DB down'));
+
+      await expect(service.enqueueEnrichment('company-1')).rejects.toBe(
+        queueErr,
+      );
+    });
+  });
+
   // ADR-035. enqueueEnrichment (the Refresh button) stays unconditional; only
   // the auto-trigger path from job creation is gated, so a company with N
   // jobs costs one enrichment run instead of N.
