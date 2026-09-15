@@ -1,7 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   JobStatus,
-  JobPriority,
   JobType,
   DiscoverySource,
   ApplicationChannel,
@@ -39,9 +38,6 @@ export class JobResponseDto {
 
   @ApiProperty({ enum: JobStatus })
   status: JobStatus;
-
-  @ApiProperty({ enum: JobPriority })
-  priority: JobPriority;
 
   @ApiProperty({ enum: JobType })
   jobType: JobType;

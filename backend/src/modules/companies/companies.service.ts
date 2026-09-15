@@ -207,7 +207,6 @@ export class CompaniesService {
             id: true,
             position: true,
             status: true,
-            priority: true,
             appliedAt: true,
           },
         },

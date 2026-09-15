@@ -7,7 +7,6 @@ const job: CompanyJobSummary = {
   id: 'job-1',
   position: 'Senior Backend Engineer',
   status: 'APPLIED',
-  priority: 'HIGH',
   appliedAt: '2026-06-01T00:00:00Z',
 };
 
@@ -27,7 +26,7 @@ describe('CompanyJobs', () => {
     });
     expect(link).toHaveAttribute('href', '/jobs/job-1');
     expect(screen.getByText('Applied')).toBeInTheDocument();
-    // Job priority isn't shown — only the company's own target priority is.
+    // Jobs have no priority — only the company's own target priority exists.
     expect(screen.queryByText('High')).not.toBeInTheDocument();
   });
 });

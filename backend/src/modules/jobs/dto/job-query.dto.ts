@@ -11,7 +11,7 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { JobPriority, JobStatus } from '@prisma/client';
+import { JobStatus } from '@prisma/client';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 export class JobQueryDto extends PaginationQueryDto {
@@ -41,11 +41,6 @@ export class JobQueryDto extends PaginationQueryDto {
   )
   @IsEnum(JobStatus, { each: true })
   statusIn?: JobStatus[];
-
-  @ApiPropertyOptional({ enum: JobPriority })
-  @IsOptional()
-  @IsEnum(JobPriority)
-  priority?: JobPriority;
 
   @ApiPropertyOptional({ example: 'Google', maxLength: 200 })
   @IsOptional()

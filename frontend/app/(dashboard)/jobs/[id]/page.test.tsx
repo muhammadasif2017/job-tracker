@@ -84,7 +84,6 @@ const job: Job = {
   location: 'Austin, TX',
   url: 'https://acme.example/jobs/1',
   status: 'INTERVIEWING',
-  priority: 'HIGH',
   jobType: 'REMOTE',
   discoverySource: 'LINKEDIN',
   applicationChannel: 'REFERRAL',

@@ -476,7 +476,7 @@ User 1───∞ Job 1───∞ JobEvent
   (`users.service.ts:55-59`) necessary.
 - **RefreshToken**: one row per issued refresh session. Stores only a bcrypt hash,
   expiry, and revocation timestamp; cascades when its user is deleted.
-- **Job**: enums for `status` and `priority`; `appliedAt` and `nextInterviewAt`
+- **Job**: enum for `status`; `appliedAt` and `nextInterviewAt`
   separate from `createdAt`/`updatedAt` (when you applied ≠ when the row was made).
 - **Resume**, **InterviewRound**, and **Contact**: job-owned child records with
   cascade deletion and indexes on their parent job.

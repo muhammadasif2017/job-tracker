@@ -102,7 +102,6 @@ function makeJob(overrides: Partial<Job>): Job {
     company: 'Acme',
     position: 'Engineer',
     status: 'APPLIED',
-    priority: 'MEDIUM',
     jobType: 'REMOTE',
     appliedAt: '2026-06-01T00:00:00Z',
     createdAt: '2026-06-01T00:00:00Z',

@@ -222,7 +222,6 @@ describe('CompanyDetailPage', () => {
               id: 'j-1',
               position: 'Engineer',
               status: 'APPLIED',
-              priority: 'HIGH',
               appliedAt: '2026-06-01T00:00:00Z',
             },
           ],

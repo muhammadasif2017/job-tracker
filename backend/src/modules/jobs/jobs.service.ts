@@ -12,13 +12,7 @@ import { TimelineSummaryService } from '../timeline-summary/timeline-summary.ser
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import {
-  JobStatus,
-  JobEventType,
-  JobPriority,
-  JobType,
-  CompanyCity,
-} from '@prisma/client';
+import { JobStatus, JobEventType, JobType, CompanyCity } from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
@@ -215,7 +209,6 @@ export class JobsService {
         location: dto.location,
         url: dto.url || undefined,
         status: initialStatus,
-        priority: dto.priority ?? JobPriority.MEDIUM,
         jobType: dto.jobType ?? JobType.ONSITE,
         discoverySource: dto.discoverySource,
         applicationChannel: dto.applicationChannel,
@@ -379,7 +372,6 @@ export class JobsService {
       position: dto.position,
       location: dto.location,
       url: dto.url,
-      priority: dto.priority,
       jobType: dto.jobType,
       discoverySource: dto.discoverySource,
       applicationChannel: dto.applicationChannel,
