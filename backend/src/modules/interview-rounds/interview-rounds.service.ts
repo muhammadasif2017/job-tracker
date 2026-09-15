@@ -16,6 +16,7 @@ import { TimelineSummaryService } from '../timeline-summary/timeline-summary.ser
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
+import { findUserTimeZone } from '../../common/user-timezone.js';
 
 // Soft cap, not a real-world limit — a legitimate job search doesn't produce
 // hundreds of rounds for one job. Guards against unbounded InterviewRound/
@@ -91,28 +92,27 @@ export class InterviewRoundsService {
     stage: string,
     scheduledAt: Date,
   ): Promise<string> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { timezone: true },
-    });
-    const timezone = user?.timezone ?? 'UTC';
-    let when: string;
-    try {
-      when = scheduledAt.toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        timeZone: timezone,
-        timeZoneName: 'short',
-      });
-    } catch {
+    const { timeZone, invalidStoredZone } = await findUserTimeZone(
+      this.prisma,
+      userId,
+    );
+    if (invalidStoredZone) {
       // A malformed timezone (hand-edited via Prisma Studio) must not fail the
-      // round creation - same tolerance NotificationsScheduler applies.
-      this.logger.warn('round_note_invalid_timezone', { userId, timezone });
-      when = scheduledAt.toISOString();
+      // round creation - the note falls back to UTC, and this surfaces the row.
+      this.logger.warn('round_note_invalid_timezone', {
+        userId,
+        timezone: invalidStoredZone,
+      });
     }
+    const when = scheduledAt.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      timeZone,
+      timeZoneName: 'short',
+    });
     return `${stage} - ${when}`;
   }
 

@@ -753,7 +753,7 @@ describe('InterviewRoundsService', () => {
 
       expect(mockPrisma.jobEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          note: 'Phone Screen - 2026-08-01T14:00:00.000Z',
+          note: 'Phone Screen - Aug 1, 2026, 2:00 PM UTC',
         }),
       });
       expect(mockLogger.warn).toHaveBeenCalledWith(
