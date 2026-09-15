@@ -171,10 +171,7 @@ export interface CompanyContactPayload {
   notes: string | null;
 }
 
-export function useCreateCompanyContactMutation(
-  companyId: string,
-  onSuccess?: () => void,
-) {
+export function useCreateCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: CompanyContactPayload) =>
@@ -182,17 +179,13 @@ export function useCreateCompanyContactMutation(
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', companyId] });
       toast.success('Contact added');
-      onSuccess?.();
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to add contact')),
   });
 }
 
-export function useUpdateCompanyContactMutation(
-  companyId: string,
-  onSuccess?: () => void,
-) {
+export function useUpdateCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -208,17 +201,13 @@ export function useUpdateCompanyContactMutation(
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['company', companyId] });
       toast.success('Contact updated');
-      onSuccess?.();
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to update contact')),
   });
 }
 
-export function useRemoveCompanyContactMutation(
-  companyId: string,
-  onSettled?: () => void,
-) {
+export function useRemoveCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (contactId: string) =>
@@ -231,7 +220,6 @@ export function useRemoveCompanyContactMutation(
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to remove contact')),
-    onSettled: () => onSettled?.(),
   });
 }
 
