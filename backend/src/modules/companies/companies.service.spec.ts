@@ -418,6 +418,45 @@ describe('CompaniesService', () => {
       );
     });
 
+    // The functional unique index on (userId, lower(name)) is what closes the
+    // race between the pre-check and the write — no Serializable transaction.
+    it('maps a unique-index violation from a racing rename to the same ConflictException, without a transaction', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({ id: 'company-1' }) // findOwned
+        .mockResolvedValueOnce(null); // ensureNameAvailable passes
+      mockPrisma.company.updateMany.mockRejectedValue(
+        Object.assign(new Error('Unique constraint failed'), { code: 'P2002' }),
+      );
+
+      await expect(
+        service.update('user-1', 'company-1', { name: 'Systems Limited' }),
+      ).rejects.toThrow('A company named "Systems Limited" already exists');
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('renames with a user-scoped write and returns the updated company', async () => {
+      mockPrisma.company.findFirst
+        .mockResolvedValueOnce({ id: 'company-1' })
+        .mockResolvedValueOnce(null);
+      mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.company.findFirstOrThrow.mockResolvedValue({
+        id: 'company-1',
+        name: 'New Name',
+      });
+
+      const result = await service.update('user-1', 'company-1', {
+        name: 'New Name',
+      });
+
+      expect(mockPrisma.company.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'company-1', userId: 'user-1' },
+          data: expect.objectContaining({ name: 'New Name' }),
+        }),
+      );
+      expect(result).toEqual({ id: 'company-1', name: 'New Name' });
+    });
+
     it('does not check for duplicates when name is not being changed', async () => {
       mockPrisma.company.findFirst.mockResolvedValue({ id: 'company-1' });
       mockPrisma.company.updateMany.mockResolvedValue({ count: 1 });
