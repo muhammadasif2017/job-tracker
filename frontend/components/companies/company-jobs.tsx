@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { StatusBadge, PriorityBadge } from '../ui/badge';
+import { StatusBadge } from '../ui/badge';
 import { formatCivilDate } from '../../lib/utils';
 import type { CompanyJobSummary } from '../../types';
 
@@ -35,7 +35,6 @@ export function CompanyJobs({ jobs }: CompanyJobsProps) {
                 </span>
                 <div className="flex flex-wrap items-center gap-2">
                   <StatusBadge status={job.status} />
-                  <PriorityBadge priority={job.priority} />
                   <span className="text-xs text-muted-2">
                     {formatCivilDate(job.appliedAt)}
                   </span>

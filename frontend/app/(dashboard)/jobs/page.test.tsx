@@ -214,7 +214,7 @@ describe('JobsPage', () => {
       expect(posLink).toHaveAttribute('href', '/jobs/j-1');
       const row = within(posLink.closest('tr')!);
       expect(row.getByText('Interviewing')).toBeInTheDocument();
-      expect(row.getByText('High')).toBeInTheDocument();
+      expect(row.queryByText('High')).not.toBeInTheDocument();
       expect(row.getByText('Remote')).toBeInTheDocument();
       expect(row.getByText('Austin, TX')).toBeInTheDocument();
       expect(

@@ -20,7 +20,6 @@ import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
 import {
   StatusBadge,
-  PriorityBadge,
   JobTypeBadge,
   SourceBadge,
 } from '../../../components/ui/badge';
@@ -259,7 +258,6 @@ export default function JobsPage() {
                   'Company',
                   'Position',
                   'Status',
-                  'Priority',
                   'Job Type',
                   'Channel',
                   'Applied',
@@ -279,7 +277,7 @@ export default function JobsPage() {
               {isLoading ? (
                 <>
                   <tr>
-                    <td colSpan={9} className="sr-only" role="status">
+                    <td colSpan={8} className="sr-only" role="status">
                       Loading jobs
                     </td>
                   </tr>
@@ -295,7 +293,7 @@ export default function JobsPage() {
                 </>
               ) : isError && !data ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center">
                     <p className="text-base font-medium text-danger">
                       Failed to load jobs
                     </p>
@@ -314,7 +312,7 @@ export default function JobsPage() {
                 </tr>
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-muted-2">
+                  <td colSpan={8} className="py-16 text-center text-muted-2">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -341,9 +339,6 @@ export default function JobsPage() {
                         <StatusBadge status={job.status} />
                         <GhostBadge jobId={job.id} company={job.company} />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <PriorityBadge priority={job.priority} />
                     </td>
                     <td className="px-4 py-3">
                       <JobTypeBadge jobType={job.jobType} />
