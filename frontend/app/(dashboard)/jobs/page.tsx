@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
+import { useDebounce } from '../../../lib/use-debounce';
+import { filenameFromDisposition, saveBlob } from '../../../lib/download';
 import {
   Plus,
   Sparkles,
@@ -44,24 +46,6 @@ import {
   jobFilterParams,
   type JobsFilterValues,
 } from '../../../features/jobs/hooks';
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
-
-// `attachment; filename="jobs-offer.csv"` -> `jobs-offer.csv`. Falls back to
-// the caller's default for a missing or unparseable header (e.g. a same-origin
-// dev setup where the header isn't exposed).
-function filenameFromDisposition(header: unknown, fallback: string): string {
-  if (typeof header !== 'string') return fallback;
-  const match = /filename="?([^";]+)"?/i.exec(header);
-  return match?.[1]?.trim() || fallback;
-}
 
 export default function JobsPage() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
@@ -114,15 +98,6 @@ export default function JobsPage() {
       const res = await api.get(`/jobs/export?${exportParams}`, {
         responseType: 'blob',
       });
-      const url = URL.createObjectURL(res.data as Blob);
-      const a = document.createElement('a');
-      a.href = url;
-      // Firefox only dispatches the download for an anchor that is actually
-      // in the document, and revoking the object URL in the same tick can
-      // cancel a download already in flight — so attach, click, then clean
-      // up once the event loop has handed the blob off.
-      a.style.display = 'none';
-      document.body.appendChild(a);
       // Prefer the server's filename — it carries the status suffix for a
       // filtered export (jobs-offer.csv). Both this and X-Export-Truncated
       // are only readable because main.ts lists them in the CORS
@@ -130,15 +105,10 @@ export default function JobsPage() {
       // `res.headers` is always present from a real axios response; the
       // fallback keeps this from throwing on a hand-rolled response object.
       const headers = (res.headers ?? {}) as Record<string, unknown>;
-      a.download = filenameFromDisposition(
-        headers['content-disposition'],
-        'jobs.csv',
+      saveBlob(
+        res.data as Blob,
+        filenameFromDisposition(headers['content-disposition'], 'jobs.csv'),
       );
-      a.click();
-      setTimeout(() => {
-        a.remove();
-        URL.revokeObjectURL(url);
-      }, 0);
       // The export is capped server-side. Without this the user just gets a
       // short file and no reason to doubt it.
       if (headers['x-export-truncated'] === 'true') {

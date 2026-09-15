@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useDebounce } from '../../../../lib/use-debounce';
 import { Search, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Modal } from '../../../../components/ui/modal';
@@ -11,15 +12,6 @@ import {
   useAdminUsersQuery,
   useDeleteAdminUserMutation,
 } from '../../../../features/admin/hooks';
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
 
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
