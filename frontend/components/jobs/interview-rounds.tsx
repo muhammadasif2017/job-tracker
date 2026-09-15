@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { formatDateTime } from '../../lib/utils';
 import api from '../../lib/api';
+import { filenameFromDisposition, saveBlob } from '../../lib/download';
 import {
   useCreateInterviewRoundMutation,
   useInterviewRoundOutcomeMutation,
@@ -174,18 +175,13 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
         `/jobs/${jobId}/interview-rounds/${roundId}/ics`,
         { responseType: 'blob' },
       );
-      const objectUrl = URL.createObjectURL(response.data as Blob);
-      const disposition = response.headers['content-disposition'] as
-        string | undefined;
-      const filename =
-        disposition?.match(/filename="([^"]+)"/)?.[1] ?? 'interview.ics';
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
+      saveBlob(
+        response.data as Blob,
+        filenameFromDisposition(
+          response.headers['content-disposition'],
+          'interview.ics',
+        ),
+      );
     } catch {
       toast.error('Failed to download calendar file');
     }

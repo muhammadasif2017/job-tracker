@@ -2,6 +2,7 @@
 
 import { useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
+import { useDebounce } from '../../lib/use-debounce';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
@@ -33,15 +34,6 @@ import {
 import api, { getErrorMessage } from '../../lib/api';
 import { toDateInputValue, todayInputValue } from '../../lib/utils';
 import { fetchCompanyApplicationHistory } from '../../features/companies/hooks';
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
 
 const schema = z.object({
   company: z.string().min(1, 'Company is required'),

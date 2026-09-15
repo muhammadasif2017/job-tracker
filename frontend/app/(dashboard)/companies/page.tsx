@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useDebounce } from '../../../lib/use-debounce';
 import { Plus, Search, Upload } from 'lucide-react';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
@@ -22,15 +23,6 @@ import {
   useCompaniesQuery,
   useDeleteCompanyMutation,
 } from '../../../features/companies/hooks';
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
-}
 
 export default function CompaniesPage() {
   const [search, setSearch] = useState('');

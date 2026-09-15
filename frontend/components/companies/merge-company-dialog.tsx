@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useDebounce } from '../../lib/use-debounce';
 import { Modal } from '../ui/modal';
 import { Button } from '../ui/button';
 import api from '../../lib/api';
@@ -47,15 +48,6 @@ function normalize(value: unknown): string {
 function formatValue(value: unknown): string {
   const n = normalize(value);
   return n === '' ? '(empty)' : n;
-}
-
-function useDebounce<T>(value: T, delay = 300): T {
-  const [debounced, setDebounced] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return debounced;
 }
 
 export function MergeCompanyDialog({

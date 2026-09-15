@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { FileText, Eye, Download, Trash2, Upload } from 'lucide-react';
 import { Button } from '../ui/button';
 import api from '../../lib/api';
+import { saveBlob } from '../../lib/download';
 import {
   useResumeQuery,
   useUploadResumeMutation,
@@ -98,15 +99,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
     setIsDownloading(true);
     try {
       const { data } = await api.get(`/jobs/${jobId}/resumes/url`);
-      const blob = await fetchResumeBlob(data.url);
-      const objectUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = objectUrl;
-      a.download = resume.originalName;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objectUrl);
+      saveBlob(await fetchResumeBlob(data.url), resume.originalName);
     } catch {
       toast.error('Download failed');
     } finally {
