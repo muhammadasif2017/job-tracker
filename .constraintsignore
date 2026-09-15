@@ -2,3 +2,9 @@
 # The guards match on suppression and stub patterns, so their own source is exempt.
 scripts/floor-guard.mjs
 scripts/migration-guard.mjs
+# DTO specs deleted on purpose: DTO validation is declarative and not unit-tested
+# (see the coverage row in CONSTRAINTS.md). Listed so their removal is not a
+# test-deleted finding.
+backend/src/modules/jobs/dto/create-job.dto.spec.ts
+backend/src/modules/jobs/dto/job-query.dto.spec.ts
+backend/src/modules/jobs/dto/update-job.dto.spec.ts

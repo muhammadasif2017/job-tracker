@@ -51,7 +51,7 @@ bottom.
 | Lint | Zero eslint **errors** (warnings ratcheted below) | `npm run check:fast` in each package | pre-commit\*, CI |
 | Formatting (frontend) | Zero files fail prettier | `cd frontend && npm run format:check` | pre-commit\*, CI |
 | Migrations | Every new `migration.sql` declares `-- data-loss:` | `npm run check:migrations` | CI |
-| Coverage: changed lines | ≥ 80% of changed executable lines covered | `node scripts/coverage-diff.mjs` | CI, blocking |
+| Coverage: changed lines | ≥ 80% of changed executable lines covered (`*.dto.ts` excluded; DTOs are not unit-tested) | `node scripts/coverage-diff.mjs` | CI, blocking |
 | Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI, blocking |
 | Security: dependencies | No **production** package at CVSS 7.0+ | `osv-scanner` + `node scripts/dep-scan-gate.mjs` | CI, blocking |
 | E2E | Playwright suite green | `.github/workflows/e2e-pr.yml` | PR, merge-blocking (ADR-025) |
