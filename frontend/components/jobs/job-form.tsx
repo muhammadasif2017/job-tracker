@@ -27,13 +27,14 @@ import {
   STATUS_LABELS,
   type Job,
   type MatchedCompany,
-  type Company,
-  type PaginatedCompanies,
   type CompanyApplicationHistory,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
 import { toDateInputValue, todayInputValue } from '../../lib/utils';
-import { fetchCompanyApplicationHistory } from '../../features/companies/hooks';
+import {
+  fetchCompanyApplicationHistory,
+  useCompanySuggestionsQuery,
+} from '../../features/companies/hooks';
 
 const schema = z.object({
   company: z.string().min(1, 'Company is required'),
@@ -111,34 +112,16 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
 
   // Phase 6 (docs/specs/company-fk-phase6.md) — autocomplete on create only;
   // reduces near-duplicate Company creation at the source. `companyFocused`
-  // gates the search effect so opening the modal (which programmatically
-  // sets `company` via reset()) never fires a spurious search — only actual
-  // typing in the field does.
+  // gates the search so opening the modal (which programmatically sets
+  // `company` via reset()) never fires a spurious search — only actual
+  // typing in the field does. A failed search just shows no suggestions.
   const [companyFocused, setCompanyFocused] = useState(false);
-  const [companySuggestions, setCompanySuggestions] = useState<Company[]>([]);
   const companyValue = watch('company') ?? '';
   const debouncedCompany = useDebounce(companyValue);
-
-  useEffect(() => {
-    if (isEdit || !companyFocused || debouncedCompany.trim().length < 2) {
-      setCompanySuggestions([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const r = await api.get<PaginatedCompanies>('/companies', {
-          params: { search: debouncedCompany, limit: 5 },
-        });
-        if (!cancelled) setCompanySuggestions(r.data.data);
-      } catch {
-        if (!cancelled) setCompanySuggestions([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [debouncedCompany, companyFocused, isEdit]);
+  const companySuggestions = useCompanySuggestionsQuery(
+    debouncedCompany,
+    !isEdit && companyFocused,
+  );
 
   const handleClose = () => {
     setCompanyHistory(null);
@@ -146,14 +129,12 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     setMatchedCompany(null);
     setBannerDismissed(false);
     setCompanyFocused(false);
-    setCompanySuggestions([]);
     onClose();
   };
 
   useEffect(() => {
     if (open) {
       setCompanyFocused(false);
-      setCompanySuggestions([]);
       reset(
         job
           ? {
@@ -340,7 +321,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setValue('company', c.name, { shouldValidate: true });
-                        setCompanySuggestions([]);
                         setCompanyFocused(false);
                       }}
                     >

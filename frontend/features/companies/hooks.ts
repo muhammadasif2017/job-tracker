@@ -71,6 +71,29 @@ export function useCompaniesQuery(filters: CompaniesFilters) {
   });
 }
 
+// JobForm's company autocomplete (docs/specs/company-fk-phase6.md). Under the
+// ['companies'] prefix so any company create/edit/delete invalidates it.
+// Returns [] while disabled: a cached result for an old term must not show
+// in edit mode or below the 2-character minimum.
+export function useCompanySuggestionsQuery(search: string, enabled: boolean) {
+  const term = search.trim();
+  const active = enabled && term.length >= 2;
+  const { data } = useQuery<Company[]>({
+    queryKey: ['companies', 'suggestions', term],
+    queryFn: () =>
+      api
+        .get<PaginatedCompanies>('/companies', {
+          params: { search: term, limit: 5 },
+        })
+        .then((r) => r.data.data),
+    enabled: active,
+    // Pinned here rather than inherited from providers.tsx: backspacing to a
+    // term already searched should reuse that result, not refetch it.
+    staleTime: 60_000,
+  });
+  return active ? (data ?? []) : [];
+}
+
 export function useCompanyQuery(id: string) {
   return useQuery<Company>({
     queryKey: ['company', id],
