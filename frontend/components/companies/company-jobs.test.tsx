@@ -27,5 +27,7 @@ describe('CompanyJobs', () => {
     });
     expect(link).toHaveAttribute('href', '/jobs/job-1');
     expect(screen.getByText('Applied')).toBeInTheDocument();
+    // Job priority isn't shown — only the company's own target priority is.
+    expect(screen.queryByText('High')).not.toBeInTheDocument();
   });
 });

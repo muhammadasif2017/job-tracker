@@ -214,7 +214,7 @@ describe('JobsPage', () => {
       expect(posLink).toHaveAttribute('href', '/jobs/j-1');
       const row = within(posLink.closest('tr')!);
       expect(row.getByText('Interviewing')).toBeInTheDocument();
-      expect(row.getByText('High')).toBeInTheDocument();
+      expect(row.queryByText('High')).not.toBeInTheDocument();
       expect(row.getByText('Remote')).toBeInTheDocument();
       expect(row.getByText('Austin, TX')).toBeInTheDocument();
       expect(
@@ -263,14 +263,14 @@ describe('JobsPage', () => {
       await waitFor(() => expect(lastGetUrl()).toContain('status=OFFER'));
     });
 
-    it('filters by priority', async () => {
+    it('offers no priority filter', async () => {
       vi.mocked(api.get).mockResolvedValue({ data: page() });
       renderPage();
       await screen.findByText('Acme');
-      fireEvent.change(screen.getByLabelText('Filter by priority'), {
-        target: { value: 'LOW' },
-      });
-      await waitFor(() => expect(lastGetUrl()).toContain('priority=LOW'));
+      expect(
+        screen.queryByLabelText('Filter by priority'),
+      ).not.toBeInTheDocument();
+      expect(lastGetUrl()).not.toContain('priority=');
     });
     it('filters by applied-date range', async () => {
       // The backend has supported dateFrom/dateTo all along; there was no UI
@@ -321,15 +321,15 @@ describe('JobsPage', () => {
       vi.mocked(api.get).mockResolvedValue({ data: page() });
       renderPage();
       await screen.findByText('Acme');
-      fireEvent.change(screen.getByLabelText('Filter by priority'), {
-        target: { value: 'LOW' },
+      fireEvent.change(screen.getByLabelText('Filter by status'), {
+        target: { value: 'OFFER' },
       });
       fireEvent.click(screen.getByRole('button', { name: /board/i }));
 
       const board = screen.getByTestId('kanban-board');
       expect(
         JSON.parse(board.getAttribute('data-filters') ?? '{}'),
-      ).toMatchObject({ priority: 'LOW' });
+      ).toMatchObject({ status: 'OFFER' });
     });
 
     it('opens JobForm pre-filled when editing from the Kanban board', async () => {

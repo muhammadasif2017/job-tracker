@@ -20,7 +20,6 @@ import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
 import {
   StatusBadge,
-  PriorityBadge,
   JobTypeBadge,
   SourceBadge,
 } from '../../../components/ui/badge';
@@ -33,11 +32,8 @@ import { formatCivilDate } from '../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
-  JOB_PRIORITIES,
-  PRIORITY_LABELS,
   type Job,
   type JobStatus,
-  type JobPriority,
 } from '../../../types';
 import api from '../../../lib/api';
 import {
@@ -51,7 +47,6 @@ export default function JobsPage() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<JobStatus | ''>('');
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | ''>('');
   // Date-only strings straight from <input type="date">, passed through to
   // the backend's dateFrom/dateTo (which widens dateTo to cover that whole
   // day). '' means "no bound".
@@ -70,7 +65,6 @@ export default function JobsPage() {
   const filters: JobsFilterValues = {
     search: debouncedSearch,
     status: statusFilter,
-    priority: priorityFilter,
     dateFrom,
     dateTo,
   };
@@ -177,22 +171,6 @@ export default function JobsPage() {
             </option>
           ))}
         </select>
-        <select
-          aria-label="Filter by priority"
-          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
-          value={priorityFilter}
-          onChange={(e) => {
-            setPriorityFilter(e.target.value as JobPriority | '');
-            setPage(1);
-          }}
-        >
-          <option value="">All priorities</option>
-          {JOB_PRIORITIES.map((p) => (
-            <option key={p} value={p}>
-              {PRIORITY_LABELS[p]}
-            </option>
-          ))}
-        </select>
         <div className="flex items-center gap-2">
           <input
             type="date"
@@ -259,7 +237,6 @@ export default function JobsPage() {
                   'Company',
                   'Position',
                   'Status',
-                  'Priority',
                   'Job Type',
                   'Channel',
                   'Applied',
@@ -279,7 +256,7 @@ export default function JobsPage() {
               {isLoading ? (
                 <>
                   <tr>
-                    <td colSpan={9} className="sr-only" role="status">
+                    <td colSpan={8} className="sr-only" role="status">
                       Loading jobs
                     </td>
                   </tr>
@@ -295,7 +272,7 @@ export default function JobsPage() {
                 </>
               ) : isError && !data ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center">
+                  <td colSpan={8} className="py-16 text-center">
                     <p className="text-base font-medium text-danger">
                       Failed to load jobs
                     </p>
@@ -314,7 +291,7 @@ export default function JobsPage() {
                 </tr>
               ) : data?.data.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-muted-2">
+                  <td colSpan={8} className="py-16 text-center text-muted-2">
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -341,9 +318,6 @@ export default function JobsPage() {
                         <StatusBadge status={job.status} />
                         <GhostBadge jobId={job.id} company={job.company} />
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <PriorityBadge priority={job.priority} />
                     </td>
                     <td className="px-4 py-3">
                       <JobTypeBadge jobType={job.jobType} />

@@ -15,13 +15,11 @@ import { Modal } from '../ui/modal';
 import { ResumeUpload } from './resume-upload';
 import { CompanyHistoryConfirm } from './company-history-confirm';
 import {
-  JOB_PRIORITIES,
   DISCOVERY_SOURCES,
   APPLICATION_CHANNELS,
   JOB_STATUSES,
   JOB_TYPES,
   JOB_TYPE_LABELS,
-  PRIORITY_LABELS,
   DISCOVERY_SOURCE_LABELS,
   APPLICATION_CHANNEL_LABELS,
   STATUS_LABELS,
@@ -49,7 +47,6 @@ const schema = z.object({
     .or(z.literal(''))
     .optional(),
   status: z.enum(JOB_STATUSES),
-  priority: z.enum(JOB_PRIORITIES),
   jobType: z.enum(JOB_TYPES),
   discoverySource: z.enum(DISCOVERY_SOURCES).or(z.literal('')).optional(),
   applicationChannel: z.enum(APPLICATION_CHANNELS).or(z.literal('')).optional(),
@@ -102,7 +99,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'APPLIED',
-      priority: 'MEDIUM',
       jobType: 'ONSITE',
       // The viewer's today. `toISOString()` here would prefill UTC's today —
       // yesterday, for anyone east of UTC before their local morning.
@@ -142,7 +138,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
               position: job.position,
               location: job.location ?? '',
               status: job.status,
-              priority: job.priority,
               jobType: job.jobType,
               discoverySource: job.discoverySource ?? '',
               applicationChannel: job.applicationChannel ?? '',
@@ -154,7 +149,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
             }
           : {
               status: 'APPLIED',
-              priority: 'MEDIUM',
               jobType: 'ONSITE',
               appliedAt: todayInputValue(),
               ...initialValues,
@@ -359,25 +353,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
               {JOB_STATUSES.map((s) => (
                 <option key={s} value={s}>
                   {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1">
-            <label
-              htmlFor="job-priority"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
-            >
-              Priority
-            </label>
-            <select
-              id="job-priority"
-              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
-              {...register('priority')}
-            >
-              {JOB_PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABELS[p]}
                 </option>
               ))}
             </select>
