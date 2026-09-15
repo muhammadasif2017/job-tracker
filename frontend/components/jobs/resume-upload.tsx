@@ -25,9 +25,13 @@ function formatBytes(bytes: number) {
 // - oracle: a presigned object-storage URL, fetched without that header,
 //   which the storage service would reject alongside the URL signature.
 // Either way a non-OK response is an error, never a file to save.
-async function fetchResumeBlob(url: string): Promise<Blob> {
+function isApiUrl(url: string): boolean {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-  if (apiUrl && url.startsWith(apiUrl)) {
+  return Boolean(apiUrl && url.startsWith(apiUrl));
+}
+
+async function fetchResumeBlob(url: string): Promise<Blob> {
+  if (isApiUrl(url)) {
     const { data } = await api.get<Blob>(url, { responseType: 'blob' });
     return data;
   }
@@ -74,7 +78,16 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
   async function handleView() {
     try {
       const { data } = await api.get(`/jobs/${jobId}/resumes/url`);
-      window.open(data.url, '_blank', 'noopener,noreferrer');
+      if (!isApiUrl(data.url)) {
+        window.open(data.url, '_blank', 'noopener,noreferrer');
+        return;
+      }
+      // A new tab can't send the Bearer token the local-driver endpoint
+      // needs, so open an authenticated blob instead. Revoked after a delay:
+      // the new tab loads the blob URL asynchronously.
+      const objectUrl = URL.createObjectURL(await fetchResumeBlob(data.url));
+      window.open(objectUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 60_000);
     } catch {
       toast.error('Could not open file');
     }
