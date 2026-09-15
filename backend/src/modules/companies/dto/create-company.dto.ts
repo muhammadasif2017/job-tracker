@@ -8,6 +8,7 @@ import {
   IsString,
   IsUrl,
   MaxLength,
+  ValidateIf,
 } from 'class-validator';
 import { BusinessMode, CompanyCity, JobPriority } from '@prisma/client';
 
@@ -32,8 +33,10 @@ export class CreateCompanyDto {
   @MaxLength(200)
   location?: string | null;
 
+  // Omittable, not nullable: Company.priority is a non-nullable column with a
+  // default. `@IsOptional()` would also let null through to Prisma (a 500).
   @ApiPropertyOptional({ enum: JobPriority })
-  @IsOptional()
+  @ValidateIf((_, value) => value !== undefined)
   @IsEnum(JobPriority)
   priority?: JobPriority;
 
