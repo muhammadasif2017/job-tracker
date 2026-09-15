@@ -6,19 +6,17 @@ import {
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type { InterviewOutcome } from '../../types';
+import { invalidateJobListCaches } from './hooks';
 
 // Creating/updating/removing a round can silently flip Job.status (APPLIED ->
-// INTERVIEWING auto-promotion, see interview-rounds.service.ts). Match the
-// invalidation set the manual status-change mutation uses
-// (usePatchJobStatusMutation) so the Kanban board and dashboard stats don't
-// show a stale status.
+// INTERVIEWING auto-promotion, see interview-rounds.service.ts), and it is job
+// activity that moves nextInterviewAt, so it can also change which jobs look
+// ghosted. Reuse the job list invalidation set rather than a copy of it — a
+// copy is how ['ghost-suggestions'] went missing here.
 function invalidateInterviewRoundCaches(qc: QueryClient, jobId: string) {
+  invalidateJobListCaches(qc);
   qc.invalidateQueries({ queryKey: ['job', jobId] });
   qc.invalidateQueries({ queryKey: ['job-events', jobId] });
-  qc.invalidateQueries({ queryKey: ['attention'] });
-  qc.invalidateQueries({ queryKey: ['jobs'] });
-  qc.invalidateQueries({ queryKey: ['stats'] });
-  qc.invalidateQueries({ queryKey: ['analytics', 'funnel'] });
 }
 
 export interface CreateInterviewRoundPayload {
