@@ -694,6 +694,31 @@ describe('CompaniesService', () => {
       expect(result[0].reason).toBe('name');
     });
 
+    // Guards the length pre-filter: 20 vs 17 chars is distance 3, ratio
+    // exactly 0.85 — the skip must not drop a pair sitting on the threshold.
+    it('still flags a name match whose length gap sits exactly on the threshold', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'abcdefghijklmnopqrst', websiteUrl: null },
+        { id: 'c-2', name: 'abcdefghijklmnopq', websiteUrl: null },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].reason).toBe('name');
+    });
+
+    it('does not flag names whose length gap alone rules out a match', async () => {
+      mockPrisma.company.findMany.mockResolvedValue([
+        { id: 'c-1', name: 'abcdefghijklmnopqrst', websiteUrl: null },
+        { id: 'c-2', name: 'abcdefghijklmnop', websiteUrl: null },
+      ]);
+
+      const result = await service.findDuplicateSuggestions('user-1');
+
+      expect(result).toEqual([]);
+    });
+
     it('prefers a website match over a name match when both would fire', async () => {
       mockPrisma.company.findMany.mockResolvedValue([
         {

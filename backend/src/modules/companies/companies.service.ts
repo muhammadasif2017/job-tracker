@@ -32,6 +32,8 @@ const MAX_COMPANIES_PER_USER = 2000;
 
 const RECENT_HISTORY_JOBS = 3;
 
+const NAME_SIMILARITY_THRESHOLD = 0.85;
+
 @Injectable()
 export class CompaniesService {
   constructor(
@@ -435,26 +437,44 @@ export class CompaniesService {
       reason: 'website' | 'name';
     }[] = [];
 
+    // Normalized once per company, not once per pair: normalizeCompanyName
+    // builds a RegExp per suffix, and at MAX_COMPANIES_PER_USER the pair
+    // loop below runs ~2M times on every companies-page mount.
+    const normalized = companies.map((c) => ({
+      website: c.websiteUrl ? normalizeWebsiteUrl(c.websiteUrl) : null,
+      name: normalizeCompanyName(c.name),
+    }));
+
     for (let i = 0; i < companies.length; i++) {
       for (let j = i + 1; j < companies.length; j++) {
         const a = companies[i];
         const b = companies[j];
 
         if (
-          a.websiteUrl &&
-          b.websiteUrl &&
-          normalizeWebsiteUrl(a.websiteUrl) ===
-            normalizeWebsiteUrl(b.websiteUrl)
+          normalized[i].website &&
+          normalized[i].website === normalized[j].website
         ) {
           suggestions.push({ companyA: a, companyB: b, reason: 'website' });
           continue;
         }
 
-        const ratio = similarityRatio(
-          normalizeCompanyName(a.name),
-          normalizeCompanyName(b.name),
-        );
-        if (ratio >= 0.85) {
+        // Edit distance is never less than the length gap, so this ratio is
+        // an upper bound on similarityRatio's — below the threshold, skip the
+        // O(len^2) Levenshtein. Same expression shape as similarityRatio, so
+        // a pair exactly on the threshold is never skipped by rounding.
+        const nameA = normalized[i].name;
+        const nameB = normalized[j].name;
+        const maxLength = Math.max(nameA.length, nameB.length);
+        if (
+          maxLength > 0 &&
+          1 - Math.abs(nameA.length - nameB.length) / maxLength <
+            NAME_SIMILARITY_THRESHOLD
+        ) {
+          continue;
+        }
+
+        const ratio = similarityRatio(nameA, nameB);
+        if (ratio >= NAME_SIMILARITY_THRESHOLD) {
           suggestions.push({ companyA: a, companyB: b, reason: 'name' });
         }
       }
