@@ -80,10 +80,10 @@ export class WebFetchService {
       // before the first fetch, so the clock covers every hop that follows:
       // a chain still resolving at t=10s aborts, even mid-hop. That is the
       // point — per-hop timeouts would let 1 + MAX_REDIRECTS hops run 40s,
-      // and CompanyEnrichmentProcessor makes up to four fetchPageText calls
-      // (three parallel, then /contact-us) inside a 90s BullMQ lockDuration,
-      // which a slow-redirecting host could otherwise blow through. Don't
-      // move this inside the loop to "give each hop a fair chance".
+      // and CompanyEnrichmentProcessor makes several fetchPageText calls per
+      // run, so a slow-redirecting host could stretch every enrichment run
+      // (and its Tavily/Groq-holding worker slot) by that much. Don't move
+      // this inside the loop to "give each hop a fair chance".
       const signal = AbortSignal.timeout(10_000);
       const init: RequestInit = {
         headers: {

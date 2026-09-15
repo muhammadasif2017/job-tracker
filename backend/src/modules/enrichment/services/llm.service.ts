@@ -170,16 +170,16 @@ export class LlmService {
   ) {
     this.client = new Groq({
       apiKey: this.config.get('GROQ_API_KEY') ?? 'placeholder',
-      // Hard upper bound on each call so a hung request can't keep the
-      // BullMQ job running indefinitely (feeds the enrichment worker's
-      // lockDuration margin — see enrichment.processor.ts). A client-side
-      // timeout is itself retried by the SDK (groq-sdk/client.js) up to
-      // `maxRetries`, so worst case per pipeline run is timeout * (maxRetries
-      // + 1) — explicitly pinning maxRetries here (rather than trusting the
-      // SDK's own default of 2) keeps that worst case closed-form: 45s * 2 =
-      // 90s, matching the lockDuration margin instead of quietly exceeding
-      // it. 45s (up from 30s) also gives a legitimately slow-but-healthy
-      // response more room to land before the first attempt aborts.
+      // Hard upper bound on each call so a hung request can't keep a BullMQ
+      // job running indefinitely. A client-side timeout is itself retried by
+      // the SDK (groq-sdk/client.js) up to `maxRetries`, so pinning it here
+      // (rather than the SDK default of 2) keeps one SDK call's worst case
+      // closed-form: 45s * 2 = 90s. createWithRetry can add one more call on
+      // a tool_use_failed. This is not sized to the workers' 90s
+      // lockDuration: BullMQ renews a lock while the processor is running,
+      // so that value is stall detection, not a runtime ceiling (see
+      // docs/company-profile-enrichment.md §3). 45s (up from 30s) gives a
+      // slow-but-healthy response more room before the first attempt aborts.
       timeout: 45_000,
       maxRetries: 1,
     });
