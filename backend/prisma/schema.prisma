@@ -167,7 +167,6 @@ model Job {
   location                    String?
   url                         String?
   status                      JobStatus        @default(APPLIED)
-  priority                    JobPriority      @default(MEDIUM)
   jobType                     JobType          @default(ONSITE)
   discoverySource             DiscoverySource?
   applicationChannel          ApplicationChannel?

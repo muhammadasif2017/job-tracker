@@ -150,7 +150,6 @@ export interface Job {
   location?: string;
   url?: string;
   status: JobStatus;
-  priority: JobPriority;
   jobType: JobType;
   discoverySource?: DiscoverySource | null;
   applicationChannel?: ApplicationChannel | null;
@@ -311,7 +310,6 @@ export interface PaginatedJobs {
 
 export interface JobQuery {
   status?: JobStatus;
-  priority?: JobPriority;
   search?: string;
   page?: number;
   limit?: number;
@@ -530,7 +528,6 @@ export interface CompanyJobSummary {
   id: string;
   position: string;
   status: JobStatus;
-  priority: JobPriority;
   appliedAt: string;
 }
 

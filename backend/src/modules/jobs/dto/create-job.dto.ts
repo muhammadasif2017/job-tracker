@@ -11,7 +11,6 @@ import {
 } from 'class-validator';
 import {
   JobStatus,
-  JobPriority,
   JobType,
   DiscoverySource,
   ApplicationChannel,
@@ -79,11 +78,6 @@ export class CreateJobDto {
   @IsOptional()
   @IsEnum(JobStatus)
   status?: JobStatus;
-
-  @ApiPropertyOptional({ enum: JobPriority })
-  @IsOptional()
-  @IsEnum(JobPriority)
-  priority?: JobPriority;
 
   @ApiPropertyOptional({ enum: JobType })
   @IsOptional()

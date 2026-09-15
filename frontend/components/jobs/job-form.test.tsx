@@ -38,7 +38,6 @@ const job: Job = {
   location: 'Remote',
   url: 'https://acme.example/jobs/1',
   status: 'INTERVIEWING',
-  priority: 'HIGH',
   jobType: 'REMOTE',
   discoverySource: 'LINKEDIN',
   applicationChannel: 'REFERRAL',
@@ -171,7 +170,7 @@ describe('JobForm', () => {
       });
     });
 
-    it('omits priority so the backend applies its MEDIUM default', async () => {
+    it('sends no priority field on create', async () => {
       vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
       renderForm();
       expect(screen.queryByLabelText(/priority/i)).not.toBeInTheDocument();
@@ -244,7 +243,7 @@ describe('JobForm', () => {
       });
     });
 
-    it("omits priority so an edit keeps the job's stored value", async () => {
+    it('sends no priority field on edit', async () => {
       vi.mocked(api.patch).mockResolvedValue({ data: { ...job } });
       renderForm({ job });
       fireEvent.click(screen.getByRole('button', { name: /save changes/i }));

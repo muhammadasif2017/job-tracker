@@ -26,7 +26,6 @@ erDiagram
         string company
         string position
         JobStatus status
-        JobPriority priority
         JobType jobType
         datetime nextInterviewAt
     }

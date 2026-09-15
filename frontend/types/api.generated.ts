@@ -1184,8 +1184,6 @@ export interface components {
         | 'REJECTED'
         | 'GHOSTED';
       /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
-      /** @enum {string} */
       jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
       /** @enum {string|null} */
       discoverySource?:
@@ -1280,8 +1278,6 @@ export interface components {
         | 'OFFER'
         | 'REJECTED'
         | 'GHOSTED';
-      /** @enum {string} */
-      priority: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @enum {string} */
       jobType: 'ONSITE' | 'HYBRID' | 'REMOTE';
       /** @enum {string|null} */
@@ -1554,8 +1550,6 @@ export interface components {
         | 'OFFER'
         | 'REJECTED'
         | 'GHOSTED';
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @enum {string} */
       jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
       /** @enum {string|null} */
@@ -3111,7 +3105,6 @@ export interface operations {
           | 'REJECTED'
           | 'GHOSTED'
         )[];
-        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
         search?: string;
         limit?: number;
         sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';
@@ -3305,7 +3298,6 @@ export interface operations {
           | 'REJECTED'
           | 'GHOSTED'
         )[];
-        priority?: 'LOW' | 'MEDIUM' | 'HIGH';
         search?: string;
         limit?: number;
         sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';

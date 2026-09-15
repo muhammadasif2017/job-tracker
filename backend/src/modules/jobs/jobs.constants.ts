@@ -125,9 +125,9 @@ function appliedAtUpperBound(dateTo: string) {
 }
 
 // Shared filter builder for the list and CSV export — both expose the same
-// status/priority/search/date filters scoped to the owner.
+// status/search/date filters scoped to the owner.
 export function buildJobWhere(userId: string, query: JobQueryDto) {
-  const { status, statusIn, priority, search, dateFrom, dateTo } = query;
+  const { status, statusIn, search, dateFrom, dateTo } = query;
   // NFKC folds styled Unicode (e.g. Mathematical Bold letters pasted from
   // LinkedIn/social posts) down to plain Latin so `contains` can match
   // against normally-typed stored data.
@@ -145,7 +145,6 @@ export function buildJobWhere(userId: string, query: JobQueryDto) {
   return {
     userId,
     ...statusFilter,
-    ...(priority && { priority }),
     ...(normalizedSearch && {
       // Widened past company/position to cover the two other free-text
       // columns — searching for a city or a note is the same intent, and
