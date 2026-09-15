@@ -19,6 +19,25 @@ function formatBytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+// The resume URL comes in two shapes, by backend STORAGE_DRIVER:
+// - local: our own auth-gated `/jobs/resumes/file` endpoint, which needs the
+//   Bearer header only the `api` client attaches (a bare fetch gets a 401).
+// - oracle: a presigned object-storage URL, fetched without that header,
+//   which the storage service would reject alongside the URL signature.
+// Either way a non-OK response is an error, never a file to save.
+async function fetchResumeBlob(url: string): Promise<Blob> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl && url.startsWith(apiUrl)) {
+    const { data } = await api.get<Blob>(url, { responseType: 'blob' });
+    return data;
+  }
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Resume download failed with ${response.status}`);
+  }
+  return response.blob();
+}
+
 interface ResumeUploadProps {
   jobId: string | null;
   initialResume?: Resume | null;
@@ -66,8 +85,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
     setIsDownloading(true);
     try {
       const { data } = await api.get(`/jobs/${jobId}/resumes/url`);
-      const response = await fetch(data.url);
-      const blob = await response.blob();
+      const blob = await fetchResumeBlob(data.url);
       const objectUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = objectUrl;
