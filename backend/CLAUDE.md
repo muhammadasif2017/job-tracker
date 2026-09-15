@@ -150,6 +150,8 @@ await tx.jobEvent.create({ data: { jobId, type: JobEventType.STATUS_CHANGE, from
 
 `updateMany` can't carry a nested `events: { create: ... } }`, so this can't be one Prisma call — the CAS is what closes the TOCTOU race where a concurrent status change (e.g. an interview-round auto-promotion racing a manual edit) would otherwise let a stale `existing.status` get written into `fromStatus`. See [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for the race this replaced and why single-statement writes weren't safe here.
 
+The bulk variant is `JobsService.markGhosted` ("Mark all ghosted"): instead of calling `update` per job, it runs one `tx.job.updateManyAndReturn` per status the ghost rule allows, with that status and the live `buildGhostSuggestionWhere` rule in the `WHERE` (so eligibility and the CAS are one atomic step, and each returned row's `fromStatus` is known), then one `tx.jobEvent.createMany`, all in one transaction. Timeline summaries are enqueued per moved job after commit. If a new side effect is added to `update`'s status-change path, add it here too.
+
 ---
 
 ## TypeScript Import Convention

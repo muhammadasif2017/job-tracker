@@ -530,37 +530,47 @@ export class JobsService {
   // live rule (scoped by userId, so another user's id never matches) and
   // anything that got activity or was dismissed in between is skipped.
   //
-  // Each job goes through update() one at a time rather than one updateMany:
-  // update() owns the compare-and-set status write, the STATUS_CHANGE event
-  // the funnel reads, and the timeline-summary enqueue. That queue coalesces
-  // per job and runs one summary at a time, so a burst only queues up.
+  // The rule is part of each write's WHERE, not a separate read first, so
+  // eligibility and the status change are one atomic step per row.
+  //
+  // It does what update() does for a status change — a compare-and-set on the
+  // status being left, the STATUS_CHANGE event the funnel reads, the
+  // timeline-summary enqueue — but as one updateManyAndReturn per status the
+  // rule allows (so each returned row's fromStatus is known), plus one
+  // createMany, in one transaction. Going through update() per job cost
+  // several round trips each, up to MAX_GHOST_SUGGESTIONS jobs per request.
+  // Nothing else in update() applies: no job leaves WISHLIST and no company
+  // label changes. The summary queue coalesces per job, so the burst of
+  // enqueues after commit only queues up.
   async markGhosted(userId: string, jobIds: string[]) {
-    const eligible = await this.prisma.job.findMany({
-      where: {
-        ...buildGhostSuggestionWhere(userId, new Date()),
-        id: { in: [...new Set(jobIds)] },
-      },
-      select: { id: true },
+    const ghostWhere = buildGhostSuggestionWhere(userId, new Date());
+    const ids = [...new Set(jobIds)];
+
+    const moved = await this.prisma.$transaction(async (tx) => {
+      const rows: { id: string; fromStatus: JobStatus }[] = [];
+      for (const fromStatus of ghostWhere.status.in) {
+        const updated = await tx.job.updateManyAndReturn({
+          where: { ...ghostWhere, id: { in: ids }, status: fromStatus },
+          data: { status: JobStatus.GHOSTED },
+          select: { id: true },
+        });
+        rows.push(...updated.map(({ id }) => ({ id, fromStatus })));
+      }
+      if (rows.length > 0) {
+        await tx.jobEvent.createMany({
+          data: rows.map(({ id, fromStatus }) => ({
+            jobId: id,
+            type: JobEventType.STATUS_CHANGE,
+            fromStatus,
+            toStatus: JobStatus.GHOSTED,
+          })),
+        });
+      }
+      return rows;
     });
 
-    let updated = 0;
-    for (const { id } of eligible) {
-      try {
-        await this.update(userId, id, { status: JobStatus.GHOSTED });
-        updated++;
-      } catch (err: unknown) {
-        // Status changed or job deleted since the eligibility read — the
-        // user's intent no longer applies to it. Anything else is real.
-        if (
-          err instanceof ConflictException ||
-          err instanceof NotFoundException
-        ) {
-          continue;
-        }
-        throw err;
-      }
-    }
-    return { updated };
+    await Promise.all(moved.map(({ id }) => this.enqueueTimelineSummary(id)));
+    return { updated: moved.length };
   }
 
   async dismissGhostSuggestion(userId: string, jobId: string) {
