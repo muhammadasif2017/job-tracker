@@ -151,6 +151,57 @@ describe('QuickAdd', () => {
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
 
+  it('keeps the input and offers retry or manual entry when the parser is unavailable', async () => {
+    vi.mocked(api.post)
+      .mockResolvedValueOnce({
+        data: { url: 'https://acme.example/jobs/1', parserUnavailable: true },
+      })
+      .mockResolvedValueOnce({
+        data: { company: 'Acme', position: 'Senior Engineer' },
+      });
+    renderQuickAdd();
+    const textarea = screen.getByPlaceholderText(/paste the job description/i);
+    fireEvent.change(textarea, {
+      target: { value: 'https://acme.example/jobs/1' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'The job parser is unavailable right now.',
+    );
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      "Couldn't reach the job parser. Try again.",
+    );
+    expect(vi.mocked(toast.warning)).not.toHaveBeenCalled();
+    expect(textarea).toHaveValue('https://acme.example/jobs/1');
+
+    // Retrying reaches the parser this time.
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+    expect(await screen.findByText('Add Job')).toBeInTheDocument();
+    expect(screen.getByLabelText(/company/i)).toHaveValue('Acme');
+  });
+
+  it('opens the form with the URL kept on "Enter manually"', async () => {
+    vi.mocked(api.post).mockResolvedValue({
+      data: { url: 'https://acme.example/jobs/1', parserUnavailable: true },
+    });
+    renderQuickAdd();
+    fireEvent.change(
+      screen.getByPlaceholderText(/paste the job description/i),
+      { target: { value: 'https://acme.example/jobs/1' } },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /parse & continue/i }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /enter manually/i }),
+    );
+
+    expect(await screen.findByText('Add Job')).toBeInTheDocument();
+    expect(screen.getByLabelText(/job url/i)).toHaveValue(
+      'https://acme.example/jobs/1',
+    );
+    expect(screen.getByLabelText(/company/i)).toHaveValue('');
+  });
+
   it('leaves the job-form field blank when the parser returns null for it', async () => {
     vi.mocked(api.post).mockResolvedValue({
       data: { company: 'Acme', position: null, location: null },
