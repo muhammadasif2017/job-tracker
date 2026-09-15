@@ -72,10 +72,9 @@ test.describe('Create company', () => {
       page.getByRole('link', { name: 'New Target Co' }),
     ).toBeVisible();
 
-    const res = await fetch(
-      `http://localhost:3001/companies?search=New+Target+Co`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`${API}/companies?search=New+Target+Co`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
     if (data[0]) await deleteTestCompany(user.accessToken, data[0].id);
   });
@@ -196,7 +195,7 @@ test.describe('Merge companies', () => {
       company: 'Merge E2E Duplicate',
       position: 'Merge E2E Reassigned Role',
     });
-    await fetch(`http://localhost:3001/companies/${duplicate.id}/contacts`, {
+    await fetch(`${API}/companies/${duplicate.id}/contacts`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -534,10 +533,9 @@ test.describe('CSV import', () => {
       page.getByRole('link', { name: 'Csv Import Co' }),
     ).toBeVisible();
 
-    const res = await fetch(
-      `http://localhost:3001/companies?search=Csv+Import+Co`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`${API}/companies?search=Csv+Import+Co`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
     if (data[0]) await deleteTestCompany(user.accessToken, data[0].id);
   });
@@ -566,10 +564,9 @@ test.describe('CSV import', () => {
 
     await dialog.getByRole('button', { name: 'Done' }).click();
 
-    const res = await fetch(
-      `http://localhost:3001/companies?search=Good+Row+Co`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`${API}/companies?search=Good+Row+Co`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
     if (data[0]) await deleteTestCompany(user.accessToken, data[0].id);
   });
@@ -686,7 +683,7 @@ test.describe('Job creation matches an existing target company', () => {
     await expect(dialog.getByText('as a target company')).toBeVisible();
 
     // Clean up the created job via API.
-    const res = await fetch(`http://localhost:3001/jobs?search=match+corp`, {
+    const res = await fetch(`${API}/jobs?search=match+corp`, {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     });
     const { data } = (await res.json()) as { data: Array<TestJob> };
@@ -710,10 +707,9 @@ test.describe('Job creation matches an existing target company', () => {
     ).toBeVisible();
     await expect(dialog.getByText('as a target company')).not.toBeVisible();
 
-    const res = await fetch(
-      `http://localhost:3001/jobs?search=Totally+Unmatched+Inc`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`${API}/jobs?search=Totally+Unmatched+Inc`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<TestJob> };
     if (data[0]) await deleteTestJob(user.accessToken, data[0].id);
   });

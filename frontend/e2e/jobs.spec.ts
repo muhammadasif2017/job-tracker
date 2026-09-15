@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  API,
   createTestUser,
   deleteTestUser,
   createTestJob,
@@ -79,7 +80,7 @@ test.describe('Create job', () => {
     ).toBeVisible();
 
     // Clean up via API
-    const res = await fetch(`http://localhost:3001/jobs?search=New+Corp`, {
+    const res = await fetch(`${API}/jobs?search=New+Corp`, {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
