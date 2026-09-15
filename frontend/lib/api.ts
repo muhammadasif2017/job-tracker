@@ -5,12 +5,13 @@ import { useAuthStore } from '../store/auth.store';
 // Default request timeout so a hung backend doesn't spin forever. Also used
 // for the refresh-token POST below, which bypasses the `api` instance (plain
 // `axios.post`) and so doesn't inherit it automatically. Per-call overrides:
-// resume upload (`components/jobs/resume-upload.tsx`, 120s — bounded by the
-// 8 MB size cap), Quick Add's `/jobs/parse` (`components/jobs/quick-add.tsx`,
-// 60s — synchronous page-fetch + LLM extraction with a fallback search+retry
-// pass), and saving an interview-round debrief (`features/jobs/interview-rounds.hooks.ts`,
-// 60s — synchronous LLM round-prep generation, same Groq client/timeout
-// shape as `/jobs/parse`). Don't raise this default — override per-call instead.
+// resume upload (`features/jobs/resume.hooks.ts`, 120s — bounded by the 8 MB
+// size cap), Quick Add's `/jobs/parse` (`features/jobs/hooks.ts`, 60s —
+// synchronous page-fetch + LLM extraction with a fallback search+retry pass),
+// and saving an interview-round debrief
+// (`features/jobs/interview-rounds.hooks.ts`, 60s — synchronous LLM round-prep
+// generation, same Groq client/timeout shape as `/jobs/parse`). Don't raise
+// this default — override per-call instead.
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 const api = axios.create({
