@@ -341,7 +341,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         <div className="grid gap-4 sm:grid-cols-2">
           <Input
             label="Location"
-            placeholder="Remote / NYC"
+            placeholder="Berlin, Germany"
             {...register('location')}
           />
           <div className="flex flex-col gap-1">
