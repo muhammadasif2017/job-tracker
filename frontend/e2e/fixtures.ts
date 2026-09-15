@@ -138,6 +138,15 @@ export async function deleteTestCompany(
   }).catch(() => {});
 }
 
+// ── File helpers ─────────────────────────────────────────────────────────────
+
+// Minimal buffer with a real PDF magic-number header — enough for the
+// backend's FileTypeValidator (magic-number sniffing) to accept it. `size`
+// filler bytes let tests sit just under or over the 8 MB cap.
+export function pdfBuffer(size: number): Buffer {
+  return Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(size, 'a')]);
+}
+
 // ── Auth injection ────────────────────────────────────────────────────────────
 
 /**

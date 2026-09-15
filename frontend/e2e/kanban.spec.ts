@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import {
+  API,
   createTestUser,
   deleteTestUser,
   createTestJob,
@@ -151,7 +152,7 @@ test.describe('Kanban card actions', () => {
   test('shows the job posting link icon only when a URL is set', async ({
     page,
   }) => {
-    await fetch(`http://localhost:3001/jobs/${job.id}`, {
+    await fetch(`${API}/jobs/${job.id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -220,7 +221,7 @@ test.describe('Kanban drag and drop', () => {
     ).toBeVisible();
     await expect(page.getByText('Failed to update status')).not.toBeVisible();
 
-    const res = await fetch(`http://localhost:3001/jobs/${job.id}`, {
+    const res = await fetch(`${API}/jobs/${job.id}`, {
       headers: { Authorization: `Bearer ${user.accessToken}` },
     });
     const updated = (await res.json()) as { status: string };

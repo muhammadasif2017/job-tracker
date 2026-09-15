@@ -1,10 +1,12 @@
 import { test, expect } from '@playwright/test';
 import {
+  API,
   createTestUser,
   deleteTestUser,
   createTestJob,
   deleteTestJob,
   injectAuth,
+  pdfBuffer,
   type TestUser,
   type TestJob,
 } from './fixtures';
@@ -18,12 +20,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (user) await deleteTestUser(user.accessToken);
 });
-
-// Minimal buffer with a real PDF magic-number header — enough for the
-// backend's FileTypeValidator (magic-number sniffing) to accept it.
-function pdfBuffer(size: number): Buffer {
-  return Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(size, 'a')]);
-}
 
 // ── Modal overflow ────────────────────────────────────────────────────────────
 
@@ -54,10 +50,9 @@ test.describe('Add Job modal on a short viewport', () => {
       dialog.getByRole('heading', { name: 'Job Added' }),
     ).toBeVisible();
 
-    const res = await fetch(
-      `http://localhost:3001/jobs?search=Short+Viewport+Co`,
-      { headers: { Authorization: `Bearer ${user.accessToken}` } },
-    );
+    const res = await fetch(`${API}/jobs?search=Short+Viewport+Co`, {
+      headers: { Authorization: `Bearer ${user.accessToken}` },
+    });
     const { data } = (await res.json()) as { data: Array<{ id: string }> };
     if (data[0]) await deleteTestJob(user.accessToken, data[0].id);
   });

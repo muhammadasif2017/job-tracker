@@ -5,6 +5,7 @@ import {
   createTestJob,
   deleteTestJob,
   injectAuth,
+  pdfBuffer,
   type TestUser,
   type TestJob,
 } from './fixtures';
@@ -18,12 +19,6 @@ test.beforeAll(async () => {
 test.afterAll(async () => {
   if (user) await deleteTestUser(user.accessToken);
 });
-
-// Minimal buffer with a real PDF magic-number header — enough for the
-// backend's FileTypeValidator (magic-number sniffing) to accept it.
-function pdfBuffer(size: number): Buffer {
-  return Buffer.concat([Buffer.from('%PDF-1.4\n'), Buffer.alloc(size, 'a')]);
-}
 
 async function goToJob(page: Parameters<typeof injectAuth>[0], job: TestJob) {
   await injectAuth(page, user);
