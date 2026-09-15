@@ -49,7 +49,7 @@ login(...) {}
 Two JWTs issued together by the private `issueTokens(userId, email)` method:
 
 - **Access token** — 15 min, signed with `JWT_SECRET`. Sent as `Authorization: Bearer`.
-- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`, carries a `jti`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **bcrypt hash** in the separate `RefreshToken` table (keyed by `jti`, not a column on `User`).
+- **Refresh token** — 7 days, signed with `JWT_REFRESH_SECRET`, carries a `jti`. Never in the request/response body — set as an `httpOnly; SameSite=Lax` cookie (`jt_refresh`, scoped to `/auth`) by `AuthController`, read back by `JwtRefreshStrategy` off `req.cookies`. Stored server-side as a **SHA-256 hash** (not bcrypt — see "Database Schema" below) in the separate `RefreshToken` table (keyed by `jti`, not a column on `User`).
 
 On every refresh, the old `RefreshToken` row is soft-revoked (`revokedAt` set, not deleted) and a new pair (new `jti`, new row) is issued. Presenting an already-revoked token (replay of a rotated-out refresh token) is treated as a theft signal — it revokes every `RefreshToken` row for that user, not just the one presented.
 
@@ -113,14 +113,20 @@ No in-app flow promotes a user to `ADMIN` — direct DB/Prisma Studio only. Full
 
 ## Jobs: Authorization Pattern
 
-Every service method that operates on a specific job calls `findOne(userId, jobId)` first. This throws `ForbiddenException` if the job belongs to a different user. Never skip this check:
+Every `JobsService` method that touches a specific job scopes the query by `userId`. A job owned by another user is indistinguishable from one that doesn't exist: both throw `NotFoundException` (404), never `ForbiddenException`, so a job id's existence doesn't leak. Never skip the scope. Three shapes, by what the method needs:
+
+- **Writes that need the current row** (`update`, `getEvents`) call the private `findOwned(userId, jobId)` — a lean `findFirst` on `{ id, userId }` selecting only the columns the write reads, no relations.
+- **Single-statement writes** (`remove`, `dismissGhostSuggestion`) skip the pre-read: a `deleteMany`/`updateMany` on `{ id: jobId, userId }`, then `count === 0` → `NotFoundException`.
+- **The detail read** (`findOne`) is the same scoped `findFirst` with the relations the job page renders. Don't call it just to check ownership — use `findOwned`.
 
 ```ts
 async update(userId: string, jobId: string, dto: UpdateJobDto) {
-  const existing = await this.findOne(userId, jobId); // ownership check
+  const existing = await this.findOwned(userId, jobId); // 404 if not this user's
   // ...
 }
 ```
+
+Child modules check the parent the same way instead of carrying their own `userId` column: `InterviewRoundsService.ensureJobOwned(userId, jobId)` (ADR-015) and `ContactsService.ensureOwner(userId, ref)`, which checks whichever parent — job or company — the contact hangs off (ADR-022).
 
 ## Jobs: Event Logging
 
