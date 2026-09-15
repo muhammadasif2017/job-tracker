@@ -112,8 +112,7 @@
     ],
     "rootDir": "src",
     "roots": [
-      "<rootDir>",
-      "<rootDir>/../scripts"
+      "<rootDir>"
     ],
     "testRegex": ".*\\.spec\\.ts$",
     "testPathIgnorePatterns": [

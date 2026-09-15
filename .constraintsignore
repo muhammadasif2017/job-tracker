@@ -8,3 +8,6 @@ scripts/migration-guard.mjs
 backend/src/modules/jobs/dto/create-job.dto.spec.ts
 backend/src/modules/jobs/dto/job-query.dto.spec.ts
 backend/src/modules/jobs/dto/update-job.dto.spec.ts
+# One-off company FK backfill (docs/specs/company-fk-phase3.md), removed after
+# it ran; its spec went with it.
+backend/scripts/backfill-company-fk.spec.ts
