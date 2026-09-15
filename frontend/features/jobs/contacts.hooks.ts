@@ -11,10 +11,7 @@ export interface ContactPayload {
   notes: string | null;
 }
 
-export function useCreateContactMutation(
-  jobId: string,
-  onSuccess?: () => void,
-) {
+export function useCreateContactMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (payload: ContactPayload) =>
@@ -25,17 +22,13 @@ export function useCreateContactMutation(
       // rounds, there's no Kanban/stats/funnel invalidation to do here.
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Contact added');
-      onSuccess?.();
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to add contact')),
   });
 }
 
-export function useUpdateContactMutation(
-  jobId: string,
-  onSuccess?: () => void,
-) {
+export function useUpdateContactMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({
@@ -51,17 +44,13 @@ export function useUpdateContactMutation(
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['job', jobId] });
       toast.success('Contact updated');
-      onSuccess?.();
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to update contact')),
   });
 }
 
-export function useRemoveContactMutation(
-  jobId: string,
-  onSettled?: () => void,
-) {
+export function useRemoveContactMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (contactId: string) =>
@@ -72,6 +61,5 @@ export function useRemoveContactMutation(
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Failed to remove contact')),
-    onSettled: () => onSettled?.(),
   });
 }
