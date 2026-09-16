@@ -16,6 +16,12 @@ import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';
 
+/**
+ * The signed-in user acting on their own account: profile, notification
+ * preferences, password and deletion. Every method takes the id from the
+ * access token, so there is no route here that can reach another user's
+ * row.
+ */
 @Injectable()
 export class UsersService {
   constructor(
@@ -24,6 +30,11 @@ export class UsersService {
     private logger: Logger,
   ) {}
 
+  /**
+   * The single shape every method in this service returns, so a profile
+   * read and a profile write cannot drift apart. Sensitive columns are
+   * dropped here rather than at each call site.
+   */
   private async toProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -53,10 +64,16 @@ export class UsersService {
     };
   }
 
+  /** Returns the caller's own profile. */
   async getProfile(userId: string) {
     return await this.toProfile(userId);
   }
 
+  /**
+   * Updates name or email. The email uniqueness check is a friendly 400
+   * ahead of the database's own unique constraint, which would otherwise
+   * surface as a 409 with no field named.
+   */
   async updateProfile(userId: string, dto: UpdateUserDto) {
     if (dto.email) {
       const taken = await this.prisma.user.findFirst({
@@ -69,6 +86,10 @@ export class UsersService {
     return await this.toProfile(userId);
   }
 
+  /**
+   * Updates the reminder and digest settings, plus the timezone those are
+   * scheduled against.
+   */
   async updateNotificationPrefs(
     userId: string,
     dto: UpdateNotificationPrefsDto,
@@ -77,6 +98,11 @@ export class UsersService {
     return await this.toProfile(userId);
   }
 
+  /**
+   * Changes the password after re-checking the current one. An account
+   * created through OAuth has no password to verify against, so it is
+   * refused rather than allowed to set one blind.
+   */
   async changePassword(userId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user?.password) {
@@ -97,15 +123,23 @@ export class UsersService {
     return { message: 'Password updated successfully' };
   }
 
+  /** Deletes the caller's own account and everything that cascades from it. */
   async deleteAccount(userId: string) {
     await this.deleteById(userId);
     return { message: 'Account deleted' };
   }
 
-  // Shared by self-delete (deleteAccount) and admin-initiated deletion.
+  /**
+   * Shared by self-delete (`deleteAccount`) and admin-initiated deletion,
+   * so both paths clean up identically.
+   *
+   * Storage files are not part of the database cascade — the keys are
+   * collected before the Job/Resume rows disappear, and deleted after the
+   * row delete commits. A failed file delete is logged, never rethrown: the
+   * account is already gone and an orphaned file must not turn that into an
+   * error the user sees.
+   */
   async deleteById(userId: string) {
-    // Storage files aren't part of the DB cascade — collect keys before the
-    // Job/Resume rows disappear, then clean them up after the delete commits.
     const resumes = await this.prisma.resume.findMany({
       where: { job: { userId } },
       select: { storageKey: true },

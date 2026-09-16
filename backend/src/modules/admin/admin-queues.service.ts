@@ -19,6 +19,11 @@ import {
   STATUS_ORDER,
 } from './admin-queues.constants.js';
 
+/**
+ * Reads both halves of the enrichment pipeline: BullMQ job counts in Redis
+ * and the Company.status distribution in Postgres. A row stranded in one is
+ * invisible in the other, which is the whole reason this service exists.
+ */
 @Injectable()
 export class AdminQueuesService {
   constructor(
@@ -32,6 +37,10 @@ export class AdminQueuesService {
     private readonly logger: Logger,
   ) {}
 
+  /**
+   * Snapshots all three queues and the company status buckets together, so
+   * the two halves shown side by side describe the same moment.
+   */
   async getObservability(): Promise<QueueObservabilityDto> {
     const [queues, grouped] = await Promise.all([
       Promise.all([

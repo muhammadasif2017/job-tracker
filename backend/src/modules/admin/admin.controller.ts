@@ -26,6 +26,11 @@ import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 
+/**
+ * Admin-only user management. `@Roles(Role.ADMIN)` sits on the class, so
+ * every route inherits it — there is no unguarded route here to add by
+ * accident.
+ */
 @ApiTags('admin')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -35,6 +40,7 @@ import { Roles } from '../../common/decorators/roles.decorator.js';
 export class AdminController {
   constructor(private adminService: AdminService) {}
 
+  /** Lists users, paginated and searchable. */
   @Get()
   @ApiOperation({ summary: 'List all users with pagination and search' })
   @ApiOkResponse({ type: PaginatedAdminUsersDto })
@@ -42,6 +48,7 @@ export class AdminController {
     return this.adminService.listUsers(query);
   }
 
+  /** Fetches one user by id. */
   @Get(':id')
   @ApiOperation({ summary: 'Get a single user' })
   @ApiParam({ name: 'id', description: 'User ID' })
@@ -60,6 +67,10 @@ export class AdminController {
     description:
       'Requires ADMIN role, or attempting to delete your own account',
   })
+  /**
+   * Deletes a user. Passes the caller's own id through so the service can
+   * refuse a self-delete.
+   */
   @ApiNotFoundResponse({ description: 'User not found' })
   remove(@CurrentUser() user: { id: string }, @Param('id') id: string) {
     return this.adminService.deleteUser(user.id, id);

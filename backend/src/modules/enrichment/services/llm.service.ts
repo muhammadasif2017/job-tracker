@@ -4,6 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
 
+/**
+ * What one enrichment run yields about a company. Every field is nullable
+ * because the model is asked to return nothing rather than guess, and a
+ * null here clears a stale value when it is written over an earlier run.
+ */
 export interface CompanyData {
   industry: string | null;
   companySize: string | null;
@@ -13,6 +18,12 @@ export interface CompanyData {
   businessMode: BusinessMode | null;
 }
 
+/**
+ * The tool schema the model fills in for company enrichment. Using a tool
+ * call rather than free prose is what makes the output parseable at all —
+ * the enum on `companySize` in particular keeps the answer to one of the
+ * buckets the UI can render.
+ */
 const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
   type: 'function',
   function: {
@@ -67,6 +78,10 @@ const EXTRACT_TOOL: Groq.Chat.ChatCompletionTool = {
   },
 };
 
+/**
+ * What Quick Add gets out of a pasted job posting. Null means the posting
+ * did not say, which the form leaves for the user to fill in.
+ */
 export interface ParsedJobData {
   company?: string | null;
   position?: string | null;
@@ -74,6 +89,11 @@ export interface ParsedJobData {
   jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
 }
 
+/**
+ * The tool schema for parsing a job posting, kept separate from
+ * `EXTRACT_TOOL` because the two prompts extract different things from
+ * different source text.
+ */
 const JOB_POSTING_TOOL: Groq.Chat.ChatCompletionTool = {
   type: 'function',
   function: {
@@ -96,20 +116,32 @@ const JOB_POSTING_TOOL: Groq.Chat.ChatCompletionTool = {
   },
 };
 
+/**
+ * Coerces one model-supplied value to a trimmed string, falling back to
+ * "Unknown". Everything arriving from a tool call is untrusted JSON, so
+ * nothing is used at its declared type without passing through here.
+ */
 function str(val: unknown): string {
   return typeof val === 'string' && val.trim() ? val.trim() : 'Unknown';
 }
 
-// Both company-profile and job-posting fields are Prisma-nullable and can be
-// written via a full-object spread onto an existing row (see
-// CompanyEnrichmentProcessor.buildCompletedProfileData) — an explicit null
-// clears a stale value on re-write, whereas undefined would just omit the
-// key and leave the old value in place.
+/**
+ * Both company-profile and job-posting fields are Prisma-nullable and can
+ * be written by spreading the whole object onto an existing row (see
+ * `CompanyEnrichmentProcessor.buildCompletedProfileData`) — an explicit
+ * null clears a stale value on re-write, whereas undefined would omit the
+ * key and leave the old value in place.
+ */
 function strOrNull(val: unknown): string | null {
   const s = str(val);
   return s === 'Unknown' ? null : s;
 }
 
+/**
+ * Narrows a raw job-posting tool call to the typed shape. An off-enum
+ * `jobType` becomes undefined rather than being passed along, so a bad
+ * generation leaves the field unset instead of reaching validation.
+ */
 function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
   const jobType =
     raw.jobType === 'ONSITE' ||
@@ -125,26 +157,34 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
   };
 }
 
-// Groq's structured-output generation occasionally produces a tool call that
-// fails its own schema validation (400, code "tool_use_failed") — a
-// generation-time glitch, not a bad request. Duck-typed rather than
-// `instanceof Groq.APIError` so it works whether the SDK's real error class
-// or a test double is thrown.
+/**
+ * Groq's structured-output generation occasionally produces a tool call
+ * that fails its own schema validation (400, code `tool_use_failed`) — a
+ * generation-time glitch, not a bad request. Duck-typed rather than
+ * `instanceof Groq.APIError` so it works whether the SDK's real error class
+ * or a test double is thrown.
+ */
 function isToolUseFailedError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { status?: number; error?: { error?: { code?: string } } };
   return e.status === 400 && e.error?.error?.code === 'tool_use_failed';
 }
 
-// `businessMode` is the only extracted field Prisma types as an enum rather
-// than a string, so an off-enum generation would reach the database as an
-// invalid value instead of merely reading oddly. Checked against the enum
-// itself rather than a copied literal list.
+/**
+ * `businessMode` is the only extracted field Prisma types as an enum rather
+ * than a string, so an off-enum generation would reach the database as an
+ * invalid value instead of merely reading oddly. Checked against the enum
+ * itself rather than a copied literal list.
+ */
 function businessModeOrNull(val: unknown): BusinessMode | null {
   const s = strOrNull(val);
   return s !== null && s in BusinessMode ? (s as BusinessMode) : null;
 }
 
+/**
+ * Narrows a raw company tool call to `CompanyData`. `techStack` is filtered
+ * element by element, since the model occasionally returns a mixed array.
+ */
 function sanitize(raw: Record<string, unknown>): CompanyData {
   return {
     industry: strOrNull(raw.industry),
@@ -160,6 +200,11 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
   };
 }
 
+/**
+ * Every Groq call the app makes. Two shapes live here: tool-call
+ * extractions, whose output is parsed into typed fields, and free-text
+ * completions, whose output is shown to the user as prose.
+ */
 @Injectable()
 export class LlmService {
   private readonly client: Groq;
@@ -185,10 +230,12 @@ export class LlmService {
     });
   }
 
-  // One immediate retry on a tool_use_failed generation glitch, before
-  // falling through to the caller's own retry (a full queue re-attempt,
-  // which re-runs search/fetch too — expensive for what's often just a
-  // one-off malformed generation).
+  /**
+   * One immediate retry on a `tool_use_failed` generation glitch, before
+   * falling through to the caller's own retry — a full queue re-attempt,
+   * which re-runs search and fetch too, is expensive for what is often a
+   * one-off malformed generation.
+   */
   private async createWithRetry<T>(
     call: () => Promise<T>,
     model: string,
@@ -202,6 +249,12 @@ export class LlmService {
     }
   }
 
+  /**
+   * Extracts a company profile from gathered web content. The
+   * disambiguation hints matter more than they look: company names collide
+   * constantly, and without them the model happily describes a same-named
+   * firm on the other side of the world.
+   */
   async extract(
     companyName: string,
     context: string,
@@ -289,6 +342,11 @@ export class LlmService {
     }
   }
 
+  /**
+   * Parses a pasted job posting into the fields the Quick Add form
+   * pre-fills. The prompt asks for "Unknown" over a guess, because a wrong
+   * company name silently attaches the job to the wrong employer.
+   */
   async extractJobPosting(content: string): Promise<ParsedJobData> {
     try {
       const response = await this.createWithRetry(
@@ -328,11 +386,15 @@ export class LlmService {
     }
   }
 
-  // Free-text completions (no tool schema) — output here is prose, not
-  // structured fields, so there's nothing for a tool call to extract. The
-  // tool_use_failed retry in createWithRetry doesn't apply to this path;
-  // Groq's own SDK-level retry (maxRetries: 1, set in the constructor)
-  // still covers transient network/5xx failures.
+  /**
+   * Suggests talking points for a job's next interview round from the
+   * debrief of the one just finished.
+   *
+   * A free-text completion with no tool schema — the output is prose, so
+   * there is nothing for a tool call to extract, and the `tool_use_failed`
+   * retry does not apply. Groq's own SDK-level retry still covers transient
+   * network and 5xx failures.
+   */
   async generateRoundPrep(input: {
     company: string;
     position: string;
@@ -370,6 +432,11 @@ export class LlmService {
     }
   }
 
+  /**
+   * Writes the one-sentence caption shown on a job's timeline. Another
+   * free-text completion, capped short because the output has to fit a
+   * dashboard line.
+   */
   async summarizeEvents(
     events: {
       type: string;

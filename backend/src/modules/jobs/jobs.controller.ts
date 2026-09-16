@@ -50,6 +50,15 @@ import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
 
+/**
+ * Everything about a user's job applications: the list and detail views,
+ * the dashboard aggregates, CSV export, the ghost-suggestion actions and
+ * Quick Add's posting parser.
+ *
+ * Every literal route — `stats`, `stats/funnel`, `stats/trend`, `export`,
+ * `attention`, `ghost-suggestions` — must stay above `:id`. A fixed segment
+ * only wins over a parameterized one when it is registered first.
+ */
 @ApiTags('jobs')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -61,6 +70,7 @@ export class JobsController {
     private jobParsing: JobParsingService,
   ) {}
 
+  /** Creates a job application. */
   @Post()
   @PatAccessible()
   @ApiOperation({ summary: 'Create a job application' })
@@ -71,14 +81,18 @@ export class JobsController {
 
   @Post('parse')
   @PatAccessible()
-  // Each call does a webFetch + Tavily search + Groq LLM round trip — real
-  // external cost, and (combined with the SSRF hardening in WebFetchService)
-  // a request path that shouldn't be hammerable at the global 100/60s rate.
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({
     summary:
       'Extract job fields from a posting URL or pasted text, for quick-add prefill',
   })
+  /**
+   * Parses a job posting into form fields for Quick Add. Throttled harder
+   * than the global limit: each call is a page fetch, a web search and a
+   * model round trip — real external cost, and, together with the SSRF
+   * hardening in `WebFetchService`, a request path that should not be
+   * hammerable.
+   */
   @ApiOkResponse({ type: ParsedJobDto })
   parseJobPosting(@Body() dto: ParseJobDto) {
     if (!dto.url && !dto.text) {
@@ -91,15 +105,16 @@ export class JobsController {
   @ApiOperation({
     summary: 'List job applications with filters and pagination',
   })
+  /**
+   * Lists the user's jobs with the list view's filters, search, sort and
+   * pagination.
+   */
   @ApiOkResponse({ type: PaginatedJobsDto })
   findAll(@CurrentUser() user: { id: string }, @Query() query: JobQueryDto) {
     return this.jobsService.findAll(user.id, query);
   }
 
-  // 'stats', 'stats/funnel', 'stats/trend', 'export', 'attention', and
-  // 'ghost-suggestions' must
-  // remain above ':id' — fixed segments win over parameterized ones only
-  // when registered first in the same router.
+  /** The dashboard's headline numbers. */
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })
@@ -112,6 +127,7 @@ export class JobsController {
     summary:
       'Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel',
   })
+  /** The application funnel and its per-source breakdowns. */
   @ApiOkResponse({ type: FunnelStatsDto })
   getFunnel(
     @CurrentUser() user: { id: string },
@@ -125,6 +141,7 @@ export class JobsController {
     summary:
       'Get application volume over time (adaptive day/week/month buckets + cumulative total)',
   })
+  /** Applications over time, bucketed for the trend chart. */
   @ApiOkResponse({ type: TrendStatsDto })
   getTrend(@CurrentUser() user: { id: string }, @Query() query: StatsQueryDto) {
     return this.jobsStats.getTrend(user.id, query.range ?? 'all');
@@ -136,6 +153,11 @@ export class JobsController {
     description: 'CSV file download',
     content: { 'text/csv': {} },
   })
+  /**
+   * Downloads the filtered job list as CSV. Sets a response header when the
+   * export hit its row cap, so the client can warn rather than hand over a
+   * silently partial file.
+   */
   async exportCsv(
     @CurrentUser() user: { id: string },
     @Query() query: JobQueryDto,
@@ -157,6 +179,10 @@ export class JobsController {
     summary:
       'Jobs needing action: upcoming interviews and stalled applications',
   })
+  /**
+   * The "Needs Attention" list: upcoming interviews and stalled
+   * applications.
+   */
   @ApiOkResponse({ type: AttentionItemDto, isArray: true })
   getAttention(@CurrentUser() user: { id: string }) {
     return this.jobsStats.getAttention(user.id);
@@ -167,6 +193,10 @@ export class JobsController {
     summary:
       'Applications with no activity for 14 days that may be ghosted (suggest-only)',
   })
+  /**
+   * Applications quiet long enough to look ghosted. Suggest-only — nothing
+   * here changes a status.
+   */
   @ApiOkResponse({ type: GhostSuggestionDto, isArray: true })
   getGhostSuggestions(@CurrentUser() user: { id: string }) {
     return this.jobsStats.getGhostSuggestions(user.id);
@@ -174,13 +204,16 @@ export class JobsController {
 
   @Post('ghost-suggestions/mark-ghosted')
   @HttpCode(HttpStatus.OK)
-  // Bulk write (up to MAX_GHOST_SUGGESTIONS status changes per call), same
-  // cap as the other bulk write, POST /companies/import.
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({
     summary:
       'Mark the listed jobs GHOSTED, skipping any that are no longer ghost suggestions',
   })
+  /**
+   * Marks the listed jobs ghosted, skipping any that no longer qualify.
+   * Throttled as a bulk write — up to `MAX_GHOST_SUGGESTIONS` status
+   * changes per call — the same cap as `POST /companies/import`.
+   */
   @ApiOkResponse({ type: MarkGhostedResultDto })
   markGhosted(
     @CurrentUser() user: { id: string },
@@ -189,6 +222,7 @@ export class JobsController {
     return this.jobsService.markGhosted(user.id, dto.jobIds);
   }
 
+  /** Returns one job with its company, resume, rounds and contacts. */
   @Get(':id')
   @ApiOperation({ summary: 'Get a single job application' })
   @ApiParam({ name: 'id', description: 'Job ID' })
@@ -198,6 +232,7 @@ export class JobsController {
     return this.jobsService.findOne(user.id, id);
   }
 
+  /** Returns a page of the job's timeline events, newest first. */
   @Get(':id/events')
   @ApiOperation({ summary: 'Get timeline events for a job' })
   @ApiParam({ name: 'id', description: 'Job ID' })
@@ -217,6 +252,10 @@ export class JobsController {
     summary:
       'Dismiss the ghost suggestion for a job until 14 more days pass with no activity',
   })
+  /**
+   * Dismisses the ghost suggestion for a job, quieting it until it goes
+   * quiet again for another full cutoff period.
+   */
   @ApiParam({ name: 'id', description: 'Job ID' })
   @ApiOkResponse({ type: MessageDto })
   @ApiNotFoundResponse({ description: 'Job not found' })
@@ -227,6 +266,10 @@ export class JobsController {
     return this.jobsService.dismissGhostSuggestion(user.id, id);
   }
 
+  /**
+   * Edits a job. A status change here is what writes a STATUS_CHANGE
+   * timeline event.
+   */
   @Patch(':id')
   @ApiOperation({ summary: 'Update a job application' })
   @ApiParam({ name: 'id', description: 'Job ID' })
@@ -240,6 +283,7 @@ export class JobsController {
     return this.jobsService.update(user.id, id, dto);
   }
 
+  /** Deletes a job and everything that cascades from it. */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a job application' })

@@ -3,12 +3,22 @@ import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
 
+/**
+ * Queues regeneration of a job's LLM-written timeline summary. Nothing here
+ * calls the model — the work happens in the queue's processor, and this
+ * service exists so every caller enqueues it the same idempotent way.
+ */
 @Injectable()
 export class TimelineSummaryService {
   constructor(
     @InjectQueue(JOB_TIMELINE_SUMMARY_QUEUE) private readonly queue: Queue,
   ) {}
 
+  /**
+   * Requests a fresh summary for one job. Safe to call on every mutation: a
+   * burst of writes on the same job coalesces into a single run, for the
+   * reasons spelled out at the options below.
+   */
   async enqueue(jobId: string): Promise<void> {
     // A stable BullMQ jobId (distinct from the payload's jobId field) makes
     // this idempotent: adding while a job with the same id is still

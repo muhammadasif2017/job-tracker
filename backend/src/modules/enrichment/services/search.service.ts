@@ -4,11 +4,13 @@ import { Logger } from 'nestjs-pino';
 
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
-// Thrown only for account-level Tavily failures (quota exhausted, bad key) —
-// the kind of error a caller needs the real reason for, as opposed to a
-// transient network/5xx blip that's fine to silently degrade to []. Callers
-// that don't care (e.g. Quick Add's best-effort fallback search) catch and
-// swallow this same as any other search failure.
+/**
+ * Thrown only for account-level Tavily failures — quota exhausted, bad key
+ * — the kind of error a caller needs the real reason for, as opposed to a
+ * transient network or 5xx blip that is fine to degrade silently to an
+ * empty result. Callers that do not care, such as Quick Add's best-effort
+ * fallback search, swallow this the same as any other search failure.
+ */
 export class SearchUnavailableError extends Error {
   constructor(
     message: string,
@@ -19,17 +21,30 @@ export class SearchUnavailableError extends Error {
   }
 }
 
+/**
+ * One hit from Tavily. Every field is optional because the API omits rather
+ * than nulls, and a result with no content is not usable here.
+ */
 interface TavilyResult {
   title?: string;
   url?: string;
   content?: string;
 }
 
+/**
+ * The slice of Tavily's response this app reads: the hits, plus the
+ * synthesized answer when one was requested.
+ */
 interface TavilyResponse {
   answer?: string;
   results?: TavilyResult[];
 }
 
+/**
+ * Web search behind company enrichment. Degrades to an empty result rather
+ * than failing whenever it can — with no `TAVILY_API_KEY` configured every
+ * search returns nothing and the app still works, minus enrichment.
+ */
 @Injectable()
 export class SearchService {
   constructor(
@@ -37,6 +52,13 @@ export class SearchService {
     private readonly logger: Logger,
   ) {}
 
+  /**
+   * Runs one search and returns ranked snippets ready to hand to the model.
+   *
+   * Only account-level failures throw. Everything else — no API key, a
+   * timeout, a 5xx — comes back as an empty array, because a missing
+   * snippet degrades an enrichment run while a thrown error would fail it.
+   */
   async search(
     query: string,
     options?: { includeDomains?: string[] },
@@ -110,6 +132,11 @@ export class SearchService {
     }
   }
 
+  /**
+   * Reduces a result URL to a bare domain for the snippet prefix. Returns
+   * nothing for a URL that will not parse, so a malformed result loses its
+   * attribution rather than the whole search failing.
+   */
   private hostnameOf(url?: string): string | undefined {
     if (!url) return undefined;
     try {

@@ -9,6 +9,11 @@ import {
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import type { IStorageService } from './storage.service.js';
 
+/**
+ * The production driver, talking to Oracle Cloud Object Storage over its
+ * S3-compatible API. Clients fetch files straight from OCI through
+ * presigned URLs, so the backend never proxies file content in this mode.
+ */
 @Injectable()
 export class OracleStorageService implements IStorageService {
   private readonly client: S3Client;
@@ -35,6 +40,10 @@ export class OracleStorageService implements IStorageService {
     });
   }
 
+  /**
+   * Uploads the buffer under the given key, recording the mime type so a
+   * later presigned GET serves it with the right Content-Type.
+   */
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<void> {
     await this.client.send(
       new PutObjectCommand({
@@ -46,6 +55,11 @@ export class OracleStorageService implements IStorageService {
     );
   }
 
+  /**
+   * Mints a short-lived download URL. The 15-minute default is what the
+   * resume download route hands the browser — long enough to click, short
+   * enough that a leaked URL expires quickly.
+   */
   async getPresignedUrl(key: string, expiresIn = 900): Promise<string> {
     return getSignedUrl(
       this.client,
@@ -54,6 +68,10 @@ export class OracleStorageService implements IStorageService {
     );
   }
 
+  /**
+   * Deletes the object. Unlike the local driver this surfaces an error, so
+   * callers that delete best-effort wrap it themselves.
+   */
   async delete(key: string): Promise<void> {
     await this.client.send(
       new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),

@@ -5,25 +5,37 @@ import ipaddr from 'ipaddr.js';
 import { Logger } from 'nestjs-pino';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
 
+/**
+ * Fetches a company's own web page and reduces it to plain text for the
+ * enrichment prompt. Every failure path returns an empty string rather than
+ * throwing: a page that cannot be read degrades a run to
+ * search-snippets-only, and must not fail it.
+ */
 @Injectable()
 export class WebFetchService {
   constructor(private readonly logger: Logger) {}
 
-  // Hostname-string checks alone (e.g. a "127." prefix match) can't catch a
-  // domain that merely *resolves* to a private/loopback/link-local address
-  // (DNS rebinding), or an IPv6-bracketed/mapped literal like "[::1]" or
-  // "[::ffff:169.254.169.254]" that never matches a plain-text regex. This
-  // resolves the hostname and rejects if ANY returned address is
-  // non-public — covers loopback, link-local (incl. the 169.254.169.254
-  // cloud metadata endpoint), private, and IPv6 unique-local ranges for both
-  // literal-IP hosts and rebinding domains alike.
-  //
-  // Residual gap: `fetch` below re-resolves DNS on connect, so a
-  // sub-second-TTL record could theoretically rebind between this check and
-  // the actual connection (TOCTOU). Accepted for this app's threat model —
-  // closing it fully needs pinning the connection to the address validated
-  // here (a custom dispatcher/agent), which is more machinery than a
-  // solo-user job tracker's enrichment pipeline warrants today.
+  /**
+   * The SSRF guard. The URL being fetched ultimately comes from
+   * user-supplied company data, so it is resolved and every returned
+   * address checked before anything connects.
+   *
+   * Hostname string checks alone — a `127.` prefix match, say — cannot
+   * catch a domain that merely resolves to a private, loopback or
+   * link-local address (DNS rebinding), nor an IPv6 bracketed or mapped
+   * literal like `[::1]` or `[::ffff:169.254.169.254]` that never matches a
+   * plain-text regex. Rejecting when any resolved address is non-public
+   * covers loopback, link-local including the 169.254.169.254 cloud
+   * metadata endpoint, private, and IPv6 unique-local ranges, for
+   * literal-IP hosts and rebinding domains alike.
+   *
+   * Residual gap: `fetch` re-resolves DNS on connect, so a sub-second-TTL
+   * record could rebind between this check and the connection. Accepted for
+   * this app's threat model — closing it needs the connection pinned to the
+   * address validated here, via a custom dispatcher, which is more
+   * machinery than a solo-user job tracker's enrichment pipeline warrants
+   * today.
+   */
   private async resolveSafeUrl(url: string): Promise<URL | null> {
     let u: URL;
     try {
@@ -68,8 +80,30 @@ export class WebFetchService {
   // non-public address — while allowing ordinary redirects. The hop cap stops
   // a redirect loop, and a target that fails validation aborts the fetch
   // rather than falling through to the next hop.
+  /**
+   * A redirect target is unvalidated, so it cannot simply be followed — a
+   * public URL that 302s to an internal address would bypass
+   * `resolveSafeUrl` entirely. This used to be handled with `redirect:
+   * 'error'`, which failed closed on any redirect at all. That turned out
+   * to fail closed on most of the legitimate web: apex-to-www,
+   * http-to-https and trailing-slash normalisation are all redirects, so
+   * the official-site fetch threw for a large share of companies and
+   * enrichment silently degraded to snippets only (ADR-037).
+   *
+   * Following hops manually and re-running each target through
+   * `resolveSafeUrl` keeps the real security property — never connect to a
+   * non-public address — while allowing ordinary redirects. This cap stops
+   * a redirect loop, and a target that fails validation aborts the fetch
+   * rather than falling through to the next hop.
+   */
   private static readonly MAX_REDIRECTS = 3;
 
+  /**
+   * Fetches one page and returns its readable text, truncated to the
+   * context budget. Returns an empty string for anything that did not work
+   * out: an unsafe or unparseable URL, a redirect chain that is too long or
+   * leads somewhere unsafe, a non-2xx response, a timeout.
+   */
   async fetchPageText(url: string): Promise<string> {
     if (!url) return '';
     let safeUrl = await this.resolveSafeUrl(url);
@@ -181,8 +215,11 @@ export class WebFetchService {
     }
   }
 
-  // 304 and 305 carry a Location in some servers' responses but aren't
-  // redirects to follow; the fetch spec's redirect statuses are exactly these.
+  /**
+   * 304 and 305 carry a Location in some servers' responses but are not
+   * redirects to follow; the fetch spec's redirect statuses are exactly
+   * these.
+   */
   private isRedirect(status: number): boolean {
     return [301, 302, 303, 307, 308].includes(status);
   }

@@ -12,6 +12,10 @@ import { AdminQueuesService } from './admin-queues.service.js';
 import { QueueObservabilityDto } from './dto/admin-queues.dto.js';
 import { Roles } from '../../common/decorators/roles.decorator.js';
 
+/**
+ * Admin-only observability for the background queues. Read-only — nothing
+ * here retries, drains or pauses a queue.
+ */
 @ApiTags('admin')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -27,6 +31,7 @@ export class AdminQueuesController {
     description:
       'Reports both halves of the enrichment pipeline — BullMQ job counts and the Company.status distribution in Postgres — because a row stranded in one is invisible in the other.',
   })
+  /** Returns the queue and enrichment-status snapshot in one response. */
   @ApiOkResponse({ type: QueueObservabilityDto })
   getObservability() {
     return this.adminQueuesService.getObservability();

@@ -13,6 +13,12 @@ import {
 import { ParseJobDto } from './dto/parse-job.dto.js';
 import { ParsedJobDto } from './dto/parsed-job.dto.js';
 
+/**
+ * Turns a job posting — a URL, or text the browser extension scraped from
+ * the user's own tab — into the fields the Quick Add form pre-fills. Every
+ * field it returns is a suggestion the user reviews before saving, so
+ * returning nothing is an acceptable outcome and a wrong guess is not.
+ */
 @Injectable()
 export class JobParsingService {
   constructor(
@@ -22,6 +28,10 @@ export class JobParsingService {
     private logger: Logger,
   ) {}
 
+  /**
+   * The job boards worth recognising by hostname. Anything else still
+   * resolves to a channel, just the catch-all one.
+   */
   private static readonly SOURCE_DOMAINS: Array<[string, ApplicationChannel]> =
     [
       ['linkedin.com', ApplicationChannel.LINKEDIN],
@@ -29,6 +39,11 @@ export class JobParsingService {
       ['rozee.pk', ApplicationChannel.ROZEE],
     ];
 
+  /**
+   * Infers which board the posting came from. Returns undefined only for a
+   * URL that will not parse — an unrecognised host is a known answer, not a
+   * missing one.
+   */
   private guessSourceFromUrl(url: string): ApplicationChannel | undefined {
     try {
       const host = new URL(url).hostname.replace(/^www\./, '');
@@ -41,8 +56,12 @@ export class JobParsingService {
     }
   }
 
-  // `failed` separates "the LLM call errored" from "there was nothing to
-  // extract from", which the response reports as parserUnavailable.
+  /**
+   * Runs one extraction attempt without letting a model failure escape. The
+   * `failed` flag separates "the call errored" from "there was nothing to
+   * extract from", which the response reports as `parserUnavailable` — the
+   * two mean different things to the user.
+   */
   private async tryExtractJobPosting(
     content: string,
   ): Promise<{ parsed?: ParsedJobData; failed: boolean }> {
@@ -60,6 +79,21 @@ export class JobParsingService {
     }
   }
 
+  /**
+   * Parses a posting, in up to two phases.
+   *
+   * Client-scraped text beats a server-side fetch whenever both are
+   * available. Sites like LinkedIn do not hard-block the server fetch the
+   * way Indeed does — they answer 200 with a logged-out or paywalled page,
+   * which is non-empty and would otherwise win and feed the model junk
+   * instead of the real posting already rendered in the user's browser.
+   *
+   * If that yields nothing, a web search on the URL is the second phase. It
+   * only runs when there is a URL: a failed text extraction gives nothing
+   * to search with. When both phases come up empty the answer distinguishes
+   * a parser failure from a page that could not be fetched at all, because
+   * only the second is worth telling the user to paste the text instead.
+   */
   async parseJobPosting(dto: ParseJobDto): Promise<ParsedJobDto> {
     // Client-scraped text (the extension pulling from the user's own,
     // possibly-logged-in tab) beats our own server-side fetch when both are

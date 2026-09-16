@@ -37,8 +37,10 @@ export class InterviewRoundsService {
     private logger: Logger,
   ) {}
 
-  // Best-effort, mirrors JobsService.enqueueTimelineSummary — a queue/LLM
-  // hiccup must never fail the round mutation that triggered it.
+  /**
+   * Best-effort, mirrors `JobsService.enqueueTimelineSummary` — a queue/LLM
+   * hiccup must never fail the round mutation that triggered it.
+   */
   private async enqueueTimelineSummary(jobId: string): Promise<void> {
     try {
       await this.timelineSummary.enqueue(jobId);
@@ -47,6 +49,11 @@ export class InterviewRoundsService {
     }
   }
 
+  /**
+   * Attaches the round's display status, which is derived rather than stored:
+   * a PENDING round whose time has passed reads as overdue, and storing that
+   * would mean a write every time the clock moved past one.
+   */
   private withDerivedStatus<
     T extends { outcome: InterviewOutcome; scheduledAt: Date },
   >(round: T) {
@@ -59,6 +66,12 @@ export class InterviewRoundsService {
     };
   }
 
+  /**
+   * The only authorization check in this module. `InterviewRound` carries no
+   * `userId` of its own (ADR-015) — ownership comes from the parent job, and a
+   * job owned by someone else is reported as a plain 404 so an id's existence
+   * does not leak.
+   */
   private async ensureJobOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
@@ -68,25 +81,14 @@ export class InterviewRoundsService {
     return job;
   }
 
-  // Every round logs a Timeline entry. If the job is still APPLIED, scheduling
-  // a round is a real-world signal it's moved past "applied" — promote to
-  // INTERVIEWING (never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST
-  // status).
-  //
-  // The promotion is a conditional updateMany (status = APPLIED) rather than
-  // an unconditional update, so it doubles as a compare-and-swap: if two round
-  // creations race on the same APPLIED job, only one updateMany matches a row
-  // and writes the STATUS_CHANGE event — the loser sees count === 0 and logs
-  // a plain INTERVIEW_ROUND_ADDED event instead of promoting (and
-  // double-logging) again. This is why the event isn't nested inside the job
-  // mutation here, unlike the normal "same Prisma operation" pattern
-  // (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't carry a
-  // nested create, so both statements run inside the caller's transaction
-  // instead.
-  // The Timeline note is a frozen snapshot - it is plain text on JobEvent, not
-  // a join to the round - so the user's zone has to be resolved here at write
-  // time rather than at render time. A later reschedule does not rewrite it;
-  // the round list is the live view of when the interview actually is.
+  /**
+   * Builds the Timeline note for a round mutation.
+   *
+   * The note is a frozen snapshot — plain text on `JobEvent`, not a join to
+   * the round — so the user's zone has to be resolved here at write time
+   * rather than at render time. A later reschedule does not rewrite it; the
+   * round list is the live view of when the interview actually is.
+   */
   private async composeRoundNote(
     userId: string,
     stage: string,
@@ -116,6 +118,23 @@ export class InterviewRoundsService {
     return `${stage} - ${when}`;
   }
 
+  /**
+   * Every round logs a Timeline entry. If the job is still APPLIED, scheduling
+   * a round is a real-world signal it has moved past "applied" — promote to
+   * INTERVIEWING (never override a deliberate OFFER/REJECTED/GHOSTED/WISHLIST
+   * status).
+   *
+   * The promotion is a conditional `updateMany` (status = APPLIED) rather than
+   * an unconditional update, so it doubles as a compare-and-swap: if two round
+   * creations race on the same APPLIED job, only one `updateMany` matches a
+   * row and writes the STATUS_CHANGE event — the loser sees `count === 0` and
+   * logs a plain INTERVIEW_ROUND_ADDED event instead of promoting (and
+   * double-logging) again. This is why the event is not nested inside the job
+   * mutation here, unlike the normal "same Prisma operation" pattern (see
+   * backend CLAUDE.md, "Jobs: Event Logging") — `updateMany` cannot carry a
+   * nested create, so both statements run inside the caller's transaction
+   * instead.
+   */
   private async logRoundEvent(
     tx: Prisma.TransactionClient,
     jobId: string,
@@ -151,27 +170,29 @@ export class InterviewRoundsService {
     });
   }
 
-  // Recomputes Job.nextInterviewAt from the earliest future PENDING round.
-  // Called after every create/update/delete so it's always the single source
-  // of truth — never set directly via CreateJobDto/UpdateJobDto. Always runs
-  // inside the same transaction as the round mutation that triggered it.
-  //
-  // This is a single UPDATE with the MIN(...) subquery inline, not a
-  // findFirst-then-update round trip — two concurrent round mutations on the
-  // same job would otherwise be a lost-update race (both read the pre-update
-  // round set, second write clobbers the first with a stale value). A single
-  // statement forces Postgres to serialize on the job row and re-evaluate the
-  // subquery fresh for each writer, closing the window findFirst-then-update
-  // left open (see ADR-018's "Known Remaining Gap").
-  //
-  // `scheduledAt` is TIMESTAMP(3) — no time zone (see the interview_rounds
-  // migration). SQL `now()` returns timestamptz, and comparing a naive
-  // timestamp column to it resolves against the session TimeZone setting —
-  // correct on this UTC dev container, silently wrong on any DB whose
-  // session timezone isn't UTC. Binding a JS Date as a parameter instead
-  // sidesteps that: Prisma serializes it the same way it did for the old
-  // `scheduledAt: { gte: new Date() }` query-builder call, so this restores
-  // the exact prior (timezone-independent) semantics.
+  /**
+   * Recomputes `Job.nextInterviewAt` from the earliest future PENDING round.
+   * Called after every create/update/delete so it is always the single source
+   * of truth — never set directly via `CreateJobDto`/`UpdateJobDto`. Always
+   * runs inside the same transaction as the round mutation that triggered it.
+   *
+   * This is a single UPDATE with the `MIN(...)` subquery inline, not a
+   * findFirst-then-update round trip — two concurrent round mutations on the
+   * same job would otherwise be a lost-update race (both read the pre-update
+   * round set, second write clobbers the first with a stale value). A single
+   * statement forces Postgres to serialize on the job row and re-evaluate the
+   * subquery fresh for each writer, closing the window findFirst-then-update
+   * left open (see ADR-018's "Known Remaining Gap").
+   *
+   * `scheduledAt` is TIMESTAMP(3) — no time zone (see the `interview_rounds`
+   * migration). SQL `now()` returns timestamptz, and comparing a naive
+   * timestamp column to it resolves against the session TimeZone setting —
+   * correct on this UTC dev container, silently wrong on any DB whose session
+   * timezone is not UTC. Binding a JS Date as a parameter instead sidesteps
+   * that: Prisma serializes it the same way it did for the old
+   * `scheduledAt: { gte: new Date() }` query-builder call, so this restores
+   * the exact prior (timezone-independent) semantics.
+   */
   private async recomputeNextInterviewAt(
     tx: Prisma.TransactionClient,
     jobId: string,
@@ -187,6 +208,11 @@ export class InterviewRoundsService {
     `;
   }
 
+  /**
+   * Schedules a round, logs the Timeline entry (promoting the job out of
+   * APPLIED where that applies) and refreshes `Job.nextInterviewAt`, all in
+   * one transaction. The timeline summary is enqueued afterwards, outside it.
+   */
   async create(userId: string, jobId: string, dto: CreateInterviewRoundDto) {
     await this.ensureJobOwned(userId, jobId);
     const scheduledAt = new Date(dto.scheduledAt);
@@ -221,6 +247,10 @@ export class InterviewRoundsService {
     return result;
   }
 
+  /**
+   * Lists the job's rounds in chronological order, each with its derived
+   * status attached.
+   */
   async findAllForJob(userId: string, jobId: string) {
     await this.ensureJobOwned(userId, jobId);
     const rounds = await this.prisma.interviewRound.findMany({
@@ -230,6 +260,12 @@ export class InterviewRoundsService {
     return rounds.map((round) => this.withDerivedStatus(round));
   }
 
+  /**
+   * Edits a round. Two side effects hang off this beyond the write itself: a
+   * reschedule or un-cancel clears `reminderSentAt` so the scheduler emails
+   * again, and a debrief on a PASSED/FAILED round triggers prep generation for
+   * the next one. Both are described at their call sites below.
+   */
   async update(
     userId: string,
     jobId: string,
@@ -294,15 +330,18 @@ export class InterviewRoundsService {
     return result;
   }
 
-  // Looks up the job's next not-yet-happened round and, if one exists,
-  // generates and persists suggested prep for it from this round's debrief.
-  // Can still throw on a genuine LLM failure — the caller (update, above)
-  // wraps this call in try/catch so that never fails the notes-save request
-  // itself. The final persist uses updateMany (not update) specifically so a
-  // concurrent delete of the next round between the lookup above and here
-  // (benign, not a generation failure) resolves as a silent no-op count
-  // instead of a P2025 exception that would otherwise get logged as
-  // round_prep_generation_failed alongside real failures.
+  /**
+   * Looks up the job's next not-yet-happened round and, if one exists,
+   * generates and persists suggested prep for it from this round's debrief.
+   *
+   * Can still throw on a genuine LLM failure — the caller (`update`, above)
+   * wraps this call in try/catch so that never fails the notes-save request
+   * itself. The final persist uses `updateMany` (not `update`) specifically so
+   * a concurrent delete of the next round between the lookup above and here
+   * (benign, not a generation failure) resolves as a silent no-op count
+   * instead of a P2025 exception that would otherwise get logged as
+   * `round_prep_generation_failed` alongside real failures.
+   */
   private async maybeGenerateNextRoundPrep(
     jobId: string,
     completedRound: { id: string; stage: string; notes: string | null },
@@ -338,6 +377,10 @@ export class InterviewRoundsService {
     });
   }
 
+  /**
+   * Deletes a round and refreshes `Job.nextInterviewAt` in the same
+   * transaction, so the job never points at a round that no longer exists.
+   */
   async remove(userId: string, jobId: string, roundId: string) {
     await this.ensureJobOwned(userId, jobId);
     return this.prisma.$transaction(async (tx) => {
@@ -351,8 +394,10 @@ export class InterviewRoundsService {
     });
   }
 
-  // RFC 5545 §3.3.11 TEXT escaping — backslash first so it doesn't double-escape
-  // the characters escaped after it.
+  /**
+   * RFC 5545 §3.3.11 TEXT escaping — backslash first so it does not
+   * double-escape the characters escaped after it.
+   */
   private escapeIcsText(value: string): string {
     return value
       .replace(/\\/g, '\\\\')
@@ -361,11 +406,13 @@ export class InterviewRoundsService {
       .replace(/\r?\n/g, '\\n');
   }
 
-  // scheduledAt is TIMESTAMP(3) with no time zone, always written/compared as
-  // UTC elsewhere (see recomputeNextInterviewAt) — format with a Z suffix to
-  // match that assumption rather than the server's local time zone. Used for
-  // DTSTAMP, DTSTART and DTEND alike — all three are real instants now that a
-  // round carries a time of day and a length (ADR-043).
+  /**
+   * `scheduledAt` is TIMESTAMP(3) with no time zone, always written and
+   * compared as UTC elsewhere (see `recomputeNextInterviewAt`) — format with a
+   * Z suffix to match that assumption rather than the server's local time
+   * zone. Used for DTSTAMP, DTSTART and DTEND alike: all three are real
+   * instants now that a round carries a time of day and a length (ADR-043).
+   */
   private formatIcsDate(date: Date): string {
     return date
       .toISOString()
@@ -373,13 +420,15 @@ export class InterviewRoundsService {
       .replace(/\.\d{3}Z$/, 'Z');
   }
 
-  // RFC 5545 §3.1: content lines must be folded at 75 octets (excluding the
-  // CRLF). company/position/notes are user text up to 5000 chars, so SUMMARY
-  // and DESCRIPTION routinely blow past that — an unfolded line risks
-  // rejection or truncation in strict .ics parsers. Folds on UTF-8 octet
-  // boundaries (never splitting a multi-byte character) since the limit is
-  // defined in octets, not characters; each continuation line loses 1 octet
-  // of budget to the mandatory leading space.
+  /**
+   * RFC 5545 §3.1: content lines must be folded at 75 octets (excluding the
+   * CRLF). company/position/notes are user text up to 5000 chars, so SUMMARY
+   * and DESCRIPTION routinely blow past that — an unfolded line risks
+   * rejection or truncation in strict .ics parsers. Folds on UTF-8 octet
+   * boundaries (never splitting a multi-byte character) since the limit is
+   * defined in octets, not characters; each continuation line loses 1 octet of
+   * budget to the mandatory leading space.
+   */
   private foldIcsLine(line: string): string {
     const bytes = Buffer.from(line, 'utf8');
     if (bytes.length <= 75) return line;
@@ -397,6 +446,11 @@ export class InterviewRoundsService {
     return chunks.join('\r\n ');
   }
 
+  /**
+   * Renders one round as a single-event .ics file the user can import into a
+   * calendar. Read-only: nothing about the round changes, and the file is
+   * built fresh per request rather than stored.
+   */
   async exportIcs(
     userId: string,
     jobId: string,

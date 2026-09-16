@@ -26,6 +26,14 @@ import { ContactResponseDto } from './dto/contact-response.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
+/**
+ * Contacts hanging off a job. The parent is taken from the route prefix and
+ * never from the body — that is what lets `ContactsService` treat the
+ * `{ jobId }` ref as the sole source of truth for both the ownership check and
+ * the FK it writes. `CompanyContactsController` below is the same surface for
+ * the company-owned half, kept as a separate class so each mounts under its
+ * own prefix and Swagger tag.
+ */
 @ApiTags('jobs')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -33,6 +41,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 export class ContactsController {
   constructor(private contactsService: ContactsService) {}
 
+  /** Creates a contact under the job named in the route. */
   @Post(':jobId/contacts')
   @ApiOperation({ summary: 'Add a contact to a job' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -46,6 +55,7 @@ export class ContactsController {
     return this.contactsService.create(user.id, { jobId }, dto);
   }
 
+  /** Lists the job's contacts. */
   @Get(':jobId/contacts')
   @ApiOperation({ summary: 'List contacts for a job' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -55,6 +65,7 @@ export class ContactsController {
     return this.contactsService.findAllFor(user.id, { jobId });
   }
 
+  /** Updates one of the job's contacts. */
   @Patch(':jobId/contacts/:contactId')
   @ApiOperation({ summary: 'Update a contact' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -70,6 +81,7 @@ export class ContactsController {
     return this.contactsService.update(user.id, { jobId }, contactId, dto);
   }
 
+  /** Deletes one of the job's contacts. */
   @Delete(':jobId/contacts/:contactId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a contact' })
@@ -86,6 +98,11 @@ export class ContactsController {
   }
 }
 
+/**
+ * The company-owned half of the same surface, delegating to the same service
+ * with a `{ companyId }` ref. A contact belongs to exactly one parent, so a
+ * row created here is invisible to the job-scoped routes above.
+ */
 @ApiTags('companies')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -93,6 +110,7 @@ export class ContactsController {
 export class CompanyContactsController {
   constructor(private contactsService: ContactsService) {}
 
+  /** Creates a contact under the company named in the route. */
   @Post(':companyId/contacts')
   @ApiOperation({ summary: 'Add an HR/company contact to a target company' })
   @ApiParam({ name: 'companyId', description: 'Company ID' })
@@ -106,6 +124,7 @@ export class CompanyContactsController {
     return this.contactsService.create(user.id, { companyId }, dto);
   }
 
+  /** Lists the company's contacts. */
   @Get(':companyId/contacts')
   @ApiOperation({ summary: 'List contacts for a target company' })
   @ApiParam({ name: 'companyId', description: 'Company ID' })
@@ -118,6 +137,7 @@ export class CompanyContactsController {
     return this.contactsService.findAllFor(user.id, { companyId });
   }
 
+  /** Updates one of the company's contacts. */
   @Patch(':companyId/contacts/:contactId')
   @ApiOperation({ summary: 'Update a company contact' })
   @ApiParam({ name: 'companyId', description: 'Company ID' })
@@ -133,6 +153,7 @@ export class CompanyContactsController {
     return this.contactsService.update(user.id, { companyId }, contactId, dto);
   }
 
+  /** Deletes one of the company's contacts. */
   @Delete(':companyId/contacts/:contactId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a company contact' })

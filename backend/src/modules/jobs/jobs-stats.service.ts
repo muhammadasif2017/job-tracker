@@ -34,13 +34,20 @@ import {
   upcomingInterviewAt,
 } from './jobs.constants.js';
 
-// The calendar day a real instant falls on for this user, or null. Kept
-// separate from `localCivilDay` so the nullable read paths don't each repeat
-// the guard.
+/**
+ * The calendar day a real instant falls on for this user, or null. Kept
+ * separate from `localCivilDay` so the nullable read paths do not each
+ * repeat the guard.
+ */
 function civilDay(value: Date | null, timeZone: string): Date | null {
   return value ? localCivilDay(value, timeZone) : null;
 }
 
+/**
+ * One group-by row over the two source columns. Both fields are nullable
+ * because a job need not record where it came from, which is why the fold
+ * below has an unspecified bucket.
+ */
 type SourceCountRow = {
   applicationChannel: ApplicationChannel | null;
   discoverySource: DiscoverySource | null;
@@ -50,6 +57,12 @@ type SourceCountRow = {
 // Folds the (channel, discovery source) group counts down to one of the two
 // fields. A null field is its own UNSPECIFIED bucket rather than dropped, so
 // untagged applications still show how often they get replies.
+/**
+ * Folds the group counts down to a reply rate per source, for whichever of
+ * the two source columns is asked for. Jobs with no source recorded are
+ * kept under an explicit bucket rather than dropped, so the parts still sum
+ * to the whole.
+ */
 function rateBy<F extends 'applicationChannel' | 'discoverySource'>(
   field: F,
   sent: SourceCountRow[],
@@ -84,6 +97,14 @@ function rateBy<F extends 'applicationChannel' | 'discoverySource'>(
 //
 // repliedAfter14DaysPercent is measured against GHOST_AFTER_DAYS, so it shows
 // how many real replies the "looks ghosted" cutoff would have flagged early.
+/**
+ * Works out how quickly replies arrive, from each job's first reply-bearing
+ * event.
+ *
+ * The 14-day figure is measured against the same cutoff the "looks ghosted"
+ * rule uses, so it answers how many real replies that cutoff would have
+ * flagged early.
+ */
 function computeReplyTiming(
   sentJobs: { id: string; appliedAt: Date }[],
   stageEntries: Map<string, { toStatus: JobStatus; createdAt: Date }[]>,
@@ -120,21 +141,40 @@ function computeReplyTiming(
   };
 }
 
+/**
+ * Every aggregate the dashboard renders, plus CSV export. Read-only —
+ * nothing here writes.
+ *
+ * `Job.appliedAt` is a civil date (ADR-034), so no stat here projects a
+ * stored value into a zone; that would shift it by a day. The zone is used
+ * only to place a boundary on the user's calendar.
+ */
 @Injectable()
 export class JobsStatsService {
   constructor(private prisma: PrismaService) {}
 
-  // `Job.appliedAt` is a civil date (ADR-034), so no stat projects a stored
-  // value into a zone — that would shift it. The zone is needed only to place
-  // a *boundary* on the user's calendar: which month is "this" month, and
-  // which day a rolling 30d/90d window starts on. Same `User.timezone` the
-  // digest/reminder emails honour; read per request rather than off the JWT
-  // so it's correct right after the user changes it in their profile. Missing
-  // row (or a hand-edited invalid zone) falls back to UTC, the column default.
+  /**
+   * The zone every boundary in this service is placed against: which month
+   * is "this" month, and which day a rolling 30- or 90-day window starts
+   * on. The same `User.timezone` the digest and reminder emails honour,
+   * read per request rather than off the JWT so it is right immediately
+   * after the user changes it. A missing row, or a hand-edited invalid
+   * zone, falls back to UTC — the column default.
+   */
   private async userTimeZone(userId: string): Promise<string> {
     return (await findUserTimeZone(this.prisma, userId)).timeZone;
   }
 
+  /**
+   * The headline dashboard numbers: totals, the status breakdown, this
+   * month's applications, and the response and ghost rates.
+   *
+   * The status breakdown keeps WISHLIST because it backs a pie chart with a
+   * Wishlist slice; every other number here is an "applications sent"
+   * metric and excludes it. "Replied" comes from event history rather than
+   * current status, which only knows where a job is now. Response and ghost
+   * rate can exceed 100% combined: a job can reply and then go quiet.
+   */
   async getStats(userId: string, range: StatsRange) {
     const now = new Date();
     // The zone has to be resolved before the range filter can be built, so
@@ -186,6 +226,14 @@ export class JobsStatsService {
     return { total, byStatus, thisMonth, responseRate, ghostRate };
   }
 
+  /**
+   * The application funnel — how far jobs got, where they dropped out, how
+   * each source performed and how fast replies came.
+   *
+   * Jobs are filtered on their own `appliedAt`, not on event timestamps: a
+   * job either belongs to the range or it does not, and its full event
+   * history counts either way.
+   */
   async getFunnel(userId: string, range: StatsRange) {
     const TRACKED_STAGES = [...FUNNEL_STAGES, ...DROPOFF_STAGES] as const;
     // Filtered on the job's appliedAt, not event createdAt — a job either
@@ -358,6 +406,11 @@ export class JobsStatsService {
     };
   }
 
+  /**
+   * Applications over time, bucketed for the trend chart. Excludes WISHLIST
+   * for the same reason `getStats` does, so the cumulative value at the
+   * last bucket lines up with that method's range-filtered total.
+   */
   async getTrend(userId: string, range: StatsRange) {
     // Same WISHLIST exclusion as getStats — the chart is labelled "New
     // applications", and `cumulative` at the last bucket is meant to line up
@@ -381,12 +434,20 @@ export class JobsStatsService {
     );
   }
 
+  /** Jobs that have gone quiet long enough to suggest marking them ghosted. */
   async getGhostSuggestions(userId: string) {
     return getGhostSuggestions(this.prisma, userId);
   }
 
-  // Dashboard "Needs Attention" only. The digest email calls getAttentionItems
-  // directly and deliberately ignores both filters below.
+  /**
+   * The dashboard's "Needs Attention" list.
+   *
+   * Two filters apply here that the digest email deliberately skips,
+   * because both exist to stop one dashboard card duplicating another: a
+   * job the "Looks ghosted" card already shows is dropped, and dismissing a
+   * ghost suggestion — "HR said wait" — also quiets the follow-up nudges
+   * for a while.
+   */
   async getAttention(userId: string) {
     const items = await getAttentionItems(this.prisma, userId);
     const isStale = (type: AttentionType) => type !== 'UPCOMING_INTERVIEW';
@@ -418,6 +479,11 @@ export class JobsStatsService {
     });
   }
 
+  /**
+   * Exports the user's jobs as CSV, honouring the same filters the list
+   * view uses. Capped, and the response says when the cap truncated the
+   * result so the user is not handed a silently partial file.
+   */
   async exportCsv(userId: string, query: JobQueryDto) {
     const where = buildJobWhere(userId, query);
     const exportLimit = 1_000;

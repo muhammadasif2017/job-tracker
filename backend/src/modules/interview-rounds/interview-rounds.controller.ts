@@ -29,6 +29,11 @@ import { InterviewRoundResponseDto } from './dto/interview-round-response.dto.js
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
+/**
+ * Interview rounds always hang off a job, so every route here is nested
+ * under /jobs/:jobId and the service derives ownership from that parent
+ * (ADR-015).
+ */
 @ApiTags('jobs')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -36,6 +41,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 export class InterviewRoundsController {
   constructor(private interviewRoundsService: InterviewRoundsService) {}
 
+  /** Schedules a round on the job named in the route. */
   @Post(':jobId/interview-rounds')
   @ApiOperation({ summary: 'Add an interview round to a job' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -49,6 +55,7 @@ export class InterviewRoundsController {
     return this.interviewRoundsService.create(user.id, jobId, dto);
   }
 
+  /** Lists the job's rounds, earliest first. */
   @Get(':jobId/interview-rounds')
   @ApiOperation({ summary: 'List interview rounds for a job' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -58,6 +65,7 @@ export class InterviewRoundsController {
     return this.interviewRoundsService.findAllForJob(user.id, jobId);
   }
 
+  /** Edits a round: its stage, time, length, outcome or debrief notes. */
   @Patch(':jobId/interview-rounds/:roundId')
   @ApiOperation({ summary: 'Update an interview round' })
   @ApiParam({ name: 'jobId', description: 'Job ID' })
@@ -77,6 +85,11 @@ export class InterviewRoundsController {
   @ApiOperation({
     summary: 'Download an interview round as a calendar (.ics) file',
   })
+  /**
+   * Streams one round back as a downloadable .ics file. Uses @Res directly
+   * because the response is a file body with its own Content-Type and
+   * Content-Disposition, not the JSON every other route here returns.
+   */
   @ApiParam({ name: 'jobId', description: 'Job ID' })
   @ApiParam({ name: 'roundId', description: 'Interview round ID' })
   @ApiProduces('text/calendar')
@@ -97,6 +110,7 @@ export class InterviewRoundsController {
     res.send(content);
   }
 
+  /** Deletes a round. */
   @Delete(':jobId/interview-rounds/:roundId')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete an interview round' })

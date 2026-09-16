@@ -24,6 +24,13 @@ type ContactParentRef = { jobId: string } | { companyId: string };
 export class ContactsService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * The only authorization check in this module. `Contact` carries no `userId`
+   * column of its own (ADR-022), so ownership is always derived from whichever
+   * parent the route named. A parent owned by another user is reported as a
+   * plain 404, same as one that does not exist, so an id's existence does not
+   * leak.
+   */
   private async ensureOwner(userId: string, ref: ContactParentRef) {
     if ('jobId' in ref) {
       const job = await this.prisma.job.findFirst({
@@ -40,6 +47,11 @@ export class ContactsService {
     if (!company) throw new NotFoundException('Company not found');
   }
 
+  /**
+   * The count check and the insert are deliberately not transactional — the
+   * cap is a soft guard against runaway growth, not an invariant, so a
+   * concurrent pair of creates landing at 21 rows is an acceptable outcome.
+   */
   async create(userId: string, ref: ContactParentRef, dto: CreateContactDto) {
     await this.ensureOwner(userId, ref);
     const existingCount = await this.prisma.contact.count({ where: ref });
@@ -61,6 +73,10 @@ export class ContactsService {
     });
   }
 
+  /**
+   * Lists every contact under one parent, oldest first so the order stays
+   * stable as the user adds more.
+   */
   async findAllFor(userId: string, ref: ContactParentRef) {
     await this.ensureOwner(userId, ref);
     return this.prisma.contact.findMany({
@@ -69,6 +85,17 @@ export class ContactsService {
     });
   }
 
+  /**
+   * Every optional field is written through unconditionally, including as
+   * `null`. `UpdateContactDto` types them `T | null` and the frontend sends an
+   * explicit `null` for a field the user emptied — Prisma treats an omitted
+   * key as "leave the column alone", so only an explicit `null` clears it
+   * (ADR-022).
+   *
+   * The pre-read exists to distinguish "not found" from "belongs to a
+   * different parent": the update itself is keyed on the contact id alone, so
+   * the `...ref` in the lookup is what binds it to the parent just authorized.
+   */
   async update(
     userId: string,
     ref: ContactParentRef,
@@ -94,6 +121,11 @@ export class ContactsService {
     });
   }
 
+  /**
+   * A single scoped `deleteMany` rather than a read-then-delete: `count === 0`
+   * already covers both "no such contact" and "not under this parent", so the
+   * extra round trip would buy nothing.
+   */
   async remove(userId: string, ref: ContactParentRef, contactId: string) {
     await this.ensureOwner(userId, ref);
     const { count } = await this.prisma.contact.deleteMany({

@@ -5,6 +5,12 @@ import type { Queue } from 'bullmq';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 
+/**
+ * Queues company enrichment runs. There are two enqueue methods and picking
+ * the wrong one costs Tavily quota: `enqueueEnrichment` always runs and
+ * belongs to the user's explicit Refresh button, `enqueueIfStale` is the
+ * automatic path and fires at most once per company (ADR-035).
+ */
 @Injectable()
 export class CompanyEnrichmentService {
   constructor(
@@ -12,6 +18,11 @@ export class CompanyEnrichmentService {
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * The unconditional path, for the Refresh button and for a company the
+   * user created by hand. Never call this from an automatic trigger — that
+   * is the bug ADR-035 fixes.
+   */
   async enqueueEnrichment(companyId: string): Promise<void> {
     // The Company row always exists by the time this runs (status starts
     // null) — a plain update, no upsert needed.
@@ -43,31 +54,27 @@ export class CompanyEnrichmentService {
     }
   }
 
-  // The auto-trigger path (adding a job at a company), as opposed to
-  // enqueueEnrichment above, which backs the user's explicit Refresh button
-  // and must always run.
-  //
-  // Fires only for a company enrichment has never been attempted on
-  // (`status: null`). Every other state is deliberately skipped:
-  //
-  // - COMPLETED: we already hold the profile. Re-running to rediscover facts
-  //   we have is what drained the Tavily quota — a run costs 1-2 searches,
-  //   doubled by the retry policy in enqueue(), and a company with N jobs
-  //   was paying that N times.
-  // - PENDING/PROCESSING: a run already owns the row. This is also what
-  //   makes the `updateMany` a CAS claim (same pattern as
-  //   CompaniesService.triggerEnrichment): only the first of a burst of job
-  //   creations at one new company still finds `status: null`, so the burst
-  //   queues one run rather than one per job.
-  // - FAILED: a company we could not enrich once (no website and no search
-  //   hits — the common shape for small employers) would otherwise re-burn
-  //   search credits on every job added at it, forever. Recovery is the
-  //   Refresh button, which CompanyProfileCard already renders prominently
-  //   on a failed profile.
-  //
-  // `enrichedAt: null` is redundant against `status: null` for rows this
-  // codebase writes (nothing sets one without the other) and is kept as a
-  // guard for any row predating that invariant.
+  /**
+   * The automatic path, taken when a job is added at a company.
+   *
+   * Fires only for a company enrichment has never been attempted on. Every
+   * other state is deliberately skipped, and the claim is the same
+   * compare-and-swap pattern as `CompaniesService.triggerEnrichment`. COMPLETED already holds the
+   * profile, and re-running to rediscover facts we have is what drained the
+   * quota — a run costs one or two searches, doubled by the retry policy,
+   * and a company with N jobs was paying that N times. PENDING and
+   * PROCESSING mean a run already owns the row; that is also what makes the
+   * `updateMany` a compare-and-swap claim, so a burst of job creations at
+   * one new company queues a single run. FAILED usually means a small
+   * employer with no website and no search hits, which would otherwise
+   * re-burn credits on every job added at it forever; recovery is the
+   * Refresh button, which `CompanyProfileCard` already renders prominently
+   * on a failed profile.
+   *
+   * The `enrichedAt: null` half of the condition is redundant against
+   * `status: null` for rows this codebase writes, and is kept as a guard
+   * for any row predating that invariant.
+   */
   async enqueueIfStale(companyId: string): Promise<void> {
     const { count } = await this.prisma.company.updateMany({
       where: { id: companyId, status: null, enrichedAt: null },
@@ -98,6 +105,11 @@ export class CompanyEnrichmentService {
     }
   }
 
+  /**
+   * The bare queue add both paths funnel through. Two attempts, because a
+   * third would triple the search cost of a run that is failing for a
+   * reason retrying cannot fix.
+   */
   private async enqueue(companyId: string): Promise<void> {
     await this.queue.add(
       'enrich',

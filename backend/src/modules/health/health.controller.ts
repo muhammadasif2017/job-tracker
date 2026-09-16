@@ -26,6 +26,11 @@ import { RedisHealthIndicator } from './redis.health.js';
 // ping resolves in milliseconds and never approaches this ceiling.
 const DB_PING_TIMEOUT_MS = 5000;
 
+/**
+ * The one unauthenticated route in the app: a liveness probe over the two
+ * dependencies whose loss makes every other route fail — Postgres and
+ * Redis.
+ */
 @ApiTags('health')
 @Controller('health')
 export class HealthController {
@@ -36,6 +41,11 @@ export class HealthController {
     private redis: RedisHealthIndicator,
   ) {}
 
+  /**
+   * Reports healthy only when both the database and Redis answer. Terminus
+   * turns a failed indicator into a 503 with the failing name in the body,
+   * so the caller can tell which dependency is down.
+   */
   @Public()
   @Get()
   @HealthCheck()
