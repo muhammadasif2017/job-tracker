@@ -8,6 +8,12 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import { AdminUserQueryDto } from './dto/admin-user-query.dto.js';
 
+/**
+ * User administration. Unlike every other service here, nothing is scoped
+ * to the requesting user — acting on other people's rows is the point
+ * (ADR-023). `RolesGuard` is what keeps non-admins out; the only identity
+ * check inside is the self-delete block.
+ */
 @Injectable()
 export class AdminService {
   constructor(
@@ -15,6 +21,11 @@ export class AdminService {
     private usersService: UsersService,
   ) {}
 
+  /**
+   * One page of users, newest first, optionally filtered by a
+   * case-insensitive substring of name or email. `jobCount` comes from a
+   * relation count rather than a second query.
+   */
   async listUsers(query: AdminUserQueryDto) {
     const { search, page = 1, limit = 10 } = query;
     const where: Prisma.UserWhereInput = search
@@ -53,6 +64,10 @@ export class AdminService {
     };
   }
 
+  /**
+   * One user in the same shape `listUsers` returns. Selects explicit
+   * columns so the password hash never reaches an admin response.
+   */
   async getUser(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },
@@ -71,6 +86,13 @@ export class AdminService {
     return { ...rest, jobCount: _count.jobs };
   }
 
+  /**
+   * Deletes another user's account, reusing the same routine as
+   * self-service deletion so storage cleanup and cascades stay in one
+   * place. Deleting yourself through the admin panel is refused: it would
+   * drop the acting session mid-request, and the account page is the
+   * deliberate path for it.
+   */
   async deleteUser(requestingUserId: string, targetUserId: string) {
     if (requestingUserId === targetUserId) {
       throw new ForbiddenException(
