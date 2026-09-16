@@ -12,7 +12,14 @@ export const STORAGE_SERVICE = 'STORAGE_SERVICE';
  * Object Storage, whose capabilities do not overlap much.
  */
 export interface IStorageService {
+  /** Stores the buffer under `key`, replacing anything already there. */
   upload(key: string, buffer: Buffer, mimeType: string): Promise<void>;
+  /**
+   * Returns a URL the browser can fetch the file from. Only the Oracle driver
+   * presigns; the local one answers with its own auth-gated route and ignores
+   * the expiry.
+   */
   getPresignedUrl(key: string, expiresIn?: number): Promise<string>;
+  /** Removes the stored file. Callers delete best-effort, after the row. */
   delete(key: string): Promise<void>;
 }
