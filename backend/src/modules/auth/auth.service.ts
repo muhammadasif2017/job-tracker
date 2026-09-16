@@ -24,9 +24,11 @@ import {
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 const OAUTH_CODE_TTL_SECONDS = 60;
 
-// What an OAuth sign-in hands to the callback controller and parks behind the
-// one-time code. `userId` and `isNewUser` stay server-side: exchangeOAuthCode
-// uses them and returns only the tokens.
+/**
+ * What an OAuth sign-in hands to the callback controller and parks behind
+ * the one-time code. `userId` and `isNewUser` stay server-side:
+ * `exchangeOAuthCode` uses them and returns only the tokens.
+ */
 export interface OAuthLoginResult {
   accessToken: string;
   refreshToken: string;
@@ -34,25 +36,31 @@ export interface OAuthLoginResult {
   isNewUser?: boolean;
 }
 
-// Refresh tokens are signed JWTs — long, high-entropy secrets, not
-// user-chosen passwords — so a fast digest is the right primitive here.
-// bcrypt was not merely unnecessary, it was actively wrong: it silently
-// truncates its input at 72 bytes, and a JWT's first 72 bytes are the header
-// plus the opening of the payload. Every refresh token issued to the same
-// user therefore shared its hashed prefix and compared equal to every other,
-// so the stored hash bound nothing at all — only the signature check in
-// JwtRefreshStrategy stood between a forged token and the row lookup. SHA-256
-// covers the whole token, including the jti and the signature.
-//
-// A slow KDF buys nothing on top of that: there is no low-entropy secret to
-// brute-force, and an attacker who can read this column has the database.
+/**
+ * Refresh tokens are signed JWTs — long, high-entropy secrets, not
+ * user-chosen passwords — so a fast digest is the right primitive here.
+ *
+ * bcrypt was not merely unnecessary, it was actively wrong: it silently
+ * truncates its input at 72 bytes, and a JWT's first 72 bytes are the
+ * header plus the opening of the payload. Every refresh token issued to the
+ * same user therefore shared its hashed prefix and compared equal to every
+ * other, so the stored hash bound nothing at all — only the signature check
+ * in `JwtRefreshStrategy` stood between a forged token and the row lookup.
+ * SHA-256 covers the whole token, including the jti and the signature.
+ *
+ * A slow KDF buys nothing on top of that: there is no low-entropy secret to
+ * brute-force, and an attacker who can read this column has the database.
+ */
 function hashRefreshToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-// Constant-time, and fails closed on anything that isn't a 32-byte hex digest
-// — which includes the bcrypt-format hashes written before this change, so
-// rows issued by the old code are rejected rather than crashing the compare.
+/**
+ * Constant-time, and fails closed on anything that is not a 32-byte hex
+ * digest — which includes the bcrypt-format hashes written before this
+ * change, so rows issued by the old code are rejected rather than crashing
+ * the compare.
+ */
 function refreshTokenMatches(rawToken: string, storedHash: string): boolean {
   const expected = Buffer.from(hashRefreshToken(rawToken), 'hex');
   const actual = Buffer.from(storedHash, 'hex');
@@ -60,6 +68,15 @@ function refreshTokenMatches(rawToken: string, storedHash: string): boolean {
   return timingSafeEqual(actual, expected);
 }
 
+/**
+ * Issues and rotates the app's credentials: the 15-minute access JWT, the
+ * 7-day refresh token behind an httpOnly cookie, the one-time code that
+ * carries an OAuth sign-in back to the browser, and the exchange that turns
+ * a personal access token into a scoped access JWT.
+ *
+ * Redis is opened here directly rather than through BullMQ because the only
+ * thing it stores for this service is the short-lived OAuth code.
+ */
 @Injectable()
 export class AuthService implements OnModuleDestroy {
   private readonly redis: Redis;
@@ -79,10 +96,19 @@ export class AuthService implements OnModuleDestroy {
     );
   }
 
+  /**
+   * Closes the Redis connection so a shutdown or a test teardown does not
+   * hang on an open socket.
+   */
   async onModuleDestroy() {
     await this.redis.quit();
   }
 
+  /**
+   * Deletes refresh-token rows past their expiry. Both naturally expired
+   * and soft-revoked rows accumulate until this runs, since rotation and
+   * logout stamp `revokedAt` rather than deleting.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupExpiredRefreshTokens() {
     const { count } = await this.prisma.refreshToken.deleteMany({
@@ -93,6 +119,12 @@ export class AuthService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Password sign-in check used by the local Passport strategy. Returns
+   * null rather than throwing, and treats an OAuth-only account (no
+   * password column) the same as a wrong password, so neither answer
+   * reveals which emails are registered.
+   */
   async validateLocalUser(email: string, password: string) {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.password) return null;
@@ -100,6 +132,7 @@ export class AuthService implements OnModuleDestroy {
     return matches ? user : null;
   }
 
+  /** Creates a password account and signs it straight in. */
   async register(dto: RegisterDto) {
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email },
@@ -123,10 +156,23 @@ export class AuthService implements OnModuleDestroy {
     return this.issueTokens(user.id, user.email);
   }
 
+  /**
+   * Issues a token pair for a user the local strategy has already
+   * authenticated.
+   */
   async login(userId: string, email: string) {
     return this.issueTokens(userId, email);
   }
 
+  /**
+   * Rotates a refresh token: the presented row is revoked and a brand-new
+   * pair issued, so a token is usable exactly once.
+   *
+   * Presenting an already-rotated token is treated as theft, not as a
+   * mistake — the only way to hold a spent refresh token is to have
+   * intercepted it — so every session for that user is dropped rather than
+   * just this request refused.
+   */
   async refresh(userId: string, rawRefreshToken: string, jti: string) {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { id: jti },
@@ -173,11 +219,21 @@ export class AuthService implements OnModuleDestroy {
     return this.issueTokens(userId, user.email);
   }
 
+  /**
+   * Signs the user out everywhere by dropping all of their refresh tokens.
+   * Access tokens already issued stay valid until they expire; they are
+   * stateless by design and last 15 minutes.
+   */
   async logout(userId: string): Promise<{ message: string }> {
     await this.prisma.refreshToken.deleteMany({ where: { userId } });
     return { message: 'Logged out successfully' };
   }
 
+  /**
+   * Parks a freshly minted token pair in Redis behind a single-use code
+   * with a 60-second life. The provider redirect lands on a URL the browser
+   * puts in its history, so the code travels there and the tokens do not.
+   */
   async storeOAuthCode(tokens: OAuthLoginResult): Promise<string> {
     const code = randomUUID();
     await this.redis.set(
@@ -189,6 +245,11 @@ export class AuthService implements OnModuleDestroy {
     return code;
   }
 
+  /**
+   * Trades the one-time code for the token pair it was standing in for. The
+   * browser's timezone rides along, because this is the first request the
+   * browser itself makes after an OAuth sign-in.
+   */
   async exchangeOAuthCode(
     code: string,
     timezone?: string,
@@ -231,6 +292,16 @@ export class AuthService implements OnModuleDestroy {
     return { accessToken, refreshToken };
   }
 
+  /**
+   * Resolves a provider profile to a user, in three steps: an existing
+   * linked account, then an existing user with this email, then a brand-new
+   * user.
+   *
+   * The middle step refuses to link when that user has a password. Anyone
+   * can claim an email at a provider, so silently attaching the identity
+   * would hand them an account someone else registered — they are asked to
+   * sign in with the password first and link from account settings.
+   */
   async handleOAuthUser(
     provider: string,
     providerAccountId: string,
@@ -277,11 +348,16 @@ export class AuthService implements OnModuleDestroy {
     return { ...tokens, userId: user.id, isNewUser };
   }
 
-  // Exchanges a long-lived personal access token (see TokensModule) for a
-  // normal short-lived access JWT - used by clients that can't hold the
-  // httpOnly refresh-token cookie (e.g. the browser extension). Never issues
-  // a refresh token: the caller re-exchanges the PAT itself once the access
-  // token expires.
+  /**
+   * Exchanges a long-lived personal access token for a normal short-lived
+   * access JWT — for clients that cannot hold the httpOnly refresh cookie,
+   * currently the browser extension. Never issues a refresh token: the
+   * caller re-exchanges the PAT once the access token expires.
+   *
+   * The bcrypt compare runs against a dummy hash when no row matches, so a
+   * wrong token id takes the same time as a wrong secret and the endpoint
+   * cannot be used to enumerate ids.
+   */
   async exchangeApiToken(
     rawToken: string,
   ): Promise<{ accessToken: string; expiresIn: number }> {
@@ -329,6 +405,12 @@ export class AuthService implements OnModuleDestroy {
     return { accessToken, expiresIn };
   }
 
+  /**
+   * Signs an access JWT. The scope and PAT id are only present on tokens
+   * minted from a personal access token; `PatScopeGuard` and `JwtStrategy`
+   * read them to confine such a token to the few routes marked
+   * `@PatAccessible()` and to honour a revocation immediately.
+   */
   private async signAccessToken(
     userId: string,
     email: string,
@@ -344,6 +426,11 @@ export class AuthService implements OnModuleDestroy {
     );
   }
 
+  /**
+   * The single place a full credential pair is minted. The refresh token's
+   * `jti` is also the primary key of the row storing its hash, which is
+   * what lets rotation revoke exactly the token presented.
+   */
   private async issueTokens(userId: string, email: string) {
     const jti = randomUUID();
 

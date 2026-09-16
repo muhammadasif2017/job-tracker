@@ -38,6 +38,13 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { REFRESH_COOKIE_NAME } from './strategies/jwt-refresh.strategy.js';
 
+/**
+ * Every route that mints, rotates or drops a credential. All of them are
+ * `@Public()` except logout and `me` — they are how a caller gets a token
+ * in the first place — and all of them are rate limited, harder in
+ * production than in development so local work and e2e runs are not
+ * throttled.
+ */
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
@@ -46,8 +53,11 @@ export class AuthController {
     private config: ConfigService,
   ) {}
 
-  // Refresh token never touches the response body — set as an httpOnly cookie
-  // scoped to /auth so client-side JS (and any XSS) can't read or exfiltrate it.
+  /**
+   * The refresh token never touches a response body — it is set as an
+   * httpOnly cookie scoped to /auth, so client-side JS, and therefore any
+   * XSS, cannot read or exfiltrate it.
+   */
   private setRefreshCookie(res: Response, refreshToken: string) {
     const expiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
     const isProduction = this.config.get('NODE_ENV') === 'production';
@@ -72,6 +82,10 @@ export class AuthController {
       limit: process.env.NODE_ENV === 'production' ? 10 : 100,
     },
   })
+  /**
+   * Creates an account and signs it in, returning the access token in the
+   * body and the refresh token as a cookie.
+   */
   @HttpCode(HttpStatus.OK)
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
@@ -93,6 +107,11 @@ export class AuthController {
       limit: process.env.NODE_ENV === 'production' ? 10 : 100,
     },
   })
+  /**
+   * Signs in with email and password. The local Passport guard has already
+   * verified the credentials by the time this runs, which is why the
+   * handler reads the user off the request rather than the body.
+   */
   @UseGuards(AuthGuard('local'))
   @HttpCode(HttpStatus.OK)
   @Post('login')
@@ -117,6 +136,10 @@ export class AuthController {
       limit: process.env.NODE_ENV === 'production' ? 10 : 100,
     },
   })
+  /**
+   * Rotates the token pair. The refresh guard reads the cookie, so this
+   * route takes no body at all.
+   */
   @UseGuards(AuthGuard('jwt-refresh'))
   @HttpCode(HttpStatus.OK)
   @Post('refresh')
@@ -148,6 +171,11 @@ export class AuthController {
       limit: process.env.NODE_ENV === 'production' ? 10 : 100,
     },
   })
+  /**
+   * Trades the one-time OAuth code for a real token pair. The browser sends
+   * its timezone with it, which is the only point in an OAuth sign-up where
+   * that is knowable.
+   */
   @HttpCode(HttpStatus.OK)
   @Post('exchange-code')
   @ApiOperation({ summary: 'Exchange short-lived OAuth code for tokens' })
@@ -176,12 +204,21 @@ export class AuthController {
     summary:
       'Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued)',
   })
+  /**
+   * Trades a personal access token for a short-lived access JWT. No refresh
+   * token and no cookie are issued: the caller re-exchanges the PAT when
+   * the access token expires.
+   */
   @ApiOkResponse({ type: ApiTokenAccessDto })
   @ApiForbiddenResponse({ description: 'Invalid or revoked access token' })
   exchangeApiToken(@Body() dto: ExchangeApiTokenDto) {
     return this.authService.exchangeApiToken(dto.token);
   }
 
+  /**
+   * Drops every refresh token for the user and clears the cookie. Access
+   * tokens already issued remain valid for their remaining minutes.
+   */
   @HttpCode(HttpStatus.OK)
   @Post('logout')
   @ApiBearerAuth()
@@ -196,6 +233,11 @@ export class AuthController {
     return result;
   }
 
+  /**
+   * Echoes back whatever the JWT strategy put on the request. Used by the
+   * frontend to confirm a token is still good without fetching the full
+   * profile.
+   */
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated user' })
@@ -206,6 +248,10 @@ export class AuthController {
 
   // ── Google OAuth ──────────────────────────────────────────────────────────
 
+  /**
+   * Entry point for Google sign-in. Deliberately empty — the Passport guard
+   * redirects before the handler would run.
+   */
   @Public()
   @Get('google')
   @UseGuards(AuthGuard('google'))
@@ -215,6 +261,11 @@ export class AuthController {
     // Guard redirects to Google
   }
 
+  /**
+   * Where Google sends the user back. The tokens are parked behind a
+   * one-time code and only the code travels in the redirect URL, which
+   * lands in browser history and server logs.
+   */
   @Public()
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
@@ -228,6 +279,10 @@ export class AuthController {
 
   // ── GitHub OAuth ──────────────────────────────────────────────────────────
 
+  /**
+   * Entry point for GitHub sign-in. Empty for the same reason as
+   * `googleAuth`.
+   */
   @Public()
   @Get('github')
   @UseGuards(AuthGuard('github'))
@@ -237,6 +292,10 @@ export class AuthController {
     // Guard redirects to GitHub
   }
 
+  /**
+   * Where GitHub sends the user back, handled exactly as the Google
+   * callback is.
+   */
   @Public()
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
