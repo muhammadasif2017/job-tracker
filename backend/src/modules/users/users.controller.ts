@@ -24,6 +24,11 @@ import { UserProfileDto } from './dto/user-profile.dto.js';
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
+/**
+ * Self-service account routes. Every handler reads the id from the access
+ * token, never from a path parameter — administering someone else's account
+ * lives in `AdminController`.
+ */
 @ApiTags('users')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -31,6 +36,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
+  /** Returns the signed-in user's profile. */
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
   @ApiOkResponse({ type: UserProfileDto })
@@ -38,6 +44,7 @@ export class UsersController {
     return this.usersService.getProfile(user.id);
   }
 
+  /** Updates the signed-in user's name or email. */
   @Patch('me')
   @ApiOperation({ summary: 'Update name or email' })
   @ApiOkResponse({ type: UserProfileDto })
@@ -49,6 +56,7 @@ export class UsersController {
     return this.usersService.updateProfile(user.id, dto);
   }
 
+  /** Updates email reminder and digest preferences. */
   @Patch('me/notifications')
   @ApiOperation({ summary: 'Update email notification preferences' })
   @ApiOkResponse({ type: UserProfileDto })
@@ -65,6 +73,7 @@ export class UsersController {
   @ApiForbiddenResponse({
     description: 'Account uses social login — no password set',
   })
+  /** Changes the signed-in user's password. */
   @ApiBadRequestResponse({ description: 'Current password is incorrect' })
   changePassword(
     @CurrentUser() user: { id: string },
@@ -73,6 +82,7 @@ export class UsersController {
     return this.usersService.changePassword(user.id, dto);
   }
 
+  /** Deletes the signed-in user's account and all of their data. */
   @Delete('me')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete account and all associated data' })
