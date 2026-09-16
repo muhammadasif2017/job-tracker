@@ -3,12 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { Logger } from 'nestjs-pino';
 
+/**
+ * Everything the app ever sends: one recipient, a subject and an HTML body.
+ * There are no attachments and no plain-text alternative.
+ */
 export interface SendEmailInput {
   to: string;
   subject: string;
   html: string;
 }
 
+/**
+ * Wraps Resend. With no `RESEND_API_KEY` configured the service still
+ * constructs and every send becomes a logged no-op, so the app boots and
+ * runs in environments that cannot send mail.
+ */
 @Injectable()
 export class EmailService {
   private readonly resend?: Resend;
@@ -24,6 +33,11 @@ export class EmailService {
       this.config.get<string>('EMAIL_FROM') ?? 'onboarding@resend.dev';
   }
 
+  /**
+   * Sends one email, throwing on failure so the calling BullMQ job retries.
+   * Returns quietly when no API key is configured — that is a deliberate
+   * no-op, not a failure.
+   */
   async send({ to, subject, html }: SendEmailInput): Promise<void> {
     if (!this.resend) {
       this.logger.warn('email_send_skipped_no_api_key', { to, subject });
