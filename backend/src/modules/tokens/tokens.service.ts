@@ -17,12 +17,25 @@ import {
   PAT_EXPIRY_DAYS,
 } from './tokens.constants.js';
 
+/**
+ * Personal access tokens: long-lived credentials for clients that cannot
+ * hold the httpOnly refresh cookie, currently the browser extension. A PAT
+ * is never accepted as a credential directly —
+ * `AuthService.exchangeApiToken` trades it for a short access JWT carrying
+ * a `pat` scope, which reaches only the handful of routes marked
+ * `@PatAccessible()`.
+ */
 @Injectable()
 export class TokensService {
   private readonly logger = new Logger(TokensService.name);
 
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Mints a token and returns its raw value — the only time that value ever
+   * leaves the server. Only a bcrypt hash is stored, so a lost token can be
+   * revoked but never recovered.
+   */
   async create(userId: string, dto: CreateTokenDto): Promise<CreatedTokenDto> {
     // Computed before the transaction: bcrypt.hash is CPU-bound (~50-100ms+
     // at cost 10) and doesn't touch any state the advisory lock protects.
@@ -69,6 +82,11 @@ export class TokensService {
     };
   }
 
+  /**
+   * Lists the caller's live tokens, newest first. Revoked and expired rows
+   * are filtered out rather than shown greyed, and the hash is never
+   * included.
+   */
   async findAll(userId: string): Promise<TokenResponseDto[]> {
     const tokens = await this.prisma.apiToken.findMany({
       where: { userId, revokedAt: null, expiresAt: { gt: new Date() } },
@@ -83,6 +101,15 @@ export class TokensService {
     }));
   }
 
+  /**
+   * Revokes a token by stamping `revokedAt`, scoped to the caller so one
+   * user cannot revoke another's. Takes effect immediately even for an
+   * access JWT already issued from it: `JwtStrategy` re-checks this row on
+   * every PAT-scoped request.
+   *
+   * The row is kept, not deleted, so the nightly cleanup can sweep it on
+   * its originally scheduled expiry.
+   */
   async revoke(userId: string, tokenId: string): Promise<{ message: string }> {
     const { count } = await this.prisma.apiToken.updateMany({
       where: { id: tokenId, userId, revokedAt: null },
@@ -92,10 +119,12 @@ export class TokensService {
     return { message: 'Token revoked' };
   }
 
-  // Mirrors AuthService.cleanupExpiredRefreshTokens: rows past expiresAt are
-  // deleted regardless of whether they were revoked early or ran out their
-  // full PAT_EXPIRY_DAYS lifetime, so a revoke doesn't leave a row behind
-  // forever - it just gets swept on its originally-scheduled expiry.
+  /**
+   * Deletes rows past `expiresAt`, mirroring
+   * `AuthService.cleanupExpiredRefreshTokens`. Rows go regardless of
+   * whether they were revoked early or ran out their full `PAT_EXPIRY_DAYS`
+   * lifetime, so a revoke does not leave a row behind forever.
+   */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupExpiredApiTokens() {
     const { count } = await this.prisma.apiToken.deleteMany({
