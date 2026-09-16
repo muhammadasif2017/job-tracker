@@ -15,6 +15,11 @@ import type { ResumeResponseDto } from './dto/resume-response.dto.js';
 
 const PRESIGNED_URL_TTL = 900; // seconds
 
+/**
+ * One PDF per job, held in whichever storage driver is configured. Every
+ * method scopes its query through the parent job's `userId`, so a resume
+ * belonging to another user reads as absent.
+ */
 @Injectable()
 export class ResumesService {
   constructor(
@@ -23,6 +28,11 @@ export class ResumesService {
     private logger: Logger,
   ) {}
 
+  /**
+   * Strips the row down to what a client may see. `storageKey` in
+   * particular never leaves the server — it is an internal address, and the
+   * download route hands out a presigned URL instead.
+   */
   private toDto({
     id,
     jobId,
@@ -39,6 +49,16 @@ export class ResumesService {
     return { id, jobId, originalName, size, createdAt };
   }
 
+  /**
+   * Replaces the job's resume, or creates it the first time.
+   *
+   * Storage is written before the database on purpose: a dangling file is a
+   * better failure than a row pointing at nothing, and the `catch` removes
+   * that file if the upsert fails. The previous file is deleted only after
+   * the upsert commits, so it stays downloadable until the new row is live.
+   * The magic-number check is what stops a renamed non-PDF getting stored:
+   * the multer mime type comes from the client and can claim anything.
+   */
   async upload(
     userId: string,
     jobId: string,
@@ -95,6 +115,12 @@ export class ResumesService {
     }
   }
 
+  /**
+   * Hands back a short-lived download URL plus the name to save it under.
+   * The expiry is returned with it so the client can tell a stale URL from
+   * a genuine failure. Under the local driver this is the backend's own
+   * auth-gated file route rather than a real presigned URL.
+   */
   async getPresignedUrl(
     userId: string,
     jobId: string,
@@ -111,6 +137,10 @@ export class ResumesService {
     return { url, originalName: resume.originalName, expiresAt };
   }
 
+  /**
+   * Returns the job's resume metadata — name, size, upload time — without
+   * touching storage.
+   */
   async findByJob(userId: string, jobId: string): Promise<ResumeResponseDto> {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
@@ -119,9 +149,12 @@ export class ResumesService {
     return this.toDto(resume);
   }
 
-  // Internal use only (never sent to clients): lets the local-driver file-serve
-  // endpoint confirm the requested storage key still matches the job's current
-  // resume, so a stale key from a replaced/deleted file can't still be served.
+  /**
+   * Internal use only, never sent to clients: lets the local-driver
+   * file-serve endpoint confirm the requested storage key still matches the
+   * job's current resume, so a stale key from a replaced or deleted file
+   * cannot still be served.
+   */
   async getFileInfo(
     userId: string,
     jobId: string,
@@ -133,6 +166,11 @@ export class ResumesService {
     return resume;
   }
 
+  /**
+   * Deletes the row first, then the file best-effort. A file that outlives
+   * its row is unreachable and harmless; a row pointing at a deleted file
+   * would break the download route.
+   */
   async remove(userId: string, jobId: string): Promise<{ message: string }> {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
