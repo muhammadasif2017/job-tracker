@@ -15,7 +15,7 @@ enum JobStatus {
   GHOSTED
 }
 
-enum JobPriority {
+enum Priority {
   LOW
   MEDIUM
   HIGH
@@ -224,7 +224,7 @@ model Company {
   name          String
   city          CompanyCity
   location      String?
-  priority      JobPriority  @default(MEDIUM)
+  priority      Priority  @default(MEDIUM)
   personalNotes String?
   websiteUrl    String?
   linkedinUrl   String?

@@ -13,11 +13,11 @@ import { DuplicateSuggestionsBanner } from '../../../components/companies/duplic
 import {
   COMPANY_CITIES,
   CITY_LABELS,
-  JOB_PRIORITIES,
+  PRIORITIES,
   PRIORITY_LABELS,
   type Company,
   type CompanyCity,
-  type JobPriority,
+  type Priority,
 } from '../../../types';
 import {
   useCompaniesQuery,
@@ -27,7 +27,7 @@ import {
 export default function CompaniesPage() {
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState<CompanyCity | ''>('');
-  const [priorityFilter, setPriorityFilter] = useState<JobPriority | ''>('');
+  const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -118,12 +118,12 @@ export default function CompaniesPage() {
           className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
           value={priorityFilter}
           onChange={(e) => {
-            setPriorityFilter(e.target.value as JobPriority | '');
+            setPriorityFilter(e.target.value as Priority | '');
             setPage(1);
           }}
         >
           <option value="">All priorities</option>
-          {JOB_PRIORITIES.map((p) => (
+          {PRIORITIES.map((p) => (
             <option key={p} value={p}>
               {PRIORITY_LABELS[p]}
             </option>

@@ -108,7 +108,7 @@ describe('JobsStatsService', () => {
         job: { id: 'job-3' },
       });
       expect(items[2].job).not.toHaveProperty('events');
-      // job-1 matched two rules but appears only once, with the higher-priority type
+      // job-1 matched two rules but appears only once, with the more urgent type
       expect(items.filter((i) => i.job.id === 'job-1')).toHaveLength(1);
     });
 

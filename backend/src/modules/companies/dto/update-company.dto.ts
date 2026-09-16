@@ -1,5 +1,5 @@
 import { ApiPropertyOptional, OmitType, PartialType } from '@nestjs/swagger';
-import { CompanyCity, JobPriority } from '@prisma/client';
+import { CompanyCity, Priority } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
@@ -35,10 +35,10 @@ export class UpdateCompanyDto extends PartialType(
   @IsEnum(CompanyCity)
   city?: CompanyCity;
 
-  @ApiPropertyOptional({ enum: JobPriority })
+  @ApiPropertyOptional({ enum: Priority })
   @whenPresent()
-  @IsEnum(JobPriority)
-  priority?: JobPriority;
+  @IsEnum(Priority)
+  priority?: Priority;
 
   @ApiPropertyOptional({ example: ['React', 'Node.js', 'AWS'], type: [String] })
   @whenPresent()

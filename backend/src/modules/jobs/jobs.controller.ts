@@ -98,8 +98,8 @@ export class JobsController {
 
   // 'stats', 'stats/funnel', 'stats/trend', 'export', 'attention', and
   // 'ghost-suggestions' must
-  // remain above ':id' — fixed segments take priority over parameterized
-  // ones only when registered first in the same router.
+  // remain above ':id' — fixed segments win over parameterized ones only
+  // when registered first in the same router.
   @Get('stats')
   @ApiOperation({ summary: 'Get application funnel stats' })
   @ApiOkResponse({ type: JobStatsDto })

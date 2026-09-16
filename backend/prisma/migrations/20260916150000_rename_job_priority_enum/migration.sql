@@ -1,0 +1,14 @@
+-- data-loss: none
+--
+-- Renames the `JobPriority` enum type to `Priority`. `Job.priority` is gone
+-- (20260916120000_drop_job_priority), so `companies.priority` is now the only
+-- column using this type and the `Job` prefix is misleading.
+--
+-- A type rename touches no rows: the column keeps its values and its type OID,
+-- only the type's name changes.
+--
+-- Hand-written rather than generated: `prisma migrate dev` emits DROP INDEX for
+-- the five raw indexes that are not represented in schema.prisma (the functional
+-- unique index on companies (userId, lower(name)) and the four pg_trgm GIN
+-- indexes on jobs). See backend/CLAUDE.md, "Prisma 7 Quirks".
+ALTER TYPE "JobPriority" RENAME TO "Priority";

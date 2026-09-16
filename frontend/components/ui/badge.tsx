@@ -1,6 +1,6 @@
 import { cn } from '../../lib/utils';
 import {
-  JobPriority,
+  Priority,
   JOB_TYPE_COLORS,
   JOB_TYPE_LABELS,
   PRIORITY_COLORS,
@@ -30,7 +30,7 @@ interface BadgeProps {
 }
 
 interface PriorityBadgeProps {
-  priority: JobPriority;
+  priority: Priority;
   className?: string;
 }
 
