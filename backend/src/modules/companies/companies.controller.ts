@@ -51,6 +51,12 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 // while still rejecting an accidentally-wrong file upload early.
 const MAX_CSV_SIZE = 1 * 1024 * 1024;
 
+/**
+ * Target companies: the list the user curates, plus enrichment, merging,
+ * duplicate detection and CSV import. Route order matters here — the
+ * literal routes are declared before `:id` so their names are not captured
+ * as an id.
+ */
 @ApiTags('companies')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
@@ -68,10 +74,12 @@ export class CompaniesController {
   @ApiConflictResponse({
     description: 'A company with this name already exists',
   })
+  /** Adds a target company and queues enrichment for it. */
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateCompanyDto) {
     return this.companiesService.create(user.id, dto);
   }
 
+  /** Lists the user's companies, paginated and filterable. */
   @Get()
   @ApiOperation({ summary: 'List target companies (filter by city, priority)' })
   @ApiOkResponse({ type: PaginatedCompaniesDto })
@@ -83,30 +91,35 @@ export class CompaniesController {
   }
 
   @Get('duplicates')
-  // Must be registered before GET :id — otherwise "duplicates" would be
-  // captured as an :id param instead of matching this literal route.
-  // O(n^2) pairwise scan over the user's own companies (intentional design,
-  // see docs/specs/company-fk-phase5c.md), but no per-route throttle here —
-  // unlike /companies/import, this is fetched passively by
-  // DuplicateSuggestionsBanner on every companies-page mount, not a
-  // deliberate bulk action, so a 10/min cap breaks ordinary navigation (see
-  // the E2E flakiness this caused). MAX_COMPANIES_PER_USER already bounds
-  // the worst-case per-call cost; the generic 100/min guard is enough here.
   @ApiOperation({
     summary:
       'Find likely-duplicate company pairs (websiteUrl match or fuzzy name match)',
   })
+  /**
+   * Suggests likely duplicate pairs.
+   *
+   * Registered before `GET :id`, or "duplicates" would be captured as an
+   * id. The scan is quadratic over the user's own companies, but this route
+   * deliberately carries no per-route throttle: unlike the import below, it
+   * is fetched passively on every companies-page mount, and a 10/min cap
+   * broke ordinary navigation in e2e. The per-user company cap already
+   * bounds the worst case, so the generic guard is enough.
+   */
   @ApiOkResponse({ type: DuplicateSuggestionDto, isArray: true })
   findDuplicates(@CurrentUser() user: { id: string }) {
     return this.companiesService.findDuplicateSuggestions(user.id);
   }
 
   @Get('application-history')
-  // Before GET :id for the same reason as /duplicates.
   @ApiOperation({
     summary:
       'Past applications to a company, by case-insensitive name (job-create confirm)',
   })
+  /**
+   * Answers whether the user has applied at a company with this name
+   * before. Declared before `GET :id` for the same reason as the duplicates
+   * route.
+   */
   @ApiOkResponse({ type: CompanyApplicationHistoryDto })
   findApplicationHistory(
     @CurrentUser() user: { id: string },
@@ -115,6 +128,7 @@ export class CompaniesController {
     return this.companiesService.findApplicationHistory(user.id, query.name);
   }
 
+  /** Returns one company with its contacts and linked jobs. */
   @Get(':id')
   @ApiOperation({ summary: 'Get a target company' })
   @ApiParam({ name: 'id', description: 'Company ID' })
@@ -132,6 +146,7 @@ export class CompaniesController {
   @ApiConflictResponse({
     description: 'A company with this name already exists',
   })
+  /** Edits a company. */
   update(
     @CurrentUser() user: { id: string },
     @Param('id') id: string,
@@ -140,6 +155,7 @@ export class CompaniesController {
     return this.companiesService.update(user.id, id, dto);
   }
 
+  /** Deletes a company. */
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Delete a target company' })
@@ -150,10 +166,14 @@ export class CompaniesController {
     return this.companiesService.remove(user.id, id);
   }
 
+  /**
+   * Queues an enrichment run — the Refresh button. Throttled for the same
+   * reason as job parsing: each call costs a web search and a model round
+   * trip. Answers 202, not 200: the work happens on the queue, and the
+   * profile updates when it lands.
+   */
   @Post(':id/enrichment')
   @HttpCode(HttpStatus.ACCEPTED)
-  // Same external-cost rationale as POST /jobs/parse — a Tavily search +
-  // Groq LLM round trip per call.
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @ApiOperation({ summary: 'Queue AI company research for a target company' })
   @ApiParam({ name: 'id', description: 'Company ID' })
@@ -180,6 +200,11 @@ export class CompaniesController {
   @ApiNotFoundResponse({
     description: 'Canonical or duplicate company not found',
   })
+  /**
+   * Merges a duplicate into this company, reassigning the duplicate's jobs
+   * and contacts before deleting it. The surviving company is the one named
+   * in the path.
+   */
   @ApiConflictResponse({ description: 'Cannot merge a company with itself' })
   merge(
     @CurrentUser() user: { id: string },
@@ -195,10 +220,6 @@ export class CompaniesController {
   }
 
   @Post('import')
-  // A bulk CSV import is far costlier per call than a typical CRUD write —
-  // same rationale as POST /jobs/parse and POST :id/enrichment above.
-  // (GET /duplicates, just above, deliberately has no throttle — see the
-  // comment on that route.)
   @Throttle({ default: { ttl: 60000, limit: 10 } })
   @UseInterceptors(
     FileInterceptor('file', {
@@ -223,6 +244,16 @@ export class CompaniesController {
       },
     },
   })
+  /**
+   * Bulk-imports companies from a CSV. Throttled like the other costly
+   * routes, and always answers with a per-row result — a file can import
+   * partially, with the rejected rows reported back by line number.
+   *
+   * The leading byte-order mark that Excel and Google Sheets prepend is
+   * stripped here, or it would land inside the first header cell and fail
+   * validation on an otherwise valid file. It is compared by code point so
+   * the character itself never appears raw in this source.
+   */
   @ApiCreatedResponse({ type: CsvImportResultDto })
   importCsv(
     @CurrentUser() user: { id: string },

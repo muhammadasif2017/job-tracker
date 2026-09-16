@@ -8,11 +8,20 @@ import { BusinessMode, CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
 
+/**
+ * One rejected row, reported back with its 1-indexed line number so the
+ * user can find it in the file they uploaded.
+ */
 export interface CsvImportError {
   row: number;
   message: string;
 }
 
+/**
+ * A partial-success result: rows that imported, plus every row that did not
+ * and why. An import is never all-or-nothing from the user's point of view,
+ * only from the database's.
+ */
 export interface CsvImportResult {
   imported: number;
   errors: CsvImportError[];
@@ -35,14 +44,27 @@ const MAX_NAME_LENGTH = 200;
 // hand here too.
 const MAX_COMPANIES_PER_USER = 2000;
 
-// Hand-rolled, deliberately minimal — no quoted-field/embedded-comma
-// support. See docs/specs/target-companies.md Assumption 5: escalate to
-// csv-parse only if a real-world export needs that, rather than building it
-// preemptively for a fixed 3-column import.
+/**
+ * Bulk company import from a fixed three-column CSV.
+ *
+ * The parser is hand-rolled and deliberately minimal — no quoted fields, no
+ * embedded commas. See docs/specs/target-companies.md, Assumption 5:
+ * escalate to a real CSV library only if a real-world export needs it,
+ * rather than building for that preemptively.
+ *
+ * This path bypasses `CompaniesService.create` and its DTO entirely, so
+ * every limit that service enforces is re-applied by hand here.
+ */
 @Injectable()
 export class CompaniesImportService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * Validates the file as a whole, then hands the data rows to the
+   * transaction. Problems with the file itself — empty, wrong header, too
+   * many rows — are thrown rather than collected, because there is no
+   * per-row result to report for them.
+   */
   async import(userId: string, content: string): Promise<CsvImportResult> {
     const lines = content
       .split(/\r?\n/)
@@ -76,12 +98,14 @@ export class CompaniesImportService {
     return this.runImportTransaction(userId, dataLines);
   }
 
-  // Serializable isolation closes the same TOCTOU window
-  // CompaniesService.runNameCheckedWrite closes for single create/update —
-  // without it, two concurrent imports (or an import racing a single
-  // POST /companies) with case-variant names could both pass the in-memory
-  // seenNames check below and both write, since the DB's own
-  // @@unique([userId, name]) is case-sensitive.
+  /**
+   * Serializable isolation closes the same TOCTOU window
+   * `CompaniesService.runNameCheckedWrite` closes for a single create or
+   * update. Without it, two concurrent imports — or an import racing a
+   * single POST /companies — with case-variant names could both pass the
+   * in-memory duplicate check and both write, since the database's own
+   * unique constraint is case-sensitive.
+   */
   private async runImportTransaction(
     userId: string,
     dataLines: string[],
@@ -101,6 +125,15 @@ export class CompaniesImportService {
     }
   }
 
+  /**
+   * Parses every row, collecting failures instead of aborting, then inserts
+   * what survived in one statement.
+   *
+   * Duplicates and the per-user cap are checked against a projection of the
+   * user's existing companies plus the rows accepted so far, so a name
+   * repeated inside one file is caught the same way a name already in the
+   * database is.
+   */
   private async parseAndCreate(
     tx: Prisma.TransactionClient,
     userId: string,

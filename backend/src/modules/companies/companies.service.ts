@@ -34,6 +34,12 @@ const RECENT_HISTORY_JOBS = 3;
 
 const NAME_SIMILARITY_THRESHOLD = 0.85;
 
+/**
+ * The user's target-company list: the companies they are tracking, the
+ * enrichment attached to each, and the merge and duplicate-detection tools
+ * that keep the list from filling with near-identical rows. Every method
+ * scopes by `userId`, and a company owned by someone else reads as absent.
+ */
 @Injectable()
 export class CompaniesService {
   constructor(
@@ -42,11 +48,13 @@ export class CompaniesService {
     private logger: Logger,
   ) {}
 
-  // Friendly-message pre-check for a case-insensitive name clash — matches the
-  // check CompaniesImportService does for CSV rows. Correctness under a race
-  // comes from the functional unique index on (userId, lower(name)), not from
-  // this read. Takes a client param so create() can run it inside its
-  // transaction.
+  /**
+   * Friendly-message pre-check for a case-insensitive name clash, matching
+   * what `CompaniesImportService` does per CSV row. Correctness under a
+   * race comes from the functional unique index on `(userId, lower(name))`,
+   * not from this read. Takes a client so `create` can run it inside its
+   * transaction.
+   */
   private async ensureNameAvailable(
     client: Pick<Prisma.TransactionClient, 'company'> | PrismaService,
     userId: string,
@@ -66,17 +74,18 @@ export class CompaniesService {
     }
   }
 
-  // Serializable isolation is here for create()'s MAX_COMPANIES_PER_USER
-  // count check: two concurrent creates could otherwise both read a count
-  // just under the cap and both write. No index can enforce that cap (name
-  // clashes are covered by the unique index, which is why update() needs no
-  // transaction). A conflict here isn't always a cap race, so the message
-  // stays generic rather than assuming which check lost. Use
-  // isTransactionWriteConflict, not a bare `err.code === 'P2034'` check — a
-  // conflict Postgres only detects at COMMIT time (common for a broad
-  // predicate like this count()) surfaces as a raw, differently-shaped
-  // DriverAdapterError instead of a PrismaClientKnownRequestError; see
-  // prisma-errors.ts for why both shapes matter.
+  /**
+   * Serializable isolation, here for `create`'s per-user cap: two
+   * concurrent creates could otherwise both read a count just under it and
+   * both write. No index can enforce a cap — name clashes are covered by
+   * the unique index, which is why `update` needs no transaction at all.
+   *
+   * A conflict here is not always a cap race, so the message stays generic
+   * rather than assuming which check lost. The conflict test must be
+   * `isTransactionWriteConflict`, not a bare `err.code === 'P2034'`: a
+   * conflict Postgres only detects at COMMIT time, common for a predicate
+   * as broad as this count, surfaces as a raw `DriverAdapterError` instead.
+   */
   private async runNameCheckedWrite<T>(
     name: string,
     fn: (tx: Prisma.TransactionClient) => Promise<T>,
@@ -95,10 +104,15 @@ export class CompaniesService {
     }
   }
 
-  // Single-company create auto-triggers enrichment (mirrors JobsService.create).
-  // CSV import does NOT — see CompaniesImportService; a bulk import firing
-  // dozens of concurrent Tavily/Groq calls at once is a real rate-limit/cost
-  // risk that a single manual add isn't.
+  /**
+   * Adds one company and kicks off enrichment for it.
+   *
+   * A single create auto-triggers enrichment, mirroring
+   * `JobsService.create`. CSV import deliberately does not: a bulk import
+   * firing dozens of concurrent search and model calls is a real rate-limit
+   * and cost risk that one manual add is not. Enrichment stays best-effort
+   * — an unreachable queue is logged and the company is still created.
+   */
   async create(userId: string, dto: CreateCompanyDto) {
     const company = await this.runNameCheckedWrite(dto.name, async (tx) => {
       // Counted inside the same Serializable transaction as the write below
@@ -154,6 +168,11 @@ export class CompaniesService {
     };
   }
 
+  /**
+   * One page of the user's companies, newest first, with optional city,
+   * priority and name filters. Application stats are fetched for the page's
+   * ids only, so the query count stays fixed however large the page.
+   */
   async findAll(userId: string, query: CompanyQueryDto) {
     const { page = 1, limit = 10, city, priority, search } = query;
 
@@ -191,6 +210,11 @@ export class CompaniesService {
     };
   }
 
+  /**
+   * The company detail view: the row plus its contacts and a lean list of
+   * the jobs linked to it — enough to list and link to each job, not to
+   * render one.
+   */
   async findOne(userId: string, companyId: string) {
     // Scope by userId so a company owned by another user is indistinguishable
     // from one that doesn't exist — same 404-for-both pattern as JobsService.
@@ -222,9 +246,12 @@ export class CompaniesService {
     };
   }
 
-  // "Have I applied here before?" for the job-create confirm. Matches by name
-  // the same way JobsService.resolveCompanyId links a job (case-insensitive
-  // exact), since the create forms only know the typed name.
+  /**
+   * Answers "have I applied here before?" for the job-create confirmation
+   * step. Matches by name the same way `JobsService.resolveCompanyId` links
+   * a job — case-insensitive exact — since the create forms only know the
+   * name the user typed.
+   */
   async findApplicationHistory(userId: string, name: string) {
     const trimmed = name.trim();
     const company = trimmed
@@ -251,7 +278,10 @@ export class CompaniesService {
     };
   }
 
-  // Lean ownership check for write operations that don't need the contacts JOIN.
+  /**
+   * Lean ownership check for writes that do not need the contacts and jobs
+   * join.
+   */
   async findOwned(userId: string, companyId: string) {
     const company = await this.prisma.company.findFirst({
       where: { id: companyId, userId },
@@ -261,6 +291,15 @@ export class CompaniesService {
     return company;
   }
 
+  /**
+   * Edits a company.
+   *
+   * A rename needs no Serializable transaction: the functional unique index
+   * on `(userId, lower(name))` rejects a case-variant duplicate that slips
+   * past the pre-check in a race (ADR-033), and the P2002 that comes back
+   * is translated to the same friendly conflict. The pre-check stays for
+   * the common non-racing case.
+   */
   async update(userId: string, companyId: string, dto: UpdateCompanyDto) {
     await this.findOwned(userId, companyId);
 
@@ -312,6 +351,10 @@ export class CompaniesService {
     return this.prisma.company.findFirstOrThrow({ where: { id: companyId } });
   }
 
+  /**
+   * Deletes a company. Ownership and delete are one statement, so nothing
+   * can race between checking and removing.
+   */
   async remove(userId: string, companyId: string) {
     // Atomic ownership + delete in one query, same pattern as JobsService.remove
     // — avoids a separate existence check racing the delete.
@@ -322,6 +365,14 @@ export class CompaniesService {
     return { message: 'Company deleted' };
   }
 
+  /**
+   * Backs the Refresh button.
+   *
+   * The status flip is a compare-and-swap that claims the row only if it is
+   * not already PENDING or PROCESSING, closing the window where two
+   * concurrent requests both see a non-busy status and both enqueue. A
+   * caller that loses gets a conflict rather than a second queued run.
+   */
   async triggerEnrichment(userId: string, companyId: string) {
     const company = await this.prisma.company.findFirst({
       where: { id: companyId, userId },
@@ -355,16 +406,23 @@ export class CompaniesService {
     return { message: 'Enrichment queued' };
   }
 
-  // Phase 5a (docs/specs/company-fk-phase5a.md) — manual merge, no
-  // auto-detection yet (5c). Job AND Contact both need reassigning —
-  // Contact.companyId has onDelete: Cascade from Company, so deleting the
-  // duplicate without first reassigning its contacts would silently destroy
-  // them. fieldOverrides (phase 5b, docs/specs/company-fk-phase5b.md) is a
-  // sparse patch applied to canonical — an absent key keeps canonical's
-  // current value, only present keys (the fields the user explicitly picked
-  // the duplicate's value for) get overwritten. Only AI-enrichment fields
-  // are eligible; user-curated identity fields (websiteUrl, personalNotes,
-  // etc.) always stay canonical's own, no override path for them.
+  /**
+   * Folds a duplicate company into a canonical one and deletes the
+   * duplicate.
+   *
+   * Both jobs and contacts must be reassigned first: `Contact.companyId`
+   * cascades on delete, so removing the duplicate before moving its
+   * contacts would silently destroy them. `fieldOverrides` is a sparse
+   * patch onto the canonical row — an absent key keeps the canonical value,
+   * and only fields the user explicitly picked the duplicate's value for
+   * are overwritten. Only enrichment fields are eligible; user-curated
+   * identity fields such as `websiteUrl` and `personalNotes` always stay
+   * the canonical company's own.
+   *
+   * Serializable for the same reason as `runNameCheckedWrite`: two merges
+   * naming the same duplicate — a double-click, two tabs — would otherwise
+   * both pass the existence check and race on the delete.
+   */
   async mergeCompanies(
     userId: string,
     canonicalId: string,
@@ -427,14 +485,19 @@ export class CompaniesService {
     }
   }
 
-  // Phase 5c (docs/specs/company-fk-phase5c.md) — computed fresh on each
-  // request against the current user's own companies only, no caching/
-  // background job. O(n^2) pairwise comparison is fine at this data volume
-  // (a personal job-tracking tool's per-user company count is small, not a
-  // CRM at scale) — see the spec for why this isn't a Postgres pg_trgm
-  // extension instead. Full Company objects (not a narrow select) — the
-  // frontend pre-seeds MergeCompanyDialog with these, same shape the
-  // existing search step already provides.
+  /**
+   * Finds likely duplicate pairs among the user's companies, by shared
+   * website or by name similarity.
+   *
+   * Computed fresh per request, with no caching and no background job. The
+   * pairwise comparison is quadratic, which is fine at this data volume — a
+   * personal job tracker's company list, not a CRM at scale — and the
+   * per-user cap is what bounds it. Names are normalized once per company
+   * rather than once per pair, and a cheap length-ratio bound skips the
+   * expensive edit-distance for pairs that cannot clear the threshold. Full
+   * company objects come back because the frontend pre-seeds the merge
+   * dialog with them.
+   */
   async findDuplicateSuggestions(userId: string) {
     const companies = await this.prisma.company.findMany({
       where: { userId },
