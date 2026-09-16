@@ -23,20 +23,34 @@ import { localCivilDay } from '../../common/timezone.util.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
-// `Job.nextInterviewAt` goes stale on its own: InterviewRoundsService
-// recomputes it on every round write, but nothing touches it when time simply
-// passes, so a past instant keeps claiming to be the *next* interview. Every
-// read path that hands a job to a client runs it through this — findOne,
-// findAll, the PATCH response and the CSV export. Missing it on any one of
-// them is enough: `usePatchJobStatusMutation` merges the PATCH response over
-// the cached detail job, so an un-nulled value there resurrects the stale
-// date on a page that had already cleaned it.
+/**
+ * `Job.nextInterviewAt` goes stale on its own: `InterviewRoundsService`
+ * recomputes it on every round write, but nothing touches it when time
+ * simply passes, so a past instant keeps claiming to be the next interview.
+ * Every read path that hands a job to a client runs it through this —
+ * `findOne`, `findAll`, the PATCH response and the CSV export.
+ *
+ * Missing it on any one of them is enough: `usePatchJobStatusMutation`
+ * merges the PATCH response over the cached detail job, so an un-nulled
+ * value there resurrects the stale date on a page that had already cleaned
+ * it.
+ */
 function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
   job: T,
 ): T {
   return { ...job, nextInterviewAt: upcomingInterviewAt(job.nextInterviewAt) };
 }
 
+/**
+ * The core of the app: the jobs a user is tracking, their status history,
+ * and the company each one links to.
+ *
+ * Two invariants run through everything here. Every method that touches a
+ * specific job scopes the query by `userId`, so another user's job is
+ * indistinguishable from one that does not exist — 404 for both, never 403.
+ * And `Job.appliedAt` holds a civil date, UTC midnight standing in for a
+ * calendar day, never a real time of day (ADR-034).
+ */
 @Injectable()
 export class JobsService {
   constructor(
@@ -47,12 +61,12 @@ export class JobsService {
     private logger: Logger,
   ) {}
 
-  // `Job.appliedAt` holds a *civil* date — UTC midnight standing in for a
-  // calendar day, never a real time-of-day (ADR-034). Every write path goes
-  // through one of these two helpers so the invariant can't drift:
-  // `civilDateFromInput` for a date the client named, `todayFor` for one we
-  // infer. The schema's `@default(now())` would violate it, so `create` sets
-  // the column explicitly and never lets the default fire.
+  /**
+   * The civil date a client named. A date-only string already parses to UTC
+   * midnight; a full ISO datetime, which the DTO's validator also accepts,
+   * is floored to the UTC day it names rather than smuggling a time of day
+   * into the column.
+   */
   private static civilDateFromInput(value: string): Date {
     const parsed = new Date(value);
     // A date-only string already parses to UTC midnight; a full ISO datetime
@@ -67,17 +81,21 @@ export class JobsService {
     );
   }
 
-  // The user's own today, not the server's. A UTC+5 user applying at 02:00
-  // local is on the next calendar day from a UTC server's point of view, and
-  // the date they see in the list must be the one they'd write down.
+  /**
+   * The civil date we infer — the user's own today, not the server's. A
+   * UTC+5 user applying at 02:00 local is on the next calendar day from a
+   * UTC server's point of view, and the date they see in the list must be
+   * the one they would write down.
+   */
   private async todayFor(userId: string): Promise<Date> {
     const { timeZone } = await findUserTimeZone(this.prisma, userId);
     return localCivilDay(new Date(), timeZone);
   }
 
-  // Timeline-summary regen is best-effort — a queue/LLM hiccup must never
-  // fail the job mutation that triggered it. Same shape as the
-  // companyEnrichment.enqueueIfStale try/catch below in create().
+  /**
+   * Timeline-summary regeneration is best-effort — a queue or model hiccup
+   * must never fail the job mutation that triggered it.
+   */
   private async enqueueTimelineSummary(jobId: string): Promise<void> {
     try {
       await this.timelineSummary.enqueue(jobId);
@@ -86,15 +104,20 @@ export class JobsService {
     }
   }
 
-  // Editing a job's company label re-resolves the FK, and resolveCompanyId
-  // auto-creates the row when no company of that name exists yet — a fresh
-  // row with `status: null`. Without this call nothing ever queued a run for
-  // it, and findOne renders `status ?? PENDING`, so correcting a typo'd
-  // company name left the profile showing "Queued…" forever with no work
-  // queued and the job page polling every 3s for a state that never changes.
-  // enqueueIfStale, not enqueueEnrichment: re-linking to a company that is
-  // already enriched, running, or failed must not re-burn Tavily quota
-  // (ADR-035) — same reasoning as create().
+  /**
+   * Queues enrichment for a company a job was just re-linked to.
+   *
+   * Editing a job's company label re-resolves the FK, and
+   * `resolveCompanyId` auto-creates the row when no company of that name
+   * exists yet. Without this call nothing ever queued a run for it, and
+   * `findOne` renders a null status as PENDING — so correcting a typo'd
+   * company name left the profile showing "Queued…" forever, with the job
+   * page polling for a state that never changed.
+   *
+   * `enqueueIfStale`, not `enqueueEnrichment`: re-linking to a company that
+   * is already enriched, running or failed must not re-burn search quota
+   * (ADR-035).
+   */
   private async enqueueRelinkedCompany(
     jobId: string,
     companyId: string | null,
@@ -108,28 +131,28 @@ export class JobsService {
     }
   }
 
-  // Find-or-create, backing a real Job.companyId FK. Case-insensitive exact
-  // match, no fuzzy matching (see docs/specs/target-companies.md Assumption
-  // 6). Never overwrites an existing company's user-edited/enriched fields
-  // as a side effect of linking a job to it. CompanyCity.OTHER is used for
-  // auto-created rows since job create/update collects no city.
-  //
-  // `matched` is true only for a *pre-existing* company match — callers use
-  // it to distinguish "linked to a company you already saved" from "we
-  // silently auto-created this row" (the loser of a create race counts as
-  // the latter, same as a plain non-concurrent create would have).
-  //
-  // Concurrency is the database's job: the functional unique index on
-  // (userId, lower(name)) — see the add_company_ci_unique migration — makes
-  // a case-variant duplicate ("Google" vs "google") an ordinary unique
-  // violation, so a losing racer gets P2002 and the winner's row is already
-  // committed and findable. This replaced a Serializable transaction wrapped
-  // in an 8-attempt jittered retry loop: the case-insensitive `findFirst`
-  // had no index to match, so under Serializable it predicate-locked the
-  // user's entire (userId, name) range and two creates for *completely
-  // unrelated* company names aborted each other. That was a standing tax on
-  // exactly the bulk paths that matter — the browser extension and CSV
-  // import fire many creates for one user (ADR-029).
+  /**
+   * Find-or-create for the `Job.companyId` FK, matching on the name the
+   * user typed. Case-insensitive exact, no fuzzy matching, and it never
+   * overwrites an existing company's fields as a side effect of linking a
+   * job to it.
+   *
+   * `matched` is true only for a pre-existing company — callers use it to
+   * tell "linked to a company you already saved" from "this row was
+   * auto-created". The loser of a create race counts as the latter, exactly
+   * as a plain non-concurrent create would have.
+   *
+   * Concurrency is the database's job. The functional unique index on
+   * `(userId, lower(name))` makes a case-variant duplicate an ordinary
+   * unique violation, so a losing racer gets P2002 and the winner's row is
+   * already committed and findable. This replaced a Serializable
+   * transaction wrapped in an eight-attempt retry loop: the
+   * case-insensitive `findFirst` had no index to match, so Serializable
+   * predicate-locked the user's entire name range and two creates for
+   * completely unrelated companies aborted each other — a standing tax on
+   * exactly the bulk paths that matter, the browser extension and CSV
+   * import (ADR-029).
+   */
   private async resolveCompanyId(
     userId: string,
     trimmedName: string,
@@ -189,6 +212,15 @@ export class JobsService {
     }
   }
 
+  /**
+   * Creates a job, links or auto-creates its company, writes the CREATED
+   * timeline event in the same statement, and queues enrichment for a
+   * company that has never had any.
+   *
+   * `appliedAt` is always set explicitly, on every path: the schema's
+   * `@default(now())` would write a real timestamp and break the civil-date
+   * invariant, so the default must never fire.
+   */
   async create(userId: string, dto: CreateJobDto) {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
     const trimmedCompanyName = dto.company.trim();
@@ -248,6 +280,11 @@ export class JobsService {
     return { ...job, matchedCompany };
   }
 
+  /**
+   * One page of the user's jobs, with the list view's filters, search and
+   * sort applied. Every sort but `createdAt` carries `createdAt` as a
+   * tiebreaker, so rows sharing a value keep a stable order across pages.
+   */
   async findAll(userId: string, query: JobQueryDto) {
     const {
       page = 1,
@@ -277,6 +314,11 @@ export class JobsService {
     };
   }
 
+  /**
+   * The job detail view: the job with its company, resume, interview rounds
+   * and contacts. Do not call this merely to check ownership — `findOwned`
+   * is the lean version for that.
+   */
   async findOne(userId: string, jobId: string) {
     // Scope by userId so a job owned by another user is indistinguishable
     // from one that doesn't exist (404 for both — no existence leak).
@@ -342,8 +384,12 @@ export class JobsService {
     };
   }
 
-  // Lean ownership check — only selects id + status, no companyLink JOIN.
-  // Use this in write operations that don't need enrichment data.
+  /**
+   * Lean ownership check for writes, selecting only the columns the write
+   * itself reads back — no joins. `appliedAt` is among them so `update` can
+   * tell a date the user actually changed from the pre-filled one the form
+   * resends untouched.
+   */
   private async findOwned(userId: string, jobId: string) {
     const job = await this.prisma.job.findFirst({
       where: { id: jobId, userId },
@@ -363,9 +409,12 @@ export class JobsService {
     return job;
   }
 
-  // Shared update fields — status is deliberately excluded. Status is either
-  // unchanged (nothing to write) or changing (handled by the CAS branch in
-  // `update`, below), so it never belongs in this plain field list.
+  /**
+   * The plain field writes shared by every update path. Status is
+   * deliberately absent: it is either unchanged, and there is nothing to
+   * write, or it is changing, and the compare-and-swap branch in `update`
+   * owns it.
+   */
   private buildUpdateData(dto: UpdateJobDto) {
     return {
       company: dto.company,
@@ -382,6 +431,27 @@ export class JobsService {
     };
   }
 
+  /**
+   * Edits a job. Three things here are more than a field write.
+   *
+   * A status change is a compare-and-swap against the status just read,
+   * paired with its timeline event inside one transaction — that is what
+   * closes the race between a manual edit and an interview-round
+   * auto-promotion (ADR-018).
+   *
+   * A company label is only re-resolved when it actually differs from the
+   * stored one. The form resends the current label on every submit, so "the
+   * client sent it" cannot mean "the user changed it" — and re-resolving a
+   * stale label would retroactively rewrite a link after the company was
+   * renamed or merged elsewhere (ADR-030). Clearing the label outright is
+   * rejected: `Job.company` is a required column with no "unlinked" state
+   * to clear into.
+   *
+   * Leaving WISHLIST in any direction re-stamps `appliedAt` to the user's
+   * today, because every "applications sent" metric dates from that column
+   * and would otherwise date the application from the save (ADR-033,
+   * ADR-034).
+   */
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
     const statusChanged = dto.status && dto.status !== existing.status;
@@ -517,23 +587,23 @@ export class JobsService {
     return withUpcomingInterview(result);
   }
 
-  // Bulk "Mark all ghosted". The ids are what the user saw on the card, which
-  // may be stale by the time they confirm — so each is re-checked against the
-  // live rule (scoped by userId, so another user's id never matches) and
-  // anything that got activity or was dismissed in between is skipped.
-  //
-  // The rule is part of each write's WHERE, not a separate read first, so
-  // eligibility and the status change are one atomic step per row.
-  //
-  // It does what update() does for a status change — a compare-and-set on the
-  // status being left, the STATUS_CHANGE event the funnel reads, the
-  // timeline-summary enqueue — but as one updateManyAndReturn per status the
-  // rule allows (so each returned row's fromStatus is known), plus one
-  // createMany, in one transaction. Going through update() per job cost
-  // several round trips each, up to MAX_GHOST_SUGGESTIONS jobs per request.
-  // Nothing else in update() applies: no job leaves WISHLIST and no company
-  // label changes. The summary queue coalesces per job, so the burst of
-  // enqueues after commit only queues up.
+  /**
+   * The bulk "mark all ghosted" action.
+   *
+   * The ids are what the user saw on the card, which may be stale by the
+   * time they confirm — so each is re-checked against the live rule, scoped
+   * by userId so another user's id never matches, and anything that got
+   * activity or was dismissed in between is skipped.
+   *
+   * One statement per status the ghost rule allows, each carrying that
+   * status and the live eligibility rule in its WHERE — so eligibility and
+   * the compare-and-swap are one atomic step and every moved row's previous
+   * status is known — then one statement for all the events, all in one
+   * transaction. Going through `update` per job cost several round trips
+   * each. Nothing else `update` does applies here: no job leaves WISHLIST
+   * and no company label changes. If a new side effect is added to
+   * `update`'s status-change path, add it here too.
+   */
   async markGhosted(userId: string, jobIds: string[]) {
     const ghostWhere = buildGhostSuggestionWhere(userId, new Date());
     const ids = [...new Set(jobIds)];
@@ -565,6 +635,10 @@ export class JobsService {
     return { updated: moved.length };
   }
 
+  /**
+   * Quiets the ghost suggestion for one job — "HR said wait". A scoped
+   * single statement, so no separate ownership read can race the write.
+   */
   async dismissGhostSuggestion(userId: string, jobId: string) {
     // Scoped updateMany so another user's job is indistinguishable from a
     // missing one (404 for both), without a separate ownership SELECT.
@@ -576,6 +650,11 @@ export class JobsService {
     return { message: 'Suggestion dismissed' };
   }
 
+  /**
+   * Deletes a job. The resume's storage key is read before the delete,
+   * since the row disappears with the job by cascade but the file itself is
+   * outside Prisma's reach; the file delete afterwards is best-effort.
+   */
   async remove(userId: string, jobId: string) {
     const resume = await this.prisma.resume.findFirst({
       where: { jobId, job: { userId } },
@@ -599,6 +678,24 @@ export class JobsService {
     return { message: 'Job deleted' };
   }
 
+  /**
+   * One page of a job's timeline events.
+   *
+   * Newest first: with ascending order, page 1 of a busy job returns the
+   * oldest slice and the recent activity — the only part anyone reads on a
+   * timeline — is silently dropped. Callers that render oldest-to-newest
+   * reverse the page themselves. The id is the tiebreaker because
+   * timestamps are not unique here: job creation nests its CREATED event,
+   * and round logging writes inside the same transaction as its round, so
+   * same-millisecond rows are normal, and without it a row can repeat or
+   * vanish across a page boundary.
+   *
+   * The page offset is derived from the capped page size rather than the
+   * raw limit, so pages stay contiguous even for an internal caller that
+   * bypasses the controller's validation. The rows and the total are
+   * independent reads and can reflect different snapshots under a
+   * concurrent write — acceptable for a read-only display.
+   */
   async getEvents(userId: string, jobId: string, page = 1, limit = 50) {
     await this.findOwned(userId, jobId);
     const take = Math.min(limit, 200);
