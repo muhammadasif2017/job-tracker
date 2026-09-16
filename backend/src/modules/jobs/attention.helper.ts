@@ -81,8 +81,8 @@ export async function getAttentionItems(prisma: PrismaService, userId: string) {
     })),
   ];
 
-  // A job can match several rules — keep only its highest-priority reason
-  // (array order above is the priority order)
+  // A job can match several rules — keep only its most urgent reason
+  // (array order above is the precedence order)
   const seen = new Set<string>();
   return items.filter((item) => {
     if (seen.has(item.job.id)) return false;

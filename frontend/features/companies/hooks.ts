@@ -8,7 +8,7 @@ import type {
   CompanyCity,
   CsvImportResult,
   DuplicateSuggestion,
-  JobPriority,
+  Priority,
   PaginatedCompanies,
 } from '../../types';
 
@@ -23,7 +23,7 @@ export interface CompanyWritePayload {
   name: string;
   city: CompanyCity;
   location: string | null;
-  priority: JobPriority;
+  priority: Priority;
   personalNotes: string | null;
   websiteUrl: string | null;
   linkedinUrl: string | null;
@@ -39,7 +39,7 @@ export interface CompaniesFilters {
   page: number;
   search: string;
   city: CompanyCity | '';
-  priority: JobPriority | '';
+  priority: Priority | '';
 }
 
 function invalidateCompanyListCaches(qc: ReturnType<typeof useQueryClient>) {

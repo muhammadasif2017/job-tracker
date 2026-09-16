@@ -12,7 +12,7 @@ import { EnrichmentStatusBadge } from '../ui/badge';
 import {
   COMPANY_CITIES,
   CITY_LABELS,
-  JOB_PRIORITIES,
+  PRIORITIES,
   PRIORITY_LABELS,
   BUSINESS_MODES,
   BUSINESS_MODE_LABELS,
@@ -28,7 +28,7 @@ const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   city: z.enum(COMPANY_CITIES),
   location: z.string().optional(),
-  priority: z.enum(JOB_PRIORITIES),
+  priority: z.enum(PRIORITIES),
   personalNotes: z.string().optional(),
   websiteUrl: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
   linkedinUrl: z.string().url('Enter a valid URL').or(z.literal('')).optional(),
@@ -195,7 +195,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
                 className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
                 {...register('priority')}
               >
-                {JOB_PRIORITIES.map((p) => (
+                {PRIORITIES.map((p) => (
                   <option key={p} value={p}>
                     {PRIORITY_LABELS[p]}
                   </option>

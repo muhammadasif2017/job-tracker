@@ -3,7 +3,7 @@ import {
   BusinessMode,
   CompanyCity,
   EnrichmentStatus,
-  JobPriority,
+  Priority,
 } from '@prisma/client';
 import { CompanyApplicationStatsDto } from './company-application-stats.dto.js';
 
@@ -20,8 +20,8 @@ export class CompanyResponseDto {
   @ApiPropertyOptional({ example: 'DHA Phase 5, Lahore' })
   location: string | null;
 
-  @ApiProperty({ enum: JobPriority })
-  priority: JobPriority;
+  @ApiProperty({ enum: Priority })
+  priority: Priority;
 
   @ApiPropertyOptional()
   personalNotes: string | null;

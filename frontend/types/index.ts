@@ -9,9 +9,9 @@ export const JOB_STATUSES = [
 
 export type JobStatus = (typeof JOB_STATUSES)[number];
 
-export const JOB_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
+export const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH'] as const;
 
-export type JobPriority = (typeof JOB_PRIORITIES)[number];
+export type Priority = (typeof PRIORITIES)[number];
 
 export const JOB_TYPES = ['ONSITE', 'HYBRID', 'REMOTE'] as const;
 
@@ -319,13 +319,13 @@ export interface JobQuery {
   dateTo?: string;
 }
 
-export const PRIORITY_LABELS: Record<JobPriority, string> = {
+export const PRIORITY_LABELS: Record<Priority, string> = {
   LOW: 'Low',
   MEDIUM: 'Medium',
   HIGH: 'High',
 };
 
-export const PRIORITY_COLORS: Record<JobPriority, string> = {
+export const PRIORITY_COLORS: Record<Priority, string> = {
   LOW: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
   MEDIUM:
     'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
@@ -558,7 +558,7 @@ export interface Company {
   name: string;
   city: CompanyCity;
   location?: string | null;
-  priority: JobPriority;
+  priority: Priority;
   personalNotes?: string | null;
   websiteUrl?: string | null;
   linkedinUrl?: string | null;
@@ -601,7 +601,7 @@ export interface CompanyQuery {
   page?: number;
   limit?: number;
   city?: CompanyCity | '';
-  priority?: JobPriority | '';
+  priority?: Priority | '';
   search?: string;
 }
 

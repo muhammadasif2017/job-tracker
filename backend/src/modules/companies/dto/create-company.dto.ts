@@ -10,7 +10,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { BusinessMode, CompanyCity, JobPriority } from '@prisma/client';
+import { BusinessMode, CompanyCity, Priority } from '@prisma/client';
 
 // Enrichment-managed fields (status, errorMessage, enrichedAt, low-confidence
 // flags) are deliberately absent here — those are only ever written by
@@ -35,10 +35,10 @@ export class CreateCompanyDto {
 
   // Omittable, not nullable: Company.priority is a non-nullable column with a
   // default. `@IsOptional()` would also let null through to Prisma (a 500).
-  @ApiPropertyOptional({ enum: JobPriority })
+  @ApiPropertyOptional({ enum: Priority })
   @ValidateIf((_, value) => value !== undefined)
-  @IsEnum(JobPriority)
-  priority?: JobPriority;
+  @IsEnum(Priority)
+  priority?: Priority;
 
   @ApiPropertyOptional({
     example: 'Great engineering culture, met their CTO at a meetup',
