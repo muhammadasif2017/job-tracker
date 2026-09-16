@@ -84,7 +84,8 @@ export class CompaniesService {
    * rather than assuming which check lost. The conflict test must be
    * `isTransactionWriteConflict`, not a bare `err.code === 'P2034'`: a
    * conflict Postgres only detects at COMMIT time, common for a predicate
-   * as broad as this count, surfaces as a raw `DriverAdapterError` instead.
+   * as broad as this count, surfaces as a raw `DriverAdapterError` instead
+   * — see `prisma-errors.ts` for why both shapes matter.
    */
   private async runNameCheckedWrite<T>(
     name: string,
@@ -408,7 +409,9 @@ export class CompaniesService {
 
   /**
    * Folds a duplicate company into a canonical one and deletes the
-   * duplicate.
+   * duplicate. Manual only, no auto-detection — see
+   * docs/specs/company-fk-phase5a.md, and company-fk-phase5b.md for the
+   * field overrides.
    *
    * Both jobs and contacts must be reassigned first: `Contact.companyId`
    * cascades on delete, so removing the duplicate before moving its
@@ -492,7 +495,9 @@ export class CompaniesService {
    * Computed fresh per request, with no caching and no background job. The
    * pairwise comparison is quadratic, which is fine at this data volume — a
    * personal job tracker's company list, not a CRM at scale — and the
-   * per-user cap is what bounds it. Names are normalized once per company
+   * per-user cap is what bounds it; docs/specs/company-fk-phase5c.md has
+   * that reasoning, and why this is not Postgres `pg_trgm` instead. Names
+   * are normalized once per company
    * rather than once per pair, and a cheap length-ratio bound skips the
    * expensive edit-distance for pairs that cannot clear the threshold. Full
    * company objects come back because the frontend pre-seeds the merge

@@ -133,7 +133,8 @@ export class JobsService {
 
   /**
    * Find-or-create for the `Job.companyId` FK, matching on the name the
-   * user typed. Case-insensitive exact, no fuzzy matching, and it never
+   * user typed. Case-insensitive exact, no fuzzy matching
+   * (docs/specs/target-companies.md, Assumption 6), and it never
    * overwrites an existing company's fields as a side effect of linking a
    * job to it.
    *
@@ -143,7 +144,8 @@ export class JobsService {
    * as a plain non-concurrent create would have.
    *
    * Concurrency is the database's job. The functional unique index on
-   * `(userId, lower(name))` makes a case-variant duplicate an ordinary
+   * `(userId, lower(name))` — see the `add_company_ci_unique` migration —
+   * makes a case-variant duplicate an ordinary
    * unique violation, so a losing racer gets P2002 and the winner's row is
    * already committed and findable. This replaced a Serializable
    * transaction wrapped in an eight-attempt retry loop: the
@@ -600,7 +602,7 @@ export class JobsService {
    * the compare-and-swap are one atomic step and every moved row's previous
    * status is known — then one statement for all the events, all in one
    * transaction. Going through `update` per job cost several round trips
-   * each. Nothing else `update` does applies here: no job leaves WISHLIST
+   * each, for up to `MAX_GHOST_SUGGESTIONS` jobs per request. Nothing else `update` does applies here: no job leaves WISHLIST
    * and no company label changes. If a new side effect is added to
    * `update`'s status-change path, add it here too.
    */

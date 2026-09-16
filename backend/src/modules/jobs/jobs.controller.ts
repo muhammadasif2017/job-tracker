@@ -211,7 +211,8 @@ export class JobsController {
   })
   /**
    * Marks the listed jobs ghosted, skipping any that no longer qualify.
-   * Throttled as a bulk write, the same cap as the CSV import.
+   * Throttled as a bulk write — up to `MAX_GHOST_SUGGESTIONS` status
+   * changes per call — the same cap as `POST /companies/import`.
    */
   @ApiOkResponse({ type: MarkGhostedResultDto })
   markGhosted(

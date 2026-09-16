@@ -58,7 +58,8 @@ export class CompanyEnrichmentService {
    * The automatic path, taken when a job is added at a company.
    *
    * Fires only for a company enrichment has never been attempted on. Every
-   * other state is deliberately skipped. COMPLETED already holds the
+   * other state is deliberately skipped, and the claim is the same
+   * compare-and-swap pattern as `CompaniesService.triggerEnrichment`. COMPLETED already holds the
    * profile, and re-running to rediscover facts we have is what drained the
    * quota — a run costs one or two searches, doubled by the retry policy,
    * and a company with N jobs was paying that N times. PENDING and
@@ -67,7 +68,8 @@ export class CompanyEnrichmentService {
    * one new company queues a single run. FAILED usually means a small
    * employer with no website and no search hits, which would otherwise
    * re-burn credits on every job added at it forever; recovery is the
-   * Refresh button.
+   * Refresh button, which `CompanyProfileCard` already renders prominently
+   * on a failed profile.
    *
    * The `enrichedAt: null` half of the condition is redundant against
    * `status: null` for rows this codebase writes, and is kept as a guard

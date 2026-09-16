@@ -99,9 +99,10 @@ export class CompaniesController {
    * Suggests likely duplicate pairs.
    *
    * Registered before `GET :id`, or "duplicates" would be captured as an
-   * id. The scan is quadratic over the user's own companies, but this route
-   * deliberately carries no per-route throttle: unlike the import below, it
-   * is fetched passively on every companies-page mount, and a 10/min cap
+   * id. The scan is quadratic over the user's own companies (by design — see
+   * docs/specs/company-fk-phase5c.md), but this route deliberately carries no
+   * per-route throttle: unlike the import below, it is fetched passively by
+   * `DuplicateSuggestionsBanner` on every companies-page mount, and a 10/min cap
    * broke ordinary navigation in e2e. The per-user company cap already
    * bounds the worst case, so the generic guard is enough.
    */
