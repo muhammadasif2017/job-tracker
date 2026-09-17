@@ -11,23 +11,36 @@ import {
 } from '../../features/companies/hooks';
 import type { Company, PaginatedCompanies } from '../../types';
 
+/** Props for `MergeCompanyDialog`. */
 interface Props {
   open: boolean;
   onClose: () => void;
-  // The company the "Merge" action was triggered from — kept as the
-  // canonical (surviving) company. The user picks the duplicate to merge in.
+  /**
+   * The company the "Merge" action was triggered from — kept as the
+   * canonical (surviving) company. The user picks the duplicate to merge in.
+   */
   company: Company | undefined;
-  // Phase 5c (docs/specs/company-fk-phase5c.md) — when set, the dialog skips
-  // the search step and jumps straight to conflicts/confirm for this
-  // pre-picked duplicate (auto-suggest "Review" action).
+  /**
+   * Phase 5c (docs/specs/company-fk-phase5c.md) — when set, the dialog skips
+   * the search step and jumps straight to conflicts/confirm for this
+   * pre-picked duplicate (auto-suggest "Review" action).
+   */
   preSeedDuplicate?: Company;
 }
 
+/**
+ * Where the merge flow is: picking the duplicate, resolving field conflicts,
+ * or confirming.
+ */
 type Step = 'search' | 'conflicts' | 'confirm';
 
-// Phase 5b (docs/specs/company-fk-phase5b.md) — only the AI-enrichment field
-// set is pickable; user-curated identity fields (websiteUrl, personalNotes,
-// businessMode, etc.) stay canonical-wins unconditionally, no picker for them.
+/**
+ * Enrichment fields the user can take from the duplicate when the two differ.
+ *
+ * Phase 5b (docs/specs/company-fk-phase5b.md) — only the AI-enrichment field
+ * set is pickable; user-curated identity fields (websiteUrl, personalNotes,
+ * businessMode, etc.) stay canonical-wins unconditionally, no picker for them.
+ */
 const CONFLICT_FIELDS: {
   key: keyof MergeFieldOverrides;
   label: string;
@@ -39,17 +52,26 @@ const CONFLICT_FIELDS: {
   { key: 'productDescription', label: 'What They Build' },
 ];
 
+/**
+ * A field value as comparable text: arrays deduped and sorted, empty values as
+ * "".
+ */
 function normalize(value: unknown): string {
   if (value == null) return '';
   if (Array.isArray(value)) return [...new Set(value)].sort().join(', ');
   return String(value);
 }
 
+/** A field value for display, with "(empty)" for nothing. */
 function formatValue(value: unknown): string {
   const n = normalize(value);
   return n === '' ? '(empty)' : n;
 }
 
+/**
+ * Multi-step dialog merging a duplicate company into `company`, which
+ * survives.
+ */
 export function MergeCompanyDialog({
   open,
   onClose,

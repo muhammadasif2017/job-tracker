@@ -6,15 +6,21 @@ import { Button } from '../ui/button';
 import { useDuplicateSuggestionsQuery } from '../../features/companies/hooks';
 import type { Company, DuplicateSuggestion } from '../../types';
 
+/** Props for `DuplicateSuggestionsBanner`. */
 interface Props {
   // Opens MergeCompanyDialog with `canonical` as the surviving company and
   // `duplicate` pre-seeded, skipping the dialog's search step.
   onReview: (canonical: Company, duplicate: Company) => void;
 }
 
-// Phase 5c (docs/specs/company-fk-phase5c.md) — dismissal is session-only
-// (component state, no persistence): a dismissed pair reappears on next
-// page load/refresh if still unmerged, by design (see spec).
+/**
+ * Banner listing likely duplicate companies, with a Review action that opens
+ * the merge dialog.
+ *
+ * Phase 5c (docs/specs/company-fk-phase5c.md) — dismissal is session-only
+ * (component state, no persistence): a dismissed pair reappears on next
+ * page load/refresh if still unmerged, by design (see spec).
+ */
 export function DuplicateSuggestionsBanner({ onReview }: Props) {
   const { data: suggestions } = useDuplicateSuggestionsQuery();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());

@@ -34,6 +34,7 @@ import {
   useCompanySuggestionsQuery,
 } from '../../features/companies/hooks';
 
+/** Validation for the job form. */
 const schema = z.object({
   company: z.string().min(1, 'Company is required'),
   position: z.string().min(1, 'Position is required'),
@@ -53,8 +54,10 @@ const schema = z.object({
   appliedAt: z.string().optional(),
   notes: z.string().optional(),
 });
+/** Values the job form holds. */
 type FormData = z.infer<typeof schema>;
 
+/** Fields Quick Add can prefill from a parsed posting. */
 type InitialValues = Partial<
   Pick<
     FormData,
@@ -68,6 +71,7 @@ type InitialValues = Partial<
   >
 >;
 
+/** Props for `JobForm`. Passing `job` switches the form to edit mode. */
 interface JobFormProps {
   open: boolean;
   onClose: () => void;
@@ -75,6 +79,11 @@ interface JobFormProps {
   initialValues?: InitialValues;
 }
 
+/**
+ * Modal form for adding or editing a job. On create it checks for past
+ * applications to the company first, and afterwards offers a link when the
+ * company matches a target company.
+ */
 export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   const qc = useQueryClient();
   const isEdit = !!job;

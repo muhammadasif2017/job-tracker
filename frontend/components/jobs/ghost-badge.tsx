@@ -7,15 +7,18 @@ import {
   useDismissGhostSuggestionMutation,
 } from '../../features/dashboard/hooks';
 
+/** Props for `GhostBadge`. */
 interface GhostBadgeProps {
   jobId: string;
   company: string;
 }
 
-// "No reply 14d+" marker for the jobs list and kanban cards, with the same two
-// actions as the dashboard's Looks Ghosted card. Reads the shared
-// ['ghost-suggestions'] query, so every badge on the page costs one request,
-// and renders nothing for a job that isn't a suggestion.
+/**
+ * "No reply 14d+" marker for the jobs list and kanban cards, with the same two
+ * actions as the dashboard's Looks Ghosted card. Reads the shared
+ * ['ghost-suggestions'] query, so every badge on the page costs one request,
+ * and renders nothing for a job that isn't a suggestion.
+ */
 export function GhostBadge({ jobId, company }: GhostBadgeProps) {
   const { data: suggestedIds } = useGhostSuggestedIds();
   const markGhosted = useMarkJobGhostedMutation();

@@ -13,24 +13,31 @@ import {
 } from '../../features/jobs/resume.hooks';
 import type { Resume } from '../../types';
 
+/** Largest resume accepted, matching the backend cap: 8 MB. */
 const MAX_SIZE = 8 * 1024 * 1024;
 
+/** A file size as KB or MB. */
 function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-// The resume URL comes in two shapes, by backend STORAGE_DRIVER:
-// - local: our own auth-gated `/jobs/resumes/file` endpoint, which needs the
-//   Bearer header only the `api` client attaches (a bare fetch gets a 401).
-// - oracle: a presigned object-storage URL, fetched without that header,
-//   which the storage service would reject alongside the URL signature.
-// Either way a non-OK response is an error, never a file to save.
+/**
+ * Whether a resume URL points at this app's own API.
+ *
+ * The resume URL comes in two shapes, by backend STORAGE_DRIVER:
+ * - local: our own auth-gated `/jobs/resumes/file` endpoint, which needs the
+ *   Bearer header only the `api` client attaches (a bare fetch gets a 401).
+ * - oracle: a presigned object-storage URL, fetched without that header,
+ *   which the storage service would reject alongside the URL signature.
+ * Either way a non-OK response is an error, never a file to save.
+ */
 function isApiUrl(url: string): boolean {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   return Boolean(apiUrl && url.startsWith(apiUrl));
 }
 
+/** Downloads a resume, sending the auth header only to this app's API. */
 async function fetchResumeBlob(url: string): Promise<Blob> {
   if (isApiUrl(url)) {
     const { data } = await api.get<Blob>(url, { responseType: 'blob' });
@@ -43,11 +50,16 @@ async function fetchResumeBlob(url: string): Promise<Blob> {
   return response.blob();
 }
 
+/** Props for `ResumeUpload`. */
 interface ResumeUploadProps {
   jobId: string | null;
   initialResume?: Resume | null;
 }
 
+/**
+ * A job's resume: upload a PDF when there is none, then view, download or
+ * remove it.
+ */
 export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [confirming, setConfirming] = useState(false);

@@ -7,11 +7,16 @@ import { Button } from '../ui/button';
 import { useImportCompaniesCsvMutation } from '../../features/companies/hooks';
 import type { CsvImportResult } from '../../types';
 
+/** Props for `CsvImportDialog`. */
 interface CsvImportDialogProps {
   open: boolean;
   onClose: () => void;
 }
 
+/**
+ * Modal for importing companies from a CSV file and showing which rows were
+ * rejected.
+ */
 export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

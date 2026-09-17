@@ -6,9 +6,11 @@ import { StatusBadge } from '../ui/badge';
 import { formatCivilDate } from '../../lib/utils';
 import type { CompanyApplicationHistory } from '../../types';
 
+/** Formats a count with the singular or plural noun. */
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
+/** Props for `CompanyHistoryConfirm`. */
 interface CompanyHistoryConfirmProps {
   history: CompanyApplicationHistory;
   onConfirm: () => void;
@@ -16,8 +18,12 @@ interface CompanyHistoryConfirmProps {
   loading?: boolean;
 }
 
-// Shown in place of the job form's buttons when the company already has jobs
-// (docs/specs/company-reply-history.md). Advisory: "Add anyway" always saves.
+/**
+ * "You applied here before" prompt showing the company's past jobs and stats.
+ *
+ * Shown in place of the job form's buttons when the company already has jobs
+ * (docs/specs/company-reply-history.md). Advisory: "Add anyway" always saves.
+ */
 export function CompanyHistoryConfirm({
   history,
   onConfirm,

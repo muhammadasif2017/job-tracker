@@ -27,16 +27,24 @@ import {
   type JobsFilterValues,
 } from '../../features/jobs/hooks';
 
+/** Board columns, left to right. */
 const KANBAN_COLS: JobStatus[] = KANBAN_STATUSES;
 
+/** Props for `KanbanBoard`. */
 interface KanbanBoardProps {
   onEdit: (job: Job) => void;
-  // The page's filters, honoured here too — the board used to fetch
-  // unfiltered, so switching from a filtered list to the board silently
-  // showed every open application again.
+  /**
+   * The page's filters, honoured here too — the board used to fetch
+   * unfiltered, so switching from a filtered list to the board silently
+   * showed every open application again.
+   */
   filters: JobsFilterValues;
 }
 
+/**
+ * Drag-and-drop board of open applications by status. Says so when more jobs
+ * match than fit on one page.
+ */
 export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
   const { data, isLoading, isError, refetch } = useKanbanJobsQuery(filters);
   const patchStatus = useKanbanPatchStatusMutation(filters);

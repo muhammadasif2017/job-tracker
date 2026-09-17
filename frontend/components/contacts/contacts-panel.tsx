@@ -9,9 +9,13 @@ import { cn } from '../../lib/utils';
 import type { ContactPayload } from '../../features/jobs/contacts.hooks';
 import type { Contact } from '../../types';
 
-// Shared by a job's contacts (`components/jobs/contacts.tsx`) and a company's
-// HR contacts (`components/companies/company-contacts.tsx`). The wrappers own
-// which endpoints the mutations hit; this owns the form and the list.
+/**
+ * Props for `ContactsPanel`.
+ *
+ * Shared by a job's contacts (`components/jobs/contacts.tsx`) and a company's
+ * HR contacts (`components/companies/company-contacts.tsx`). The wrappers own
+ * which endpoints the mutations hit; this owns the form and the list.
+ */
 export interface ContactsPanelProps {
   contacts: Contact[];
   createMutation: UseMutationResult<unknown, unknown, ContactPayload>;
@@ -22,13 +26,16 @@ export interface ContactsPanelProps {
   >;
   removeMutation: UseMutationResult<unknown, unknown, string>;
   title: string;
-  // 'section' is a top-level card on the job page; 'nested' sits inside the
-  // company detail card, so it is tighter and uses an h3.
+  /**
+   * 'section' is a top-level card on the job page; 'nested' sits inside the
+   * company detail card, so it is tighter and uses an h3.
+   */
   variant: 'section' | 'nested';
   notesInputId: string;
   placeholders: { role: string; email: string; phone: string; notes: string };
 }
 
+/** Blank values for the add-contact form. */
 const EMPTY_FORM = {
   name: '',
   role: '',
@@ -38,6 +45,7 @@ const EMPTY_FORM = {
   notes: '',
 };
 
+/** Whether `value` parses as an http(s) URL. */
 function isValidHttpUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -47,6 +55,10 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+/**
+ * A contact list with add, edit and remove, sending emptied fields as `null`
+ * (ADR-022).
+ */
 export function ContactsPanel({
   contacts,
   createMutation,
