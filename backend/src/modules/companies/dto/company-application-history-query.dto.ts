@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MaxLength } from 'class-validator';
 
+/** Query naming the company whose application history to look up. */
 export class CompanyApplicationHistoryQueryDto {
-  // An empty or whitespace-only name is allowed and matches nothing — the
-  // create forms call this with whatever is typed.
+  /**
+   * An empty or whitespace-only name is allowed and matches nothing — the
+   * create forms call this with whatever is typed.
+   */
   @ApiProperty({ example: 'Systems Limited', maxLength: 200 })
   @IsString()
   @MaxLength(200)

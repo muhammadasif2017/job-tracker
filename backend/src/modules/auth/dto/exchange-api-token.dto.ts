@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
+/**
+ * Body for exchanging a personal access token for a short-lived access token.
+ */
 export class ExchangeApiTokenDto {
   @ApiProperty({
     description: 'Raw personal access token, e.g. from the browser extension',

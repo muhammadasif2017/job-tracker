@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
+/** Query for the admin user list: paging plus a name or email search. */
 export class AdminUserQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({
     example: 'jane',

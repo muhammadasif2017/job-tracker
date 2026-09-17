@@ -12,10 +12,14 @@ import {
 } from 'class-validator';
 import { BusinessMode, CompanyCity, Priority } from '@prisma/client';
 
-// Enrichment-managed fields (status, errorMessage, enrichedAt, low-confidence
-// flags) are deliberately absent here — those are only ever written by
-// CompanyEnrichmentProcessor, same as Job.nextInterviewAt is absent from
-// CreateJobDto/UpdateJobDto.
+/**
+ * Body for adding a target company.
+ *
+ * Enrichment-managed fields (status, errorMessage, enrichedAt, low-confidence
+ * flags) are deliberately absent here — those are only ever written by
+ * CompanyEnrichmentProcessor, same as Job.nextInterviewAt is absent from
+ * CreateJobDto/UpdateJobDto.
+ */
 export class CreateCompanyDto {
   @ApiProperty({ example: 'Systems Limited', maxLength: 200 })
   @IsString()
@@ -33,8 +37,10 @@ export class CreateCompanyDto {
   @MaxLength(200)
   location?: string | null;
 
-  // Omittable, not nullable: Company.priority is a non-nullable column with a
-  // default. `@IsOptional()` would also let null through to Prisma (a 500).
+  /**
+   * Omittable, not nullable: Company.priority is a non-nullable column with a
+   * default. `@IsOptional()` would also let null through to Prisma (a 500).
+   */
   @ApiPropertyOptional({ enum: Priority })
   @ValidateIf((_, value) => value !== undefined)
   @IsEnum(Priority)

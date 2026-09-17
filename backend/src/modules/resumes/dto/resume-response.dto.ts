@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/** Metadata for the resume attached to a job. */
 export class ResumeResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;

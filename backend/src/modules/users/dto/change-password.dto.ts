@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, MaxLength, MinLength } from 'class-validator';
 
+/** Body for changing the signed-in user's password. */
 export class ChangePasswordDto {
   @ApiProperty({ minLength: 1, maxLength: 128 })
   @IsString()

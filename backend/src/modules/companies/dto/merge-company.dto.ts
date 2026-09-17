@@ -10,12 +10,17 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-// Phase 5b (docs/specs/company-fk-phase5b.md) — only the AI-enrichment field
-// set is pickable; user-curated identity fields (websiteUrl, personalNotes,
-// businessMode, etc.) stay canonical-wins unconditionally, no override path
-// for them. An absent key means "keep canonical's current value" — this is
-// a sparse patch, not a full replacement, so the frontend only sends the
-// fields the user actually picked the duplicate's value for.
+/**
+ * Enrichment fields to take from the duplicate instead of the canonical
+ * company during a merge.
+ *
+ * Phase 5b (docs/specs/company-fk-phase5b.md) — only the AI-enrichment field
+ * set is pickable; user-curated identity fields (websiteUrl, personalNotes,
+ * businessMode, etc.) stay canonical-wins unconditionally, no override path
+ * for them. An absent key means "keep canonical's current value" — this is
+ * a sparse patch, not a full replacement, so the frontend only sends the
+ * fields the user actually picked the duplicate's value for.
+ */
 export class MergeFieldOverridesDto {
   @ApiPropertyOptional({ maxLength: 200 })
   @IsOptional()
@@ -50,6 +55,10 @@ export class MergeFieldOverridesDto {
   productDescription?: string | null;
 }
 
+/**
+ * Body for merging a duplicate company into the canonical one named in the
+ * URL.
+ */
 export class MergeCompanyDto {
   @ApiProperty({
     format: 'cuid',

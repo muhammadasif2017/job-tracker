@@ -163,11 +163,12 @@ The bulk variant is `JobsService.markGhosted` ("Mark all ghosted"): instead of c
 
 ## Doc Comment Convention
 
-Every exported service and controller carries a `/** */` doc comment on the class and on each method, including private helpers. Match the existing style rather than adding tags:
+Every exported service and controller carries a `/** */` doc comment on the class and on each method, including private helpers. Everything else declared at the top level of `src/` — processors, guards, strategies, modules, helpers, constants, and module-private constants — carries one too. Match the existing style rather than adding tags:
 
 - **No `@param`/`@returns`.** The TypeScript signature already states the types; a tag that restates it is noise. Nothing enforces this (there is no `eslint-plugin-jsdoc` in `eslint.config.mjs`), so it is a review expectation.
 - **Say why, not what.** The valuable content is the constraint a reader would otherwise violate: the ADR behind a decision, the race a CAS closes, the reason a field is written as `null` rather than omitted. A method with nothing non-obvious gets one short line.
 - **Controllers stay thin.** Route handlers already carry `@ApiOperation({ summary })`; the doc comment says what the route is for in one line, and the class-level block explains route ordering, guard inheritance and anything shared.
+- **DTOs get a one-line class comment** saying what the shape is for ("Body for adding a contact", "One page of the job list"). Field meaning stays in `@ApiProperty({ description })`, which Swagger renders; a field gets a doc comment only for a constraint Swagger cannot show, such as why it accepts `null`.
 - **Place the block above the decorators**, not between them and the method.
 - Prefer a doc comment over a `//` block above a declaration; keep `//` for comments _inside_ a function body, which is where most of this codebase's inline reasoning lives.
 

@@ -2,6 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsIn, IsOptional } from 'class-validator';
 import { STATS_RANGES, type StatsRange } from '../jobs.constants.js';
 
+/** Query selecting the time range for a stats endpoint. */
 export class StatsQueryDto {
   @ApiPropertyOptional({ enum: STATS_RANGES, default: 'all' })
   @IsOptional()

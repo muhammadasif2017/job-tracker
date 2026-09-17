@@ -8,6 +8,7 @@ import {
 } from 'class-validator';
 import { MAX_GHOST_SUGGESTIONS } from '../ghost-suggestions.helper.js';
 
+/** Body for marking the shown ghost suggestions as GHOSTED in bulk. */
 export class MarkGhostedDto {
   @ApiProperty({
     type: [String],
@@ -23,6 +24,7 @@ export class MarkGhostedDto {
   jobIds: string[];
 }
 
+/** Result of a bulk mark-ghosted request. */
 export class MarkGhostedResultDto {
   @ApiProperty({ example: 12, description: 'Jobs moved to GHOSTED' })
   updated: number;

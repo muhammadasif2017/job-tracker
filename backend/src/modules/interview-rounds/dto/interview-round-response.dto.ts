@@ -5,6 +5,7 @@ import {
   type InterviewRoundDerivedStatus,
 } from '../interview-round-status.util.js';
 
+/** An interview round, with its computed `derivedStatus`. */
 export class InterviewRoundResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
@@ -18,16 +19,20 @@ export class InterviewRoundResponseDto {
   @ApiProperty({ format: 'date-time' })
   scheduledAt: Date;
 
-  // null only for rounds created before ADR-043 — every round created since
-  // carries a length the user typed.
+  /**
+   * null only for rounds created before ADR-043 — every round created since
+   * carries a length the user typed.
+   */
   @ApiPropertyOptional({ example: 60, minimum: 5, maximum: 1440 })
   durationMinutes: number | null;
 
   @ApiProperty({ enum: InterviewOutcome })
   outcome: InterviewOutcome;
 
-  // Computed, not stored — splits PENDING into SCHEDULED/AWAITING_RESPONSE/
-  // POSSIBLY_GHOSTED based on scheduledAt vs now (see interview-round-status.util.ts).
+  /**
+   * Computed, not stored — splits PENDING into SCHEDULED/AWAITING_RESPONSE/
+   * POSSIBLY_GHOSTED based on scheduledAt vs now (see interview-round-status.util.ts).
+   */
   @ApiProperty({ enum: INTERVIEW_ROUND_DERIVED_STATUSES })
   derivedStatus: InterviewRoundDerivedStatus;
 

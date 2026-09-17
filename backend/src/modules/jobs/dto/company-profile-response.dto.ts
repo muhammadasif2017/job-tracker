@@ -1,6 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { BusinessMode, EnrichmentStatus } from '@prisma/client';
 
+/**
+ * Enrichment data for a job's linked company, as shown on the job detail page.
+ */
 export class CompanyProfileResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
@@ -8,10 +11,12 @@ export class CompanyProfileResponseDto {
   @ApiProperty({ format: 'cuid' })
   jobId: string;
 
-  // Nullable, and null is not a degenerate case: it means enrichment was
-  // never triggered for this company (Company.status has no DB default),
-  // which is distinct from an in-flight PENDING run. Consumers must handle
-  // it rather than assuming a value — see the comment in JobsService.findOne.
+  /**
+   * Nullable, and null is not a degenerate case: it means enrichment was
+   * never triggered for this company (Company.status has no DB default),
+   * which is distinct from an in-flight PENDING run. Consumers must handle
+   * it rather than assuming a value — see the comment in JobsService.findOne.
+   */
   @ApiPropertyOptional({ enum: EnrichmentStatus, nullable: true })
   status: EnrichmentStatus | null;
 

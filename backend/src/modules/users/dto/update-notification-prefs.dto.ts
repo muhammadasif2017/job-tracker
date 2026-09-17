@@ -3,6 +3,7 @@ import { DigestFrequency } from '@prisma/client';
 import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
 import { IsIanaTimezone } from '../../../common/validators/is-iana-timezone.validator.js';
 
+/** Body for updating reminder, digest and timezone settings. */
 export class UpdateNotificationPrefsDto {
   @ApiPropertyOptional({ example: true })
   @IsOptional()

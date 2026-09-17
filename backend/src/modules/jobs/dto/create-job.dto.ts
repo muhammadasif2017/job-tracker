@@ -37,6 +37,7 @@ const NormalizedText = () =>
     typeof value === 'string' ? value.normalize('NFKC').trim() : value,
   );
 
+/** Body for adding a job application. */
 export class CreateJobDto {
   @ApiProperty({ example: 'Acme Corp', maxLength: 200 })
   @NormalizedText()
@@ -52,14 +53,16 @@ export class CreateJobDto {
   @MaxLength(200)
   position: string;
 
-  // `| null` (not just optional) on every nullable column below: the
-  // frontend sends an explicit `null` — not an omitted key — to clear a
-  // previously-set value on edit. `JSON.stringify` drops `undefined` keys
-  // and Prisma treats an omitted field as "leave the column alone", so only
-  // an explicit `null` clears it (ADR-022, same shape as CreateContactDto).
-  // `company`, `position` and `appliedAt` are deliberately excluded — those
-  // columns are non-nullable, and `update()` rejects `company: null`
-  // outright.
+  /**
+   * `| null` (not just optional) on every nullable column below: the
+   * frontend sends an explicit `null` — not an omitted key — to clear a
+   * previously-set value on edit. `JSON.stringify` drops `undefined` keys
+   * and Prisma treats an omitted field as "leave the column alone", so only
+   * an explicit `null` clears it (ADR-022, same shape as CreateContactDto).
+   * `company`, `position` and `appliedAt` are deliberately excluded — those
+   * columns are non-nullable, and `update()` rejects `company: null`
+   * outright.
+   */
   @ApiPropertyOptional({ example: 'Remote', maxLength: 200 })
   @IsOptional()
   @NormalizedText()

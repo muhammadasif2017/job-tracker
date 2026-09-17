@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { DigestFrequency } from '@prisma/client';
 
+/** The signed-in user's profile and notification settings. */
 export class UserProfileDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
