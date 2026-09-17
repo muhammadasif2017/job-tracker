@@ -13,6 +13,7 @@ export const COUNTED_STATES = [
   'completed',
 ] as const;
 
+/** Display label for each enrichment status bucket. */
 export const STATUS_LABELS: Record<EnrichmentStatus, string> = {
   [EnrichmentStatus.PENDING]: 'Queued',
   [EnrichmentStatus.PROCESSING]: 'Processing',
