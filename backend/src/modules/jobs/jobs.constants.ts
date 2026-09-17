@@ -6,6 +6,7 @@ import {
   safeTimeZone,
 } from '../../common/timezone.util.js';
 
+/** Statuses a job moves forward through, in funnel order. */
 export const FUNNEL_STAGES = [
   JobStatus.WISHLIST,
   JobStatus.APPLIED,
@@ -13,11 +14,14 @@ export const FUNNEL_STAGES = [
   JobStatus.OFFER,
 ] as const;
 
+/** Statuses where a job leaves the funnel. */
 export const DROPOFF_STAGES = [JobStatus.REJECTED, JobStatus.GHOSTED] as const;
 
-// Compile-time guard: every JobStatus must appear in FUNNEL_STAGES or
-// DROPOFF_STAGES. If this fails to compile, a newly added JobStatus is
-// missing from one of the two arrays above — the type error names it.
+/**
+ * Compile-time guard: every JobStatus must appear in FUNNEL_STAGES or
+ * DROPOFF_STAGES. If this fails to compile, a newly added JobStatus is
+ * missing from one of the two arrays above — the type error names it.
+ */
 type UncoveredStages = Exclude<
   JobStatus,
   (typeof FUNNEL_STAGES)[number] | (typeof DROPOFF_STAGES)[number]
@@ -27,33 +31,38 @@ const _allStagesCovered: UncoveredStages extends never
   : [uncovered: UncoveredStages] = true;
 void _allStagesCovered;
 
-// A WISHLIST job is saved-for-later — never applied to — but `Job.appliedAt`
-// is `@default(now())`, so it still carries a date and lands in every
-// appliedAt-scoped metric unless excluded on purpose. Every stat that means
-// "applications sent" (total, thisMonth, the response/ghost-rate denominator,
-// trend volume, per-channel response rate) spreads this. Centralized so those
-// call sites can't drift apart on what counts as an application.
-//
-// `byStatus` is the deliberate exception: the status pie chart renders a
-// Wishlist slice, so it groups over every status. That makes
-// sum(byStatus) >= total by design whenever wishlist jobs exist.
+/**
+ * A WISHLIST job is saved-for-later — never applied to — but `Job.appliedAt`
+ * is `@default(now())`, so it still carries a date and lands in every
+ * appliedAt-scoped metric unless excluded on purpose. Every stat that means
+ * "applications sent" (total, thisMonth, the response/ghost-rate denominator,
+ * trend volume, per-channel response rate) spreads this. Centralized so those
+ * call sites can't drift apart on what counts as an application.
+ *
+ * `byStatus` is the deliberate exception: the status pie chart renders a
+ * Wishlist slice, so it groups over every status. That makes
+ * sum(byStatus) >= total by design whenever wishlist jobs exist.
+ */
 export const SENT_APPLICATION_FILTER = {
   status: { not: JobStatus.WISHLIST },
 } as const;
 
+/** Statuses that mean the company replied. */
 export const RESPONDED_STATUSES = [
   JobStatus.INTERVIEWING,
   JobStatus.OFFER,
   JobStatus.REJECTED,
 ] as const;
 
-// "Did the company ever reply" — not "is the job in a replied status now".
-// A job that reached INTERVIEWING and later went GHOSTED still got a reply
-// (docs/specs/response-insights.md). Every stage a job lands on writes a
-// CREATED/STATUS_CHANGE event, so the history answers it as a relation filter
-// the database can count. INTERVIEW_ROUND_ADDED carries the job's *current*
-// status as toStatus, so it can't mark an APPLIED job as replied. The status
-// branch covers rows written before the event timeline existed.
+/**
+ * "Did the company ever reply" — not "is the job in a replied status now".
+ * A job that reached INTERVIEWING and later went GHOSTED still got a reply
+ * (docs/specs/response-insights.md). Every stage a job lands on writes a
+ * CREATED/STATUS_CHANGE event, so the history answers it as a relation filter
+ * the database can count. INTERVIEW_ROUND_ADDED carries the job's *current*
+ * status as toStatus, so it can't mark an APPLIED job as replied. The status
+ * branch covers rows written before the event timeline existed.
+ */
 export const REPLIED_FILTER = {
   OR: [
     { status: { in: [...RESPONDED_STATUSES] } },
@@ -61,28 +70,34 @@ export const REPLIED_FILTER = {
   ],
 } satisfies Prisma.JobWhereInput;
 
+/** `numerator / denominator` as a percentage to one decimal place; 0 when the denominator is 0. */
 export function toPercent(numerator: number, denominator: number): number {
   return denominator > 0
     ? Math.round((numerator / denominator) * 1000) / 10
     : 0;
 }
 
+/** Time window a stats request covers. */
 export type StatsRange = '30d' | '90d' | 'all';
 
+/** Every accepted `StatsRange`, used by the stats query DTO's `@IsIn`. */
 export const STATS_RANGES: StatsRange[] = ['30d', '90d', 'all'];
 
+/** Length of each rolling range in days. `all` has no entry: it has no lower bound. */
 const RANGE_TO_DAYS: Partial<Record<StatsRange, number>> = {
   '30d': 30,
   '90d': 90,
 };
 
-// undefined cutoff = no lower bound (range: 'all')
-//
-// The cutoff is a *civil* date, because `appliedAt` is one (ADR-034): it's
-// the calendar day `days` before the user's own today. Deriving it by real
-// instant arithmetic instead (`now - 30 days`) would carry the current
-// time-of-day into a bound compared against UTC-midnight values, silently
-// dropping half of the boundary day.
+/**
+ * The lower bound on `appliedAt` for `range`, or undefined for no bound.
+ *
+ * The cutoff is a *civil* date, because `appliedAt` is one (ADR-034): it's
+ * the calendar day `days` before the user's own today. Deriving it by real
+ * instant arithmetic instead (`now - 30 days`) would carry the current
+ * time-of-day into a bound compared against UTC-midnight values, silently
+ * dropping half of the boundary day.
+ */
 export function rangeToCutoff(
   range: StatsRange,
   now: Date = new Date(),
@@ -93,9 +108,11 @@ export function rangeToCutoff(
   return civilDaysAgo(now, safeTimeZone(timeZone), days);
 }
 
-// Prisma where-fragment for scoping a query to `range` — `{}` (no lower
-// bound) for 'all'. Centralized so getStats/getFunnel/getTrend can't drift
-// apart on how a range is applied.
+/**
+ * Prisma where-fragment for scoping a query to `range` — `{}` (no lower
+ * bound) for 'all'. Centralized so getStats/getFunnel/getTrend can't drift
+ * apart on how a range is applied.
+ */
 export function appliedAtRangeFilter(
   range: StatsRange,
   now: Date = new Date(),
@@ -105,18 +122,23 @@ export function appliedAtRangeFilter(
   return cutoff ? { appliedAt: { gte: cutoff } } : {};
 }
 
-// `dateFrom`/`dateTo` arrive as date-only strings from a <input type="date">,
-// and `new Date('2024-12-31')` is that day's midnight UTC — which is exactly
-// the civil encoding `appliedAt` is stored in (ADR-034), so the lower bound
-// needs no adjustment.
-//
-// The upper bound is still widened to an exclusive start-of-next-day rather
-// than an inclusive `lte`. For a civil row the two are equivalent, but rows
-// written before ADR-034 carry a real time-of-day, and `lte` would drop them
-// from their own day. A caller who sends a full ISO datetime means that exact
-// instant, so that case stays an inclusive `lte`.
+/** A bare `YYYY-MM-DD` date, as sent by a date input. */
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * The `appliedAt` upper-bound fragment for a `dateTo` filter value.
+ *
+ * `dateFrom`/`dateTo` arrive as date-only strings from a <input type="date">,
+ * and `new Date('2024-12-31')` is that day's midnight UTC — which is exactly
+ * the civil encoding `appliedAt` is stored in (ADR-034), so the lower bound
+ * needs no adjustment.
+ *
+ * The upper bound is still widened to an exclusive start-of-next-day rather
+ * than an inclusive `lte`. For a civil row the two are equivalent, but rows
+ * written before ADR-034 carry a real time-of-day, and `lte` would drop them
+ * from their own day. A caller who sends a full ISO datetime means that exact
+ * instant, so that case stays an inclusive `lte`.
+ */
 function appliedAtUpperBound(dateTo: string) {
   const parsed = new Date(dateTo);
   return DATE_ONLY.test(dateTo)
@@ -124,8 +146,10 @@ function appliedAtUpperBound(dateTo: string) {
     : { lte: parsed };
 }
 
-// Shared filter builder for the list and CSV export — both expose the same
-// status/search/date filters scoped to the owner.
+/**
+ * Shared filter builder for the list and CSV export — both expose the same
+ * status/search/date filters scoped to the owner.
+ */
 export function buildJobWhere(userId: string, query: JobQueryDto) {
   const { status, statusIn, search, dateFrom, dateTo } = query;
   // NFKC folds styled Unicode (e.g. Mathematical Bold letters pasted from
@@ -181,13 +205,15 @@ export function buildJobWhere(userId: string, query: JobQueryDto) {
   };
 }
 
-// `Job.nextInterviewAt` is denormalized: InterviewRoundsService recomputes it
-// from the earliest future PENDING round on every round write, but nothing
-// touches it when time simply passes. Once the stored instant is in the past
-// it no longer names an *upcoming* interview, so read paths must not present
-// it as one — otherwise the job detail page and the CSV export keep showing a
-// date that has already been and gone. (getAttentionItems is already safe: it
-// scopes its query with `gte: now`.)
+/**
+ * `Job.nextInterviewAt` is denormalized: InterviewRoundsService recomputes it
+ * from the earliest future PENDING round on every round write, but nothing
+ * touches it when time simply passes. Once the stored instant is in the past
+ * it no longer names an *upcoming* interview, so read paths must not present
+ * it as one — otherwise the job detail page and the CSV export keep showing a
+ * date that has already been and gone. (getAttentionItems is already safe: it
+ * scopes its query with `gte: now`.)
+ */
 export function upcomingInterviewAt(
   value: Date | null | undefined,
   now: Date = new Date(),
@@ -195,8 +221,10 @@ export function upcomingInterviewAt(
   return value && value.getTime() >= now.getTime() ? value : null;
 }
 
+/** Bucket size for the applications trend chart. */
 export type TrendGranularity = 'day' | 'week' | 'month';
 
+/** One bar of the trend chart: its period, count and running total. */
 export interface TrendBucket {
   label: string;
   periodStart: string;
@@ -204,16 +232,21 @@ export interface TrendBucket {
   cumulative: number;
 }
 
+/** Daily buckets for 30 days, weekly for 90, monthly for all time. */
 export function rangeToGranularity(range: StatsRange): TrendGranularity {
   if (range === '30d') return 'day';
   if (range === '90d') return 'week';
   return 'month';
 }
 
-// The three helpers below all operate on *civil* dates — wall-clock days
-// encoded as UTC midnight (see common/timezone.util.ts). Everything is UTC
-// arithmetic on purpose: the calendar has already been resolved in the
-// user's zone, so a DST shift must not move a bucket boundary here.
+/**
+ * The first civil day of the day, Monday-start week or month containing `civil`.
+ *
+ * This helper and the two after it operate on *civil* dates — wall-clock days
+ * encoded as UTC midnight (see common/timezone.util.ts). Everything is UTC
+ * arithmetic on purpose: the calendar has already been resolved in the
+ * user's zone, so a DST shift must not move a bucket boundary here.
+ */
 function startOfPeriod(civil: Date, granularity: TrendGranularity): Date {
   const d = new Date(
     Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth(), civil.getUTCDate()),
@@ -227,6 +260,7 @@ function startOfPeriod(civil: Date, granularity: TrendGranularity): Date {
   return new Date(Date.UTC(civil.getUTCFullYear(), civil.getUTCMonth(), 1));
 }
 
+/** The start of the period after the one beginning at `civil`. */
 function nextPeriod(civil: Date, granularity: TrendGranularity): Date {
   const d = new Date(civil);
   if (granularity === 'day') d.setUTCDate(d.getUTCDate() + 1);
@@ -235,6 +269,7 @@ function nextPeriod(civil: Date, granularity: TrendGranularity): Date {
   return d;
 }
 
+/** The chart label for a bucket: "Mar 5" for days and weeks, "Mar 2026" for months. */
 function formatLabel(civil: Date, granularity: TrendGranularity): string {
   // timeZone: 'UTC' reads the civil encoding back literally — without it the
   // label would be re-projected into the *server's* zone and could name the
@@ -253,21 +288,26 @@ function formatLabel(civil: Date, granularity: TrendGranularity): string {
   });
 }
 
-// Pure function, unit-testable without Prisma mocking. `appliedDates` must
-// already be scoped to the same user + range filter as the caller's other
-// stats queries, so `cumulative` at the last bucket lines up with getStats's
-// range-filtered total.
-//
-// `appliedDates` are civil dates straight out of the column (ADR-034) — they
-// are NOT projected into `timeZone` here. The user's zone already decided
-// which calendar day each one names, at write time; re-resolving a
-// UTC-midnight value through a zone west of UTC would read it back as the
-// previous day and shift every bar.
-//
-// `timeZone` is still needed, but only to place the *window*: which day is
-// "today" and which day the rolling cutoff lands on depend on the user's
-// calendar, not the server's. Defaults to UTC so the pure-function callers
-// in tests stay deterministic on any machine.
+/**
+ * Counts applications into contiguous trend buckets across the range window,
+ * including empty periods.
+ *
+ * Pure function, unit-testable without Prisma mocking. `appliedDates` must
+ * already be scoped to the same user + range filter as the caller's other
+ * stats queries, so `cumulative` at the last bucket lines up with getStats's
+ * range-filtered total.
+ *
+ * `appliedDates` are civil dates straight out of the column (ADR-034) — they
+ * are NOT projected into `timeZone` here. The user's zone already decided
+ * which calendar day each one names, at write time; re-resolving a
+ * UTC-midnight value through a zone west of UTC would read it back as the
+ * previous day and shift every bar.
+ *
+ * `timeZone` is still needed, but only to place the *window*: which day is
+ * "today" and which day the rolling cutoff lands on depend on the user's
+ * calendar, not the server's. Defaults to UTC so the pure-function callers
+ * in tests stay deterministic on any machine.
+ */
 export function computeTrendBuckets(
   appliedDates: Date[],
   range: StatsRange,
