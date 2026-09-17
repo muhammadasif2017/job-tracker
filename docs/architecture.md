@@ -18,6 +18,7 @@ flowchart LR
     GROQ["Groq LLM<br/>openai/gpt-oss-120b"]
     TAVILY["Tavily Search<br/>+ company websites"]
     RESEND[Resend Email]
+    WK["BullMQ workers<br/>same backend process"]
 
     U -->|UI actions| FE
     U -->|capture posting| EXTN
@@ -25,13 +26,16 @@ flowchart LR
     EXTN -->|"PAT → short JWT,<br/>create job"| CADDY
     CADDY -->|reverse_proxy| BE
     BE <-->|Prisma SQL| PG
-    BE <-.->|enqueue / consume| RD
+    BE -.->|enqueue| RD
     BE -->|"put, delete, presign"| OCI
     FE -.->|"GET resume via presigned URL"| OCI
     BE <-->|"redirect, profile"| OAUTH
-    BE <-->|"prompt → JSON"| GROQ
-    BE -.->|"search, page fetch (worker)"| TAVILY
-    BE -.->|"emails.send (worker)"| RESEND
+    BE <-->|"parse posting, round prep"| GROQ
+    RD -.->|consume| WK
+    WK -.->|"extract, summarize"| GROQ
+    WK -.->|"search, page fetch"| TAVILY
+    WK -.->|emails.send| RESEND
+    WK -.->|write results| PG
     RESEND -.->|reminders, digests| U
 ```
 
@@ -39,9 +43,12 @@ Solid arrows run inside a request; dotted arrows run in BullMQ workers or bypass
 
 ## Backend module map (NestJS)
 
+### Core and auth
+
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Core
+        direction TB
         CFG["ConfigModule (Joi validation)"]
         THR[ThrottlerGuard — 100 req/60s global]
         SCHED[ScheduleModule — cron jobs]
@@ -54,10 +61,19 @@ flowchart TB
         AUTHM[AuthModule]
         JWTG["JwtAuthGuard (global)"]
         ROLESG["RolesGuard (global)"]
-        STRAT["Strategies: Jwt, JwtRefresh, Google, GitHub, Local"]
+        STRAT["Strategies: Jwt, JwtRefresh,<br/>Google, GitHub, Local"]
     end
 
+    AUTHM --> JWTG --> ROLESG
+    AUTHM --> STRAT
+```
+
+### Feature modules
+
+```mermaid
+flowchart LR
     subgraph Domain
+        AUTHM[AuthModule]
         USERS[UsersModule]
         JOBS[JobsModule]
         COMPANIES[CompaniesModule]
@@ -69,21 +85,19 @@ flowchart TB
     end
 
     subgraph Async
+        BULL["BullModule"]
         CENRICH["CompanyEnrichmentModule<br/>company-target-enrichment queue"]
         TSUM["TimelineSummaryModule<br/>job-timeline-summary queue"]
         NOTIF["NotificationsModule<br/>notifications queue"]
     end
 
     subgraph Infra
-        ENRICH["EnrichmentModule<br/>LlmService, SearchService, WebFetchService"]
+        ENRICH["EnrichmentModule<br/>LlmService, SearchService,<br/>WebFetchService"]
         STORAGE["StorageModule (global)<br/>Local | Oracle driver"]
         HEALTH[HealthModule]
     end
 
-    AUTHM --> JWTG --> ROLESG
-    AUTHM --> STRAT
     AUTHM -->|PAT exchange| TOKENS
-
     JOBS -->|"ensureJobOwned(userId, jobId)"| CONTACTS
     JOBS -->|"ensureJobOwned(userId, jobId)"| IROUNDS
     COMPANIES -->|"ensureOwner (company parent)"| CONTACTS
@@ -100,7 +114,6 @@ flowchart TB
     RESUMES --> STORAGE
     ADMIN --> USERS
     ADMIN -.->|queue dashboard| BULL
-
     BULL --> CENRICH
     BULL --> TSUM
     BULL --> NOTIF
@@ -157,16 +170,18 @@ Daily at midnight, `AuthService` deletes expired `RefreshToken` rows and `Tokens
 ## Async pipelines — enrichment, timeline summary & notifications (BullMQ)
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Enrichment
+        direction LR
         JC["Company created / re-enrich<br/>or job linked (enqueueIfStale)"] -->|enqueue| EQ["company-target-enrichment<br/>queue (Redis)"]
         EQ --> EP["CompanyEnrichmentProcessor<br/>lock 90s"]
         EP --> TAV["Tavily search<br/>+ WebFetchService"]
         TAV -->|context| GROQ[Groq LLM extraction]
-        GROQ -->|"status: PENDING→PROCESSING→COMPLETED/FAILED,<br/>enrichedAt"| CP[(Company)]
+        GROQ -->|"status, enrichedAt"| CP[(Company)]
     end
 
     subgraph TimelineSummary["Timeline summary"]
+        direction LR
         JE["Job / interview round<br/>changed"] -->|enqueue| TQ["job-timeline-summary<br/>queue (Redis)"]
         TQ --> TP["TimelineSummaryProcessor<br/>lock 90s"]
         TP -->|reads recent| EV[(JobEvent)]
@@ -175,12 +190,15 @@ flowchart LR
     end
 
     subgraph Notifications
-        CRON["ScheduleModule cron<br/>NotificationsScheduler"] -->|enqueue| NQ["NOTIFICATIONS_QUEUE (Redis)"]
+        direction LR
+        CRON["Hourly @Cron<br/>NotificationsScheduler"] -->|"enqueue reminder / digest"| NQ["notifications<br/>queue (Redis)"]
         NQ --> NP[NotificationsProcessor]
-        NP --> RESEND[Resend API]
+        NP -->|emails.send| RESEND[Resend API]
         NP -->|"stamps digestedAt / reminderSentAt"| JOBROW[(Job / InterviewRound)]
     end
 ```
+
+Company enrichment moves `status` through PENDING → PROCESSING → COMPLETED / FAILED.
 
 `EmailService` no-ops (logs only) when `RESEND_API_KEY` is unset — app still boots.
 
