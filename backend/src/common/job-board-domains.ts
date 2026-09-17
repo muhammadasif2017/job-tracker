@@ -1,5 +1,7 @@
-// Hosts that are job boards, not a company's own site — their domain must not
-// be used as a trust hint or for contact-page fetching.
+/**
+ * Hosts that are job boards, not a company's own site — their domain must not
+ * be used as a trust hint or for official-site fetching.
+ */
 export const JOB_BOARD_DOMAINS = [
   'linkedin.com',
   'indeed.com',

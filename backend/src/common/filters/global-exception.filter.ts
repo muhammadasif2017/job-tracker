@@ -7,13 +7,23 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 
+/** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
+/** Prisma error code for a missing record on update or delete, mapped to 404. */
 const PRISMA_NOT_FOUND = 'P2025';
 
+/**
+ * Catch-all filter that gives every error response one JSON shape:
+ * `statusCode`, `message`, `timestamp` and `path`. Nest HTTP exceptions keep
+ * their own body; the two Prisma codes above become a 409 or 404 instead of a
+ * bare 500; anything else is logged with its stack and returned as an opaque
+ * 500.
+ */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
   private readonly logger = new Logger(GlobalExceptionFilter.name);
 
+  /** Writes the error response. Never throws, for the reason given in its own catch. */
   catch(exception: any, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -38,6 +48,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
   }
 
+  /** The response body, including its status code, for one exception. */
   private buildBody(exception: any, path?: string) {
     const timestamp = new Date().toISOString();
 

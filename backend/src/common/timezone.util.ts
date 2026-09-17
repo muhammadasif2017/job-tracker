@@ -14,16 +14,21 @@
 // are never applied to a value already read out of `appliedAt`: that value is
 // civil already, and projecting it into a zone a second time would shift it.
 
+/** Formatter options that yield only the calendar date parts. */
 const CIVIL_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
   year: 'numeric',
   month: '2-digit',
   day: '2-digit',
 };
 
-// A timezone can be anything the DB holds — the column is validated on write
-// (IsIanaTimezone) but a hand-edited row would otherwise make `Intl` throw
-// inside a request and 500 it. Fall back to UTC, which is what the column
-// defaults to anyway.
+/**
+ * `timeZone` if Intl accepts it, otherwise UTC.
+ *
+ * A timezone can be anything the DB holds — the column is validated on write
+ * (IsIanaTimezone) but a hand-edited row would otherwise make `Intl` throw
+ * inside a request and 500 it. Fall back to UTC, which is what the column
+ * defaults to anyway.
+ */
 export function safeTimeZone(timeZone: string | null | undefined): string {
   if (!timeZone) return 'UTC';
   try {
@@ -34,6 +39,7 @@ export function safeTimeZone(timeZone: string | null | undefined): string {
   }
 }
 
+/** The year, month (1-12) and day an instant falls on in `timeZone`. */
 function civilPartsIn(
   instant: Date,
   timeZone: string,
@@ -47,29 +53,35 @@ function civilPartsIn(
   return { year: get('year'), month: get('month'), day: get('day') };
 }
 
-// The local calendar day containing `instant`, as a civil date. This is the
-// canonical way to turn "now" (or any real timestamp) into the value that
-// gets stored in `Job.appliedAt`.
+/**
+ * The local calendar day containing `instant`, as a civil date. This is the
+ * canonical way to turn "now" (or any real timestamp) into the value that
+ * gets stored in `Job.appliedAt`.
+ */
 export function localCivilDay(instant: Date, timeZone: string): Date {
   const { year, month, day } = civilPartsIn(instant, timeZone);
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-// The 1st of the user's current local month, as a civil date — the lower
-// bound for "applications this month". The zone decides *which* month is
-// current (a user in UTC+5 rolls over five hours before a UTC server does);
-// the bound itself is civil, because the column it's compared against is.
+/**
+ * The 1st of the user's current local month, as a civil date — the lower
+ * bound for "applications this month". The zone decides *which* month is
+ * current (a user in UTC+5 rolls over five hours before a UTC server does);
+ * the bound itself is civil, because the column it's compared against is.
+ */
 export function startOfCivilMonth(instant: Date, timeZone: string): Date {
   const { year, month } = civilPartsIn(instant, timeZone);
   return new Date(Date.UTC(year, month - 1, 1));
 }
 
-// `days` before the local calendar day containing `instant`, as a civil
-// date. Backs the rolling 30d/90d stats ranges: the bound has to be civil
-// too, or it carries a time-of-day the column never has and the boundary day
-// is silently half-excluded. Plain UTC arithmetic — civil dates are already
-// UTC-midnight, so subtracting whole days can't land mid-day across a DST
-// change.
+/**
+ * `days` before the local calendar day containing `instant`, as a civil
+ * date. Backs the rolling 30d/90d stats ranges: the bound has to be civil
+ * too, or it carries a time-of-day the column never has and the boundary day
+ * is silently half-excluded. Plain UTC arithmetic — civil dates are already
+ * UTC-midnight, so subtracting whole days can't land mid-day across a DST
+ * change.
+ */
 export function civilDaysAgo(
   instant: Date,
   timeZone: string,

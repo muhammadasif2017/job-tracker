@@ -1,10 +1,16 @@
 import { registerDecorator, ValidationOptions } from 'class-validator';
 
+/** How far either side of now a plausible date may fall. */
 const TWO_YEARS_MS = 2 * 365 * 24 * 60 * 60 * 1000;
 
-// For user-entered date-string fields that are otherwise unbounded — a
-// typo'd year (e.g. 2062 instead of 2026) would silently pass @IsDateString
-// and then corrupt anything derived from it downstream.
+/**
+ * Accepts a date string within two years of now, either side. An unparseable
+ * string passes, leaving format errors to `@IsDateString`.
+ *
+ * For user-entered date-string fields that are otherwise unbounded — a
+ * typo'd year (e.g. 2062 instead of 2026) would silently pass @IsDateString
+ * and then corrupt anything derived from it downstream.
+ */
 export function IsPlausibleDate(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
     registerDecorator({
