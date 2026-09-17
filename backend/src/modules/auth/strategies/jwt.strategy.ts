@@ -5,19 +5,29 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { PAT_SCOPE } from '../../tokens/tokens.constants.js';
 
+/** Claims signed into access and refresh tokens. */
 export interface JwtPayload {
   sub: string;
   email: string;
-  // Present only on access tokens minted via AuthService.exchangeApiToken
-  // (PAT_SCOPE = 'pat'). Absent on normal login/refresh-issued tokens.
+  /**
+   * Present only on access tokens minted via AuthService.exchangeApiToken
+   * (PAT_SCOPE = 'pat'). Absent on normal login/refresh-issued tokens.
+   */
   scope?: string;
-  // The ApiToken.id this access token was exchanged from. Present whenever
-  // scope is set - used to re-check revocation/expiry on every request,
-  // since the JWT itself is otherwise stateless and would stay valid for
-  // its full TTL even after the PAT is revoked.
+  /**
+   * The ApiToken.id this access token was exchanged from. Present whenever
+   * scope is set - used to re-check revocation/expiry on every request,
+   * since the JWT itself is otherwise stateless and would stay valid for
+   * its full TTL even after the PAT is revoked.
+   */
   patId?: string;
 }
 
+/**
+ * The `jwt` strategy behind `JwtAuthGuard`: verifies the bearer access token
+ * and loads the user it names, so a deleted user's still-unexpired token is
+ * rejected.
+ */
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   constructor(
@@ -30,6 +40,11 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
+  /**
+   * Resolves `request.user` from a verified payload. PAT-derived tokens are
+   * also checked against their source ApiToken, so a revoked or expired PAT
+   * stops working at once.
+   */
   async validate(payload: JwtPayload) {
     const isPat = payload.scope === PAT_SCOPE;
     // patId is only ever absent here if a future call site signs a

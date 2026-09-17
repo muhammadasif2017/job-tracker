@@ -4,6 +4,11 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { AuthService } from '../auth.service.js';
 
+/**
+ * Google OAuth login strategy (`google`). Missing client credentials fall back
+ * to `'placeholder'` so the app still boots without Google configured; only
+ * this login route fails.
+ */
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(
@@ -18,6 +23,12 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     });
   }
 
+  /**
+   * Signs in or creates the user for a Google profile and hands the issued
+   * tokens to the callback route as `request.user`. A profile without an
+   * email is rejected: a first sign-in links to an existing account, or
+   * creates one, by email.
+   */
   async validate(
     _accessToken: string,
     _refreshToken: string,
