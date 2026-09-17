@@ -43,6 +43,10 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - TanStack Query v5, Axios, Zustand
 - React Hook Form + Zod, @hello-pangea/dnd, Recharts, Sonner, Radix UI
 
+## Architecture
+
+See [docs/architecture.md](docs/architecture.md) for system context, data flow, module, auth, async pipeline and deployment diagrams. A styled version of the data flow diagram lives at <https://claude.ai/artifact/XE3NMk5ubDKpuLh1LnMUXm> (private; needs the owner's claude.ai sign-in).
+
 ## Architecture: Company Enrichment
 
 Enrichment runs asynchronously so the API responds immediately (`202 Accepted`) while a background worker gathers and extracts company data:
