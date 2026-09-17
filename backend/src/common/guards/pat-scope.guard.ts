@@ -8,10 +8,21 @@ import { Reflector } from '@nestjs/core';
 import { PAT_ACCESSIBLE_KEY } from '../decorators/pat-accessible.decorator.js';
 import { PAT_SCOPE } from '../../modules/tokens/tokens.constants.js';
 
+/**
+ * Global guard confining scoped access tokens — those exchanged from a
+ * personal access token — to routes marked `@PatAccessible()`. Runs after
+ * `JwtAuthGuard` (see `main.ts`), which forwards any `scope` claim for this
+ * guard to judge.
+ */
 @Injectable()
 export class PatScopeGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
+  /**
+   * Passes unscoped tokens and anonymous requests. A scoped token passes only
+   * when its scope is exactly `PAT_SCOPE` and the route opts in, for the
+   * fail-closed reason given below.
+   */
   canActivate(context: ExecutionContext) {
     const { user } = context.switchToHttp().getRequest();
     // No scope claim = a normal login/refresh-derived token - full access,

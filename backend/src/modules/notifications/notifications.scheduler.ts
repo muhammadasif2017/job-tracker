@@ -12,19 +12,26 @@ import {
   type DigestJobData,
 } from './notifications.processor.js';
 
+/** How far ahead of `scheduledAt` a round becomes due for its reminder. */
 const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
+/** The user-local hour digests go out at. */
 const DIGEST_SEND_HOUR = 8;
 
-// Matches EnrichmentModule's queue.add options (see enrichment.service.ts) —
-// a transient Redis/worker blip shouldn't permanently drop a reminder.
+/**
+ * Matches EnrichmentModule's `queue.add` options (see enrichment.service.ts):
+ * a transient Redis or worker blip should not permanently drop a reminder.
+ */
 const JOB_OPTIONS = {
   attempts: 2,
   backoff: { type: 'fixed' as const, delay: 10_000 },
 };
 
-// hourCycle: 'h23' avoids an ICU quirk where hour12: false formats midnight
-// as "24" instead of "0" — that would silently make DIGEST_SEND_HOUR
-// unreachable for a user in a zone where 08:00 UTC lands on their midnight.
+/**
+ * The hour (0–23) an instant falls on in `timeZone`. `hourCycle: 'h23'`
+ * avoids an ICU quirk where `hour12: false` formats midnight as "24" instead
+ * of "0", which would silently make `DIGEST_SEND_HOUR` unreachable for a user
+ * in a zone where 08:00 UTC lands on their midnight.
+ */
 function localHour(date: Date, timeZone: string): number {
   return Number(
     new Intl.DateTimeFormat('en-US', {
@@ -35,6 +42,7 @@ function localHour(date: Date, timeZone: string): number {
   );
 }
 
+/** Whether an instant falls on a Monday in `timeZone`. Weekly digests go out then. */
 function isLocalMonday(date: Date, timeZone: string): boolean {
   return (
     new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short' }).format(
@@ -43,13 +51,24 @@ function isLocalMonday(date: Date, timeZone: string): boolean {
   );
 }
 
-// en-CA formats as YYYY-MM-DD directly, giving the user's local calendar
-// date rather than the UTC one — this is what the dedup jobId is keyed on so
-// a user near a UTC-midnight boundary can't get two digests for one local day.
+/**
+ * The user's local calendar date as YYYY-MM-DD (en-CA formats that way
+ * directly). The digest dedup jobId is keyed on this rather than the UTC date,
+ * so a user near a UTC-midnight boundary cannot get two digests for one local
+ * day.
+ */
 function localDateKey(date: Date, timeZone: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone }).format(date);
 }
 
+/**
+ * Hourly crons that decide what is due and enqueue it on the notifications
+ * queue; `NotificationsProcessor` does the sending.
+ *
+ * Every cron pins `timeZone: 'UTC'`. Without it, node-cron runs on the host's
+ * local zone, which drifts from the UTC-labelled times in templates.ts and
+ * can skip or repeat an hour across a host-local DST transition.
+ */
 @Injectable()
 export class NotificationsScheduler {
   constructor(
@@ -58,11 +77,11 @@ export class NotificationsScheduler {
     private readonly logger: Logger,
   ) {}
 
-  // Explicit UTC everywhere below: without it, node-cron runs on the host's
-  // local tz, which drifts from the UTC-labelled times in templates.ts and
-  // from the UTC calendar date used to build the digest dedup jobId — plus
-  // it's the only way to be safe from an hour being skipped/repeated across
-  // a host-local DST transition.
+  /**
+   * Claims and enqueues a reminder for every pending round starting within the
+   * next 24 hours. Each round is stamped before it is enqueued, so a crash
+   * between the two skips a reminder rather than sending it twice.
+   */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async scanInterviewReminders(): Promise<void> {
     const now = new Date();
@@ -94,19 +113,27 @@ export class NotificationsScheduler {
     }
   }
 
-  // Hourly, not a fixed daily/weekly cron: each user's local 08:00 lands in
-  // a different UTC hour, so this scans every hour and fanOutDigest filters
-  // to whichever users are at their local send hour right now.
+  /**
+   * Enqueues daily digests. Hourly, not a fixed daily cron: each user's local
+   * 08:00 lands in a different UTC hour, so this runs every hour and
+   * `fanOutDigest` keeps whichever users are at their send hour now.
+   */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendDailyDigests(): Promise<void> {
     await this.fanOutDigest(DigestFrequency.DAILY);
   }
 
+  /** Enqueues weekly digests; hourly for the same reason as the daily cron. */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendWeeklyDigests(): Promise<void> {
     await this.fanOutDigest(DigestFrequency.WEEKLY);
   }
 
+  /**
+   * Enqueues a digest for each user on `frequency` whose local time is the
+   * send hour (and a Monday, for weekly), skipping users with nothing needing
+   * attention. A bad timezone skips only that user.
+   */
   private async fanOutDigest(frequency: DigestFrequency): Promise<void> {
     const now = new Date();
     const users = await this.prisma.user.findMany({

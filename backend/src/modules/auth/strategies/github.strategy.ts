@@ -4,6 +4,11 @@ import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-github2';
 import { AuthService } from '../auth.service.js';
 
+/**
+ * GitHub OAuth login strategy (`github`). Missing client credentials fall back
+ * to `'placeholder'` so the app still boots without GitHub configured; only
+ * this login route fails.
+ */
 @Injectable()
 export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
   constructor(
@@ -18,6 +23,12 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     });
   }
 
+  /**
+   * Signs in or creates the user for a GitHub profile and hands the issued
+   * tokens to the callback route as `request.user`. A profile without an
+   * email is rejected: a first sign-in links to an existing account, or
+   * creates one, by email.
+   */
   async validate(
     _accessToken: string,
     _refreshToken: string,

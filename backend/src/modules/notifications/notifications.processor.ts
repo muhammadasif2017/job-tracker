@@ -9,17 +9,24 @@ import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
 import { interviewReminderEmail, digestEmail } from './templates.js';
 
+/** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
 
 export type InterviewReminderJobData = { roundId: string };
 export type DigestJobData = { userId: string };
 
+/**
+ * Attention reasons that stay true until the user acts, so the digest stamps
+ * them once reported instead of repeating them every day.
+ */
 type DedupAttentionType = 'STALE_APPLIED' | 'STALE_INTERVIEWING';
 
+/** Narrows an attention item type to one the digest dedups. */
 function isDedupType(type: string): type is DedupAttentionType {
   return type === 'STALE_APPLIED' || type === 'STALE_INTERVIEWING';
 }
 
+/** The `Job` column that records when this reason was last put in a digest. */
 function dedupField(
   type: DedupAttentionType,
 ): 'staleAppliedDigestedAt' | 'staleInterviewingDigestedAt' {
@@ -28,6 +35,13 @@ function dedupField(
     : 'staleInterviewingDigestedAt';
 }
 
+/**
+ * Worker for the notifications queue. Jobs are enqueued by
+ * `NotificationsScheduler`, which has already claimed each interview round
+ * by stamping `reminderSentAt`; this side re-checks state at send time,
+ * because the round or the user's preferences can change while the job
+ * waits on the queue.
+ */
 @Injectable()
 @Processor(NOTIFICATIONS_QUEUE)
 export class NotificationsProcessor extends WorkerHost {
@@ -40,6 +54,7 @@ export class NotificationsProcessor extends WorkerHost {
     super();
   }
 
+  /** Dispatches a queue job by name to its handler. Unknown names are ignored. */
   async process(
     job: Job<InterviewReminderJobData | DigestJobData>,
   ): Promise<void> {
@@ -50,11 +65,14 @@ export class NotificationsProcessor extends WorkerHost {
     }
   }
 
-  // Runs once BullMQ has exhausted all configured attempts (see JOB_OPTIONS
-  // in notifications.scheduler.ts). Without this, a permanently failed send
-  // (e.g. Resend outage) leaves reminderSentAt stamped forever, silently
-  // losing the reminder — the hourly scan's `reminderSentAt: null` filter
-  // would otherwise never pick the round up again.
+  /**
+   * Releases an interview round's claim once BullMQ has exhausted every
+   * attempt (see `JOB_OPTIONS` in notifications.scheduler.ts). Without this,
+   * a permanently failed send — a Resend outage, say — leaves
+   * `reminderSentAt` stamped forever, and the hourly scan's
+   * `reminderSentAt: null` filter never picks the round up again. Digests
+   * need no equivalent: they stamp only after a successful send.
+   */
   @OnWorkerEvent('failed')
   async onFailed(
     job: Job<InterviewReminderJobData | DigestJobData> | undefined,
@@ -72,10 +90,17 @@ export class NotificationsProcessor extends WorkerHost {
     });
   }
 
+  /** Base URL for links in email bodies. */
   private frontendUrl(): string {
     return this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:3000';
   }
 
+  /**
+   * Sends the 24-hour reminder for one round. Skips a round whose outcome is
+   * no longer pending, and clears the claim rather than sending when the user
+   * has turned reminders off, so re-enabling them before the interview still
+   * produces a reminder.
+   */
   private async processInterviewReminder({
     roundId,
   }: InterviewReminderJobData): Promise<void> {
@@ -128,6 +153,11 @@ export class NotificationsProcessor extends WorkerHost {
     this.logger.log('interview_reminder_sent', { roundId, userId: user.id });
   }
 
+  /**
+   * Builds and sends one user's digest from the live attention list, then
+   * stamps the deduped reasons it reported. The stamp happens only after the
+   * send succeeds and never throws, for the reasons given at the stamp below.
+   */
   private async processDigest({ userId }: DigestJobData): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
