@@ -13,7 +13,12 @@ import {
 } from '../../storage/storage.service.js';
 import type { ResumeResponseDto } from './dto/resume-response.dto.js';
 
-const PRESIGNED_URL_TTL = 900; // seconds
+/**
+ * Presigned URL lifetime in seconds, used only to compute the `expiresAt`
+ * returned to the client. It is not passed to the storage driver, so it must
+ * match `OracleStorageService.getPresignedUrl`'s default `expiresIn` of 900.
+ */
+const PRESIGNED_URL_TTL = 900;
 
 /**
  * One PDF per job, held in whichever storage driver is configured. Every

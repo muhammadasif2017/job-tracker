@@ -18,16 +18,25 @@ import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 
-// Soft cap, not a real-world limit — a legitimate job search doesn't produce
-// hundreds of rounds for one job. Guards against unbounded InterviewRound/
-// JobEvent growth from a scripted client, not a security boundary (rounds
-// are already scoped to the owning user).
+/**
+ * Soft cap, not a real-world limit — a legitimate job search doesn't produce
+ * hundreds of rounds for one job. Guards against unbounded InterviewRound/
+ * JobEvent growth from a scripted client, not a security boundary (rounds
+ * are already scoped to the owning user).
+ */
 const MAX_ROUNDS_PER_JOB = 50;
 
-// Calendar-export fallback for rounds created before ADR-043, which carry no
-// durationMinutes. Every round created since carries a length the user typed.
+/**
+ * Calendar-export fallback for rounds created before ADR-043, which carry no
+ * durationMinutes. Every round created since carries a length the user typed.
+ */
 const DEFAULT_ROUND_MINUTES = 60;
 
+/**
+ * Interview rounds under a job. Every write keeps the job's denormalized
+ * `nextInterviewAt` current; creating a round also logs a `JobEvent`.
+ * Ownership is checked on the parent job (ADR-015).
+ */
 @Injectable()
 export class InterviewRoundsService {
   constructor(
