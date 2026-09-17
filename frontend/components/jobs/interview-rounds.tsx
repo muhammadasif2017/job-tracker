@@ -17,6 +17,7 @@ import {
 } from '../../features/jobs/interview-rounds.hooks';
 import { DERIVED_STATUS_COLORS, DERIVED_STATUS_LABELS } from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
+import { LinkifiedText } from '../ui/linkified-text';
 
 /**
  * Length prefilled for a new round, and assumed for rounds saved before
@@ -307,7 +308,9 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                         ` · ${formatDuration(round.durationMinutes)}`}
                     </p>
                     {round.notes && (
-                      <p className="mt-1 text-xs text-muted">{round.notes}</p>
+                      <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted">
+                        <LinkifiedText text={round.notes} />
+                      </p>
                     )}
                     {DERIVED_STATUS_LABELS[round.derivedStatus] && (
                       <span

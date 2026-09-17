@@ -8,6 +8,7 @@ import type { UseMutationResult } from '@tanstack/react-query';
 import { cn } from '../../lib/utils';
 import type { ContactPayload } from '../../features/jobs/contacts.hooks';
 import type { Contact } from '../../types';
+import { LinkifiedText } from '../ui/linkified-text';
 
 /**
  * Props for `ContactsPanel`.
@@ -294,7 +295,9 @@ export function ContactsPanel({
                   )}
                 </div>
                 {contact.notes && (
-                  <p className="mt-1 text-xs text-muted">{contact.notes}</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words text-xs text-muted">
+                    <LinkifiedText text={contact.notes} />
+                  </p>
                 )}
               </div>
 

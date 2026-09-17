@@ -7,6 +7,7 @@ import { ArrowLeft, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { isAxiosError } from 'axios';
 import { Button } from '../../../../components/ui/button';
 import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
+import { LinkifiedText } from '../../../../components/ui/linkified-text';
 import {
   CityBadge,
   PriorityBadge,
@@ -151,7 +152,7 @@ export default function CompanyDetailPage() {
                   Your Notes
                 </p>
                 <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">
-                  {company.personalNotes}
+                  <LinkifiedText text={company.personalNotes} />
                 </p>
               </div>
             )}
