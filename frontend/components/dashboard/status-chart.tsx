@@ -11,6 +11,7 @@ import {
 import { EmptyChartState } from './empty-chart-state';
 import { ChartLegend } from './chart-legend';
 
+/** Donut chart of jobs by status, omitting statuses with no jobs. */
 export function StatusChart({ stats }: { stats: JobStats }) {
   const data = JOB_STATUSES.map((s) => ({
     name: STATUS_LABELS[s],

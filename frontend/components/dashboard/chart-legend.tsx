@@ -1,8 +1,12 @@
-// Replaces recharts' <Legend />. Recharts colors its legend swatch from the
-// series' `fill`/`stroke` *prop*, so a series colored by CSS class (the only
-// way to get a themeable var() onto an SVG shape) would render a legend swatch
-// in recharts' default gray-blue. Rendering the legend ourselves keeps swatch
-// and series on the same tokens, and makes the labels real selectable text.
+/**
+ * Color swatches and labels under a dashboard chart.
+ *
+ * Replaces recharts' <Legend />. Recharts colors its legend swatch from the
+ * series' `fill`/`stroke` *prop*, so a series colored by CSS class (the only
+ * way to get a themeable var() onto an SVG shape) would render a legend swatch
+ * in recharts' default gray-blue. Rendering the legend ourselves keeps swatch
+ * and series on the same tokens, and makes the labels real selectable text.
+ */
 export function ChartLegend({
   items,
 }: {

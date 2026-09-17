@@ -7,12 +7,14 @@ import { cn } from '../../lib/utils';
 import { useAdminQueuesQuery } from '../../features/admin/hooks';
 import type { QueueSnapshot } from '../../types';
 
+/** Readable names for the BullMQ queues, keyed by queue name. */
 const QUEUE_LABELS: Record<string, string> = {
   'company-target-enrichment': 'Company enrichment',
   'job-timeline-summary': 'Timeline summary',
   notifications: 'Notifications',
 };
 
+/** The queue states shown on each card, in display order. */
 const COUNT_ROWS = [
   { key: 'waiting', label: 'Waiting' },
   { key: 'active', label: 'Active' },
@@ -21,6 +23,7 @@ const COUNT_ROWS = [
   { key: 'completed', label: 'Completed' },
 ] as const;
 
+/** One queue's job counts, or a warning when Redis did not answer. */
 function QueueCard({ queue }: { queue: QueueSnapshot }) {
   const counts = queue.counts;
   return (
@@ -59,6 +62,11 @@ function QueueCard({ queue }: { queue: QueueSnapshot }) {
   );
 }
 
+/**
+ * The admin queues page body: per-queue depth, enrichment status counts from
+ * the database, and a warning for companies stranded at PENDING. Refreshes
+ * only on demand.
+ */
 export function QueueHealthPanel() {
   const { data, isLoading, isError, refetch, isFetching } =
     useAdminQueuesQuery();

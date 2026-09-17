@@ -16,10 +16,14 @@ import {
   IconSignOut,
 } from '../icons';
 
-// `match` is the prefix that keeps an item highlighted, for a section whose
-// pages live under a path the link itself does not cover — Admin links
-// straight to its first tab (/admin/users) but stays active on /admin/queues
-// too. Defaults to `href` everywhere else.
+/**
+ * One sidebar navigation link.
+ *
+ * `match` is the prefix that keeps an item highlighted, for a section whose
+ * pages live under a path the link itself does not cover — Admin links
+ * straight to its first tab (/admin/users) but stays active on /admin/queues
+ * too. Defaults to `href` everywhere else.
+ */
 interface NavItem {
   href: string;
   label: string;
@@ -27,6 +31,7 @@ interface NavItem {
   match?: string;
 }
 
+/** Links every signed-in user sees; admins also get an Admin link. */
 const nav: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: IconDashboard },
   { href: '/jobs', label: 'Jobs', icon: IconJobs },
@@ -34,11 +39,16 @@ const nav: NavItem[] = [
   { href: '/profile', label: 'Profile', icon: IconProfile },
 ];
 
+/** Props for `Sidebar`. `isOpen` and `onClose` drive the mobile drawer. */
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/**
+ * The app navigation, the signed-in user and sign-out, with a
+ * stranded-companies badge for admins.
+ */
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);

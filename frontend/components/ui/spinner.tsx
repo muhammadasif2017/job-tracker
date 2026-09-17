@@ -1,5 +1,6 @@
 import { cn } from '../../lib/utils';
 
+/** Spinning loading indicator in the accent color. */
 export function Spinner({ className }: { className?: string }) {
   return (
     <svg

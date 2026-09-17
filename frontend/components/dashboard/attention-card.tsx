@@ -7,6 +7,7 @@ import { formatRelative } from '../../lib/utils';
 import { useAttentionQuery } from '../../features/dashboard/hooks';
 import type { AttentionType } from '../../types';
 
+/** The prompt shown under each attention item, by reason. */
 const MESSAGES: Record<AttentionType, (since: string) => string> = {
   UPCOMING_INTERVIEW: (since) => `Interview ${formatRelative(since)} — prepare`,
   STALE_INTERVIEWING: (since) =>
@@ -15,18 +16,21 @@ const MESSAGES: Record<AttentionType, (since: string) => string> = {
     `Applied ${formatRelative(since)} — follow up or mark ghosted`,
 };
 
+/** Icon for each attention reason. */
 const ICONS: Record<AttentionType, typeof Clock> = {
   UPCOMING_INTERVIEW: CalendarClock,
   STALE_INTERVIEWING: Clock,
   STALE_APPLIED: MailQuestion,
 };
 
+/** Icon color class for each attention reason. */
 const ICON_COLORS: Record<AttentionType, string> = {
   UPCOMING_INTERVIEW: 'text-accent-2',
   STALE_INTERVIEWING: 'text-accent',
   STALE_APPLIED: 'text-muted-2',
 };
 
+/** The dashboard "Needs Attention" card, linking each item to its job. */
 export function AttentionCard() {
   const { data: items, isLoading } = useAttentionQuery();
 

@@ -1,6 +1,7 @@
 import { cn } from '../../lib/utils';
 import { ButtonHTMLAttributes, forwardRef } from 'react';
 
+/** Classes for each button variant. */
 const variants = {
   primary:
     'bg-accent text-accent-fg hover:brightness-110 focus-visible:ring-accent',
@@ -10,18 +11,24 @@ const variants = {
   outline: 'border border-line text-ink hover:bg-paper-raised',
 };
 
+/** Classes for each button size. */
 const sizes = {
   sm: 'h-8 px-3 text-sm',
   md: 'h-9 px-4 text-sm',
   lg: 'h-10 px-5 text-base',
 };
 
+/** Props for `Button`. `loading` shows a spinner and disables the button. */
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: keyof typeof variants;
   size?: keyof typeof sizes;
   loading?: boolean;
 }
 
+/**
+ * The app button. Defaults to `type="button"` so it never submits a form by
+ * accident.
+ */
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   (
     {

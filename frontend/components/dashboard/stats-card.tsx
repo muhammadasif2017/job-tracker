@@ -1,6 +1,7 @@
 import { cn } from '../../lib/utils';
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 
+/** Props for `StatsCard`. */
 interface StatsCardProps {
   label: string;
   value: string | number;
@@ -10,6 +11,10 @@ interface StatsCardProps {
   loading?: boolean;
 }
 
+/**
+ * One headline number on the dashboard, with a label, icon and optional
+ * caption.
+ */
 export function StatsCard({
   label,
   value,

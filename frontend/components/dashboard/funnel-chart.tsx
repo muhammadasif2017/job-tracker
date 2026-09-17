@@ -20,9 +20,13 @@ import {
 } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 
-// Shared by the main funnel bar and the dropoff/avg-time/response-rate
-// mini-charts below it — same horizontal-bar layout, differing only in
-// height, tooltip label, and whether bars carry an inline value label.
+/**
+ * Horizontal bar chart used by every chart on the funnel card.
+ *
+ * Shared by the main funnel bar and the dropoff/avg-time/response-rate
+ * mini-charts below it — same horizontal-bar layout, differing only in
+ * height, tooltip label, and whether bars carry an inline value label.
+ */
 function RangeBarChart({
   data,
   height,
@@ -69,6 +73,7 @@ function RangeBarChart({
   );
 }
 
+/** A `RangeBarChart` sized to its row count, with value labels on the bars. */
 function MiniBarChart({
   data,
   valueFormatter,
@@ -89,9 +94,14 @@ function MiniBarChart({
   );
 }
 
+/** Formats a count with the singular or plural noun. */
 const plural = (n: number, one: string, many: string) =>
   `${n} ${n === 1 ? one : many}`;
 
+/**
+ * Median days to a reply, and how often replies came after the 14-day ghost
+ * cutoff.
+ */
 function ReplyTiming({ timing }: { timing: FunnelStats['replyTiming'] }) {
   if (timing.medianDays === null) {
     return <p className="text-muted-2">No replies yet</p>;
@@ -113,6 +123,10 @@ function ReplyTiming({ timing }: { timing: FunnelStats['replyTiming'] }) {
   );
 }
 
+/**
+ * The funnel card: stages reached, drop-offs, time in stage, response rate by
+ * channel and by discovery source, and reply timing.
+ */
 export function FunnelChart({ data }: { data: FunnelStats }) {
   const hasData = data.funnel.some((f) => f.reached > 0);
 

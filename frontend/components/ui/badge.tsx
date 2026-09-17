@@ -24,21 +24,25 @@ import {
   type EnrichmentStatus,
 } from '../../types';
 
+/** Props for `StatusBadge`. */
 interface BadgeProps {
   status: JobStatus;
   className?: string;
 }
 
+/** Props for `PriorityBadge`. */
 interface PriorityBadgeProps {
   priority: Priority;
   className?: string;
 }
 
+/** Props for `JobTypeBadge`. */
 interface JobTypeBadgeProps {
   jobType: JobType;
   className?: string;
 }
 
+/** Colored label for a job status. */
 export function StatusBadge({ status, className }: BadgeProps) {
   return (
     <span
@@ -53,6 +57,7 @@ export function StatusBadge({ status, className }: BadgeProps) {
   );
 }
 
+/** Colored label for a company priority. */
 export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   return (
     <span
@@ -67,6 +72,7 @@ export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   );
 }
 
+/** Colored label for a job type. */
 export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
   return (
     <span
@@ -81,10 +87,12 @@ export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
   );
 }
 
+/** Props for `SourceBadge`: a discovery source or an application channel. */
 type SourceBadgeProps =
   | { kind: 'discovery'; source: DiscoverySource; className?: string }
   | { kind: 'channel'; source: ApplicationChannel; className?: string };
 
+/** Colored label for where a job was found or how it was applied to. */
 export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
   const colors =
     kind === 'discovery' ? DISCOVERY_SOURCE_COLORS : APPLICATION_CHANNEL_COLORS;
@@ -103,6 +111,7 @@ export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
   );
 }
 
+/** Colored label for a company's city. */
 export function CityBadge({
   city,
   className,
@@ -123,6 +132,7 @@ export function CityBadge({
   );
 }
 
+/** Colored label for a company's business mode. */
 export function BusinessModeBadge({
   businessMode,
   className,
@@ -143,6 +153,7 @@ export function BusinessModeBadge({
   );
 }
 
+/** Display label for each enrichment status. */
 const ENRICHMENT_STATUS_LABELS: Record<EnrichmentStatus, string> = {
   PENDING: 'Queued',
   PROCESSING: 'Researching…',
@@ -150,6 +161,7 @@ const ENRICHMENT_STATUS_LABELS: Record<EnrichmentStatus, string> = {
   FAILED: 'Research failed',
 };
 
+/** Badge classes for each enrichment status, light and dark. */
 const ENRICHMENT_STATUS_COLORS: Record<EnrichmentStatus, string> = {
   PENDING: 'bg-paper-raised text-muted',
   PROCESSING:
@@ -159,6 +171,7 @@ const ENRICHMENT_STATUS_COLORS: Record<EnrichmentStatus, string> = {
   FAILED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
 };
 
+/** Colored label for an enrichment status; `null` reads "Not researched". */
 export function EnrichmentStatusBadge({
   status,
   className,

@@ -3,6 +3,10 @@
 import { useEffect, useState } from 'react';
 import { Sun, Moon } from 'lucide-react';
 
+/**
+ * Switches light and dark mode by toggling the `dark` class on `<html>` and
+ * saving the choice to localStorage.
+ */
 export function ThemeToggle() {
   const [dark, setDark] = useState(false);
 

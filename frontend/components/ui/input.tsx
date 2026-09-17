@@ -2,12 +2,17 @@ import { cn } from '../../lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
 import { forwardRef, InputHTMLAttributes, useState } from 'react';
 
+/** Props for `Input`. `hint` is hidden while `error` is shown. */
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
   hint?: string;
 }
 
+/**
+ * Labelled text input with error and hint text wired to `aria-describedby`,
+ * and a show/hide toggle for passwords.
+ */
 export const Input = forwardRef<HTMLInputElement, InputProps>(
   ({ className, label, error, hint, id, type, ...props }, ref) => {
     const inputId = id ?? label?.toLowerCase().replace(/\s+/g, '-');

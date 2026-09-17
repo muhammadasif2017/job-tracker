@@ -2,18 +2,27 @@
 
 import type { UseFormRegisterReturn } from 'react-hook-form';
 
-// Intl.supportedValuesOf('timeZone') and resolvedOptions().timeZone depend on
-// the runtime's bundled ICU data — Node (SSR) and the browser (hydration) can
-// genuinely disagree on the zone list/order, which produced a real hydration
-// mismatch on this <select>'s <option> list. This component is loaded via
-// next/dynamic({ ssr: false }) in profile/page.tsx so it never renders on the
-// server at all — both computations only ever run in the browser.
+/**
+ * Every timezone the browser knows, with UTC first.
+ *
+ * Intl.supportedValuesOf('timeZone') and resolvedOptions().timeZone depend on
+ * the runtime's bundled ICU data — Node (SSR) and the browser (hydration) can
+ * genuinely disagree on the zone list/order, which produced a real hydration
+ * mismatch on this <select>'s <option> list. This component is loaded via
+ * next/dynamic({ ssr: false }) in profile/page.tsx so it never renders on the
+ * server at all — both computations only ever run in the browser.
+ */
 const IANA_TIMEZONES = [
   'UTC',
   ...Intl.supportedValuesOf('timeZone').filter((tz) => tz !== 'UTC'),
 ];
+/** The browser's own timezone, offered as a one-click choice. */
 const BROWSER_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+/**
+ * Timezone select for the notification settings form. Browser-only; see
+ * `IANA_TIMEZONES`.
+ */
 export function TimezoneField({
   registerProps,
   onUseBrowserTimezone,
