@@ -45,7 +45,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) for system context, data flow, module, auth, async pipeline and deployment diagrams. A styled version of the data flow diagram lives at <https://claude.ai/artifact/XE3NMk5ubDKpuLh1LnMUXm> (private; needs the owner's claude.ai sign-in).
+See [docs/architecture.md](docs/architecture.md) for system context, data flow, module, auth, async pipeline and deployment diagrams. [docs/uml.md](docs/uml.md) has UML state and sequence diagrams for company enrichment status, extension job capture, resume upload and notification digests. A styled version of the data flow diagram lives at <https://claude.ai/artifact/XE3NMk5ubDKpuLh1LnMUXm> (private; needs the owner's claude.ai sign-in).
 
 ## Architecture: Company Enrichment
 

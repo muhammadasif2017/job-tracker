@@ -1,6 +1,6 @@
 # Architecture
 
-System-level diagrams. For DB schema detail see [`database-schema.md`](./database-schema.md); for backend/frontend internals see [`backend-overview.md`](./backend-overview.md) and [`frontend-overview.md`](./frontend-overview.md).
+System-level diagrams. For state and sequence diagrams of individual flows see [`uml.md`](./uml.md). For DB schema detail see [`database-schema.md`](./database-schema.md); for backend/frontend internals see [`backend-overview.md`](./backend-overview.md) and [`frontend-overview.md`](./frontend-overview.md).
 
 ## System context and data flow
 
@@ -198,7 +198,7 @@ flowchart LR
     CRON["Hourly @Cron<br/>NotificationsScheduler"] -->|"enqueue reminder / digest"| NQ["notifications<br/>queue (Redis)"]
     NQ --> NP[NotificationsProcessor]
     NP -->|emails.send| RESEND[Resend API]
-    NP -->|"stamps digestedAt / reminderSentAt"| JOBROW[(Job / InterviewRound)]
+    NP -->|"stamps reminderSentAt /<br/>stale*DigestedAt"| JOBROW[(Job / InterviewRound)]
 ```
 
 Company enrichment moves `status` through PENDING → PROCESSING → COMPLETED / FAILED.
