@@ -7,6 +7,10 @@ import { Spinner } from '../../../components/ui/spinner';
 import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 
+/**
+ * Trades the OAuth redirect's one-time code for tokens, loads the user, and
+ * signs them in; any failure returns to `/login`.
+ */
 function CallbackHandler() {
   const router = useRouter();
   const params = useSearchParams();
@@ -51,6 +55,7 @@ function CallbackHandler() {
   return null;
 }
 
+/** OAuth landing route (`/callback`): a spinner while the sign-in completes. */
 export default function CallbackPage() {
   return (
     <div className="flex min-h-screen items-center justify-center">

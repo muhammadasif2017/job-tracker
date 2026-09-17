@@ -12,12 +12,15 @@ import { OAuthButton } from '../../../components/auth/oauth-button';
 import { useAuthStore } from '../../../store/auth.store';
 import api, { getErrorMessage } from '../../../lib/api';
 
+/** Validation for the login form. */
 const schema = z.object({
   email: z.email('Enter a valid email'),
   password: z.string().min(1, 'Password is required'),
 });
+/** Values the login form holds. */
 type FormData = z.infer<typeof schema>;
 
+/** Sign-in page (`/login`): email and password, plus Google and GitHub. */
 export default function LoginPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);

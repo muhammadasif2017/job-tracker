@@ -27,9 +27,13 @@ import {
   useRecentJobsQuery,
 } from '../../features/dashboard/hooks';
 
-// Charts: code-split out of the initial dashboard bundle, gated behind their queries anyway.
-// All three point at the same module so Turbopack resolves the shared Recharts
-// vendor dependency once instead of duplicating it across three chunks.
+/**
+ * Status donut chart, loaded on the client only.
+ *
+ * Charts: code-split out of the initial dashboard bundle, gated behind their queries anyway.
+ * All three point at the same module so Turbopack resolves the shared Recharts
+ * vendor dependency once instead of duplicating it across three chunks.
+ */
 const StatusChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
@@ -37,6 +41,7 @@ const StatusChart = dynamic(
     ),
   { ssr: false },
 );
+/** Funnel chart, loaded on the client only. */
 const FunnelChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
@@ -44,6 +49,7 @@ const FunnelChart = dynamic(
     ),
   { ssr: false },
 );
+/** Trend chart, loaded on the client only. */
 const TrendChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
@@ -52,6 +58,10 @@ const TrendChart = dynamic(
   { ssr: false },
 );
 
+/**
+ * Dashboard (`/`): headline stats, needs attention, looks ghosted, charts and
+ * recent activity for the chosen range.
+ */
 export default function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>('90d');
 

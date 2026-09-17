@@ -5,6 +5,10 @@ import { Menu } from 'lucide-react';
 import { Sidebar } from '../../components/layout/sidebar';
 import { ThemeToggle } from '../../components/layout/theme-toggle';
 
+/**
+ * Signed-in app shell: sidebar (a drawer on mobile), header with the theme
+ * toggle, and the scrolling page area.
+ */
 export default function DashboardLayout({
   children,
 }: {

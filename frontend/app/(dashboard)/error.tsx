@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { logBoundaryError } from '../../lib/log-error';
 import { Button } from '../../components/ui/button';
 
+/** Error boundary for signed-in pages; keeps the sidebar and offers a retry. */
 export default function DashboardErrorPage({
   error,
   unstable_retry,

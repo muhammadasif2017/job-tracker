@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+/** 404 page for routes outside the signed-in shell. */
 export default function NotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">

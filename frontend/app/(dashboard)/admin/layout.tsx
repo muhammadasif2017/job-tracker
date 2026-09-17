@@ -4,16 +4,24 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '../../../lib/utils';
 
-// Tenant administration (users) and system health (queues) are different jobs
-// on different cadences — one is "who is on this install", the other is "is
-// the background work moving". They shared a page until the queue panel grew
-// its own detail; the sidebar still carries a single "Admin" entry, and these
-// tabs do the second level of navigation.
+/**
+ * The admin section's tabs.
+ *
+ * Tenant administration (users) and system health (queues) are different jobs
+ * on different cadences — one is "who is on this install", the other is "is
+ * the background work moving". They shared a page until the queue panel grew
+ * its own detail; the sidebar still carries a single "Admin" entry, and these
+ * tabs do the second level of navigation.
+ */
 const TABS = [
   { href: '/admin/users', label: 'Users' },
   { href: '/admin/queues', label: 'Queues' },
 ];
 
+/**
+ * Admin section shell: page tabs above the active admin page. Non-admins never
+ * reach it; `proxy.ts` redirects them.
+ */
 export default function AdminLayout({
   children,
 }: {
