@@ -8,17 +8,22 @@ import api, { getErrorMessage } from '../../lib/api';
 import type { InterviewOutcome } from '../../types';
 import { invalidateJobListCaches } from './hooks';
 
-// Creating/updating/removing a round can silently flip Job.status (APPLIED ->
-// INTERVIEWING auto-promotion, see interview-rounds.service.ts), and it is job
-// activity that moves nextInterviewAt, so it can also change which jobs look
-// ghosted. Reuse the job list invalidation set rather than a copy of it — a
-// copy is how ['ghost-suggestions'] went missing here.
+/**
+ * Invalidates every cache an interview round change can affect.
+ *
+ * Creating/updating/removing a round can silently flip Job.status (APPLIED ->
+ * INTERVIEWING auto-promotion, see interview-rounds.service.ts), and it is job
+ * activity that moves nextInterviewAt, so it can also change which jobs look
+ * ghosted. Reuse the job list invalidation set rather than a copy of it — a
+ * copy is how ['ghost-suggestions'] went missing here.
+ */
 function invalidateInterviewRoundCaches(qc: QueryClient, jobId: string) {
   invalidateJobListCaches(qc);
   qc.invalidateQueries({ queryKey: ['job', jobId] });
   qc.invalidateQueries({ queryKey: ['job-events', jobId] });
 }
 
+/** Body for adding an interview round. */
 export interface CreateInterviewRoundPayload {
   stage: string;
   // A real instant with an explicit UTC offset. The backend rejects an
@@ -29,6 +34,7 @@ export interface CreateInterviewRoundPayload {
   notes?: string;
 }
 
+/** Adds an interview round to a job. */
 export function useCreateInterviewRoundMutation(
   jobId: string,
   onSuccess?: () => void,
@@ -47,6 +53,9 @@ export function useCreateInterviewRoundMutation(
   });
 }
 
+/**
+ * Body for editing an interview round; include only the fields that changed.
+ */
 export interface UpdateInterviewRoundPayload {
   stage?: string;
   scheduledAt?: string;
@@ -54,10 +63,14 @@ export interface UpdateInterviewRoundPayload {
   notes?: string;
 }
 
-// Only the fields the user actually changed are sent. The backend clears
-// reminderSentAt whenever scheduledAt is present (see
-// InterviewRoundsService.update), so sending an unchanged date would re-arm a
-// reminder that already went out.
+/**
+ * Edits an interview round.
+ *
+ * Only the fields the user actually changed are sent. The backend clears
+ * reminderSentAt whenever scheduledAt is present (see
+ * InterviewRoundsService.update), so sending an unchanged date would re-arm a
+ * reminder that already went out.
+ */
 export function useUpdateInterviewRoundMutation(
   jobId: string,
   onSuccess?: () => void,
@@ -81,6 +94,7 @@ export function useUpdateInterviewRoundMutation(
   });
 }
 
+/** Sets the outcome of an interview round. */
 export function useInterviewRoundOutcomeMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -103,9 +117,13 @@ export function useInterviewRoundOutcomeMutation(jobId: string) {
   });
 }
 
-// Saving debrief notes together with the outcome (rather than notes alone)
-// lets the backend trigger next-round prep generation off this single call —
-// see InterviewRoundsService.update's PASSED/FAILED + notes check.
+/**
+ * Saves a debrief: the outcome and notes together.
+ *
+ * Saving debrief notes together with the outcome (rather than notes alone)
+ * lets the backend trigger next-round prep generation off this single call —
+ * see InterviewRoundsService.update's PASSED/FAILED + notes check.
+ */
 export function useSaveRoundDebriefMutation(jobId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -137,6 +155,7 @@ export function useSaveRoundDebriefMutation(jobId: string) {
   });
 }
 
+/** Removes an interview round. */
 export function useRemoveInterviewRoundMutation(
   jobId: string,
   onSettled?: () => void,

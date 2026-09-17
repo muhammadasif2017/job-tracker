@@ -5,6 +5,11 @@ import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type { Resume } from '../../types';
 
+/**
+ * The resume attached to a job, or null when there is none. `initialResume`,
+ * when the job detail response already carried it, seeds the cache so the
+ * section renders without a second request.
+ */
 export function useResumeQuery(
   jobId: string | null,
   initialResume?: Resume | null,
@@ -32,6 +37,10 @@ export function useResumeQuery(
   });
 }
 
+/**
+ * Uploads a resume, replacing any existing one, and writes the result into the
+ * cache.
+ */
 export function useUploadResumeMutation(jobId: string | null) {
   const qc = useQueryClient();
   return useMutation({
@@ -57,6 +66,7 @@ export function useUploadResumeMutation(jobId: string | null) {
   });
 }
 
+/** Removes a job's resume. */
 export function useRemoveResumeMutation(
   jobId: string | null,
   onSettled?: () => void,

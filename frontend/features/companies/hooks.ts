@@ -12,13 +12,17 @@ import type {
   PaginatedCompanies,
 } from '../../types';
 
-// Mirrors CreateCompanyDto/UpdateCompanyDto's nullability exactly: per
-// ADR-022, a field the user emptied out must be sent as explicit `null`
-// (never `undefined`, which JSON.stringify drops and Prisma reads as
-// "leave alone"). company-form.tsx's onSubmit always builds a payload in
-// this exact shape — this type makes that contract checkable at compile
-// time instead of relying on the loose `Partial<Company>` shape doing so
-// implicitly.
+/**
+ * Body for creating or editing a company.
+ *
+ * Mirrors CreateCompanyDto/UpdateCompanyDto's nullability exactly: per
+ * ADR-022, a field the user emptied out must be sent as explicit `null`
+ * (never `undefined`, which JSON.stringify drops and Prisma reads as
+ * "leave alone"). company-form.tsx's onSubmit always builds a payload in
+ * this exact shape — this type makes that contract checkable at compile
+ * time instead of relying on the loose `Partial<Company>` shape doing so
+ * implicitly.
+ */
 export interface CompanyWritePayload {
   name: string;
   city: CompanyCity;
@@ -35,6 +39,7 @@ export interface CompanyWritePayload {
   cultureSummary: string | null;
 }
 
+/** Filter and paging state for the companies page. */
 export interface CompaniesFilters {
   page: number;
   search: string;
@@ -42,12 +47,17 @@ export interface CompaniesFilters {
   priority: Priority | '';
 }
 
+/** Invalidates every cache under the `companies` prefix. */
 function invalidateCompanyListCaches(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ['companies'] });
 }
 
-// Not a query hook: the job-create confirm needs the history for exactly the
-// name being submitted, at submit time (docs/specs/company-reply-history.md).
+/**
+ * The user's past applications to the company with this name.
+ *
+ * Not a query hook: the job-create confirm needs the history for exactly the
+ * name being submitted, at submit time (docs/specs/company-reply-history.md).
+ */
 export function fetchCompanyApplicationHistory(name: string) {
   return api
     .get<CompanyApplicationHistory>('/companies/application-history', {
@@ -56,6 +66,7 @@ export function fetchCompanyApplicationHistory(name: string) {
     .then((r) => r.data);
 }
 
+/** One page of the companies list. */
 export function useCompaniesQuery(filters: CompaniesFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -71,10 +82,14 @@ export function useCompaniesQuery(filters: CompaniesFilters) {
   });
 }
 
-// JobForm's company autocomplete (docs/specs/company-fk-phase6.md). Under the
-// ['companies'] prefix so any company create/edit/delete invalidates it.
-// Returns [] while disabled: a cached result for an old term must not show
-// in edit mode or below the 2-character minimum.
+/**
+ * Up to five companies matching `search`, for the job form's company field.
+ *
+ * JobForm's company autocomplete (docs/specs/company-fk-phase6.md). Under the
+ * ['companies'] prefix so any company create/edit/delete invalidates it.
+ * Returns [] while disabled: a cached result for an old term must not show
+ * in edit mode or below the 2-character minimum.
+ */
 export function useCompanySuggestionsQuery(search: string, enabled: boolean) {
   const term = search.trim();
   const active = enabled && term.length >= 2;
@@ -94,6 +109,10 @@ export function useCompanySuggestionsQuery(search: string, enabled: boolean) {
   return active ? (data ?? []) : [];
 }
 
+/**
+ * One company with its contacts and jobs. Polls every 3 seconds while its
+ * enrichment is pending or processing.
+ */
 export function useCompanyQuery(id: string) {
   return useQuery<Company>({
     queryKey: ['company', id],
@@ -106,7 +125,11 @@ export function useCompanyQuery(id: string) {
   });
 }
 
-// Phase 5c (docs/specs/company-fk-phase5c.md)
+/**
+ * Pairs of companies that look like duplicates.
+ *
+ * Phase 5c (docs/specs/company-fk-phase5c.md)
+ */
 export function useDuplicateSuggestionsQuery() {
   return useQuery<DuplicateSuggestion[]>({
     queryKey: ['companies', 'duplicates'],
@@ -114,6 +137,7 @@ export function useDuplicateSuggestionsQuery() {
   });
 }
 
+/** Adds a company. */
 export function useCreateCompanyMutation(
   onCreated?: (company: Company) => void,
 ) {
@@ -132,6 +156,7 @@ export function useCreateCompanyMutation(
   });
 }
 
+/** Edits a company. */
 export function useUpdateCompanyMutation(
   id: string,
   onUpdated?: (company: Company) => void,
@@ -156,6 +181,7 @@ export function useUpdateCompanyMutation(
   });
 }
 
+/** Deletes a company. */
 export function useDeleteCompanyMutation(onDeleted?: () => void) {
   const qc = useQueryClient();
   return useMutation({
@@ -171,6 +197,7 @@ export function useDeleteCompanyMutation(onDeleted?: () => void) {
   });
 }
 
+/** Queues AI research of a company's profile. */
 export function useCompanyEnrichmentMutation(id: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -185,6 +212,10 @@ export function useCompanyEnrichmentMutation(id: string) {
   });
 }
 
+/**
+ * Body for creating or editing a company contact. Emptied fields are sent as
+ * `null` (ADR-022).
+ */
 export interface CompanyContactPayload {
   name: string;
   role: string | null;
@@ -194,6 +225,7 @@ export interface CompanyContactPayload {
   notes: string | null;
 }
 
+/** Adds a contact to a company. */
 export function useCreateCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -208,6 +240,7 @@ export function useCreateCompanyContactMutation(companyId: string) {
   });
 }
 
+/** Edits a contact on a company. */
 export function useUpdateCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -230,6 +263,7 @@ export function useUpdateCompanyContactMutation(companyId: string) {
   });
 }
 
+/** Removes a contact from a company. */
 export function useRemoveCompanyContactMutation(companyId: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -246,9 +280,11 @@ export function useRemoveCompanyContactMutation(companyId: string) {
   });
 }
 
-// Phase 5b (docs/specs/company-fk-phase5b.md) — the AI-enrichment field
-// subset the merge conflict picker can override. Absent key = keep
-// canonical's current value.
+/**
+ * Phase 5b (docs/specs/company-fk-phase5b.md) — the AI-enrichment field
+ * subset the merge conflict picker can override. Absent key = keep
+ * canonical's current value.
+ */
 export type MergeFieldOverrides = Partial<
   Pick<
     Company,
@@ -260,6 +296,10 @@ export type MergeFieldOverrides = Partial<
   >
 >;
 
+/**
+ * Merges a duplicate company into the canonical one, moving its jobs and
+ * contacts across. Sends `fieldOverrides` only when the user picked any.
+ */
 export function useMergeCompaniesMutation(onMerged?: () => void) {
   const qc = useQueryClient();
   return useMutation({
@@ -293,6 +333,7 @@ export function useMergeCompaniesMutation(onMerged?: () => void) {
   });
 }
 
+/** Imports companies from a CSV file, warning when some rows were skipped. */
 export function useImportCompaniesCsvMutation(
   onSuccess?: (result: CsvImportResult) => void,
 ) {

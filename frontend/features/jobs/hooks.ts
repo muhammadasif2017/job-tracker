@@ -15,6 +15,7 @@ import type {
   PaginatedJobs,
 } from '../../types';
 
+/** Filter and paging state for the jobs page. */
 export interface JobsFilters {
   page: number;
   search: string;
@@ -26,14 +27,18 @@ export interface JobsFilters {
   dateTo: string;
 }
 
-// The subset of the page's filters that isn't pagination — shared by the
-// list, the board and the CSV export so all three answer the same question.
+/**
+ * The subset of the page's filters that isn't pagination — shared by the
+ * list, the board and the CSV export so all three answer the same question.
+ */
 export type JobsFilterValues = Omit<JobsFilters, 'page'>;
 
-// One place that turns filter state into query params. The board and the
-// list would otherwise drift on which filters they honour — the board used
-// to send none of them, so filtering the list and switching to the board
-// silently showed everything again.
+/**
+ * One place that turns filter state into query params. The board and the
+ * list would otherwise drift on which filters they honour — the board used
+ * to send none of them, so filtering the list and switching to the board
+ * silently showed everything again.
+ */
 export function jobFilterParams(filters: JobsFilterValues): URLSearchParams {
   const params = new URLSearchParams();
   if (filters.search) params.set('search', filters.search);
@@ -42,8 +47,12 @@ export function jobFilterParams(filters: JobsFilterValues): URLSearchParams {
   return params;
 }
 
-// Exported for the dashboard's ghost-suggestion actions, which change the
-// same lists and counts.
+/**
+ * Invalidates every cache that lists or counts jobs.
+ *
+ * Exported for the dashboard's ghost-suggestion actions, which change the
+ * same lists and counts.
+ */
 export function invalidateJobListCaches(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['jobs'] });
   qc.invalidateQueries({ queryKey: ['stats'] });
@@ -54,6 +63,7 @@ export function invalidateJobListCaches(qc: QueryClient) {
   qc.invalidateQueries({ queryKey: ['ghost-suggestions'] });
 }
 
+/** One page of the jobs list, newest application first. */
 export function useJobsQuery(filters: JobsFilters) {
   const params = jobFilterParams(filters);
   params.set('page', String(filters.page));
@@ -68,6 +78,7 @@ export function useJobsQuery(filters: JobsFilters) {
   });
 }
 
+/** Deletes a job and refreshes every job list and count. */
 export function useDeleteJobMutation(onDeleted?: () => void) {
   const qc = useQueryClient();
   return useMutation({
@@ -83,6 +94,11 @@ export function useDeleteJobMutation(onDeleted?: () => void) {
   });
 }
 
+/**
+ * One job with its related records. Polls every 3 seconds while its company
+ * enrichment is pending or processing, so the profile card fills in without a
+ * reload.
+ */
 export function useJobQuery(id: string) {
   return useQuery<Job>({
     queryKey: ['job', id],
@@ -94,12 +110,15 @@ export function useJobQuery(id: string) {
   });
 }
 
-// The backend's max page size. There's no pagination UI on the timeline, so
-// ask for the largest page it will serve — a job with more events than this
-// is far outside normal use, and the newest-first ordering means the newest
-// ones are what survive.
+/**
+ * The backend's max page size. There's no pagination UI on the timeline, so
+ * ask for the largest page it will serve — a job with more events than this
+ * is far outside normal use, and the newest-first ordering means the newest
+ * ones are what survive.
+ */
 const EVENTS_PAGE_SIZE = 200;
 
+/** A job's timeline events, oldest first. */
 export function useJobEventsQuery(id: string) {
   return useQuery<JobEvent[]>({
     queryKey: ['job-events', id],
@@ -117,6 +136,7 @@ export function useJobEventsQuery(id: string) {
   });
 }
 
+/** Changes one job's status from its detail page. */
 export function usePatchJobStatusMutation(id: string) {
   const qc = useQueryClient();
   return useMutation({
@@ -146,10 +166,12 @@ export function usePatchJobStatusMutation(id: string) {
   });
 }
 
-// The four columns the board renders. Sent as `statusIn` so REJECTED and
-// GHOSTED jobs don't consume slots in the page limit and then render in no
-// column at all — with enough closed applications that alone could empty the
-// board.
+/**
+ * The four columns the board renders. Sent as `statusIn` so REJECTED and
+ * GHOSTED jobs don't consume slots in the page limit and then render in no
+ * column at all — with enough closed applications that alone could empty the
+ * board.
+ */
 export const KANBAN_STATUSES: JobStatus[] = [
   'WISHLIST',
   'APPLIED',
@@ -157,25 +179,31 @@ export const KANBAN_STATUSES: JobStatus[] = [
   'OFFER',
 ];
 
-// Max page size the list endpoint will serve. The board is a single page, so
-// a user with more open applications than this sees a subset — `meta.total`
-// says how many matched, and the board surfaces that rather than quietly
-// dropping cards.
+/**
+ * Max page size the list endpoint will serve. The board is a single page, so
+ * a user with more open applications than this sees a subset — `meta.total`
+ * says how many matched, and the board surfaces that rather than quietly
+ * dropping cards.
+ */
 export const KANBAN_PAGE_SIZE = 100;
 
-// The board renders only the four open-pipeline columns, so a status filter
-// that isn't one of them (Rejected, Ghosted) selects nothing the board can
-// draw. Returning an empty list — rather than ignoring the filter — keeps
-// the board honest; KanbanBoard renders an explanation for that case.
+/**
+ * The board renders only the four open-pipeline columns, so a status filter
+ * that isn't one of them (Rejected, Ghosted) selects nothing the board can
+ * draw. Returning an empty list — rather than ignoring the filter — keeps
+ * the board honest; KanbanBoard renders an explanation for that case.
+ */
 export function kanbanStatuses(status: JobStatus | ''): JobStatus[] {
   if (!status) return KANBAN_STATUSES;
   return KANBAN_STATUSES.includes(status) ? [status] : [];
 }
 
-// Must describe the request it caches — the board and the optimistic-drag
-// mutation share this builder, so they can never drift apart. The filters
-// are part of the key: two different filter sets are two different pages of
-// data and must not share a cache entry.
+/**
+ * Must describe the request it caches — the board and the optimistic-drag
+ * mutation share this builder, so they can never drift apart. The filters
+ * are part of the key: two different filter sets are two different pages of
+ * data and must not share a cache entry.
+ */
 export function kanbanQueryKey(filters: JobsFilterValues) {
   return [
     'jobs',
@@ -189,6 +217,7 @@ export function kanbanQueryKey(filters: JobsFilterValues) {
   ] as const;
 }
 
+/** Jobs for the kanban board, limited to the columns it can draw. */
 export function useKanbanJobsQuery(filters: JobsFilterValues) {
   const statuses = kanbanStatuses(filters.status);
   const params = jobFilterParams(filters);
@@ -203,6 +232,10 @@ export function useKanbanJobsQuery(filters: JobsFilterValues) {
   });
 }
 
+/**
+ * Moves a card to another column. Updates the board's cache before the
+ * request so the drag feels instant, and restores it if the request fails.
+ */
 export function useKanbanPatchStatusMutation(filters: JobsFilterValues) {
   const qc = useQueryClient();
   const queryKey = kanbanQueryKey(filters);
@@ -232,6 +265,10 @@ export function useKanbanPatchStatusMutation(filters: JobsFilterValues) {
   });
 }
 
+/**
+ * Job fields extracted from a posting by `/jobs/parse`. Any field may be
+ * missing.
+ */
 export interface ParsedJob {
   company?: string | null;
   position?: string | null;
@@ -243,6 +280,10 @@ export interface ParsedJob {
   parserUnavailable?: true;
 }
 
+/**
+ * Whether the Quick Add input is an http(s) URL rather than pasted posting
+ * text.
+ */
 function looksLikeUrl(value: string): boolean {
   try {
     const parsed = new URL(value.trim());
@@ -252,6 +293,11 @@ function looksLikeUrl(value: string): boolean {
   }
 }
 
+/**
+ * Parses a posting URL or pasted text into job fields for Quick Add, with a
+ * 60-second timeout because the backend fetches and runs an LLM synchronously.
+ * Warns when nothing could be extracted.
+ */
 export function useParseJobMutation(onParsed?: (data: ParsedJob) => void) {
   return useMutation({
     mutationFn: (value: string) => {

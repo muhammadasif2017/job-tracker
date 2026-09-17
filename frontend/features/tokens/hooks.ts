@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 
+/** A personal access token as listed, without its secret. */
 export interface ApiToken {
   id: string;
   name: string;
@@ -10,10 +11,12 @@ export interface ApiToken {
   expiresAt: string;
 }
 
+/** A newly created token. `token` is the raw value, returned only this once. */
 export interface CreatedApiToken extends ApiToken {
   token: string;
 }
 
+/** The user's personal access tokens. */
 export function useTokensQuery() {
   return useQuery({
     queryKey: ['tokens'],
@@ -21,6 +24,10 @@ export function useTokensQuery() {
   });
 }
 
+/**
+ * Creates a personal access token; the caller shows the raw value from the
+ * result.
+ */
 export function useCreateTokenMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -34,6 +41,7 @@ export function useCreateTokenMutation() {
   });
 }
 
+/** Revokes a personal access token. */
 export function useRevokeTokenMutation() {
   const qc = useQueryClient();
   return useMutation({

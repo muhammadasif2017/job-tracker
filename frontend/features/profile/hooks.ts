@@ -4,6 +4,7 @@ import api, { getErrorMessage } from '../../lib/api';
 import { clearAuthStorage, useAuthStore } from '../../store/auth.store';
 import type { DigestFrequency } from '../../types';
 
+/** The signed-in user's profile and notification settings. */
 export function useProfileQuery() {
   return useQuery({
     queryKey: ['profile'],
@@ -11,6 +12,10 @@ export function useProfileQuery() {
   });
 }
 
+/**
+ * Updates the user's name, and copies the result into the auth store so the
+ * sidebar reflects it immediately.
+ */
 export function useUpdateProfileMutation() {
   const { setUser } = useAuthStore();
   const qc = useQueryClient();
@@ -27,12 +32,14 @@ export function useUpdateProfileMutation() {
   });
 }
 
+/** Body for updating reminder, digest and timezone settings. */
 export interface NotificationsUpdate {
   interviewRemindersEnabled: boolean;
   digestFrequency: DigestFrequency;
   timezone: string;
 }
 
+/** Updates reminder, digest and timezone settings. */
 export function useUpdateNotificationsMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -49,6 +56,10 @@ export function useUpdateNotificationsMutation() {
   });
 }
 
+/**
+ * Changes the password. `confirm` is accepted for the form's convenience but
+ * never sent.
+ */
 export function useChangePasswordMutation(onChanged?: () => void) {
   return useMutation({
     mutationFn: ({
@@ -68,6 +79,7 @@ export function useChangePasswordMutation(onChanged?: () => void) {
   });
 }
 
+/** Deletes the account, clears the session and reloads onto `/login`. */
 export function useDeleteAccountMutation() {
   return useMutation({
     mutationFn: () => api.delete('/users/me'),

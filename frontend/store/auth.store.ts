@@ -5,6 +5,7 @@ import { persist } from 'zustand/middleware';
 import type { User } from '../types';
 import { tokenStorage } from '../lib/auth';
 
+/** The signed-in user and the actions that change them. */
 interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
@@ -31,6 +32,12 @@ export function clearAuthStorage(): void {
   document.cookie = 'jt_role=; path=/; max-age=0';
 }
 
+/**
+ * The signed-in user, persisted to localStorage under `jt-auth`. `setAuth`
+ * also stores the access token and sets the `jt_authed` and `jt_role` cookies
+ * that `proxy.ts` reads to guard routes. The refresh token is never here: it
+ * lives in an httpOnly cookie.
+ */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({

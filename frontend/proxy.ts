@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+/** Routes reachable without signing in. */
 const PUBLIC_PATHS = ['/login', '/register', '/callback'];
 
+/**
+ * Route guard run before every matched request. Sends signed-out users to
+ * `/login`, non-admins away from `/admin`, and signed-in users away from the
+ * login and register pages. It trusts the `jt_authed` and `jt_role` cookies,
+ * which are UI hints only: the API enforces the real checks.
+ */
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const isPublic = PUBLIC_PATHS.some(
@@ -28,6 +35,7 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
+/** Runs the proxy on every route except static assets. */
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
 };
