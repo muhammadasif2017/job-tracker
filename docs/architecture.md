@@ -1,6 +1,6 @@
 # Architecture
 
-System-level diagrams. For state and sequence diagrams of individual flows see [`uml.md`](./uml.md). For DB schema detail see [`database-schema.md`](./database-schema.md); for backend/frontend internals see [`backend-overview.md`](./backend-overview.md) and [`frontend-overview.md`](./frontend-overview.md).
+System-level diagrams. For the C4 context, container and component views see [`c4.md`](./c4.md). For state and sequence diagrams of individual flows see [`uml.md`](./uml.md). For DB schema detail see [`database-schema.md`](./database-schema.md); for backend/frontend internals see [`backend-overview.md`](./backend-overview.md) and [`frontend-overview.md`](./frontend-overview.md).
 
 ## System context and data flow
 
