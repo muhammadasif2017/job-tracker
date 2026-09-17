@@ -24,6 +24,10 @@ import {
   useDeleteCompanyMutation,
 } from '../../../features/companies/hooks';
 
+/**
+ * Companies page (`/companies`): filtered list with add, edit, delete, merge,
+ * CSV import and duplicate suggestions.
+ */
 export default function CompaniesPage() {
   const [search, setSearch] = useState('');
   const [cityFilter, setCityFilter] = useState<CompanyCity | ''>('');

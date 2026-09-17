@@ -33,6 +33,7 @@ import {
   useDeleteJobMutation,
 } from '../../../../features/jobs/hooks';
 
+/** A job's activity timeline, oldest first; renders nothing without events. */
 function Timeline({ events }: { events: JobEvent[] }) {
   if (events.length === 0) return null;
 
@@ -85,6 +86,10 @@ function Timeline({ events }: { events: JobEvent[] }) {
   );
 }
 
+/**
+ * Job detail page (`/jobs/:id`): status, details, timeline, resume, interview
+ * rounds, contacts and the company profile.
+ */
 export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();

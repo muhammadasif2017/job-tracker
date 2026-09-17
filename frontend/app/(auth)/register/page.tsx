@@ -12,6 +12,10 @@ import { OAuthButton } from '../../../components/auth/oauth-button';
 import { useAuthStore } from '../../../store/auth.store';
 import api, { getErrorMessage } from '../../../lib/api';
 
+/**
+ * Validation for the signup form, including the matching password
+ * confirmation.
+ */
 const schema = z
   .object({
     name: z.string().min(1, 'Name is required'),
@@ -23,8 +27,13 @@ const schema = z
     message: "Passwords don't match",
     path: ['confirm'],
   });
+/** Values the signup form holds. */
 type FormData = z.infer<typeof schema>;
 
+/**
+ * Signup page (`/register`). Sends the browser's timezone with the new
+ * account.
+ */
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);

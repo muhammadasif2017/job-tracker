@@ -1,5 +1,6 @@
 import Link from 'next/link';
 
+/** 404 page shown inside the signed-in shell. */
 export default function DashboardNotFound() {
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-4 text-center">

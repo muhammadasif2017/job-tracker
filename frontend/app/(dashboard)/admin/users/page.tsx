@@ -13,6 +13,10 @@ import {
   useDeleteAdminUserMutation,
 } from '../../../../features/admin/hooks';
 
+/**
+ * Admin users page (`/admin/users`): searchable, paginated user list with
+ * delete.
+ */
 export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);

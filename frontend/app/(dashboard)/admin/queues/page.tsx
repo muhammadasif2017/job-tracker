@@ -2,6 +2,10 @@
 
 import { QueueHealthPanel } from '../../../../components/admin/queue-health-panel';
 
+/**
+ * Admin queues page (`/admin/queues`): background job depth and enrichment
+ * status.
+ */
 export default function AdminQueuesPage() {
   return (
     <div className="space-y-5">

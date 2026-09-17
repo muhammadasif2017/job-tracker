@@ -28,10 +28,14 @@ import {
   type CreatedApiToken,
 } from '../../../features/tokens/hooks';
 
-// Reads Intl.supportedValuesOf('timeZone'), which depends on the runtime's
-// ICU data — SSR (Node) and hydration (browser) can disagree, which produced
-// a real hydration mismatch on the <option> list. ssr: false keeps it out of
-// the server-rendered HTML entirely so there's nothing to mismatch.
+/**
+ * Timezone select, rendered in the browser only.
+ *
+ * Reads Intl.supportedValuesOf('timeZone'), which depends on the runtime's
+ * ICU data — SSR (Node) and hydration (browser) can disagree, which produced
+ * a real hydration mismatch on the <option> list. ssr: false keeps it out of
+ * the server-rendered HTML entirely so there's nothing to mismatch.
+ */
 const TimezoneField = dynamic(
   () =>
     import('../../../components/profile/timezone-field').then(
@@ -40,13 +44,20 @@ const TimezoneField = dynamic(
   { ssr: false, loading: () => <Skeleton className="h-9 w-full max-w-xs" /> },
 );
 
+/** Validation for the personal info form. */
 const profileSchema = z.object({ name: z.string().min(1, 'Name is required') });
+/** Validation for the email notifications form. */
 const notificationsSchema = z.object({
   interviewRemindersEnabled: z.boolean(),
   digestFrequency: z.enum(DIGEST_FREQUENCIES),
   timezone: z.string().min(1, 'Required'),
 });
+/** Values the email notifications form holds. */
 type NotificationsFormData = z.infer<typeof notificationsSchema>;
+/**
+ * Validation for the change password form, including the matching
+ * confirmation.
+ */
 const passwordSchema = z
   .object({
     currentPassword: z.string().min(1, 'Required'),
@@ -58,11 +69,17 @@ const passwordSchema = z
     path: ['confirm'],
   });
 
+/** Validation for naming a new personal access token. */
 const tokenNameSchema = z.object({
   name: z.string().min(1, 'Required').max(100, 'Max 100 characters'),
 });
+/** Values the new token form holds. */
 type TokenNameFormData = z.infer<typeof tokenNameSchema>;
 
+/**
+ * Profile page (`/profile`): personal info, email notifications, connected
+ * accounts, password, personal access tokens and account deletion.
+ */
 export default function ProfilePage() {
   const { user: storeUser } = useAuthStore();
   const [deleteOpen, setDeleteOpen] = useState(false);

@@ -3,22 +3,30 @@ import { Space_Grotesk, IBM_Plex_Mono, Inter } from 'next/font/google';
 import { Providers } from '../components/providers';
 import './globals.css';
 
+/** Display font, exposed as `--font-display`. */
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
   variable: '--font-display',
 });
+/** Monospace font, exposed as `--font-mono`. */
 const plexMono = IBM_Plex_Mono({
   subsets: ['latin'],
   weight: ['400', '500', '600'],
   variable: '--font-mono',
 });
+/** Body font, exposed as `--font-body`. */
 const inter = Inter({ subsets: ['latin'], variable: '--font-body' });
 
+/** Default page title and description. */
 export const metadata: Metadata = {
   title: 'Job Tracker',
   description: 'Track your job applications in one place',
 };
 
+/**
+ * Root HTML shell: fonts, app providers, and an inline script that applies the
+ * saved or system theme before first paint to avoid a flash.
+ */
 export default function RootLayout({
   children,
 }: {

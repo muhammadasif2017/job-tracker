@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { logBoundaryError } from '../lib/log-error';
 
+/** Last-resort error boundary that replaces the root layout when it fails. */
 export default function GlobalError({
   error,
   unstable_retry,

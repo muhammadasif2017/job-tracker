@@ -22,6 +22,10 @@ import {
   useDeleteCompanyMutation,
 } from '../../../../features/companies/hooks';
 
+/**
+ * Company detail page (`/companies/:id`): research profile, application stats,
+ * linked jobs, contacts, and edit and delete.
+ */
 export default function CompanyDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();

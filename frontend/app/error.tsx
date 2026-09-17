@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { logBoundaryError } from '../lib/log-error';
 import { Button } from '../components/ui/button';
 
+/** Error boundary for routes outside the signed-in shell, with a retry. */
 export default function ErrorPage({
   error,
   unstable_retry,

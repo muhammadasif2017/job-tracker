@@ -43,6 +43,10 @@ import {
   type JobsFilterValues,
 } from '../../../features/jobs/hooks';
 
+/**
+ * Jobs page (`/jobs`): filtered list or kanban board, with add, Quick Add,
+ * edit, delete and CSV export.
+ */
 export default function JobsPage() {
   const [view, setView] = useState<'list' | 'kanban'>('list');
   const [search, setSearch] = useState('');
