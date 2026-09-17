@@ -169,33 +169,36 @@ Daily at midnight, `AuthService` deletes expired `RefreshToken` rows and `Tokens
 
 ## Async pipelines — enrichment, timeline summary & notifications (BullMQ)
 
+### Company enrichment
+
 ```mermaid
-flowchart TB
-    subgraph Enrichment
-        direction LR
-        JC["Company created / re-enrich<br/>or job linked (enqueueIfStale)"] -->|enqueue| EQ["company-target-enrichment<br/>queue (Redis)"]
-        EQ --> EP["CompanyEnrichmentProcessor<br/>lock 90s"]
-        EP --> TAV["Tavily search<br/>+ WebFetchService"]
-        TAV -->|context| GROQ[Groq LLM extraction]
-        GROQ -->|"status, enrichedAt"| CP[(Company)]
-    end
+flowchart LR
+    JC["Company created / re-enrich<br/>or job linked (enqueueIfStale)"] -->|enqueue| EQ["company-target-enrichment<br/>queue (Redis)"]
+    EQ --> EP["CompanyEnrichmentProcessor<br/>lock 90s"]
+    EP --> TAV["Tavily search<br/>+ WebFetchService"]
+    TAV -->|context| GROQ[Groq LLM extraction]
+    GROQ -->|"status, enrichedAt"| CP[(Company)]
+```
 
-    subgraph TimelineSummary["Timeline summary"]
-        direction LR
-        JE["Job / interview round<br/>changed"] -->|enqueue| TQ["job-timeline-summary<br/>queue (Redis)"]
-        TQ --> TP["TimelineSummaryProcessor<br/>lock 90s"]
-        TP -->|reads recent| EV[(JobEvent)]
-        TP --> GROQ2[Groq summarizeEvents]
-        GROQ2 -->|"timelineSummary, timelineSummaryAt"| JOBSUM[(Job)]
-    end
+### Timeline summary
 
-    subgraph Notifications
-        direction LR
-        CRON["Hourly @Cron<br/>NotificationsScheduler"] -->|"enqueue reminder / digest"| NQ["notifications<br/>queue (Redis)"]
-        NQ --> NP[NotificationsProcessor]
-        NP -->|emails.send| RESEND[Resend API]
-        NP -->|"stamps digestedAt / reminderSentAt"| JOBROW[(Job / InterviewRound)]
-    end
+```mermaid
+flowchart LR
+    JE["Job / interview round<br/>changed"] -->|enqueue| TQ["job-timeline-summary<br/>queue (Redis)"]
+    TQ --> TP["TimelineSummaryProcessor<br/>lock 90s"]
+    TP -->|reads recent| EV[(JobEvent)]
+    TP --> GROQ2[Groq summarizeEvents]
+    GROQ2 -->|"timelineSummary, timelineSummaryAt"| JOBSUM[(Job)]
+```
+
+### Notifications
+
+```mermaid
+flowchart LR
+    CRON["Hourly @Cron<br/>NotificationsScheduler"] -->|"enqueue reminder / digest"| NQ["notifications<br/>queue (Redis)"]
+    NQ --> NP[NotificationsProcessor]
+    NP -->|emails.send| RESEND[Resend API]
+    NP -->|"stamps digestedAt / reminderSentAt"| JOBROW[(Job / InterviewRound)]
 ```
 
 Company enrichment moves `status` through PENDING → PROCESSING → COMPLETED / FAILED.
