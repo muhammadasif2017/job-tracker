@@ -4,6 +4,7 @@
 // package isn't worth it (see project CLAUDE.md — don't add a dependency
 // without checking necessity first).
 
+/** Legal-entity words dropped before comparing names, so "Acme Inc" matches "Acme". */
 const COMMON_SUFFIXES = [
   'incorporated',
   'corporation',
@@ -16,6 +17,10 @@ const COMMON_SUFFIXES = [
   'co',
 ];
 
+/**
+ * Lowercases a company name, turns punctuation into spaces, drops the
+ * `COMMON_SUFFIXES` words and collapses whitespace.
+ */
 export function normalizeCompanyName(name: string): string {
   let normalized = name
     .toLowerCase()
@@ -28,6 +33,10 @@ export function normalizeCompanyName(name: string): string {
   return normalized.replace(/\s+/g, ' ').trim();
 }
 
+/**
+ * Reduces a website URL to lowercase host and path, without scheme, `www.`
+ * or trailing slashes, so `https://www.acme.com/` equals `acme.com`.
+ */
 export function normalizeWebsiteUrl(url: string): string {
   return url
     .toLowerCase()
@@ -37,6 +46,7 @@ export function normalizeWebsiteUrl(url: string): string {
     .replace(/\/+$/, '');
 }
 
+/** Edit distance between two strings, keeping only two rows in memory. */
 function levenshteinDistance(a: string, b: string): number {
   if (a === b) return 0;
   if (a.length === 0) return b.length;
@@ -60,8 +70,10 @@ function levenshteinDistance(a: string, b: string): number {
   return prevRow[b.length];
 }
 
-// 1.0 = identical, 0.0 = completely different. Both inputs already
-// normalized (see normalizeCompanyName) — this function doesn't normalize.
+/**
+ * 1.0 = identical, 0.0 = completely different. Both inputs already
+ * normalized (see normalizeCompanyName) — this function doesn't normalize.
+ */
 export function similarityRatio(a: string, b: string): number {
   const maxLength = Math.max(a.length, b.length);
   if (maxLength === 0) return 1;

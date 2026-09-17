@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { UsersController } from './users.controller.js';
 
+/** The signed-in user's profile and settings. */
 @Module({
   providers: [UsersService],
   controllers: [UsersController],

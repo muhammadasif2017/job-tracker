@@ -9,6 +9,7 @@ import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrich
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
 
+/** Admin-only user management and read-only views of the background queues. */
 @Module({
   // Re-registering queues another module owns is how a read-only consumer gets
   // a handle on them — same pattern as HealthModule.

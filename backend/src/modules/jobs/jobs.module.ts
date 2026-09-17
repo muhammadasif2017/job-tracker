@@ -7,6 +7,7 @@ import { EnrichmentModule } from '../enrichment/enrichment.module.js';
 import { CompanyEnrichmentModule } from '../companies/enrichment/company-enrichment.module.js';
 import { TimelineSummaryModule } from '../timeline-summary/timeline-summary.module.js';
 
+/** Job applications: CRUD, stats and parsing a posting into a job. */
 @Module({
   // EnrichmentModule: JobParsingService uses its WebFetch/Search/Llm
   // services directly (for POST /jobs/parse). CompanyEnrichmentModule:

@@ -4,6 +4,10 @@ import { STORAGE_SERVICE } from './storage.service.js';
 import { LocalStorageService } from './local-storage.service.js';
 import { OracleStorageService } from './oracle-storage.service.js';
 
+/**
+ * Provides `STORAGE_SERVICE`, chosen once at boot by `STORAGE_DRIVER`: Oracle
+ * Object Storage for `oracle`, the local filesystem otherwise.
+ */
 @Global()
 @Module({
   providers: [

@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/** Paging metadata returned alongside a page of list results. */
 export class PaginationMetaDto {
   @ApiProperty({ example: 42 })
   total: number;

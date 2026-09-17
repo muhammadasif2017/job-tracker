@@ -1,12 +1,15 @@
 import type { AttentionType } from '../jobs/dto/attention-item.dto.js';
 
+/** A rendered email, ready for `EmailService.send`. */
 interface EmailContent {
   subject: string;
   html: string;
 }
 
-// company/position/stage come from free-text fields (including LLM extraction
-// of external job postings via POST /jobs/parse) — never trust them raw in HTML.
+/**
+ * company/position/stage come from free-text fields (including LLM extraction
+ * of external job postings via POST /jobs/parse) — never trust them raw in HTML.
+ */
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -16,16 +19,23 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#39;');
 }
 
-// Same untrusted fields also land in the email subject, which becomes a raw
-// header line — a CR/LF in there could inject extra headers depending on how
-// far upstream (Resend) sanitizes. Strip them; collapse the resulting gap.
+/**
+ * Same untrusted fields also land in the email subject, which becomes a raw
+ * header line — a CR/LF in there could inject extra headers depending on how
+ * far upstream (Resend) sanitizes. Strip them; collapse the resulting gap.
+ */
 function sanitizeHeaderText(text: string): string {
   return text.replace(/[\r\n]+/g, ' ').trim();
 }
 
+/** Footer link to the profile page, where notifications are turned off. */
 const settingsLink = (frontendUrl: string) =>
   `<p><a href="${frontendUrl}/profile">Manage notification settings</a></p>`;
 
+/**
+ * The reminder sent ahead of a pending interview round, with its time shown
+ * in the user's timezone.
+ */
 export function interviewReminderEmail(input: {
   company: string;
   position: string;
@@ -65,6 +75,7 @@ export function interviewReminderEmail(input: {
   };
 }
 
+/** One digest line: an attention item reduced to what the email shows. */
 export interface AttentionItemForEmail {
   type: AttentionType;
   company: string;
@@ -72,12 +83,14 @@ export interface AttentionItemForEmail {
   since: Date;
 }
 
+/** Label shown for each attention reason. */
 const ATTENTION_LABELS: Record<AttentionType, string> = {
   UPCOMING_INTERVIEW: 'Interview coming up',
   STALE_INTERVIEWING: 'No update in 5+ days',
   STALE_APPLIED: 'No response in 7+ days',
 };
 
+/** The daily or weekly digest listing jobs that need attention. */
 export function digestEmail(input: {
   items: AttentionItemForEmail[];
   frontendUrl: string;
