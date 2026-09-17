@@ -49,34 +49,45 @@ See [docs/architecture.md](docs/architecture.md) for system context, data flow, 
 
 ## Architecture: Company Enrichment
 
-Enrichment runs asynchronously so the API responds immediately (`202 Accepted`) while a background worker gathers and extracts company data:
+Enrichment runs asynchronously so the API responds immediately (`202 Accepted`) while a background worker gathers and extracts company data. The Refresh button calls the endpoint below; creating a company, or adding a job at a never-enriched company, enqueues the same run without it.
 
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant API as NestJS API
+    participant DB as Postgres
     participant Q as BullMQ (Redis)
-    participant W as Enrichment Processor
+    participant W as CompanyEnrichmentProcessor
     participant T as Tavily Search
+    participant S as Company website
     participant G as Groq LLM
 
-    C->>API: POST /jobs/:id/enrichment
-    API->>Q: enqueue job
-    API-->>C: 202 Accepted
+    C->>API: POST /companies/:id/enrichment
+    API->>DB: claim row: status → PENDING (skip if already PENDING/PROCESSING)
+    alt already running
+        API-->>C: 409 Conflict
+    else claimed
+        API->>Q: enqueue 'enrich' (2 attempts)
+        API-->>C: 202 Accepted
+    end
     Q->>W: process
-    W->>W: CompanyProfile → PROCESSING
-    par gather context
-        W->>T: search company overview
+    W->>DB: Company → PROCESSING
+    W->>T: search company overview, tech stack, culture
+    par official site
+        W->>S: fetch homepage
     and
-        W->>T: search tech stack & culture
-    and
-        W->>W: fetch job posting page text
+        W->>S: fetch /about
+    end
+    opt site text too short
+        W->>T: search again, limited to the company domain
     end
     W->>G: extract structured fields (tool calling)
-    G-->>W: industry, techStack, culture, remote policy…
-    W->>W: CompanyProfile → COMPLETED (or FAILED + errorMessage)
-    C->>API: GET /jobs/:id (poll)
-    API-->>C: job with companyProfile
+    G-->>W: industry, tech stack, culture…
+    W->>DB: Company → COMPLETED + enrichedAt (or FAILED + errorMessage)
+    loop every 3s while PENDING or PROCESSING
+        C->>API: GET /companies/:id
+        API-->>C: company with status
+    end
 ```
 
 ## Database Schema
