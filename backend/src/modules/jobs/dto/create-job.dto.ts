@@ -16,20 +16,24 @@ import {
   ApplicationChannel,
 } from '@prisma/client';
 
-// Normalizes to NFKC and trims before validation.
-//
-// Trimming first: without it `@IsNotEmpty()` accepts "   ", which
-// `resolveCompanyId` then trims to "" — silently storing a blank company
-// label with a null companyId. It also keeps `Job.company` byte-identical to
-// the name the Company FK was resolved from, so a later edit's
-// "label unchanged" check can't miss on surrounding whitespace.
-//
-// NFKC folds styled Unicode (Mathematical Bold letters and friends, pasted
-// straight out of a LinkedIn post) down to plain Latin. `buildJobWhere`
-// already normalizes the *search term* the same way; normalizing on write is
-// the other half — otherwise a styled stored value could never be matched by
-// any term the user could type. Existing rows were folded by the
-// add_company_ci_unique_and_job_search_trgm migration.
+/**
+ * Folds a string field to NFKC and trims it before validation.
+ *
+ * Normalizes to NFKC and trims before validation.
+ *
+ * Trimming first: without it `@IsNotEmpty()` accepts "   ", which
+ * `resolveCompanyId` then trims to "" — silently storing a blank company
+ * label with a null companyId. It also keeps `Job.company` byte-identical to
+ * the name the Company FK was resolved from, so a later edit's
+ * "label unchanged" check can't miss on surrounding whitespace.
+ *
+ * NFKC folds styled Unicode (Mathematical Bold letters and friends, pasted
+ * straight out of a LinkedIn post) down to plain Latin. `buildJobWhere`
+ * already normalizes the *search term* the same way; normalizing on write is
+ * the other half — otherwise a styled stored value could never be matched by
+ * any term the user could type. Existing rows were folded by the
+ * add_company_ci_unique_and_job_search_trgm migration.
+ */
 const NormalizedText = () =>
   Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.normalize('NFKC').trim() : value,

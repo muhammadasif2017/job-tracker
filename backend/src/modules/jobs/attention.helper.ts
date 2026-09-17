@@ -6,13 +6,20 @@ import { ATTENTION_TYPES } from './dto/attention-item.dto.js';
 // interviews within 48h, INTERVIEWING jobs with no event for 5 days, and
 // APPLIED jobs with no movement for 7 days.
 
-// Per-bucket cap. This backs a dashboard call-to-action list, not a report —
-// past a few dozen entries it stops being actionable, and every row is a
-// fully-hydrated Job. Each bucket is ordered by urgency first, so a cap drops
-// the least urgent rows. Applied per bucket, before the cross-bucket dedup
-// below, so the returned count can be lower than 3 × the cap.
+/**
+ * Per-bucket cap. This backs a dashboard call-to-action list, not a report —
+ * past a few dozen entries it stops being actionable, and every row is a
+ * fully-hydrated Job. Each bucket is ordered by urgency first, so a cap drops
+ * the least urgent rows. Applied per bucket, before the cross-bucket dedup
+ * below, so the returned count can be lower than 3 × the cap.
+ */
 const MAX_ITEMS_PER_RULE = 50;
 
+/**
+ * The user's attention items across all three rules, each with the date it
+ * applies since. A job matching several rules appears once, under its most
+ * urgent reason. Read by both the dashboard and the digest email.
+ */
 export async function getAttentionItems(prisma: PrismaService, userId: string) {
   const [UPCOMING_INTERVIEW, STALE_INTERVIEWING, STALE_APPLIED] =
     ATTENTION_TYPES;
