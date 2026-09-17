@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { JobStatus } from '@prisma/client';
 
+/** Job count per status. */
 export class ByStatusDto {
   @ApiProperty({ example: 3 }) [JobStatus.WISHLIST]: number;
   @ApiProperty({ example: 12 }) [JobStatus.APPLIED]: number;
@@ -10,6 +11,7 @@ export class ByStatusDto {
   @ApiProperty({ example: 2 }) [JobStatus.GHOSTED]: number;
 }
 
+/** Response for the dashboard headline stats. */
 export class JobStatsDto {
   @ApiProperty({ example: 31 })
   total: number;

@@ -9,9 +9,13 @@ import { CompanyProfileResponseDto } from './company-profile-response.dto.js';
 import { ResumeResponseDto } from '../../resumes/dto/resume-response.dto.js';
 import { InterviewRoundResponseDto } from '../../interview-rounds/dto/interview-round-response.dto.js';
 
-// Only ever populated on the POST /jobs response — a case-insensitive
-// name match against the user's target-company list (soft-link, no FK; see
-// docs/specs/target-companies.md). Never persisted on Job itself.
+/**
+ * A target company whose name matched a newly created job's company.
+ *
+ * Only ever populated on the POST /jobs response — a case-insensitive
+ * name match against the user's target-company list (soft-link, no FK; see
+ * docs/specs/target-companies.md). Never persisted on Job itself.
+ */
 export class MatchedCompanyDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
@@ -20,6 +24,9 @@ export class MatchedCompanyDto {
   name: string;
 }
 
+/**
+ * A job application, with its related records where the endpoint loads them.
+ */
 export class JobResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;
@@ -80,12 +87,14 @@ export class JobResponseDto {
   @ApiPropertyOptional({ format: 'cuid' })
   companyId: string | null;
 
-  // Only findOne's reshaped response actually populates this — PATCH /jobs/:id
-  // returns the raw Prisma update result, which doesn't include companyLink.
-  // Frontend mutations that consume the PATCH response account for this
-  // (e.g. usePatchJobStatusMutation re-grafts the previous companyProfile
-  // rather than trusting the response) — don't add a new PATCH consumer that
-  // reads this field without checking findOne first.
+  /**
+   * Only findOne's reshaped response actually populates this — PATCH /jobs/:id
+   * returns the raw Prisma update result, which doesn't include companyLink.
+   * Frontend mutations that consume the PATCH response account for this
+   * (e.g. usePatchJobStatusMutation re-grafts the previous companyProfile
+   * rather than trusting the response) — don't add a new PATCH consumer that
+   * reads this field without checking findOne first.
+   */
   @ApiPropertyOptional({ type: () => CompanyProfileResponseDto })
   companyProfile: CompanyProfileResponseDto | null;
 

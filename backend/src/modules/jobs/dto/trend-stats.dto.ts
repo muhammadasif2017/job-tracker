@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/** One period in the applications trend chart. */
 export class TrendBucketDto {
   @ApiProperty({ example: 'Jul 24' })
   label: string;
@@ -14,6 +15,7 @@ export class TrendBucketDto {
   cumulative: number;
 }
 
+/** Response for the applications trend chart. */
 export class TrendStatsDto {
   @ApiProperty({ enum: ['day', 'week', 'month'], example: 'week' })
   granularity: 'day' | 'week' | 'month';

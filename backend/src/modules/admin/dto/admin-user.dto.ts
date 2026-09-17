@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
+/** One user row in the admin user list, with their job count. */
 export class AdminUserDto {
   @ApiProperty()
   id: string;

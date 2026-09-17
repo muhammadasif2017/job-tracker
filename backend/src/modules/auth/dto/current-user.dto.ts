@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 
+/** The signed-in user as returned by `GET /auth/me`. */
 export class CurrentUserDto {
   @ApiProperty({ format: 'cuid' })
   id: string;

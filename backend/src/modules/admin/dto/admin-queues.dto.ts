@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/** Job counts for one BullMQ queue, by state. */
 export class QueueCountsDto {
   @ApiProperty({ example: 3 })
   waiting: number;
@@ -17,6 +18,10 @@ export class QueueCountsDto {
   completed: number;
 }
 
+/**
+ * One queue on the admin queues page: its name, whether Redis answered, and
+ * its counts.
+ */
 export class QueueSnapshotDto {
   @ApiProperty({ example: 'company-target-enrichment' })
   name: string;
@@ -36,6 +41,7 @@ export class QueueSnapshotDto {
   counts: QueueCountsDto | null;
 }
 
+/** Number of companies in one enrichment status, across all users. */
 export class CompanyStatusBucketDto {
   @ApiProperty({
     nullable: true,
@@ -57,6 +63,10 @@ export class CompanyStatusBucketDto {
   count: number;
 }
 
+/**
+ * Response for the admin queues page: every queue, global company enrichment
+ * status counts, and stranded PENDING rows.
+ */
 export class QueueObservabilityDto {
   @ApiProperty({ type: () => QueueSnapshotDto, isArray: true })
   queues: QueueSnapshotDto[];

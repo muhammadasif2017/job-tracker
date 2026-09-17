@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { TokenResponseDto } from './token-response.dto.js';
 
+/**
+ * A newly created personal access token, including the raw value shown only
+ * this once.
+ */
 export class CreatedTokenDto extends TokenResponseDto {
   @ApiProperty({
     description: 'Raw token value — shown only once, on creation',

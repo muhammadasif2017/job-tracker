@@ -23,6 +23,7 @@ const NON_NULLABLE_FIELDS = ['name', 'city', 'priority', 'techStack'] as const;
 /** Validates a field only when the key is sent, so an explicit `null` still fails. */
 const whenPresent = () => ValidateIf((_, value) => value !== undefined);
 
+/** Body for editing a target company. */
 export class UpdateCompanyDto extends PartialType(
   OmitType(CreateCompanyDto, NON_NULLABLE_FIELDS),
 ) {

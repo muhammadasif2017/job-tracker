@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { JobStatus, ApplicationChannel, DiscoverySource } from '@prisma/client';
 import { FUNNEL_STAGES, DROPOFF_STAGES } from '../jobs.constants.js';
 
+/** How many jobs ever reached one funnel stage. */
 export class FunnelStageDto {
   @ApiProperty({ enum: FUNNEL_STAGES, example: JobStatus.APPLIED })
   status: (typeof FUNNEL_STAGES)[number];
@@ -13,6 +14,7 @@ export class FunnelStageDto {
   reached: number;
 }
 
+/** How many jobs ended in one drop-off status. */
 export class DropoffStageDto {
   @ApiProperty({ enum: DROPOFF_STAGES, example: JobStatus.REJECTED })
   status: (typeof DROPOFF_STAGES)[number];
@@ -21,6 +23,7 @@ export class DropoffStageDto {
   count: number;
 }
 
+/** Applications and response rate for one application channel. */
 export class SourceResponseRateDto {
   @ApiProperty({
     enum: [...Object.values(ApplicationChannel), 'UNSPECIFIED'],
@@ -39,6 +42,7 @@ export class SourceResponseRateDto {
   responseRate: number;
 }
 
+/** Applications and response rate for one discovery source. */
 export class DiscoverySourceResponseRateDto {
   @ApiProperty({
     enum: [...Object.values(DiscoverySource), 'UNSPECIFIED'],
@@ -57,6 +61,7 @@ export class DiscoverySourceResponseRateDto {
   responseRate: number;
 }
 
+/** How long companies took to reply. */
 export class ReplyTimingDto {
   @ApiProperty({
     example: 12,
@@ -82,6 +87,7 @@ export class ReplyTimingDto {
   repliedAfter14DaysPercent: number;
 }
 
+/** Response for the funnel and response-insights charts. */
 export class FunnelStatsDto {
   @ApiProperty({ type: () => FunnelStageDto, isArray: true })
   funnel: FunnelStageDto[];

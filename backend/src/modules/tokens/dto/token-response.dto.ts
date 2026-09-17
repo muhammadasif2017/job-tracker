@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/** A personal access token as listed, without its secret. */
 export class TokenResponseDto {
   @ApiProperty({ format: 'uuid' })
   id: string;

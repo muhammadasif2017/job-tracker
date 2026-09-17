@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+/** One rejected CSV row and why. */
 export class CsvImportErrorDto {
   @ApiProperty({ example: 3, description: '1-indexed row, header is row 1' })
   row: number;
@@ -11,6 +12,7 @@ export class CsvImportErrorDto {
   message: string;
 }
 
+/** Result of a company CSV import: rows imported and rows rejected. */
 export class CsvImportResultDto {
   @ApiProperty({ example: 12 })
   imported: number;

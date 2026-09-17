@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { JobEventType, JobStatus } from '@prisma/client';
 
+/** One entry in a job's activity timeline. */
 export class JobEventDto {
   @ApiProperty({ format: 'cuid' })
   id: string;

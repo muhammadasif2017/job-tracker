@@ -14,6 +14,9 @@ export const ATTENTION_TYPES = [
 /** One of `ATTENTION_TYPES`. */
 export type AttentionType = (typeof ATTENTION_TYPES)[number];
 
+/**
+ * One dashboard "Needs attention" entry: the reason, since when, and the job.
+ */
 export class AttentionItemDto {
   @ApiProperty({ enum: ATTENTION_TYPES, example: 'STALE_APPLIED' })
   type: AttentionType;

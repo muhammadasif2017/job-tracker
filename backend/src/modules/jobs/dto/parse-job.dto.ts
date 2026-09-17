@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUrl, MaxLength } from 'class-validator';
 
+/** Body for parsing a job posting from a URL or pasted text. */
 export class ParseJobDto {
   @ApiPropertyOptional({ example: 'https://jobs.example.com/123' })
   @IsOptional()

@@ -1,5 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
+/** A contact, attached to exactly one of a job or a company. */
 export class ContactResponseDto {
   @ApiProperty({ format: 'cuid' })
   id: string;

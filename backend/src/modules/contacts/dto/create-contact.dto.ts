@@ -8,6 +8,7 @@ import {
   MaxLength,
 } from 'class-validator';
 
+/** Body for adding a contact to a job or a company. */
 export class CreateContactDto {
   @ApiProperty({ example: 'Jane Doe', maxLength: 200 })
   @IsString()
@@ -15,11 +16,13 @@ export class CreateContactDto {
   @MaxLength(200)
   name: string;
 
-  // `| null` (not just optional) on these fields: the frontend sends an
-  // explicit `null` — not an omitted key — to clear a previously-set value
-  // on edit. Prisma treats an omitted/`undefined` field as "leave it alone"
-  // and only an explicit `null` as "clear it", so the DTO must accept null
-  // to make clearing a field possible at all.
+  /**
+   * `| null` (not just optional) on these fields: the frontend sends an
+   * explicit `null` — not an omitted key — to clear a previously-set value
+   * on edit. Prisma treats an omitted/`undefined` field as "leave it alone"
+   * and only an explicit `null` as "clear it", so the DTO must accept null
+   * to make clearing a field possible at all.
+   */
   @ApiPropertyOptional({ example: 'Recruiter', maxLength: 100 })
   @IsOptional()
   @IsString()
