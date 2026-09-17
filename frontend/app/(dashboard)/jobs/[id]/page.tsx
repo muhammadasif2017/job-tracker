@@ -12,6 +12,7 @@ import {
 import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
+import { LinkifiedText } from '../../../../components/ui/linkified-text';
 import { SourceBadge, StatusBadge } from '../../../../components/ui/badge';
 import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
@@ -239,7 +240,7 @@ export default function JobDetailPage() {
                   Notes
                 </p>
                 <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">
-                  {job.notes}
+                  <LinkifiedText text={job.notes} />
                 </p>
               </div>
             )}
