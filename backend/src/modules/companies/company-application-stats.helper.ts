@@ -7,6 +7,11 @@ import {
 } from '../jobs/jobs.constants.js';
 import { buildSilentJobWhere } from '../jobs/ghost-suggestions.helper.js';
 
+/**
+ * Application history for one company: applications sent, how many got a
+ * reply or were ghosted, the reply rate as a percentage, and the latest
+ * application date.
+ */
 export interface CompanyApplicationStats {
   applied: number;
   replied: number;
@@ -15,6 +20,7 @@ export interface CompanyApplicationStats {
   lastAppliedAt: Date | null;
 }
 
+/** Stats for a company with no applications. Copy it before mutating. */
 export const EMPTY_APPLICATION_STATS: CompanyApplicationStats = {
   applied: 0,
   replied: 0,
@@ -23,12 +29,17 @@ export const EMPTY_APPLICATION_STATS: CompanyApplicationStats = {
   lastAppliedAt: null,
 };
 
-// Per-company application history (docs/specs/company-reply-history.md).
-// Three grouped queries regardless of how many companies are asked for, so
-// the companies list stays O(1) queries per page.
-//
-// "Replied" and "ghosted" can overlap: a job that reached INTERVIEWING and
-// then went silent got a reply *and* was ghosted.
+/**
+ * Stats for each of `companyIds`, keyed by id. Every requested id gets an
+ * entry, zeroed when it has no applications.
+ *
+ * Per-company application history (docs/specs/company-reply-history.md).
+ * Three grouped queries regardless of how many companies are asked for, so
+ * the companies list stays O(1) queries per page.
+ *
+ * "Replied" and "ghosted" can overlap: a job that reached INTERVIEWING and
+ * then went silent got a reply *and* was ghosted.
+ */
 export async function getCompanyApplicationStats(
   prisma: PrismaService,
   userId: string,

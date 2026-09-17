@@ -47,8 +47,10 @@ import { CompanyApplicationHistoryDto } from './dto/company-application-history.
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
-// CSV of company names is tiny — 1 MB comfortably covers a large import
-// while still rejecting an accidentally-wrong file upload early.
+/**
+ * CSV of company names is tiny — 1 MB comfortably covers a large import
+ * while still rejecting an accidentally-wrong file upload early.
+ */
 const MAX_CSV_SIZE = 1 * 1024 * 1024;
 
 /**

@@ -27,21 +27,28 @@ export interface CsvImportResult {
   errors: CsvImportError[];
 }
 
+/** The required header row, compared case-insensitively. */
 const EXPECTED_HEADER = ['name', 'city', 'businessmode'];
 
-// The 1 MB file-size cap doesn't bound row count — short rows can still pack
-// tens of thousands of records into one request. Cap rows independently so a
-// crafted file can't drive a single huge createMany against the shared DB.
+/**
+ * The 1 MB file-size cap doesn't bound row count — short rows can still pack
+ * tens of thousands of records into one request. Cap rows independently so a
+ * crafted file can't drive a single huge createMany against the shared DB.
+ */
 const MAX_CSV_ROWS = 1000;
 
-// Matches CreateCompanyDto's @MaxLength(200) on name — the CSV path writes
-// straight to createMany and bypasses that DTO validation entirely, so this
-// is re-applied by hand here.
+/**
+ * Matches CreateCompanyDto's @MaxLength(200) on name — the CSV path writes
+ * straight to createMany and bypasses that DTO validation entirely, so this
+ * is re-applied by hand here.
+ */
 const MAX_NAME_LENGTH = 200;
 
-// Matches CompaniesService's MAX_COMPANIES_PER_USER — the CSV path bypasses
-// CompaniesService.create entirely, so the per-user cap is re-applied by
-// hand here too.
+/**
+ * Matches CompaniesService's MAX_COMPANIES_PER_USER — the CSV path bypasses
+ * CompaniesService.create entirely, so the per-user cap is re-applied by
+ * hand here too.
+ */
 const MAX_COMPANIES_PER_USER = 2000;
 
 /**

@@ -11,13 +11,16 @@ import {
 } from 'class-validator';
 import { CreateCompanyDto } from './create-company.dto.js';
 
-// These four map to non-nullable columns. PartialType adds `@IsOptional()`,
-// which skips validation for null as well as undefined, so a null reached
-// Prisma and surfaced as a 500. They are redeclared as omittable-but-not-
-// nullable: an omitted key leaves the column alone, an explicit null is a 400.
-// Every other field keeps PartialType's behaviour, where null clears it
-// (ADR-022).
+/**
+ * These four map to non-nullable columns. PartialType adds `@IsOptional()`,
+ * which skips validation for null as well as undefined, so a null reached
+ * Prisma and surfaced as a 500. They are redeclared as omittable-but-not-
+ * nullable: an omitted key leaves the column alone, an explicit null is a 400.
+ * Every other field keeps PartialType's behaviour, where null clears it
+ * (ADR-022).
+ */
 const NON_NULLABLE_FIELDS = ['name', 'city', 'priority', 'techStack'] as const;
+/** Validates a field only when the key is sent, so an explicit `null` still fails. */
 const whenPresent = () => ValidateIf((_, value) => value !== undefined);
 
 export class UpdateCompanyDto extends PartialType(

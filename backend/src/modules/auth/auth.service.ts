@@ -21,7 +21,9 @@ import {
   DUMMY_TOKEN_HASH,
 } from '../tokens/tokens.constants.js';
 
+/** Redis key prefix for one-time OAuth codes. */
 const OAUTH_CODE_PREFIX = 'oauth_code:';
+/** Lifetime of a one-time OAuth code, in seconds. */
 const OAUTH_CODE_TTL_SECONDS = 60;
 
 /**

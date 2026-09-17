@@ -24,14 +24,18 @@ import {
   getCompanyApplicationStats,
 } from './company-application-stats.helper.js';
 
-// Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
-// docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
-// can't be driven arbitrarily large via CSV import; also a sane ceiling for
-// a personal target-companies list regardless of the duplicate-detection cost.
+/**
+ * Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
+ * docs/specs/company-fk-phase5c.md — intentional at this app's scale) so it
+ * can't be driven arbitrarily large via CSV import; also a sane ceiling for
+ * a personal target-companies list regardless of the duplicate-detection cost.
+ */
 const MAX_COMPANIES_PER_USER = 2000;
 
+/** How many of a company's most recent jobs its application history returns. */
 const RECENT_HISTORY_JOBS = 3;
 
+/** Minimum `similarityRatio` of normalized names for a pair to be suggested as duplicates. */
 const NAME_SIMILARITY_THRESHOLD = 0.85;
 
 /**

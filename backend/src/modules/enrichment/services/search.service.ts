@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 
+/** Tavily search API endpoint. */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
 
 /**

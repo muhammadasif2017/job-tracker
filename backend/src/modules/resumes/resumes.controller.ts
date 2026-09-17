@@ -42,7 +42,8 @@ import { ResumesService } from './resumes.service.js';
 import { ResumeResponseDto } from './dto/resume-response.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 
-const MAX_FILE_SIZE = 8 * 1024 * 1024; // 8 MB
+/** Largest resume upload accepted: 8 MB. */
+const MAX_FILE_SIZE = 8 * 1024 * 1024;
 
 /**
  * Resume upload and download, nested under the owning job. Which routes are

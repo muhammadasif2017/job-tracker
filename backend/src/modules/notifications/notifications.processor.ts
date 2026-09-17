@@ -12,7 +12,9 @@ import { interviewReminderEmail, digestEmail } from './templates.js';
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
 
+/** Payload of an `interview-reminder` job. */
 export type InterviewReminderJobData = { roundId: string };
+/** Payload of a `digest` job. */
 export type DigestJobData = { userId: string };
 
 /**

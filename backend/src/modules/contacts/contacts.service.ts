@@ -7,19 +7,28 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { CreateContactDto } from './dto/create-contact.dto.js';
 import { UpdateContactDto } from './dto/update-contact.dto.js';
 
-// Soft cap, not a real-world limit — a legitimate job search or company
-// research effort doesn't produce dozens of contacts for one job/company.
-// Guards against unbounded Contact growth from a scripted client, not a
-// security boundary (contacts are already scoped to the owning user).
+/**
+ * Soft cap, not a real-world limit — a legitimate job search or company
+ * research effort doesn't produce dozens of contacts for one job/company.
+ * Guards against unbounded Contact growth from a scripted client, not a
+ * security boundary (contacts are already scoped to the owning user).
+ */
 const MAX_CONTACTS_PER_PARENT = 20;
 
-// A contact belongs to exactly one parent — which one is determined by
-// which controller/route the caller hit (jobs/:jobId/contacts vs.
-// companies/:companyId/contacts), never by client-supplied data. Every
-// method below takes this as the sole source of truth for both the
-// ownership check and which FK gets written.
+/**
+ * A contact belongs to exactly one parent — which one is determined by
+ * which controller/route the caller hit (jobs/:jobId/contacts vs.
+ * companies/:companyId/contacts), never by client-supplied data. Every
+ * method below takes this as the sole source of truth for both the
+ * ownership check and which FK gets written.
+ */
 type ContactParentRef = { jobId: string } | { companyId: string };
 
+/**
+ * Contacts attached to a job or a company. Every method takes the parent as a
+ * `ContactParentRef` and checks ownership through it, since `Contact` has no
+ * `userId` column of its own (ADR-022).
+ */
 @Injectable()
 export class ContactsService {
   constructor(private prisma: PrismaService) {}
