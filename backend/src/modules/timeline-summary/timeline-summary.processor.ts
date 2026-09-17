@@ -6,15 +6,23 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
 
-// Bounds prompt size/cost for a job with a long event history — a one-line
-// summary only needs recent context, not the full timeline. Mirrors
-// JobsService.getEvents capping `take` at 200 for the same table, just
-// tighter since this feeds an LLM prompt rather than a paginated UI list.
+/**
+ * Bounds prompt size and cost for a job with a long event history — a
+ * one-line summary needs recent context, not the full timeline. Mirrors
+ * `JobsService.getEvents` capping `take` at 200 for the same table, tighter
+ * because this feeds an LLM prompt rather than a paginated UI list.
+ */
 const MAX_EVENTS_FOR_SUMMARY = 50;
 
+/**
+ * Worker that writes a job's LLM timeline summary. Runs are coalesced per job
+ * by `TimelineSummaryService.enqueue`.
+ *
+ * `lockDuration` is the same stall-detection margin as
+ * `CompanyEnrichmentProcessor`, not a runtime ceiling: BullMQ renews the lock
+ * while `process()` runs.
+ */
 @Injectable()
-// Same stall-detection margin as CompanyEnrichmentProcessor. Not a runtime
-// ceiling: BullMQ renews the lock while process() runs.
 @Processor(JOB_TIMELINE_SUMMARY_QUEUE, { lockDuration: 90_000 })
 export class TimelineSummaryProcessor extends WorkerHost {
   constructor(
@@ -25,6 +33,11 @@ export class TimelineSummaryProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * Summarizes the job's most recent events and stores the result. Rethrows
+   * on failure so BullMQ retries; the previous summary stays in place until a
+   * run succeeds.
+   */
   async process(job: Job<{ jobId: string }>): Promise<void> {
     const { jobId } = job.data;
 
