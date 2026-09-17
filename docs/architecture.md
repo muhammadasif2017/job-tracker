@@ -198,7 +198,7 @@ flowchart LR
     CRON["Hourly @Cron<br/>NotificationsScheduler"] -->|"enqueue reminder / digest"| NQ["notifications<br/>queue (Redis)"]
     NQ --> NP[NotificationsProcessor]
     NP -->|emails.send| RESEND[Resend API]
-    NP -->|"stamps reminderSentAt /<br/>stale*DigestedAt"| JOBROW[(Job / InterviewRound)]
+    NP -->|"stamps reminderSentAt,<br/>staleAppliedDigestedAt,<br/>staleInterviewingDigestedAt"| JOBROW[(Job / InterviewRound)]
 ```
 
 Company enrichment moves `status` through PENDING → PROCESSING → COMPLETED / FAILED.
