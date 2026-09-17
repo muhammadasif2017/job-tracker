@@ -12,6 +12,10 @@ import type {
   GhostSuggestion,
 } from '../../types';
 
+/**
+ * Headline dashboard stats for `range`, keeping the previous range on screen
+ * while loading.
+ */
 export function useStatsQuery(range: DashboardRange) {
   return useQuery<JobStats>({
     queryKey: ['stats', range],
@@ -20,6 +24,7 @@ export function useStatsQuery(range: DashboardRange) {
   });
 }
 
+/** Funnel and response-insight stats for `range`. */
 export function useFunnelQuery(range: DashboardRange) {
   return useQuery<FunnelStats>({
     queryKey: ['analytics', 'funnel', range],
@@ -29,6 +34,7 @@ export function useFunnelQuery(range: DashboardRange) {
   });
 }
 
+/** Applications trend buckets for `range`. */
 export function useTrendQuery(range: DashboardRange) {
   return useQuery<TrendStats>({
     queryKey: ['analytics', 'trend', range],
@@ -38,6 +44,7 @@ export function useTrendQuery(range: DashboardRange) {
   });
 }
 
+/** The five most recently created jobs. */
 export function useRecentJobsQuery() {
   return useQuery<PaginatedJobs>({
     queryKey: ['jobs', { limit: 5, sortBy: 'createdAt' }],
@@ -48,6 +55,7 @@ export function useRecentJobsQuery() {
   });
 }
 
+/** The "Needs attention" list. */
 export function useAttentionQuery() {
   return useQuery<AttentionItem[]>({
     queryKey: ['attention'],
@@ -55,19 +63,23 @@ export function useAttentionQuery() {
   });
 }
 
+/** Shared options so the card and the per-job badges use one cache entry. */
 const ghostSuggestionsQuery = {
   queryKey: ['ghost-suggestions'],
   queryFn: (): Promise<GhostSuggestion[]> =>
     api.get('/jobs/ghost-suggestions').then((r) => r.data),
 };
 
+/** The "Looks ghosted" suggestions. */
 export function useGhostSuggestionsQuery() {
   return useQuery(ghostSuggestionsQuery);
 }
 
-// The suggested job ids as a Set, for per-job badges in the list and kanban
-// views. Same query key as the card, so a page full of badges shares one
-// request and one cache entry.
+/**
+ * The suggested job ids as a Set, for per-job badges in the list and kanban
+ * views. Same query key as the card, so a page full of badges shares one
+ * request and one cache entry.
+ */
 export function useGhostSuggestedIds() {
   return useQuery({
     ...ghostSuggestionsQuery,
@@ -75,8 +87,12 @@ export function useGhostSuggestedIds() {
   });
 }
 
-// Takes the job id per call (unlike usePatchJobStatusMutation, which binds one
-// id) because a single card or list renders many suggested jobs.
+/**
+ * Marks one suggested job as GHOSTED.
+ *
+ * Takes the job id per call (unlike usePatchJobStatusMutation, which binds one
+ * id) because a single card or list renders many suggested jobs.
+ */
 export function useMarkJobGhostedMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -93,6 +109,10 @@ export function useMarkJobGhostedMutation() {
   });
 }
 
+/**
+ * Dismisses one ghost suggestion, restarting its 14-day clock. It also quiets
+ * the job's follow-up nudges in Needs Attention.
+ */
 export function useDismissGhostSuggestionMutation() {
   const qc = useQueryClient();
   return useMutation({
@@ -109,6 +129,10 @@ export function useDismissGhostSuggestionMutation() {
   });
 }
 
+/**
+ * Marks every suggestion the user saw as GHOSTED in one request. The server
+ * skips jobs that got activity since the card loaded.
+ */
 export function useMarkAllGhostedMutation() {
   const qc = useQueryClient();
   return useMutation({

@@ -148,6 +148,15 @@ Pulls from `http://localhost:3001/api/docs-json` (Nest Swagger's auto-exposed JS
 
 ---
 
+## Doc Comment Convention
+
+Mirrors `backend/CLAUDE.md`'s convention. Every exported function, hook, component, type and constant carries a `/** */` doc comment, as do module-private helpers. `types/api.generated.ts` is generated and never hand-edited.
+
+- **No `@param`/`@returns`.** The TypeScript signature already states them.
+- **Say why, not what.** A hook's comment names what it fetches or changes plus anything non-obvious about its cache behaviour (polling, optimistic updates, a shared query key). A component's comment says what it renders and where; route pages get one line.
+- **Types mirroring API responses get one line**; a field gets a doc comment only for a constraint the type cannot show, such as why it is nullable or when it is absent.
+- Prefer a doc comment over a `//` block above a declaration; keep `//` for comments inside a function or JSX body.
+
 ## Key Components
 
 See `frontend/COMPONENTS.md` for per-component reference (`JobForm`, `ResumeUpload`, `InterviewRounds`, `KanbanBoard`, `Sidebar`, `providers.tsx`).

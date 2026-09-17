@@ -3,11 +3,13 @@ import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type { PaginatedAdminUsers, QueueObservability } from '../../types';
 
+/** Paging and search state for the admin user list. */
 export interface AdminUsersFilters {
   page: number;
   search: string;
 }
 
+/** One page of the admin user list. */
 export function useAdminUsersQuery(filters: AdminUsersFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -21,6 +23,7 @@ export function useAdminUsersQuery(filters: AdminUsersFilters) {
   });
 }
 
+/** Deletes a user as an admin, then refreshes the user list. */
 export function useDeleteAdminUserMutation(onDeleted?: () => void) {
   const qc = useQueryClient();
   return useMutation({
@@ -35,15 +38,19 @@ export function useDeleteAdminUserMutation(onDeleted?: () => void) {
   });
 }
 
-// Deliberately no `refetchInterval` short enough to be a poll. The stranded
-// state this panel exists to surface does not change second to second, and a
-// runaway 3s poll was half of the bug that motivated the panel — refreshing is
-// a button the admin presses.
-// `enabled` exists for the sidebar badge, which renders for every admin page
-// view — the endpoint is ADMIN-only, so a non-admin session must not fire it
-// at all rather than collect 403s. The panel itself passes nothing and always
-// runs. Both share one cache entry, so opening /admin/queues right after the
-// badge fetched costs no second request.
+/**
+ * Queue and enrichment health for the admin queues page and the sidebar badge.
+ *
+ * Deliberately no `refetchInterval` short enough to be a poll. The stranded
+ * state this panel exists to surface does not change second to second, and a
+ * runaway 3s poll was half of the bug that motivated the panel — refreshing is
+ * a button the admin presses.
+ * `enabled` exists for the sidebar badge, which renders for every admin page
+ * view — the endpoint is ADMIN-only, so a non-admin session must not fire it
+ * at all rather than collect 403s. The panel itself passes nothing and always
+ * runs. Both share one cache entry, so opening /admin/queues right after the
+ * badge fetched costs no second request.
+ */
 export function useAdminQueuesQuery(enabled = true) {
   return useQuery<QueueObservability>({
     queryKey: ['admin-queues'],

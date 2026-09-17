@@ -1,9 +1,14 @@
-// Shared by the three error boundaries (`app/error.tsx`,
-// `app/(dashboard)/error.tsx`, `app/global-error.tsx`). Console-only — there
-// is no remote error sink — so the point is to make what lands in a browser
-// console enough to act on from a screenshot: which boundary caught it, what
-// the user was looking at, and the `digest` that ties a production error back
-// to the server-side stack Next.js logged and stripped from the client bundle.
+/**
+ * Logs an error caught by a Next.js error boundary with enough context to act
+ * on.
+ *
+ * Shared by the three error boundaries (`app/error.tsx`,
+ * `app/(dashboard)/error.tsx`, `app/global-error.tsx`). Console-only — there
+ * is no remote error sink — so the point is to make what lands in a browser
+ * console enough to act on from a screenshot: which boundary caught it, what
+ * the user was looking at, and the `digest` that ties a production error back
+ * to the server-side stack Next.js logged and stripped from the client bundle.
+ */
 export function logBoundaryError(
   error: Error & { digest?: string },
   boundary: string,
