@@ -17,30 +17,42 @@ import {
   type CompanyProfile,
 } from '../types';
 
-// Company and CompanyProfile share the exact same enrichment-field subset
-// (status, industry, ..., enrichedAt) — Company is that subset plus identity
-// fields (name, city, priority, ...). Renders identically from either shape,
-// which is what lets the job-detail and company-detail pages share this one
-// component instead of each hand-maintaining their own field list.
+/**
+ * Any record carrying the enrichment fields.
+ *
+ * Company and CompanyProfile share the exact same enrichment-field subset
+ * (status, industry, ..., enrichedAt) — Company is that subset plus identity
+ * fields (name, city, priority, ...). Renders identically from either shape,
+ * which is what lets the job-detail and company-detail pages share this one
+ * component instead of each hand-maintaining their own field list.
+ */
 type EnrichmentFieldsSource = CompanyProfile | Company;
 
+/** Props for `CompanyProfileCard`. */
 interface Props {
   profile: EnrichmentFieldsSource | null | undefined;
   companyId?: string | null;
-  // Query key to invalidate after a successful Refresh — ['job', jobId] on
-  // the job-detail page, ['company', id] on the company-detail page.
+  /**
+   * Query key to invalidate after a successful Refresh — ['job', jobId] on
+   * the job-detail page, ['company', id] on the company-detail page.
+   */
   invalidateKey: QueryKey;
 }
 
-// Only NO_DATA carries a distinct, actionable message (add a website) — it's
-// not really a failure. Every other cause (rate limit, bad key, vendor
-// outage, ...) reduces to the same action for this app's single technical
-// user: retry, and check server logs yourself if it keeps happening.
-// Deliberately not a vendor-error-text classifier anymore — that regex-based
-// approach previously misclassified Tavily quota exhaustion as a false
-// "not configured correctly" message.
+/**
+ * How a failed enrichment is presented.
+ *
+ * Only NO_DATA carries a distinct, actionable message (add a website) — it's
+ * not really a failure. Every other cause (rate limit, bad key, vendor
+ * outage, ...) reduces to the same action for this app's single technical
+ * user: retry, and check server logs yourself if it keeps happening.
+ * Deliberately not a vendor-error-text classifier anymore — that regex-based
+ * approach previously misclassified Tavily quota exhaustion as a false
+ * "not configured correctly" message.
+ */
 type FailureKind = 'NO_DATA' | 'FAILED';
 
+/** Icon, tone and message for each failure kind. */
 const FAILURE_COPY: Record<
   FailureKind,
   { icon: typeof AlertTriangle; tone: 'amber' | 'red'; message: string }
@@ -59,9 +71,13 @@ const FAILURE_COPY: Record<
   },
 };
 
-// Never falls through to displaying the raw message — an unrecognized shape
-// (e.g. a vendor error format nobody's seen yet) still gets a safe, generic
-// message via 'FAILED' rather than leaking backend/vendor internals to the UI.
+/**
+ * Maps a stored enrichment error to a failure kind.
+ *
+ * Never falls through to displaying the raw message — an unrecognized shape
+ * (e.g. a vendor error format nobody's seen yet) still gets a safe, generic
+ * message via 'FAILED' rather than leaking backend/vendor internals to the UI.
+ */
 function classifyFailure(message: string | null | undefined): FailureKind {
   if (
     message &&
@@ -73,6 +89,10 @@ function classifyFailure(message: string | null | undefined): FailureKind {
   return 'FAILED';
 }
 
+/**
+ * Warning banner for a failed enrichment, with optional text around the
+ * message.
+ */
 function FailureBanner({
   errorMessage,
   prefix,
@@ -112,6 +132,7 @@ function FailureBanner({
   );
 }
 
+/** The enrichment fields grid. */
 function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   return (
     <>
@@ -187,6 +208,10 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
   );
 }
 
+/**
+ * Enrichment card shared by the job and company detail pages: status, the
+ * researched fields, failure banners and a Refresh action.
+ */
 export function CompanyProfileCard({
   profile,
   companyId,

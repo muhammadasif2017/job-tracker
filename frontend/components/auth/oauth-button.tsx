@@ -2,13 +2,22 @@
 
 import { cn } from '../../lib/utils';
 
+/** Props for `OAuthButton`. */
 interface OAuthButtonProps {
   provider: 'google' | 'github';
   className?: string;
 }
 
+/**
+ * Backend base URL; OAuth starts with a full-page navigation to it, not an
+ * XHR.
+ */
 const API = process.env.NEXT_PUBLIC_API_URL;
 
+/**
+ * A "Continue with Google/GitHub" link that starts the provider sign-in on the
+ * backend.
+ */
 export function OAuthButton({ provider, className }: OAuthButtonProps) {
   const label =
     provider === 'google' ? 'Continue with Google' : 'Continue with GitHub';
@@ -29,6 +38,7 @@ export function OAuthButton({ provider, className }: OAuthButtonProps) {
   );
 }
 
+/** The Google "G" mark in its brand colors. */
 function GoogleIcon() {
   return (
     <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -52,6 +62,7 @@ function GoogleIcon() {
   );
 }
 
+/** The GitHub mark, drawn in the current text color. */
 function GitHubIcon() {
   return (
     <svg className="h-4 w-4 fill-current" viewBox="0 0 24 24">

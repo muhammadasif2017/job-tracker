@@ -14,6 +14,10 @@ import type { TrendStats } from '../../types';
 import { EmptyChartState } from './empty-chart-state';
 import { ChartLegend } from './chart-legend';
 
+/**
+ * Applications per period as bars, with the running total as a line on a
+ * second axis.
+ */
 export function TrendChart({ data }: { data: TrendStats }) {
   const chartData = useMemo(
     () =>

@@ -4,11 +4,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
 import { useEffect, useState } from 'react';
 
-// Sonner's richColors palette is fixed per `theme` prop — it doesn't read
-// our CSS custom properties, so without this the error/success toasts stay
-// light-mode pink/green even when the app is in dark mode. Theme here is
-// toggled manually (see theme-toggle.tsx), not via next-themes, so we watch
-// the `.dark` class directly instead of relying on prefers-color-scheme.
+/**
+ * Whether dark mode is on, kept in sync with the `dark` class on `<html>`.
+ *
+ * Sonner's richColors palette is fixed per `theme` prop — it doesn't read
+ * our CSS custom properties, so without this the error/success toasts stay
+ * light-mode pink/green even when the app is in dark mode. Theme here is
+ * toggled manually (see theme-toggle.tsx), not via next-themes, so we watch
+ * the `.dark` class directly instead of relying on prefers-color-scheme.
+ */
 function useIsDark() {
   const [isDark, setIsDark] = useState(false);
 
@@ -25,6 +29,10 @@ function useIsDark() {
   return isDark;
 }
 
+/**
+ * App-wide client providers: the TanStack Query client (60-second stale time,
+ * one retry) and the toast host.
+ */
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>

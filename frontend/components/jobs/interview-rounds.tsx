@@ -18,26 +18,40 @@ import {
 import { DERIVED_STATUS_COLORS, DERIVED_STATUS_LABELS } from '../../types';
 import type { InterviewOutcome, InterviewRound } from '../../types';
 
+/**
+ * Length prefilled for a new round, and assumed for rounds saved before
+ * durations existed.
+ */
 const DEFAULT_ROUND_MINUTES = 60;
 
-// scheduledAt is a real instant (ADR-034, ADR-043) and renders through
-// formatDateTime, which reads local getters. The datetime-local input has to
-// be built on that same local basis or the row and the form disagree, and the
-// changed-field diff below has to compare on it too.
+/**
+ * A round's `scheduledAt` as a `datetime-local` input value in the viewer's
+ * zone.
+ *
+ * scheduledAt is a real instant (ADR-034, ADR-043) and renders through
+ * formatDateTime, which reads local getters. The datetime-local input has to
+ * be built on that same local basis or the row and the form disagree, and the
+ * changed-field diff below has to compare on it too.
+ */
 function toLocalInputValue(scheduledAt: string): string {
   const d = new Date(scheduledAt);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// `<input type="datetime-local">` yields `2026-11-19T14:00` with no offset.
-// Sent as-is the backend would resolve it against the *server's* zone, so the
-// same request means different instants on different hosts. Resolve it here,
-// where the user's own zone is the browser's, and send a real instant.
+/**
+ * A `datetime-local` value as a UTC instant.
+ *
+ * `<input type="datetime-local">` yields `2026-11-19T14:00` with no offset.
+ * Sent as-is the backend would resolve it against the *server's* zone, so the
+ * same request means different instants on different hosts. Resolve it here,
+ * where the user's own zone is the browser's, and send a real instant.
+ */
 function toInstant(localValue: string): string {
   return new Date(localValue).toISOString();
 }
 
+/** A round length as "45 min", "1 hr" or "1 hr 30 min"; null when unknown. */
 function formatDuration(minutes: number | null | undefined): string | null {
   if (!minutes) return null;
   if (minutes < 60) return `${minutes} min`;
@@ -46,6 +60,7 @@ function formatDuration(minutes: number | null | undefined): string | null {
   return m === 0 ? `${h} hr` : `${h} hr ${m} min`;
 }
 
+/** Outcomes offered in the round outcome select. */
 const OUTCOMES: InterviewOutcome[] = [
   'PENDING',
   'PASSED',
@@ -53,11 +68,16 @@ const OUTCOMES: InterviewOutcome[] = [
   'CANCELLED',
 ];
 
+/** Props for `InterviewRounds`. */
 interface InterviewRoundsProps {
   jobId: string;
   rounds: InterviewRound[];
 }
 
+/**
+ * A job's interview rounds: add, edit, remove, set outcomes, save debriefs,
+ * show prep suggestions, and export to a calendar.
+ */
 export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   const [adding, setAdding] = useState(false);
   const [stage, setStage] = useState('');

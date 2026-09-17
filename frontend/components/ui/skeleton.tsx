@@ -1,5 +1,6 @@
 import { cn } from '../../lib/utils';
 
+/** Pulsing placeholder block, hidden from screen readers. */
 export function Skeleton({ className }: { className?: string }) {
   return (
     <div
@@ -9,8 +10,10 @@ export function Skeleton({ className }: { className?: string }) {
   );
 }
 
-// Wraps a block of decorative Skeletons so screen readers get one "loading"
-// announcement instead of silence (the Skeletons themselves are aria-hidden).
+/**
+ * Wraps a block of decorative Skeletons so screen readers get one "loading"
+ * announcement instead of silence (the Skeletons themselves are aria-hidden).
+ */
 export function LoadingStatus({
   label = 'Loading',
   className,

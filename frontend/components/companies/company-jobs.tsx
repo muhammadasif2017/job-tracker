@@ -5,12 +5,17 @@ import { StatusBadge } from '../ui/badge';
 import { formatCivilDate } from '../../lib/utils';
 import type { CompanyJobSummary } from '../../types';
 
+/** Props for `CompanyJobs`. */
 interface CompanyJobsProps {
   jobs: CompanyJobSummary[];
 }
 
-// Phase 6 (docs/specs/company-fk-phase6.md) — read-only list, links to each
-// job's existing detail page rather than duplicating job-edit UI here.
+/**
+ * The jobs linked to a company, each linking to its detail page.
+ *
+ * Phase 6 (docs/specs/company-fk-phase6.md) — read-only list, links to each
+ * job's existing detail page rather than duplicating job-edit UI here.
+ */
 export function CompanyJobs({ jobs }: CompanyJobsProps) {
   return (
     <div className="rounded-md border border-line p-3">

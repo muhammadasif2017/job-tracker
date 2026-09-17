@@ -1,5 +1,9 @@
 import { Skeleton, LoadingStatus } from '../ui/skeleton';
 
+/**
+ * Titled dashboard card that shows a skeleton while loading, a message on
+ * error, and its children otherwise.
+ */
 export function ChartCard({
   title,
   loading,

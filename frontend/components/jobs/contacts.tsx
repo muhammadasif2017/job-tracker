@@ -8,11 +8,13 @@ import {
 } from '../../features/jobs/contacts.hooks';
 import type { Contact } from '../../types';
 
+/** Props for `Contacts`. */
 interface ContactsProps {
   jobId: string;
   contacts: Contact[];
 }
 
+/** A job's contacts: `ContactsPanel` wired to the job contact endpoints. */
 export function Contacts({ jobId, contacts }: ContactsProps) {
   return (
     <ContactsPanel

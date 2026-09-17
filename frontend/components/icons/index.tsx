@@ -10,8 +10,10 @@ import type { SVGProps } from 'react';
 // delete, search, etc.) stay on lucide-react — this set is only the
 // brand-visible surface.
 
+/** Stroke width shared by every icon in the set. */
 const STROKE = 1.75;
 
+/** SVG attributes every icon shares, merged with the caller's props. */
 function base(props: SVGProps<SVGSVGElement>) {
   return {
     viewBox: '0 0 20 20',
@@ -24,8 +26,10 @@ function base(props: SVGProps<SVGSVGElement>) {
   };
 }
 
-// Logo mark: a signal trace with three nodes — the pipeline concept
-// (wishlist → applied → interviewing → offer) distilled into a glyph.
+/**
+ * Logo mark: a signal trace with three nodes — the pipeline concept
+ * (wishlist → applied → interviewing → offer) distilled into a glyph.
+ */
 export function LogoMark(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base({ viewBox: '0 0 24 24', ...props })}>
@@ -37,7 +41,9 @@ export function LogoMark(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Readout meter — three ascending signal bars, for the stats overview.
+/**
+ * Readout meter — three ascending signal bars, for the stats overview.
+ */
 export function IconDashboard(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
@@ -46,7 +52,9 @@ export function IconDashboard(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Pipeline trace — the app's own signature motif, at icon scale.
+/**
+ * Pipeline trace — the app's own signature motif, at icon scale.
+ */
 export function IconJobs(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
@@ -58,7 +66,9 @@ export function IconJobs(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Hub — one entity branching to the roles/contacts tracked under it.
+/**
+ * Hub — one entity branching to the roles/contacts tracked under it.
+ */
 export function IconCompanies(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
@@ -71,7 +81,9 @@ export function IconCompanies(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Beacon — a broadcasting node standing in for "you."
+/**
+ * Beacon — a broadcasting node standing in for "you."
+ */
 export function IconProfile(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
@@ -81,7 +93,9 @@ export function IconProfile(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Keyhole — elevated access.
+/**
+ * Keyhole — elevated access.
+ */
 export function IconAdmin(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>
@@ -92,7 +106,9 @@ export function IconAdmin(props: SVGProps<SVGSVGElement>) {
   );
 }
 
-// Signal exiting through a doorway.
+/**
+ * Signal exiting through a doorway.
+ */
 export function IconSignOut(props: SVGProps<SVGSVGElement>) {
   return (
     <svg {...base(props)}>

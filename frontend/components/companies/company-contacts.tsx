@@ -8,11 +8,16 @@ import {
 } from '../../features/companies/hooks';
 import type { Contact } from '../../types';
 
+/** Props for `CompanyContacts`. */
 interface CompanyContactsProps {
   companyId: string;
   contacts: Contact[];
 }
 
+/**
+ * A company's HR contacts: `ContactsPanel` wired to the company contact
+ * endpoints.
+ */
 export function CompanyContacts({ companyId, contacts }: CompanyContactsProps) {
   return (
     <ContactsPanel

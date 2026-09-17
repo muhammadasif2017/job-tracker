@@ -14,9 +14,14 @@ import {
   useMarkAllGhostedMutation,
 } from '../../features/dashboard/hooks';
 
-// "Looks ghosted": applications with no activity for 14 days. Suggest-only —
-// nothing changes status until the user clicks. See
-// docs/specs/response-insights.md.
+/**
+ * The dashboard "Looks ghosted" card, with per-row mark and dismiss actions
+ * and a confirmed "mark all".
+ *
+ * "Looks ghosted": applications with no activity for 14 days. Suggest-only —
+ * nothing changes status until the user clicks. See
+ * docs/specs/response-insights.md.
+ */
 export function GhostSuggestionsCard() {
   const { data: items, isLoading } = useGhostSuggestionsQuery();
   const markGhosted = useMarkJobGhostedMutation();

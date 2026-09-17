@@ -6,11 +6,16 @@ import { Modal } from '../ui/modal';
 import { JobForm } from './job-form';
 import { useParseJobMutation, type ParsedJob } from '../../features/jobs/hooks';
 
+/** Props for `QuickAdd`. */
 interface QuickAddProps {
   open: boolean;
   onClose: () => void;
 }
 
+/**
+ * Paste a posting URL or text, parse it, then continue in `JobForm` prefilled
+ * with the result.
+ */
 export function QuickAdd({ open, onClose }: QuickAddProps) {
   const [input, setInput] = useState('');
   const [parsed, setParsed] = useState<ParsedJob | null>(null);

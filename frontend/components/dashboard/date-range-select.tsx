@@ -3,6 +3,7 @@
 import { cn } from '../../lib/utils';
 import { DASHBOARD_RANGES, type DashboardRange } from '../../types';
 
+/** Segmented control choosing the dashboard stats range. */
 export function DateRangeSelect({
   value,
   onChange,

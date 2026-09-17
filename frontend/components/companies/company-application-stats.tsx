@@ -3,9 +3,13 @@
 import { formatCivilDate } from '../../lib/utils';
 import type { CompanyApplicationStats } from '../../types';
 
-// docs/specs/company-reply-history.md — how applying to this company has gone.
-// Replied and Ghosted are separate figures, not parts of one total: a job that
-// got an interview and then went silent counts in both.
+/**
+ * A company's applied, replied and ghosted counts with its reply rate.
+ *
+ * docs/specs/company-reply-history.md — how applying to this company has gone.
+ * Replied and Ghosted are separate figures, not parts of one total: a job that
+ * got an interview and then went silent counts in both.
+ */
 export function CompanyApplicationStatsStrip({
   stats,
 }: {
@@ -37,6 +41,7 @@ export function CompanyApplicationStatsStrip({
   );
 }
 
+/** One labelled figure in the stats strip. */
 function Stat({ label, value }: { label: string; value: string | number }) {
   return (
     <div>

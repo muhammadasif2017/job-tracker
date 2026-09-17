@@ -4,6 +4,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 
+/** Props for `Modal`. */
 interface ModalProps {
   open: boolean;
   onClose: () => void;
@@ -13,6 +14,10 @@ interface ModalProps {
   className?: string;
 }
 
+/**
+ * Accessible dialog built on Radix, with a title, optional description, close
+ * button and a scrolling body.
+ */
 export function Modal({
   open,
   onClose,

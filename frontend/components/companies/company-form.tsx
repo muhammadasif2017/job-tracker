@@ -24,6 +24,10 @@ import {
   useCompanyEnrichmentMutation,
 } from '../../features/companies/hooks';
 
+/**
+ * Validation for the company form. Empty optional fields are sent as `null` on
+ * submit.
+ */
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
   city: z.enum(COMPANY_CITIES),
@@ -39,14 +43,22 @@ const schema = z.object({
   techStack: z.string().optional(),
   cultureSummary: z.string().optional(),
 });
+/** Values the company form holds. */
 type FormData = z.infer<typeof schema>;
 
+/**
+ * Props for `CompanyForm`. Passing `company` switches the form to edit mode.
+ */
 interface CompanyFormProps {
   open: boolean;
   onClose: () => void;
   company?: Company;
 }
 
+/**
+ * Modal form for adding or editing a target company, including its enrichment
+ * fields and a research refresh in edit mode.
+ */
 export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
   const isEdit = !!company;
   const [confirmRefresh, setConfirmRefresh] = useState(false);

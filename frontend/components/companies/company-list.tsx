@@ -10,6 +10,9 @@ import {
 } from '../ui/badge';
 import type { Company } from '../../types';
 
+/**
+ * Props for `CompanyList`. The page owns the edit, delete and merge dialogs.
+ */
 interface CompanyListProps {
   companies: Company[];
   isLoading: boolean;
@@ -20,8 +23,10 @@ interface CompanyListProps {
   onMerge: (company: Company) => void;
 }
 
+/** Table column headings; the last column holds the row actions. */
 const COLUMNS = ['Name', 'City', 'Priority', 'Business Mode', 'Research', ''];
 
+/** The companies table, with loading, error and empty states. */
 export function CompanyList({
   companies,
   isLoading,
