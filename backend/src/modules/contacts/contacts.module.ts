@@ -5,6 +5,7 @@ import {
   CompanyContactsController,
 } from './contacts.controller.js';
 
+/** Contacts, reachable under both a job and a company (ADR-022). */
 @Module({
   providers: [ContactsService],
   controllers: [ContactsController, CompanyContactsController],

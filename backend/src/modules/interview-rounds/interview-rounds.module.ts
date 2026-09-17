@@ -4,6 +4,7 @@ import { InterviewRoundsController } from './interview-rounds.controller.js';
 import { EnrichmentModule } from '../enrichment/enrichment.module.js';
 import { TimelineSummaryModule } from '../timeline-summary/timeline-summary.module.js';
 
+/** Interview rounds under a job, including LLM prep suggestions from debriefs. */
 @Module({
   // EnrichmentModule: generates next-round prep suggestions from a debrief
   // (LlmService.generateRoundPrep). TimelineSummaryModule: logRoundEvent

@@ -9,6 +9,11 @@ import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy.js';
 import { GoogleStrategy } from './strategies/google.strategy.js';
 import { GithubStrategy } from './strategies/github.strategy.js';
 
+/**
+ * Login, OAuth, token refresh and the Passport strategies. `JwtModule` is
+ * registered without options because `AuthService` passes the access or
+ * refresh secret on each sign and verify.
+ */
 @Module({
   imports: [PassportModule, JwtModule.register({})],
   providers: [

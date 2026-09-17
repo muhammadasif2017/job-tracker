@@ -5,6 +5,7 @@ import { CompanyEnrichmentService } from './company-enrichment.service.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 
+/** Company profile enrichment: the enqueuing service and its queue worker. */
 @Module({
   imports: [
     BullModule.registerQueue({ name: COMPANY_ENRICHMENT_QUEUE }),

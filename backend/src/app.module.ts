@@ -21,12 +21,17 @@ import { CompaniesModule } from './modules/companies/companies.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { TokensModule } from './modules/tokens/tokens.module.js';
 
+/** Required only when `STORAGE_DRIVER=oracle`; optional for local storage. */
 const ociRequired = Joi.when('STORAGE_DRIVER', {
   is: 'oracle',
   then: Joi.string().required(),
   otherwise: Joi.string().optional(),
 });
 
+/**
+ * BullMQ's connection options from `REDIS_URL`. BullMQ requires
+ * `maxRetriesPerRequest: null` for its blocking worker connections.
+ */
 function parseRedisConnection() {
   const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
   return {
@@ -37,6 +42,12 @@ function parseRedisConnection() {
   };
 }
 
+/**
+ * Root module. Validates the environment at boot, so a missing required
+ * variable stops startup, and wires global rate limiting, cron scheduling, the
+ * BullMQ Redis connection and pino logging with credentials redacted. The JWT,
+ * roles and PAT-scope guards are registered globally in `main.ts`, not here.
+ */
 @Module({
   imports: [
     ConfigModule.forRoot({
