@@ -60,7 +60,7 @@ sequenceDiagram
     U->>P: Import this job
     P->>T: chrome.scripting.executeScript (read page text)
     T-->>P: rendered posting text
-    P->>BG: parseJob {url, text}
+    P->>BG: parseJob (url, text)
     BG->>BG: re-exchange PAT if accessToken near expiry
     BG->>API: POST /jobs/parse (Bearer) — throttled 10/min
     API->>L: extractJobPosting(tab text)
@@ -73,7 +73,7 @@ sequenceDiagram
     P-->>U: preview form
 
     U->>P: Add to Job Tracker (after edits)
-    P->>BG: createJob {payload}
+    P->>BG: createJob (payload)
     BG->>API: POST /jobs (Bearer)
     alt 401 Unauthorized
         BG->>API: POST /auth/token/exchange (force)
@@ -153,7 +153,7 @@ sequenceDiagram
     W->>W: drop stale items already reported (staleAppliedDigestedAt / staleInterviewingDigestedAt)
     opt items left
         W->>E: send digest email
-        alt Resend resolves with {error}
+        alt Resend resolves with an error object
             E-->>W: EmailService throws → BullMQ retries
         else sent
             E-->>W: ok
