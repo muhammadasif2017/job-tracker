@@ -17,9 +17,7 @@ import {
 } from '@prisma/client';
 
 /**
- * Folds a string field to NFKC and trims it before validation.
- *
- * Normalizes to NFKC and trims before validation.
+ * Normalizes a string field to NFKC and trims it before validation.
  *
  * Trimming first: without it `@IsNotEmpty()` accepts "   ", which
  * `resolveCompanyId` then trims to "" — silently storing a blank company
