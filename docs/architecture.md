@@ -2,34 +2,40 @@
 
 System-level diagrams. For DB schema detail see [`database-schema.md`](./database-schema.md); for backend/frontend internals see [`backend-overview.md`](./backend-overview.md) and [`frontend-overview.md`](./frontend-overview.md).
 
-## System context
+## System context and data flow
 
 ```mermaid
 flowchart LR
-    U[User Browser]
+    U[User]
     FE["Frontend<br/>Next.js (Vercel)"]
-    BE["Backend API<br/>NestJS (:3001)"]
-    PG[(PostgreSQL)]
-    RD[(Redis)]
+    EXTN["Browser extension<br/>reads open tab"]
     CADDY["Caddy<br/>TLS reverse proxy"]
-    GOOGLE[Google OAuth]
-    GITHUB[GitHub OAuth]
-    GROQ[Groq LLM]
-    TAVILY[Tavily Search]
+    BE["Backend API<br/>NestJS (:3001)"]
+    PG[("Neon Postgres<br/>store of record")]
+    RD[("Redis<br/>BullMQ queues, OAuth codes,<br/>dedup keys")]
+    OCI[("Oracle Object Storage (prod)<br/>/ local disk (dev)")]
+    OAUTH[Google / GitHub OAuth]
+    GROQ["Groq LLM<br/>openai/gpt-oss-120b"]
+    TAVILY["Tavily Search<br/>+ company websites"]
     RESEND[Resend Email]
-    OCI["Oracle Object Storage<br/>(prod) / local disk (dev)"]
 
-    U --> FE
-    FE -->|"HTTPS BACKEND_DOMAIN"| CADDY --> BE
-    BE --> PG
-    BE <--> RD
-    BE --> GOOGLE
-    BE --> GITHUB
-    BE --> GROQ
-    BE --> TAVILY
-    BE --> RESEND
-    BE --> OCI
+    U -->|UI actions| FE
+    U -->|capture posting| EXTN
+    FE -->|"HTTPS JSON, Bearer JWT<br/>+ jt_refresh cookie"| CADDY
+    EXTN -->|"PAT → short JWT,<br/>create job"| CADDY
+    CADDY -->|reverse_proxy| BE
+    BE <-->|Prisma SQL| PG
+    BE <-.->|enqueue / consume| RD
+    BE -->|"put, delete, presign"| OCI
+    FE -.->|"GET resume via presigned URL"| OCI
+    BE <-->|"redirect, profile"| OAUTH
+    BE <-->|"prompt → JSON"| GROQ
+    BE -.->|"search, page fetch (worker)"| TAVILY
+    BE -.->|"emails.send (worker)"| RESEND
+    RESEND -.->|reminders, digests| U
 ```
+
+Solid arrows run inside a request; dotted arrows run in BullMQ workers or bypass the API. Postgres is the only store of record — Redis holds work in flight. A published visual version of this page lives at <https://claude.ai/artifact/XE3NMk5ubDKpuLh1LnMUXm>.
 
 ## Backend module map (NestJS)
 
@@ -54,35 +60,49 @@ flowchart TB
     subgraph Domain
         USERS[UsersModule]
         JOBS[JobsModule]
+        COMPANIES[CompaniesModule]
         CONTACTS[ContactsModule]
         IROUNDS[InterviewRoundsModule]
         RESUMES[ResumesModule]
+        TOKENS["TokensModule<br/>personal access tokens"]
         ADMIN[AdminModule]
     end
 
     subgraph Async
-        ENRICH["EnrichmentModule<br/>ENRICHMENT_QUEUE"]
-        NOTIF["NotificationsModule<br/>NOTIFICATIONS_QUEUE"]
+        CENRICH["CompanyEnrichmentModule<br/>company-target-enrichment queue"]
+        TSUM["TimelineSummaryModule<br/>job-timeline-summary queue"]
+        NOTIF["NotificationsModule<br/>notifications queue"]
     end
 
     subgraph Infra
+        ENRICH["EnrichmentModule<br/>LlmService, SearchService, WebFetchService"]
         STORAGE["StorageModule (global)<br/>Local | Oracle driver"]
         HEALTH[HealthModule]
     end
 
     AUTHM --> JWTG --> ROLESG
     AUTHM --> STRAT
+    AUTHM -->|PAT exchange| TOKENS
 
     JOBS -->|"ensureJobOwned(userId, jobId)"| CONTACTS
     JOBS -->|"ensureJobOwned(userId, jobId)"| IROUNDS
+    COMPANIES -->|"ensureOwner (company parent)"| CONTACTS
     JOBS --> RESUMES
-    JOBS -.->|triggers on create| ENRICH
+    JOBS -.->|enqueueIfStale| CENRICH
+    COMPANIES -.->|"create / triggerEnrichment"| CENRICH
+    JOBS -.->|enqueue| TSUM
+    IROUNDS -.->|enqueue| TSUM
     IROUNDS -.->|"recomputeNextInterviewAt (tx)"| JOBS
-    IROUNDS -.->|reminder scheduling| NOTIF
+    JOBS -->|"extractJobPosting (sync)"| ENRICH
+    IROUNDS -->|"generateRoundPrep (sync)"| ENRICH
+    CENRICH --> ENRICH
+    TSUM --> ENRICH
     RESUMES --> STORAGE
     ADMIN --> USERS
+    ADMIN -.->|queue dashboard| BULL
 
-    BULL --> ENRICH
+    BULL --> CENRICH
+    BULL --> TSUM
     BULL --> NOTIF
 ```
 
@@ -124,18 +144,34 @@ sequenceDiagram
         BE->>DB: soft-revoke old row, insert new row
         BE-->>FE: new accessToken + new jt_refresh
     end
+
+    Note over B,DB: Browser extension (personal access token)
+    B->>BE: POST /auth/token/exchange {PAT}
+    BE->>DB: bcrypt-compare ApiToken, check revokedAt + expiresAt
+    BE-->>B: short-lived accessToken (no refresh cookie)
+    B->>BE: API call with Bearer accessToken
 ```
 
-## Async pipelines — enrichment & notifications (BullMQ)
+Daily at midnight, `AuthService` deletes expired `RefreshToken` rows and `TokensService` deletes expired `ApiToken` rows.
+
+## Async pipelines — enrichment, timeline summary & notifications (BullMQ)
 
 ```mermaid
 flowchart LR
     subgraph Enrichment
-        JC["Job created"] -->|enqueue| EQ["ENRICHMENT_QUEUE (Redis)"]
-        EQ --> EP[EnrichmentProcessor]
-        EP --> TAV[Tavily search]
-        EP --> GROQ[Groq LLM extraction]
-        EP -->|"status: PENDING→PROCESSING→COMPLETED/FAILED"| CP[(CompanyProfile)]
+        JC["Company created / re-enrich<br/>or job linked (enqueueIfStale)"] -->|enqueue| EQ["company-target-enrichment<br/>queue (Redis)"]
+        EQ --> EP["CompanyEnrichmentProcessor<br/>lock 90s"]
+        EP --> TAV["Tavily search<br/>+ WebFetchService"]
+        TAV -->|context| GROQ[Groq LLM extraction]
+        GROQ -->|"status: PENDING→PROCESSING→COMPLETED/FAILED,<br/>enrichedAt"| CP[(Company)]
+    end
+
+    subgraph TimelineSummary["Timeline summary"]
+        JE["Job / interview round<br/>changed"] -->|enqueue| TQ["job-timeline-summary<br/>queue (Redis)"]
+        TQ --> TP["TimelineSummaryProcessor<br/>lock 90s"]
+        TP -->|reads recent| EV[(JobEvent)]
+        TP --> GROQ2[Groq summarizeEvents]
+        GROQ2 -->|"timelineSummary, timelineSummaryAt"| JOBSUM[(Job)]
     end
 
     subgraph Notifications
@@ -193,12 +229,14 @@ flowchart LR
     subgraph "VM (Caddy + Docker Compose)"
         CADDY["Caddy<br/>Let's Encrypt TLS, :80/:443"]
         BE["backend container<br/>:3001"]
-        PG[(postgres container)]
-        RD[(redis container)]
+        RD[("redis container<br/>appendonly, noeviction")]
     end
+    PG[("Neon Postgres<br/>managed")]
     EXT["Groq / Tavily / Resend /<br/>Google & GitHub OAuth / OCI Storage"]
+    EXTN[Browser extension]
 
     FE -->|HTTPS BACKEND_DOMAIN| CADDY --> BE
+    EXTN -->|HTTPS BACKEND_DOMAIN| CADDY
     BE --> PG
     BE --> RD
     BE --> EXT
