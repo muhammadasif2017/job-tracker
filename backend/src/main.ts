@@ -12,6 +12,14 @@ import { RolesGuard } from './common/guards/roles.guard.js';
 import { PatScopeGuard } from './common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
 
+/**
+ * Boots the API: proxy trust, security headers, cookies, CORS, request
+ * validation, the global guards and exception filter, and non-production
+ * Swagger docs at `/api/docs`.
+ *
+ * Guard order matters: `JwtAuthGuard` resolves `request.user` before
+ * `RolesGuard` and `PatScopeGuard` read it.
+ */
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
