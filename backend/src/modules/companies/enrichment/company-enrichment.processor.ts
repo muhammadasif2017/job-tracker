@@ -17,21 +17,34 @@ import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 import { techFromJobTitles } from '../../../common/tech-tokens.js';
 
-// Character budget for each labeled section of the assembled LLM context.
-// Both sit well inside gpt-oss-120b's window: the previous 6000/3500 pair
-// capped the whole context at ~9500 characters, which made the budget - not
-// the model - the binding constraint on extraction quality. 16000 admits a
-// full homepage and /about (WebFetchService caps each page at
-// LLM_CONTEXT_BUDGET = 8000), and 8000 admits all five Tavily snippets plus
-// the `[Summary]` that SearchService deliberately appends last; at 3500 that
-// summary was routinely cut off entirely. See ADR-038.
+/**
+ * Character budget for the official-website section of the assembled LLM
+ * context. Both budgets sit well inside gpt-oss-120b's window: the previous
+ * 6000/3500 pair capped the whole context at ~9500 characters, which made the
+ * budget - not the model - the binding constraint on extraction quality.
+ * 16000 admits a full homepage and /about (WebFetchService caps each page at
+ * LLM_CONTEXT_BUDGET = 8000). See ADR-038.
+ */
 const OFFICIAL_SECTION_BUDGET = 16_000;
+/**
+ * Character budget for the web-search section. 8000 admits all five Tavily
+ * snippets plus the `[Summary]` that SearchService deliberately appends last;
+ * at 3500 that summary was routinely cut off entirely. See ADR-038.
+ */
 const SEARCH_SECTION_BUDGET = 8_000;
 
+/**
+ * Worker that builds a target company's profile: gathers official-site text,
+ * web search snippets and the user's tracked job titles, has the LLM extract
+ * the profile fields, and writes them back without discarding last-known-good
+ * data.
+ *
+ * `lockDuration` of 90s is stall-detection margin, not a runtime ceiling:
+ * BullMQ renews the lock while `process()` is running, so it only expires if
+ * the worker crashes or its event loop is blocked. See
+ * docs/company-profile-enrichment.md §3.
+ */
 @Injectable()
-// 90s is stall-detection margin, not a runtime ceiling: BullMQ renews the lock
-// while process() is running, so it only expires if the worker crashes or its
-// event loop is blocked. See docs/company-profile-enrichment.md §3.
 @Processor(COMPANY_ENRICHMENT_QUEUE, { lockDuration: 90_000 })
 export class CompanyEnrichmentProcessor extends WorkerHost {
   constructor(
@@ -44,6 +57,12 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * Runs one enrichment attempt for a company. Search quota and bad-key
+   * failures that leave no context throw `UnrecoverableError` so BullMQ does
+   * not retry them; other failures rethrow for a retry unless an extraction
+   * was already salvaged. A company deleted mid-run is left alone.
+   */
   async process(job: Job<{ companyId: string }>): Promise<void> {
     const { companyId } = job.data;
     const startedAt = Date.now();
@@ -274,6 +293,13 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     }
   }
 
+  /**
+   * Records the outcome of a run that threw. If the LLM extraction already
+   * succeeded before a later step failed, saves it as a completed profile and
+   * returns true so the job is not retried; otherwise marks the company
+   * FAILED and returns false. Never throws — a failed status write is only
+   * logged, so the original error is what reaches BullMQ.
+   */
   private async recordFailureOutcome(
     companyId: string,
     company: string,
@@ -316,12 +342,15 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     }
   }
 
-  // A re-run's search/fetch context can be thinner than the run that first
-  // populated a field (rate-limited search, official site down, etc.) — the
-  // LLM then has nothing to extract and returns null for that field. Falling
-  // back to `previous` per-field means a weak run only fills gaps or
-  // overwrites fields it actually found something for, instead of wiping
-  // last-known-good data whenever any single field comes back empty.
+  /**
+   * The COMPLETED update for a fresh extraction, merged field by field with
+   * `previous`. A re-run's search/fetch context can be thinner than the run
+   * that first populated a field (rate-limited search, official site down,
+   * etc.) — the LLM then has nothing to extract and returns null for that
+   * field. Falling back to `previous` per field means a weak run only fills
+   * gaps or overwrites fields it actually found something for, instead of
+   * wiping last-known-good data whenever any single field comes back empty.
+   */
   private buildCompletedProfileData(data: CompanyData, previous: Company) {
     return {
       status: EnrichmentStatus.COMPLETED,
@@ -343,6 +372,11 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     };
   }
 
+  /**
+   * The bare host of the company's website, or undefined when there is none,
+   * it does not parse, or it is a job board — a job board's pages describe
+   * the board, not the company.
+   */
   private extractDomain(url: string | null): string | undefined {
     if (!url) return undefined;
     try {
