@@ -45,7 +45,7 @@
     "recharts": "^3.10.1",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3",
+    "zod": "^4.6.5",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
@@ -60,7 +60,7 @@
     "@vitejs/plugin-react": "^6.1.0",
     "@vitest/coverage-v8": "^5.0.0",
     "eslint": "^9.39.5",
-    "eslint-config-next": "16.3.4",
+    "eslint-config-next": "16.3.5",
     "eslint-config-prettier": "^10.1.8",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.3.0",
