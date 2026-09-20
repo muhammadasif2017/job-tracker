@@ -27,7 +27,7 @@
     "@aws-sdk/s3-request-presigner": "^3.1119.0",
     "@nestjs/bullmq": "^11.0.5",
     "@nestjs/common": "^11.2.3",
-    "@nestjs/config": "^4.0.4",
+    "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^11.1.29",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "^2.1.1",
