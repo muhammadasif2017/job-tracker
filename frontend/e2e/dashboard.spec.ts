@@ -129,17 +129,17 @@ test.describe('Dashboard', () => {
       .first();
     const totalValue = totalCard.locator('.text-3xl');
 
-    // Defaults to 90d — A + B = 2
-    await expect(ninetyDay).toHaveClass(/bg-accent/);
-    await expect(totalValue).toHaveText('2');
+    // Defaults to All — A + B + C = 3
+    await expect(all).toHaveClass(/bg-accent/);
+    await expect(totalValue).toHaveText('3');
 
     await thirtyDay.click();
     await expect(thirtyDay).toHaveClass(/bg-accent/);
     await expect(totalValue).toHaveText('1');
 
-    await all.click();
-    await expect(all).toHaveClass(/bg-accent/);
-    await expect(totalValue).toHaveText('3');
+    await ninetyDay.click();
+    await expect(ninetyDay).toHaveClass(/bg-accent/);
+    await expect(totalValue).toHaveText('2');
 
     await deleteTestJob(user.accessToken, jobA.id);
     await deleteTestJob(user.accessToken, jobB.id);

@@ -63,7 +63,7 @@ const TrendChart = dynamic(
  * recent activity for the chosen range.
  */
 export default function DashboardPage() {
-  const [range, setRange] = useState<DashboardRange>('90d');
+  const [range, setRange] = useState<DashboardRange>('all');
 
   const {
     data: stats,

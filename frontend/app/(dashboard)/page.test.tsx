@@ -293,7 +293,7 @@ describe('DashboardPage', () => {
     renderPage();
 
     await waitFor(() =>
-      expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats?range=90d'),
+      expect(vi.mocked(api.get)).toHaveBeenCalledWith('/jobs/stats?range=all'),
     );
 
     fireEvent.click(screen.getByRole('button', { name: '30d' }));
