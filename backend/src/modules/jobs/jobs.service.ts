@@ -12,15 +12,17 @@ import { TimelineSummaryService } from '../timeline-summary/timeline-summary.ser
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { JobStatus, JobEventType, JobType, CompanyCity } from '@prisma/client';
+import { JobStatus, JobEventType, JobType } from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
 } from '../../storage/storage.service.js';
 import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
-import { buildGhostSuggestionWhere } from './ghost-suggestions.helper.js';
-import { localCivilDay } from '../../common/timezone.util.js';
-import { findUserTimeZone } from '../../common/user-timezone.js';
+import { JobCompanyLinkService } from './job-company-link.service.js';
+import { JobGhostingService } from './job-ghosting.service.js';
+import { civilDateFromInput, todayFor } from './jobs-dates.helper.js';
+import { buildUpdateData } from './job-update-data.helper.js';
+import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
 /**
@@ -57,161 +59,22 @@ export class JobsService {
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
     private timelineSummary: TimelineSummaryService,
+    private companyLink: JobCompanyLinkService,
+    private ghosting: JobGhostingService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
     private logger: Logger,
   ) {}
 
   /**
-   * The civil date a client named. A date-only string already parses to UTC
-   * midnight; a full ISO datetime, which the DTO's validator also accepts,
-   * is floored to the UTC day it names rather than smuggling a time of day
-   * into the column.
-   */
-  private static civilDateFromInput(value: string): Date {
-    const parsed = new Date(value);
-    // A date-only string already parses to UTC midnight; a full ISO datetime
-    // (which the DTO's @IsDateString also accepts) gets floored to the UTC
-    // day it names rather than smuggling a time-of-day into the column.
-    return new Date(
-      Date.UTC(
-        parsed.getUTCFullYear(),
-        parsed.getUTCMonth(),
-        parsed.getUTCDate(),
-      ),
-    );
-  }
-
-  /**
-   * The civil date we infer — the user's own today, not the server's. A
-   * UTC+5 user applying at 02:00 local is on the next calendar day from a
-   * UTC server's point of view, and the date they see in the list must be
-   * the one they would write down.
-   */
-  private async todayFor(userId: string): Promise<Date> {
-    const { timeZone } = await findUserTimeZone(this.prisma, userId);
-    return localCivilDay(new Date(), timeZone);
-  }
-
-  /**
    * Timeline-summary regeneration is best-effort — a queue or model hiccup
    * must never fail the job mutation that triggered it.
    */
-  private async enqueueTimelineSummary(jobId: string): Promise<void> {
-    try {
-      await this.timelineSummary.enqueue(jobId);
-    } catch (err: unknown) {
-      this.logger.warn('Timeline summary enqueue failed', { jobId, err });
-    }
-  }
-
-  /**
-   * Queues enrichment for a company a job was just re-linked to.
-   *
-   * Editing a job's company label re-resolves the FK, and
-   * `resolveCompanyId` auto-creates the row when no company of that name
-   * exists yet. Without this call nothing ever queued a run for it, and
-   * `findOne` renders a null status as PENDING — so correcting a typo'd
-   * company name left the profile showing "Queued…" forever, with the job
-   * page polling for a state that never changed.
-   *
-   * `enqueueIfStale`, not `enqueueEnrichment`: re-linking to a company that
-   * is already enriched, running or failed must not re-burn search quota
-   * (ADR-035).
-   */
-  private async enqueueRelinkedCompany(
-    jobId: string,
-    companyId: string | null,
-  ): Promise<void> {
-    if (!companyId) return;
-    try {
-      await this.companyEnrichment.enqueueIfStale(companyId);
-    } catch (err: unknown) {
-      // Best-effort, same contract as create() — the job update stands.
-      this.logger.warn('Enrichment enqueue failed', { jobId, companyId, err });
-    }
-  }
-
-  /**
-   * Find-or-create for the `Job.companyId` FK, matching on the name the
-   * user typed. Case-insensitive exact, no fuzzy matching
-   * (docs/specs/target-companies.md, Assumption 6), and it never
-   * overwrites an existing company's fields as a side effect of linking a
-   * job to it.
-   *
-   * `matched` is true only for a pre-existing company — callers use it to
-   * tell "linked to a company you already saved" from "this row was
-   * auto-created". The loser of a create race counts as the latter, exactly
-   * as a plain non-concurrent create would have.
-   *
-   * Concurrency is the database's job. The functional unique index on
-   * `(userId, lower(name))` — see the `add_company_ci_unique` migration —
-   * makes a case-variant duplicate an ordinary
-   * unique violation, so a losing racer gets P2002 and the winner's row is
-   * already committed and findable. This replaced a Serializable
-   * transaction wrapped in an eight-attempt retry loop: the
-   * case-insensitive `findFirst` had no index to match, so Serializable
-   * predicate-locked the user's entire name range and two creates for
-   * completely unrelated companies aborted each other — a standing tax on
-   * exactly the bulk paths that matter, the browser extension and CSV
-   * import (ADR-029).
-   */
-  private async resolveCompanyId(
-    userId: string,
-    trimmedName: string,
-    // `string | null` (not just `undefined`) because the DTO convention here
-    // types clearable fields that way — see CLAUDE.md / ADR-022.
-    location?: string | null,
-  ): Promise<{
-    company: { id: string; name: string } | null;
-    matched: boolean;
-  }> {
-    if (!trimmedName) return { company: null, matched: false };
-
-    const existing = await this.prisma.company.findFirst({
-      where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
-      select: { id: true, name: true },
-    });
-    if (existing) return { company: existing, matched: true };
-
-    try {
-      const created = await this.prisma.company.create({
-        // The job's location is seeded onto the auto-created row purely as an
-        // enrichment anchor: LlmService.extract turns Company.location into a
-        // disambiguation hint ("prefer content consistent with a company
-        // operating in or near this location"), and without it a small
-        // company's search results — which routinely mix in several unrelated
-        // same-named businesses — give the model nothing to tell them apart.
-        // Only ever set at creation, so it can't overwrite a location the
-        // user has since corrected on an existing company.
-        data: {
-          userId,
-          name: trimmedName,
-          city: CompanyCity.OTHER,
-          location: location?.trim() || undefined,
-        },
-        select: { id: true, name: true },
-      });
-      return { company: created, matched: false };
-    } catch (err: unknown) {
-      const code =
-        err && typeof err === 'object' && 'code' in err
-          ? (err as { code?: unknown }).code
-          : undefined;
-      if (code !== 'P2002') throw err;
-
-      // Lost the race. The conflicting row is committed by definition — a
-      // unique violation can't be raised against an uncommitted one — so
-      // this re-fetch resolves it. A null here would mean the row was
-      // deleted between the violation and this read, which no code path
-      // does mid-request; rethrowing lets GlobalExceptionFilter map the
-      // P2002 to a 409 rather than inventing a wrong answer.
-      const raced = await this.prisma.company.findFirst({
-        where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
-        select: { id: true, name: true },
-      });
-      if (!raced) throw err;
-      return { company: raced, matched: false };
-    }
+  private enqueueTimelineSummary(jobId: string): Promise<void> {
+    return bestEffortEnqueueTimelineSummary(
+      this.timelineSummary,
+      this.logger,
+      jobId,
+    );
   }
 
   /**
@@ -227,10 +90,14 @@ export class JobsService {
     const initialStatus = dto.status ?? JobStatus.APPLIED;
     const trimmedCompanyName = dto.company.trim();
     const [{ company, matched }, appliedAt] = await Promise.all([
-      this.resolveCompanyId(userId, trimmedCompanyName, dto.location),
+      this.companyLink.resolveCompanyId(
+        userId,
+        trimmedCompanyName,
+        dto.location,
+      ),
       dto.appliedAt
-        ? Promise.resolve(JobsService.civilDateFromInput(dto.appliedAt))
-        : this.todayFor(userId),
+        ? Promise.resolve(civilDateFromInput(dto.appliedAt))
+        : todayFor(this.prisma, userId),
     ]);
     // matchedCompany drives the "saved as a target company" banner in the
     // response — must stay null for a row we just silently auto-created.
@@ -257,6 +124,11 @@ export class JobsService {
         },
       },
     });
+    // Kept inline rather than routed through
+    // `JobCompanyLinkService.enqueueRelinkedCompany`: same best-effort
+    // contract and same log line, but this is the create path, not a
+    // re-link. Change one and change the other.
+    //
     // Company-scoped, not job-scoped (see docs/specs/company-fk-phase3b.md)
     // — one AI research run per company, not duplicated per job at that
     // company. enqueueIfStale, not enqueueEnrichment, is what actually
@@ -412,28 +284,6 @@ export class JobsService {
   }
 
   /**
-   * The plain field writes shared by every update path. Status is
-   * deliberately absent: it is either unchanged, and there is nothing to
-   * write, or it is changing, and the compare-and-swap branch in `update`
-   * owns it.
-   */
-  private buildUpdateData(dto: UpdateJobDto) {
-    return {
-      company: dto.company,
-      position: dto.position,
-      location: dto.location,
-      url: dto.url,
-      jobType: dto.jobType,
-      discoverySource: dto.discoverySource,
-      applicationChannel: dto.applicationChannel,
-      notes: dto.notes,
-      appliedAt: dto.appliedAt
-        ? JobsService.civilDateFromInput(dto.appliedAt)
-        : undefined,
-    };
-  }
-
-  /**
    * Edits a job. Three things here are more than a field write.
    *
    * A status change is a compare-and-swap against the status just read,
@@ -457,7 +307,7 @@ export class JobsService {
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
     const statusChanged = dto.status && dto.status !== existing.status;
-    const baseData = this.buildUpdateData(dto);
+    const baseData = buildUpdateData(dto);
 
     // Re-link companyId whenever the caller actually sent a company name —
     // otherwise `company` (the display string) and `companyId` (the FK) can
@@ -499,7 +349,7 @@ export class JobsService {
         // Same location anchor create() seeds onto an auto-created company.
         // An explicit null (location cleared in this edit) wins over the
         // stored value; only an omitted field falls back to it.
-        const { company } = await this.resolveCompanyId(
+        const { company } = await this.companyLink.resolveCompanyId(
           userId,
           trimmedCompany,
           dto.location !== undefined ? dto.location : existing.location,
@@ -536,7 +386,7 @@ export class JobsService {
       submittedAppliedAt !== undefined &&
       submittedAppliedAt.getTime() !== existing.appliedAt.getTime();
     if (leftWishlist && !appliedAtEdited) {
-      data = { ...data, appliedAt: await this.todayFor(userId) };
+      data = { ...data, appliedAt: await todayFor(this.prisma, userId) };
     }
 
     if (!statusChanged) {
@@ -545,7 +395,7 @@ export class JobsService {
         include: { resume: true },
         data,
       });
-      await this.enqueueRelinkedCompany(jobId, relinkedCompanyId);
+      await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
       return withUpcomingInterview(updated);
     }
 
@@ -584,72 +434,23 @@ export class JobsService {
       });
     });
 
-    await this.enqueueRelinkedCompany(jobId, relinkedCompanyId);
+    await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
     await this.enqueueTimelineSummary(jobId);
     return withUpcomingInterview(result);
   }
 
   /**
-   * The bulk "mark all ghosted" action.
-   *
-   * The ids are what the user saw on the card, which may be stale by the
-   * time they confirm — so each is re-checked against the live rule, scoped
-   * by userId so another user's id never matches, and anything that got
-   * activity or was dismissed in between is skipped.
-   *
-   * One statement per status the ghost rule allows, each carrying that
-   * status and the live eligibility rule in its WHERE — so eligibility and
-   * the compare-and-swap are one atomic step and every moved row's previous
-   * status is known — then one statement for all the events, all in one
-   * transaction. Going through `update` per job cost several round trips
-   * each, for up to `MAX_GHOST_SUGGESTIONS` jobs per request. Nothing else `update` does applies here: no job leaves WISHLIST
-   * and no company label changes. If a new side effect is added to
-   * `update`'s status-change path, add it here too.
+   * The bulk "mark all ghosted" action — see `JobGhostingService`.
    */
-  async markGhosted(userId: string, jobIds: string[]) {
-    const ghostWhere = buildGhostSuggestionWhere(userId, new Date());
-    const ids = [...new Set(jobIds)];
-
-    const moved = await this.prisma.$transaction(async (tx) => {
-      const rows: { id: string; fromStatus: JobStatus }[] = [];
-      for (const fromStatus of ghostWhere.status.in) {
-        const updated = await tx.job.updateManyAndReturn({
-          where: { ...ghostWhere, id: { in: ids }, status: fromStatus },
-          data: { status: JobStatus.GHOSTED },
-          select: { id: true },
-        });
-        rows.push(...updated.map(({ id }) => ({ id, fromStatus })));
-      }
-      if (rows.length > 0) {
-        await tx.jobEvent.createMany({
-          data: rows.map(({ id, fromStatus }) => ({
-            jobId: id,
-            type: JobEventType.STATUS_CHANGE,
-            fromStatus,
-            toStatus: JobStatus.GHOSTED,
-          })),
-        });
-      }
-      return rows;
-    });
-
-    await Promise.all(moved.map(({ id }) => this.enqueueTimelineSummary(id)));
-    return { updated: moved.length };
+  markGhosted(userId: string, jobIds: string[]) {
+    return this.ghosting.markGhosted(userId, jobIds);
   }
 
   /**
-   * Quiets the ghost suggestion for one job — "HR said wait". A scoped
-   * single statement, so no separate ownership read can race the write.
+   * Quiets the ghost suggestion for one job — see `JobGhostingService`.
    */
-  async dismissGhostSuggestion(userId: string, jobId: string) {
-    // Scoped updateMany so another user's job is indistinguishable from a
-    // missing one (404 for both), without a separate ownership SELECT.
-    const { count } = await this.prisma.job.updateMany({
-      where: { id: jobId, userId },
-      data: { ghostSuggestionDismissedAt: new Date() },
-    });
-    if (count === 0) throw new NotFoundException('Job not found');
-    return { message: 'Suggestion dismissed' };
+  dismissGhostSuggestion(userId: string, jobId: string) {
+    return this.ghosting.dismissGhostSuggestion(userId, jobId);
   }
 
   /**

@@ -27,7 +27,7 @@ npx prisma studio                             # GUI DB browser
   ```
 - `prisma.config.ts` at the backend root is Prisma 7's required config file — do not delete it.
 - Always run `prisma generate` after any schema change or migration.
-- **Two indexes are raw SQL and are NOT represented in `schema.prisma`** — a functional UNIQUE index on `companies (userId, lower(name))` and four `pg_trgm` GIN indexes on `Job`'s searchable columns (migration `20260903090000_company_ci_unique_and_job_search_trgm`). Prisma has no syntax for expression or operator-class indexes, so **the next `prisma migrate dev` will generate `DROP INDEX` statements for all five — delete those lines from the generated migration before applying it.** Both models carry a comment saying so. `JobsService.resolveCompanyId` depends on the unique index for correctness (its `P2002` fallback), and `buildJobWhere`'s `ILIKE '%term%'` search is a sequential scan without the trigram indexes.
+- **Two indexes are raw SQL and are NOT represented in `schema.prisma`** — a functional UNIQUE index on `companies (userId, lower(name))` and four `pg_trgm` GIN indexes on `Job`'s searchable columns (migration `20260903090000_company_ci_unique_and_job_search_trgm`). Prisma has no syntax for expression or operator-class indexes, so **the next `prisma migrate dev` will generate `DROP INDEX` statements for all five — delete those lines from the generated migration before applying it.** Both models carry a comment saying so. `JobCompanyLinkService.resolveCompanyId` depends on the unique index for correctness (its `P2002` fallback), and `buildJobWhere`'s `ILIKE '%term%'` search is a sequential scan without the trigram indexes.
 - **A Serializable-transaction write conflict Postgres only detects at COMMIT time does NOT surface as `PrismaClientKnownRequestError({code: 'P2034'})`** under `@prisma/adapter-pg` + the client-engine-runtime — it propagates a raw, unwrapped `DriverAdapterError` (`name: 'DriverAdapterError'`, `cause: { kind: 'TransactionWriteConflict' }`) straight out of `$transaction()`. A catch block checking only `err.code === 'P2034'` misses this and lets it fall through as an unhandled 500. Mid-transaction conflicts (a concurrent UPDATE/DELETE on a row already touched) _are_ wrapped normally — this only bites conflicts on a broader predicate (e.g. a `COUNT(*)` read racing a concurrent INSERT into the counted set), which Postgres's SSI often can't detect until commit. Found via a real two-writer e2e test (`test/app.e2e-spec.ts`, "POST /companies — concurrent per-user cap") — no mock-based unit test can catch this, since mocks only ever simulate the P2034 shape directly. Use `isTransactionWriteConflict` (`src/common/prisma-errors.ts`) in any catch block mapping a Serializable-transaction conflict to a `ConflictException`, not a bare `err.code === 'P2034'` check.
 
 ---
@@ -116,7 +116,7 @@ No in-app flow promotes a user to `ADMIN` — direct DB/Prisma Studio only. Full
 Every `JobsService` method that touches a specific job scopes the query by `userId`. A job owned by another user is indistinguishable from one that doesn't exist: both throw `NotFoundException` (404), never `ForbiddenException`, so a job id's existence doesn't leak. Never skip the scope. Three shapes, by what the method needs:
 
 - **Writes that need the current row** (`update`, `getEvents`) call the private `findOwned(userId, jobId)` — a lean `findFirst` on `{ id, userId }` selecting only the columns the write reads, no relations.
-- **Single-statement writes** (`remove`, `dismissGhostSuggestion`) skip the pre-read: a `deleteMany`/`updateMany` on `{ id: jobId, userId }`, then `count === 0` → `NotFoundException`.
+- **Single-statement writes** (`remove`, `JobGhostingService.dismissGhostSuggestion`) skip the pre-read: a `deleteMany`/`updateMany` on `{ id: jobId, userId }`, then `count === 0` → `NotFoundException`.
 - **The detail read** (`findOne`) is the same scoped `findFirst` with the relations the job page renders. Don't call it just to check ownership — use `findOwned`.
 
 ```ts
@@ -157,7 +157,7 @@ await tx.jobEvent.create({
 
 `updateMany` can't carry a nested `events: { create: ... } }`, so this can't be one Prisma call — the CAS is what closes the TOCTOU race where a concurrent status change (e.g. an interview-round auto-promotion racing a manual edit) would otherwise let a stale `existing.status` get written into `fromStatus`. See [ADR-018](../docs/decisions/018-interview-round-status-sync-race-fixes.md) for the race this replaced and why single-statement writes weren't safe here.
 
-The bulk variant is `JobsService.markGhosted` ("Mark all ghosted"): instead of calling `update` per job, it runs one `tx.job.updateManyAndReturn` per status the ghost rule allows, with that status and the live `buildGhostSuggestionWhere` rule in the `WHERE` (so eligibility and the CAS are one atomic step, and each returned row's `fromStatus` is known), then one `tx.jobEvent.createMany`, all in one transaction. Timeline summaries are enqueued per moved job after commit. If a new side effect is added to `update`'s status-change path, add it here too.
+The bulk variant is `JobGhostingService.markGhosted` ("Mark all ghosted", reached through `JobsService.markGhosted`): instead of calling `update` per job, it runs one `tx.job.updateManyAndReturn` per status the ghost rule allows, with that status and the live `buildGhostSuggestionWhere` rule in the `WHERE` (so eligibility and the CAS are one atomic step, and each returned row's `fromStatus` is known), then one `tx.jobEvent.createMany`, all in one transaction. Timeline summaries are enqueued per moved job after commit. If a new side effect is added to `update`'s status-change path, add it here too.
 
 ---
 
@@ -223,7 +223,7 @@ from the existing `['job', id]` query; no separate fetch.
 calendar day, never a real time-of-day (ADR-034). The user's own
 `User.timezone` decides _which_ calendar day, once, at write time.
 
-Two private helpers on `JobsService` are the only ways to produce a value for
+Two helpers in `jobs/jobs-dates.helper.ts` are the only ways to produce a value for
 this column, and a third way must not appear: `civilDateFromInput` for a date
 the client named (it floors a full ISO datetime to the UTC day it names, since
 `@IsDateString` accepts one), and `todayFor` for a date we infer. **`create`
@@ -261,7 +261,7 @@ See ADR-033 and ADR-034.
 
 ## Jobs/Companies: `companyId` FK Resolution
 
-`JobsService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
+`JobCompanyLinkService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
 path for turning a job's free-text `company` label into a real `Company` row
 and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
 for auto-created rows. Concurrency is enforced by the database, not the

@@ -11,6 +11,8 @@ import {
 } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
+import { JobCompanyLinkService } from './job-company-link.service.js';
+import { JobGhostingService } from './job-ghosting.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
@@ -76,6 +78,11 @@ describe('JobsService', () => {
     const module = await Test.createTestingModule({
       providers: [
         JobsService,
+        // Real, not mocked: `resolveCompanyId` and the ghosting statements
+        // moved out of JobsService but the tests below still exercise them
+        // through it, over the same mockPrisma.
+        JobCompanyLinkService,
+        JobGhostingService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
         { provide: TimelineSummaryService, useValue: mockTimelineSummary },
