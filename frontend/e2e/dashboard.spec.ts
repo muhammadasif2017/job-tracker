@@ -24,7 +24,7 @@ test.describe('Dashboard', () => {
     await injectAuth(page, user);
     await page.goto('/');
 
-    await expect(page.getByText('Total Applications')).toBeVisible();
+    await expect(page.getByText('Applications Sent')).toBeVisible();
     await expect(page.getByText('This Month')).toBeVisible();
 
     // All stat cards should show 0 / 0%
@@ -47,12 +47,12 @@ test.describe('Dashboard', () => {
     await injectAuth(page, user);
     await page.goto('/');
 
-    // The "Total Applications" card value — scoped to the card's own
+    // The "Applications Sent" card value — scoped to the card's own
     // container (`.rounded-md`), not a generic `div`, since "This Month"
     // also reads 1 here (job's appliedAt defaults to today).
     const totalCard = page
       .locator('.rounded-md')
-      .filter({ hasText: /^Total Applications/ })
+      .filter({ hasText: /^Applications Sent/ })
       .first();
     await expect(totalCard.getByText('1')).toBeVisible();
 
@@ -125,7 +125,7 @@ test.describe('Dashboard', () => {
     const all = page.getByRole('button', { name: 'All' });
     const totalCard = page
       .locator('.rounded-md')
-      .filter({ hasText: /^Total Applications/ })
+      .filter({ hasText: /^Applications Sent/ })
       .first();
     const totalValue = totalCard.locator('.text-3xl');
 

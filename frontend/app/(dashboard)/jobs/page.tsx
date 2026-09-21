@@ -129,7 +129,7 @@ export default function JobsPage() {
           <p className="text-sm text-muted">
             {isError && !data
               ? 'Failed to load'
-              : `${data?.meta.total ?? 0} applications tracked`}
+              : `${data?.meta.total ?? 0} ${data?.meta.total === 1 ? 'job' : 'jobs'} tracked`}
           </p>
         </div>
         <div className="flex gap-2">

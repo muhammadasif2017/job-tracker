@@ -103,7 +103,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatsCard
-          label="Total Applications"
+          label="Applications Sent"
           value={stats?.total ?? '—'}
           icon={<Briefcase className="h-4 w-4" />}
           loading={statsLoading}
