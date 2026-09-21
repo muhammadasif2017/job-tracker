@@ -3,6 +3,7 @@ import { Logger } from 'nestjs-pino';
 import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
+import { companyNameMatch } from '../companies/company-name-match.helper.js';
 
 /**
  * Resolves the `Job.companyId` FK from the company label a user typed, and
@@ -89,7 +90,7 @@ export class JobCompanyLinkService {
     if (!trimmedName) return { company: null, matched: false };
 
     const existing = await this.prisma.company.findFirst({
-      where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+      where: companyNameMatch(userId, trimmedName),
       select: { id: true, name: true },
     });
     if (existing) return { company: existing, matched: true };
@@ -127,7 +128,7 @@ export class JobCompanyLinkService {
       // does mid-request; rethrowing lets GlobalExceptionFilter map the
       // P2002 to a 409 rather than inventing a wrong answer.
       const raced = await this.prisma.company.findFirst({
-        where: { userId, name: { equals: trimmedName, mode: 'insensitive' } },
+        where: companyNameMatch(userId, trimmedName),
         select: { id: true, name: true },
       });
       if (!raced) throw err;
