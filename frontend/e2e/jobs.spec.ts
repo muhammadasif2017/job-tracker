@@ -41,7 +41,7 @@ test.describe('Jobs list', () => {
     const job = await createTestJob(user.accessToken);
 
     await goToJobs(page);
-    await expect(page.getByText('1 applications tracked')).toBeVisible();
+    await expect(page.getByText('1 job tracked')).toBeVisible();
 
     await deleteTestJob(user.accessToken, job.id);
   });

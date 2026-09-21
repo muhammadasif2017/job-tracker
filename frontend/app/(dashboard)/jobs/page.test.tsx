@@ -219,9 +219,7 @@ describe('JobsPage', () => {
         row.getByText(formatCivilDate('2026-06-01T00:00:00Z')),
       ).toBeInTheDocument();
       expect(
-        screen.getByText(
-          (_, el) => el?.textContent === '2 applications tracked',
-        ),
+        screen.getByText((_, el) => el?.textContent === '2 jobs tracked'),
       ).toBeInTheDocument();
     });
 
