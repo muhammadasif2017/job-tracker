@@ -2,7 +2,6 @@
 
 import { useState, useCallback } from 'react';
 import { useDebounce } from '../../../lib/use-debounce';
-import { filenameFromDisposition, saveBlob } from '../../../lib/download';
 import {
   Plus,
   Sparkles,
@@ -14,7 +13,6 @@ import {
   List,
   Download,
 } from 'lucide-react';
-import { toast } from 'sonner';
 import Link from 'next/link';
 import { Button } from '../../../components/ui/button';
 import { Modal } from '../../../components/ui/modal';
@@ -35,11 +33,10 @@ import {
   type Job,
   type JobStatus,
 } from '../../../types';
-import api from '../../../lib/api';
 import {
   useJobsQuery,
   useDeleteJobMutation,
-  jobFilterParams,
+  useExportJobsMutation,
   type JobsFilterValues,
 } from '../../../features/jobs/hooks';
 
@@ -79,6 +76,7 @@ export default function JobsPage() {
   });
 
   const deleteMutation = useDeleteJobMutation(() => setDeleteTarget(undefined));
+  const exportMutation = useExportJobsMutation();
 
   const openEdit = useCallback((job: Job) => {
     setEditJob(job);
@@ -88,36 +86,6 @@ export default function JobsPage() {
     setFormOpen(false);
     setEditJob(undefined);
   }, []);
-
-  const handleExport = async () => {
-    try {
-      const exportParams = jobFilterParams(filters);
-      if (statusFilter) exportParams.set('status', statusFilter);
-      const res = await api.get(`/jobs/export?${exportParams}`, {
-        responseType: 'blob',
-      });
-      // Prefer the server's filename — it carries the status suffix for a
-      // filtered export (jobs-offer.csv). Both this and X-Export-Truncated
-      // are only readable because main.ts lists them in the CORS
-      // `exposedHeaders`.
-      // `res.headers` is always present from a real axios response; the
-      // fallback keeps this from throwing on a hand-rolled response object.
-      const headers = (res.headers ?? {}) as Record<string, unknown>;
-      saveBlob(
-        res.data as Blob,
-        filenameFromDisposition(headers['content-disposition'], 'jobs.csv'),
-      );
-      // The export is capped server-side. Without this the user just gets a
-      // short file and no reason to doubt it.
-      if (headers['x-export-truncated'] === 'true') {
-        toast.warning(
-          'Export was truncated at 1000 rows — narrow the filters to export the rest.',
-        );
-      }
-    } catch {
-      toast.error('Export failed');
-    }
-  };
 
   return (
     <div className="space-y-5">
@@ -133,7 +101,10 @@ export default function JobsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={handleExport}>
+          <Button
+            variant="secondary"
+            onClick={() => exportMutation.mutate(filters)}
+          >
             <Download className="h-4 w-4" /> Export CSV
           </Button>
           <Button variant="secondary" onClick={() => setQuickAddOpen(true)}>
