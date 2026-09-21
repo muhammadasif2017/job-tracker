@@ -23,6 +23,7 @@ import {
   EMPTY_APPLICATION_STATS,
   getCompanyApplicationStats,
 } from './company-application-stats.helper.js';
+import { companyNameMatch } from './company-name-match.helper.js';
 
 /**
  * Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
@@ -67,8 +68,7 @@ export class CompaniesService {
   ) {
     const duplicate = await client.company.findFirst({
       where: {
-        userId,
-        name: { equals: name, mode: 'insensitive' },
+        ...companyNameMatch(userId, name),
         ...(excludeId && { id: { not: excludeId } }),
       },
       select: { id: true },
@@ -261,7 +261,7 @@ export class CompaniesService {
     const trimmed = name.trim();
     const company = trimmed
       ? await this.prisma.company.findFirst({
-          where: { userId, name: { equals: trimmed, mode: 'insensitive' } },
+          where: companyNameMatch(userId, trimmed),
           select: { id: true, name: true },
         })
       : null;
