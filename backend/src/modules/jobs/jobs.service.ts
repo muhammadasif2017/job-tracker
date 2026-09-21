@@ -2,7 +2,6 @@ import {
   Injectable,
   NotFoundException,
   ConflictException,
-  BadRequestException,
   Inject,
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
@@ -22,6 +21,11 @@ import { JobCompanyLinkService } from './job-company-link.service.js';
 import { JobGhostingService } from './job-ghosting.service.js';
 import { civilDateFromInput, todayFor } from './jobs-dates.helper.js';
 import { buildUpdateData } from './job-update-data.helper.js';
+import {
+  assertCompanyNotCleared,
+  companyLabelNeedsResolving,
+  shouldRestampAppliedAt,
+} from './job-update-rules.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
 
@@ -306,88 +310,25 @@ export class JobsService {
    */
   async update(userId: string, jobId: string, dto: UpdateJobDto) {
     const existing = await this.findOwned(userId, jobId);
-    const statusChanged = dto.status && dto.status !== existing.status;
+    assertCompanyNotCleared(dto);
+
+    const statusChanged = Boolean(dto.status && dto.status !== existing.status);
     const baseData = buildUpdateData(dto);
+    const { data: linkedData, relinkedCompanyId } = await this.resolveRelink(
+      userId,
+      dto,
+      existing,
+      baseData,
+    );
 
-    // Re-link companyId whenever the caller actually sent a company name —
-    // otherwise `company` (the display string) and `companyId` (the FK) can
-    // drift apart with nothing to reconcile them. `Job.company` is the label
-    // as typed at link time; it deliberately does NOT get retroactively
-    // rewritten if the linked Company is later renamed or merged elsewhere —
-    // only an explicit edit of this job's company field re-resolves it.
-    let data = baseData as typeof baseData & { companyId?: string | null };
-    // Set only when this edit actually re-resolved the label to a Company —
-    // that row may have just been auto-created by resolveCompanyId, and
-    // nothing else would ever queue enrichment for it (see the enqueue after
-    // the write branches below).
-    let relinkedCompanyId: string | null = null;
-    if (dto.company === null) {
-      // Job.company is a required, non-nullable column — unlike the
-      // optional profile fields this repo's convention lets a client clear
-      // with an explicit null, there is no "no company" state to unlink
-      // into. `IsOptional()` (added by PartialType) lets null past DTO
-      // validation, so this must be rejected explicitly rather than falling
-      // through to `.trim()` on null.
-      throw new BadRequestException(
-        'company cannot be cleared — omit the field to leave it unchanged',
-      );
-    }
-    if (dto.company !== undefined) {
-      const trimmedCompany = dto.company.trim();
-      // JobForm always resends the pre-filled `company` label on every
-      // submit, even when the user only touched an unrelated field — so
-      // "dto.company !== undefined" alone can't mean "user edited it". If
-      // the trimmed label still matches the current label and a companyId
-      // is already linked, treat it as a no-op instead of re-resolving:
-      // re-resolving a stale label after the linked Company was renamed or
-      // merged elsewhere would silently re-link to (or recreate) a
-      // different company, undoing that rename/merge on an unrelated edit.
-      const matchesCurrentLabel =
-        existing.companyId !== null &&
-        trimmedCompany.toLowerCase() === existing.company.toLowerCase();
-      if (!matchesCurrentLabel) {
-        // Same location anchor create() seeds onto an auto-created company.
-        // An explicit null (location cleared in this edit) wins over the
-        // stored value; only an omitted field falls back to it.
-        const { company } = await this.companyLink.resolveCompanyId(
-          userId,
-          trimmedCompany,
-          dto.location !== undefined ? dto.location : existing.location,
-        );
-        data = { ...baseData, companyId: company?.id ?? null };
-        relinkedCompanyId = company?.id ?? null;
-      }
-    }
-
-    // `Job.appliedAt` is `@default(now())`, so a job saved to the wishlist in
-    // June already carries June as its application date — and nothing used to
-    // move it when the user actually applied. Every "applications sent"
-    // metric reads that column (getStats.thisMonth, the trend buckets, the
-    // 30d/90d range filters, the CSV "Applied Date", the default list sort),
-    // so applying today to a long-wishlisted job was reported as an
-    // application made months ago: absent from this month's count, plotted on
-    // the wrong bar, and sorted to the bottom of the list.
-    //
-    // Leaving WISHLIST in any direction is the moment it becomes a real
-    // application (the kanban board lets you drag straight to INTERVIEWING),
-    // so stamp it here — with the user's own today, since the column is a
-    // civil date (ADR-034).
-    //
-    // The guard is "the client sent an appliedAt *different from the stored
-    // one*", not merely "sent one at all". JobForm resends every field on
-    // every submit, including the untouched pre-filled date, so an
-    // `!== undefined` check meant the re-stamp fired on a kanban drag and
-    // silently didn't on the exact same transition made through the edit
-    // form. A date the user genuinely changed still wins.
-    const leftWishlist =
-      statusChanged && existing.status === JobStatus.WISHLIST;
-    const submittedAppliedAt = baseData.appliedAt;
-    const appliedAtEdited =
-      submittedAppliedAt !== undefined &&
-      submittedAppliedAt.getTime() !== existing.appliedAt.getTime();
-    if (leftWishlist && !appliedAtEdited) {
-      data = { ...data, appliedAt: await todayFor(this.prisma, userId) };
-    }
+    const data = shouldRestampAppliedAt({
+      statusChanged,
+      existingStatus: existing.status,
+      existingAppliedAt: existing.appliedAt,
+      submittedAppliedAt: baseData.appliedAt,
+    })
+      ? { ...linkedData, appliedAt: await todayFor(this.prisma, userId) }
+      : linkedData;
 
     if (!statusChanged) {
       const updated = await this.prisma.job.update({
@@ -399,19 +340,82 @@ export class JobsService {
       return withUpcomingInterview(updated);
     }
 
-    // Status is changing — CAS the transition on the status we just read
-    // (WHERE id AND status = existing.status) instead of writing
-    // unconditionally. If a concurrent mutation (e.g. an interview-round
-    // auto-promotion — see InterviewRoundsService.logRoundEvent) changed the
-    // status in between, `count` comes back 0 and we reject rather than
-    // record a `fromStatus` that's no longer true. This is why the event
-    // isn't nested inside the job update here, unlike the normal pattern
-    // (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't
-    // carry a nested create, so both statements run inside one transaction
-    // instead.
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.writeStatusChange(
+      jobId,
+      existing.status,
+      dto,
+      data,
+    );
+
+    await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
+    await this.enqueueTimelineSummary(jobId);
+    return withUpcomingInterview(result);
+  }
+
+  /**
+   * Re-links `companyId` whenever the caller actually edited the company
+   * label — otherwise `company` (the display string) and `companyId` (the
+   * FK) can drift apart with nothing to reconcile them. `Job.company` is
+   * the label as typed at link time; it deliberately does NOT get
+   * retroactively rewritten if the linked Company is later renamed or
+   * merged elsewhere.
+   *
+   * `relinkedCompanyId` comes back set only when this edit actually
+   * re-resolved the label to a Company — that row may have just been
+   * auto-created by `resolveCompanyId`, and nothing else would ever queue
+   * enrichment for it.
+   */
+  private async resolveRelink(
+    userId: string,
+    dto: UpdateJobDto,
+    existing: {
+      company: string;
+      companyId: string | null;
+      location: string | null;
+    },
+    baseData: ReturnType<typeof buildUpdateData>,
+  ): Promise<{
+    data: ReturnType<typeof buildUpdateData> & { companyId?: string | null };
+    relinkedCompanyId: string | null;
+  }> {
+    if (!companyLabelNeedsResolving(dto, existing)) {
+      return { data: baseData, relinkedCompanyId: null };
+    }
+    // Same location anchor create() seeds onto an auto-created company.
+    // An explicit null (location cleared in this edit) wins over the
+    // stored value; only an omitted field falls back to it.
+    const { company } = await this.companyLink.resolveCompanyId(
+      userId,
+      dto.company!.trim(),
+      dto.location !== undefined ? dto.location : existing.location,
+    );
+    return {
+      data: { ...baseData, companyId: company?.id ?? null },
+      relinkedCompanyId: company?.id ?? null,
+    };
+  }
+
+  /**
+   * The status-change write: CAS the transition on the status we just read
+   * (WHERE id AND status = existing.status) instead of writing
+   * unconditionally. If a concurrent mutation (e.g. an interview-round
+   * auto-promotion — see InterviewRoundsService.logRoundEvent) changed the
+   * status in between, `count` comes back 0 and we reject rather than
+   * record a `fromStatus` that's no longer true. This is why the event
+   * isn't nested inside the job update here, unlike the normal pattern
+   * (see backend CLAUDE.md, "Jobs: Event Logging") — updateMany can't
+   * carry a nested create, so both statements run inside one transaction
+   * instead.
+   */
+  private writeStatusChange(
+    jobId: string,
+    fromStatus: JobStatus,
+    dto: UpdateJobDto,
+    data: ReturnType<typeof buildUpdateData> & { companyId?: string | null },
+  ) {
+    return this.prisma.$transaction(async (tx) => {
       const { count } = await tx.job.updateMany({
-        where: { id: jobId, status: existing.status },
+        where: { id: jobId, status: fromStatus },
         data: { status: dto.status },
       });
       if (count === 0) {
@@ -423,7 +427,7 @@ export class JobsService {
         data: {
           jobId,
           type: JobEventType.STATUS_CHANGE,
-          fromStatus: existing.status,
+          fromStatus,
           toStatus: dto.status!,
         },
       });
@@ -433,10 +437,6 @@ export class JobsService {
         data,
       });
     });
-
-    await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
-    await this.enqueueTimelineSummary(jobId);
-    return withUpcomingInterview(result);
   }
 
   /**
