@@ -2,6 +2,8 @@ import { Module } from '@nestjs/common';
 import { JobsService } from './jobs.service.js';
 import { JobsStatsService } from './jobs-stats.service.js';
 import { JobParsingService } from './job-parsing.service.js';
+import { JobCompanyLinkService } from './job-company-link.service.js';
+import { JobGhostingService } from './job-ghosting.service.js';
 import { JobsController } from './jobs.controller.js';
 import { EnrichmentModule } from '../enrichment/enrichment.module.js';
 import { CompanyEnrichmentModule } from '../companies/enrichment/company-enrichment.module.js';
@@ -11,11 +13,19 @@ import { TimelineSummaryModule } from '../timeline-summary/timeline-summary.modu
 @Module({
   // EnrichmentModule: JobParsingService uses its WebFetch/Search/Llm
   // services directly (for POST /jobs/parse). CompanyEnrichmentModule:
-  // JobsService.create() triggers company-scoped enrichment — see
+  // JobsService.create() and JobCompanyLinkService.enqueueRelinkedCompany()
+  // trigger company-scoped enrichment — see
   // docs/specs/company-fk-phase3b.md. TimelineSummaryModule: JobsService
-  // triggers a timeline-summary regen on create/status-change.
+  // (create/update) and JobGhostingService (markGhosted) trigger a
+  // timeline-summary regen.
   imports: [EnrichmentModule, CompanyEnrichmentModule, TimelineSummaryModule],
-  providers: [JobsService, JobsStatsService, JobParsingService],
+  providers: [
+    JobsService,
+    JobsStatsService,
+    JobParsingService,
+    JobCompanyLinkService,
+    JobGhostingService,
+  ],
   controllers: [JobsController],
 })
 export class JobsModule {}
