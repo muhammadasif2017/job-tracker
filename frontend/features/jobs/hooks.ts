@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
+import { filenameFromDisposition, saveBlob } from '../../lib/download';
 import type {
   Job,
   JobEvent,
@@ -327,5 +328,44 @@ export function useParseJobMutation(onParsed?: (data: ParsedJob) => void) {
     },
     onError: (err: unknown) =>
       toast.error(getErrorMessage(err, 'Could not parse that posting')),
+  });
+}
+
+/**
+ * Downloads the current job list as CSV, honouring the list's own filters so
+ * the file matches what the user is looking at.
+ *
+ * The server's filename is preferred over a local default because it carries
+ * the status suffix for a filtered export (jobs-offer.csv). Both
+ * `Content-Disposition` and `X-Export-Truncated` are only readable because
+ * `main.ts` lists them in the CORS `exposedHeaders`.
+ */
+export function useExportJobsMutation() {
+  return useMutation({
+    mutationFn: async (filters: JobsFilterValues) => {
+      const params = jobFilterParams(filters);
+      if (filters.status) params.set('status', filters.status);
+      const res = await api.get(`/jobs/export?${params}`, {
+        responseType: 'blob',
+      });
+      // `res.headers` is always present from a real axios response; the
+      // fallback keeps this from throwing on a hand-rolled response object.
+      const headers = (res.headers ?? {}) as Record<string, unknown>;
+      saveBlob(
+        res.data as Blob,
+        filenameFromDisposition(headers['content-disposition'], 'jobs.csv'),
+      );
+      return headers;
+    },
+    onSuccess: (headers) => {
+      // The export is capped server-side. Without this the user just gets a
+      // short file and no reason to doubt it.
+      if (headers['x-export-truncated'] === 'true') {
+        toast.warning(
+          'Export was truncated at 1000 rows — narrow the filters to export the rest.',
+        );
+      }
+    },
+    onError: () => toast.error('Export failed'),
   });
 }
