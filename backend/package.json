@@ -130,6 +130,7 @@
       "!**/*.spec.ts",
       "!**/*.module.ts",
       "!**/*.dto.ts",
+      "!**/*.controller.ts",
       "!main.ts"
     ],
     "coverageDirectory": "../coverage",

@@ -51,7 +51,7 @@ bottom.
 | Lint | Zero eslint **errors** (warnings ratcheted below) | `npm run check:fast` in each package | pre-commit\*, CI |
 | Formatting (frontend) | Zero files fail prettier | `cd frontend && npm run format:check` | pre-commit\*, CI |
 | Migrations | Every new `migration.sql` declares `-- data-loss:` | `npm run check:migrations` | CI |
-| Coverage: changed lines | ≥ 80% of changed executable lines covered (`*.dto.ts` excluded; DTOs are not unit-tested) | `node scripts/coverage-diff.mjs` | CI, blocking |
+| Coverage: changed lines | ≥ 80% of changed executable lines covered (`*.dto.ts` and `*.controller.ts` excluded; neither is unit-tested) | `node scripts/coverage-diff.mjs` | CI, blocking |
 | Security: secrets | Zero findings in the working tree | `gitleaks detect --no-git --redact --no-banner` | CI, blocking |
 | Security: dependencies | No **production** package at CVSS 7.0+ | `osv-scanner` + `node scripts/dep-scan-gate.mjs` | CI, blocking |
 | E2E | Playwright suite green | `.github/workflows/e2e-pr.yml` | PR, merge-blocking (ADR-025) |
@@ -101,9 +101,9 @@ absorbs drift when an unrelated file moves the number.
 
 | Metric | Today (2026-09-07) | Direction |
 |--------|--------------------|-----------|
-| Backend coverage — statements | 87.24% | must not fall |
-| Backend coverage — lines | 87.58% | must not fall |
-| Backend coverage — branches | 75.84% | must not fall |
+| Backend coverage — statements | 91.68% | must not fall |
+| Backend coverage — lines | 92.56% | must not fall |
+| Backend coverage — branches | 81.31% | must not fall |
 | Frontend coverage — statements | 80.92% | must not fall |
 | Frontend coverage — lines | 81.21% | must not fall |
 | Frontend coverage — branches | 80.56% | must not fall |
@@ -111,9 +111,21 @@ absorbs drift when an unrelated file moves the number.
 | Frontend eslint warnings | 12 | must not grow |
 
 Both numbers are measured over a pinned file list, so they do not drift as tests
-add or drop imports. Backend: 116 files, `collectCoverageFrom` excluding specs,
-`*.module.ts` and `main.ts`. Frontend: `app/`, `components/`, `features/`, `lib/`,
+add or drop imports. Backend: `collectCoverageFrom` excluding specs,
+`*.module.ts`, `*.dto.ts`, `*.controller.ts` and `main.ts`. Frontend: `app/`, `components/`, `features/`, `lib/`,
 `store/`, `proxy.ts`, excluding tests and generated types.
+
+**The backend rows were restated on 2026-09-22** when `*.controller.ts` joined the
+`collectCoverageFrom` exclusions and the eight `*.controller.spec.ts` files were
+deleted. Controllers here are route wiring — decorators, a guard clause and a
+delegation — so the specs asserted mostly that Nest wires a method to a path, and
+covering them moved the number without moving the risk. The old rows (87.24% /
+87.58% / 75.84%) measured a different file set and are not comparable to these.
+Behaviour reachable only through a controller is covered by `test/app.e2e-spec.ts`
+instead, which does not feed this report. The two
+`*.controller.pat-accessible.spec.ts` files survive the deletion and still run:
+they pin which handlers `@PatAccessible()` exposes, and nothing else enumerates
+that allowlist.
 
 Neither figure is comparable to anything recorded before 2026-09-07. The backend
 pattern was `**/*.(t|j)s`, which matched almost nothing and silently reported only

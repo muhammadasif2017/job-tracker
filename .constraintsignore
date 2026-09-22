@@ -11,3 +11,15 @@ backend/src/modules/jobs/dto/update-job.dto.spec.ts
 # One-off company FK backfill (docs/specs/company-fk-phase3.md), removed after
 # it ran; its spec went with it.
 backend/scripts/backfill-company-fk.spec.ts
+# Controller specs deleted on purpose: controllers are thin route wiring and are
+# excluded from coverage collection (see the coverage rows in CONSTRAINTS.md).
+# The two *.controller.pat-accessible.spec.ts files are deliberately NOT in this
+# list - they pin the @PatAccessible() allowlist and still run.
+backend/src/modules/admin/admin-queues.controller.spec.ts
+backend/src/modules/auth/auth.controller.spec.ts
+backend/src/modules/companies/companies.controller.spec.ts
+backend/src/modules/contacts/contacts.controller.spec.ts
+backend/src/modules/health/health.controller.spec.ts
+backend/src/modules/interview-rounds/interview-rounds.controller.spec.ts
+backend/src/modules/resumes/resumes.controller.spec.ts
+backend/src/modules/tokens/tokens.controller.spec.ts
