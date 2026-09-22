@@ -161,6 +161,18 @@ switched off is worse than no gate, because the bar still looks like it exists.
 Exceptions carry an owner and an expiry because an exception unblocks you; deleting
 the constraint unblocks everyone forever.
 
+`floor-guard` reads the rows above. A finding is exempted when its rule matches a
+row whose `Rule` cell reads `floor: <rule>`, its file matches one of the row's
+backticked paths, and the row has not expired — an expired row stops exempting
+and the finding blocks again. The exempted finding is still printed, under
+`covered by a CONSTRAINTS.md exception`, so a carve-out is never silent. Rows
+naming an eslint rule rather than `floor: …` are documentation for that rule's
+config and are not read by the guard.
+
+Adding a row is itself a `new-exception` finding, which is the point: it takes a
+`Constraints-Change:` trailer to merge, so the carve-out is reviewed as a change
+to the bar rather than as part of whatever change needed it.
+
 IDs are allocated once and never reused or renumbered, so a gap in the sequence is
 expected rather than a missing row. `E3` was never allocated: the table has run
 E1, E2, E4 since the file was created in 46c40bd (E5 added later), and no exception

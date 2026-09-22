@@ -79,8 +79,53 @@ const constraintsChangeAck = (git(['log', '--format=%B', `${mergeBase}..HEAD`]) 
   .map((l) => l.trim())
   .find((l) => /^Constraints-Change:\s*\S/i.test(l));
 
+// Exceptions tracked in CONSTRAINTS.md. That table is the documented place to
+// record a deliberate, reviewed carve-out: it carries a rule, a path, a reason,
+// an owner and an expiry, none of which `.constraintsignore` can express, since
+// that file is a bare list of path prefixes exempt from every rule forever. The
+// failure message below has always pointed here; this is what makes it true.
+//
+// Only rows whose Rule cell reads `floor: <rule>` are honoured — the other rows
+// in that table describe eslint rules and are not this guard's business.
+//
+// Read from the working tree, not the merge base: an exception added by the same
+// change it covers is the normal case. It does not slide through silently — the
+// new row is still flagged as a `new-exception` against CONSTRAINTS.md, and the
+// finding it covers is still printed below.
+const EXCEPTION_ROW =
+  /^\| *([WE]\d+) *\| *floor: *([a-z-]+) *\| *(.+?) *\| *(?:.+?) *\| *(?:.+?) *\| *(.+?) *\|/;
+const today = new Date().toISOString().slice(0, 10);
+const exceptions = existsSync('CONSTRAINTS.md')
+  ? readFileSync('CONSTRAINTS.md', 'utf8')
+      .split('\n')
+      .map((l) => l.trim().match(EXCEPTION_ROW))
+      .filter(Boolean)
+      .map((m) => ({
+        id: m[1],
+        rule: m[2],
+        // The Path cell holds one or more backticked paths, and may carry a
+        // `:line` suffix that a finding's own path never has.
+        paths: [...m[3].matchAll(/`([^`]+)`/g)].map((p) => p[1].split(':')[0]),
+        expires: m[4].trim(),
+      }))
+      // An expired row stops exempting anything. That is what the column is for.
+      .filter((e) => /^permanent$/i.test(e.expires) || e.expires >= today)
+  : [];
+const excepted = (rule, f) => {
+  const path = f.replace(/^[ab]\//, '');
+  return exceptions.some(
+    (e) =>
+      e.rule === rule &&
+      e.paths.some((p) => path === p || path.startsWith(p.replace(/\*+$/, ''))),
+  );
+};
+
 const findings = [];
-const flag = (rule, f, text) => findings.push({ rule, file: f, text: text.trim().slice(0, 120) });
+const exempted = [];
+const flag = (rule, f, text) => {
+  const entry = { rule, file: f, text: text.trim().slice(0, 120) };
+  (excepted(rule, f) ? exempted : findings).push(entry);
+};
 
 const SUPPRESSIONS =
   /@ts-ignore|@ts-nocheck|@ts-expect-error|eslint-disable|istanbul ignore|nosemgrep|gitleaks:allow/;
@@ -156,6 +201,13 @@ if (constraintsChangeAck && constraintsFindings.length > 0) {
   for (const f of constraintsFindings) console.log(`  [${f.rule}] ${f.text}`);
   console.log(`  ${constraintsChangeAck}`);
   console.log('Acknowledged by a Constraints-Change trailer — review it on its merits.');
+}
+
+if (exempted.length > 0) {
+  console.log(
+    `floor-guard: ${exempted.length} finding(s) covered by a CONSTRAINTS.md exception:`,
+  );
+  for (const f of exempted) console.log(`  [${f.rule}] ${f.file}: ${f.text}`);
 }
 
 if (blocking.length === 0) {
