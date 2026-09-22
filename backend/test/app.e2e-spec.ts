@@ -18,6 +18,7 @@ const ADMIN_TARGET_EMAIL = `e2e-admin-target-${Date.now()}@test.dev`;
 const GHOST_OTHER_EMAIL = `e2e-ghost-other-${Date.now()}@test.dev`;
 const REPLIED_EMAIL = `e2e-replied-${Date.now()}@test.dev`;
 const STATS_OTHER_EMAIL = `e2e-stats-other-${Date.now()}@test.dev`;
+const EXPORT_CAP_EMAIL = `e2e-export-cap-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
@@ -69,6 +70,7 @@ describe('Job Tracker (e2e)', () => {
             GHOST_OTHER_EMAIL,
             REPLIED_EMAIL,
             STATS_OTHER_EMAIL,
+            EXPORT_CAP_EMAIL,
           ],
         },
       },
@@ -1795,6 +1797,69 @@ describe('Job Tracker (e2e)', () => {
       expect(res.headers['content-type']).toMatch(/text\/csv/);
       expect(res.text).toContain('Company,Position,Status');
       expect(res.text).toContain('Stripe');
+    });
+
+    // The filename carries the status filter so a user exporting several
+    // views does not end up with jobs.csv, jobs (1).csv, jobs (2).csv.
+    it('names the file after the status filter when one is applied', async () => {
+      const res = await agent
+        .get('/jobs/export?status=APPLIED')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.headers['content-disposition']).toBe(
+        'attachment; filename="jobs-applied.csv"',
+      );
+      expect(res.headers['x-export-truncated']).toBeUndefined();
+    });
+
+    it('omits the suffix when no status filter is applied', async () => {
+      const res = await agent
+        .get('/jobs/export')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.headers['content-disposition']).toBe(
+        'attachment; filename="jobs.csv"',
+      );
+    });
+
+    // The export caps at 1000 rows (`exportLimit` in jobs-stats.service.ts).
+    // Past the cap the client gets a silently partial file unless this header
+    // is set, so it is the only signal the UI has to warn on. Seeded straight
+    // through Prisma: 1001 POSTs would blow the 100-req/60s ThrottlerGuard,
+    // and a fresh user keeps the row count exact.
+    it('sets X-Export-Truncated once the row cap is hit', async () => {
+      const reg = await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ email: EXPORT_CAP_EMAIL, password: PASSWORD, name: 'Export' })
+        .expect(200);
+      const token = (reg.body as { accessToken: string }).accessToken;
+      const owner = await prisma.user.findUniqueOrThrow({
+        where: { email: EXPORT_CAP_EMAIL },
+      });
+
+      await prisma.job.createMany({
+        data: Array.from({ length: 1001 }, (_, i) => ({
+          userId: owner.id,
+          company: `Cap Co ${i}`,
+          position: 'Engineer',
+          status: 'APPLIED' as const,
+          // appliedAt is a civil date (ADR-034) and createMany bypasses the
+          // service that would normally set it, so write UTC midnight here
+          // rather than letting @default(now()) put a real time on the row.
+          appliedAt: new Date('2026-01-01T00:00:00.000Z'),
+        })),
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/jobs/export')
+        .set('Authorization', `Bearer ${token}`)
+        .expect(200);
+
+      expect(res.headers['x-export-truncated']).toBe('true');
+      // Header row plus the cap, with the 1001st row dropped.
+      expect(res.text.split('\r\n')).toHaveLength(1001);
     });
   });
 
