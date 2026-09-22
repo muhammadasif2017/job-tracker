@@ -163,6 +163,8 @@ The bulk variant is `JobGhostingService.markGhosted` ("Mark all ghosted", reache
 
 ## Doc Comment Convention
 
+Naming, file layout and the rest of the house style: `../docs/CODE-STYLE.md`.
+
 Every exported service and controller carries a `/** */` doc comment on the class and on each method, including private helpers. Everything else declared at the top level of `src/` — processors, guards, strategies, modules, helpers, constants, and module-private constants — carries one too. Match the existing style rather than adding tags:
 
 - **No `@param`/`@returns`.** The TypeScript signature already states the types; a tag that restates it is noise. Nothing enforces this (there is no `eslint-plugin-jsdoc` in `eslint.config.mjs`), so it is a review expectation.
