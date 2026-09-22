@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,12 +25,9 @@ import {
 } from '@nestjs/swagger';
 import { JobsService } from './jobs.service.js';
 import { JobsStatsService } from './jobs-stats.service.js';
-import { JobParsingService } from './job-parsing.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
-import { ParseJobDto } from './dto/parse-job.dto.js';
-import { ParsedJobDto } from './dto/parsed-job.dto.js';
 import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { PaginatedJobEventsDto } from './dto/paginated-job-events.dto.js';
@@ -52,8 +48,9 @@ import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.
 
 /**
  * Everything about a user's job applications: the list and detail views,
- * the dashboard aggregates, CSV export, the ghost-suggestion actions and
- * Quick Add's posting parser.
+ * the dashboard aggregates, CSV export, the ghost-suggestion actions.
+ * Quick Add's posting parser lives in `JobParsingModule`, mounted under the
+ * same prefix.
  *
  * Every literal route — `stats`, `stats/funnel`, `stats/trend`, `export`,
  * `attention`, `ghost-suggestions` — must stay above `:id`. A fixed segment
@@ -67,7 +64,6 @@ export class JobsController {
   constructor(
     private jobsService: JobsService,
     private jobsStats: JobsStatsService,
-    private jobParsing: JobParsingService,
   ) {}
 
   /** Creates a job application. */
@@ -77,28 +73,6 @@ export class JobsController {
   @ApiCreatedResponse({ type: JobResponseDto })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateJobDto) {
     return this.jobsService.create(user.id, dto);
-  }
-
-  @Post('parse')
-  @PatAccessible()
-  @Throttle({ default: { ttl: 60000, limit: 10 } })
-  @ApiOperation({
-    summary:
-      'Extract job fields from a posting URL or pasted text, for quick-add prefill',
-  })
-  /**
-   * Parses a job posting into form fields for Quick Add. Throttled harder
-   * than the global limit: each call is a page fetch, a web search and a
-   * model round trip — real external cost, and, together with the SSRF
-   * hardening in `WebFetchService`, a request path that should not be
-   * hammerable.
-   */
-  @ApiOkResponse({ type: ParsedJobDto })
-  parseJobPosting(@Body() dto: ParseJobDto) {
-    if (!dto.url && !dto.text) {
-      throw new BadRequestException('Either url or text must be provided');
-    }
-    return this.jobParsing.parseJobPosting(dto);
   }
 
   @Get()

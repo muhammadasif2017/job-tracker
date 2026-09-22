@@ -336,6 +336,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/companies/application-history': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Past applications to a company, by case-insensitive name (job-create confirm) */
+    get: operations['CompaniesController_findApplicationHistory'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/companies/{id}': {
     parameters: {
       query?: never;
@@ -477,23 +494,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/parse': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Extract job fields from a posting URL or pasted text, for quick-add prefill */
-    post: operations['JobsController_parseJobPosting'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/jobs/stats': {
     parameters: {
       query?: never;
@@ -579,6 +579,40 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/jobs/ghost-suggestions': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Applications with no activity for 14 days that may be ghosted (suggest-only) */
+    get: operations['JobsController_getGhostSuggestions'];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/jobs/ghost-suggestions/mark-ghosted': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Mark the listed jobs GHOSTED, skipping any that are no longer ghost suggestions */
+    post: operations['JobsController_markGhosted'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   '/jobs/{id}': {
     parameters: {
       query?: never;
@@ -609,6 +643,40 @@ export interface paths {
     get: operations['JobsController_getEvents'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/jobs/{id}/ghost-suggestion/dismiss': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Dismiss the ghost suggestion for a job until 14 more days pass with no activity */
+    post: operations['JobsController_dismissGhostSuggestion'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/jobs/parse': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Extract job fields from a posting URL or pasted text, for quick-add prefill */
+    post: operations['JobParsingController_parseJobPosting'];
     delete?: never;
     options?: never;
     head?: never;
@@ -809,10 +877,12 @@ export interface components {
       /** @example Phone Screen */
       stage: string;
       /**
-       * Format: date
-       * @example 2024-03-22
+       * Format: date-time
+       * @example 2024-03-22T14:00:00.000Z
        */
       scheduledAt: string;
+      /** @example 60 */
+      durationMinutes: number;
       /** @example Ask about on-call rotation */
       notes?: string;
     };
@@ -825,6 +895,8 @@ export interface components {
       stage: string;
       /** Format: date-time */
       scheduledAt: string;
+      /** @example 60 */
+      durationMinutes?: number | null;
       /** @enum {string} */
       outcome: 'PENDING' | 'PASSED' | 'FAILED' | 'CANCELLED';
       /** @enum {string} */
@@ -854,10 +926,12 @@ export interface components {
       /** @example Phone Screen */
       stage?: string;
       /**
-       * Format: date
-       * @example 2024-03-22
+       * Format: date-time
+       * @example 2024-03-22T14:00:00.000Z
        */
       scheduledAt?: string;
+      /** @example 60 */
+      durationMinutes?: number;
       /** @example Ask about on-call rotation */
       notes?: string;
       /** @enum {string} */
@@ -973,6 +1047,30 @@ export interface components {
       /** @example Collaborative and fast-paced culture */
       cultureSummary?: string | null;
     };
+    CompanyApplicationStatsDto: {
+      /**
+       * @description Jobs applied to (not WISHLIST)
+       * @example 4
+       */
+      applied: number;
+      /**
+       * @description Jobs that ever reached INTERVIEWING, OFFER or REJECTED
+       * @example 1
+       */
+      replied: number;
+      /**
+       * @description Jobs marked GHOSTED plus open jobs silent for 14+ days (dismissals ignored)
+       * @example 2
+       */
+      ghosted: number;
+      /**
+       * @description replied / applied, in percent
+       * @example 25
+       */
+      replyRate: number;
+      /** Format: date-time */
+      lastAppliedAt?: string | null;
+    };
     CompanyResponseDto: {
       /** Format: cuid */
       id: string;
@@ -1019,6 +1117,7 @@ export interface components {
       createdAt: string;
       /** Format: date-time */
       updatedAt: string;
+      applicationStats?: components['schemas']['CompanyApplicationStatsDto'];
     };
     PaginationMetaDto: {
       /** @example 42 */
@@ -1040,15 +1139,38 @@ export interface components {
       /** @enum {string} */
       reason: 'website' | 'name';
     };
-    UpdateCompanyDto: {
+    CompanyRefDto: {
+      /** Format: cuid */
+      id: string;
       /** @example Systems Limited */
-      name?: string;
+      name: string;
+    };
+    RecentCompanyJobDto: {
+      /** Format: cuid */
+      id: string;
+      /** @example Backend Engineer */
+      position: string;
       /** @enum {string} */
-      city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+      status:
+        | 'WISHLIST'
+        | 'APPLIED'
+        | 'INTERVIEWING'
+        | 'OFFER'
+        | 'REJECTED'
+        | 'GHOSTED';
+      /** Format: date-time */
+      appliedAt: string;
+    };
+    CompanyApplicationHistoryDto: {
+      /** @description null when no company has this name */
+      company?: components['schemas']['CompanyRefDto'] | null;
+      stats?: components['schemas']['CompanyApplicationStatsDto'] | null;
+      /** @description Up to 3 jobs, newest appliedAt first, any status */
+      recentJobs: components['schemas']['RecentCompanyJobDto'][];
+    };
+    UpdateCompanyDto: {
       /** @example DHA Phase 5, Lahore */
       location?: string | null;
-      /** @enum {string} */
-      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /** @example Great engineering culture, met their CTO at a meetup */
       personalNotes?: string | null;
       /**
@@ -1069,6 +1191,14 @@ export interface components {
       industry?: string | null;
       /** @example 50-200 employees */
       companySize?: string | null;
+      /** @example Collaborative and fast-paced culture */
+      cultureSummary?: string | null;
+      /** @example Systems Limited */
+      name?: string;
+      /** @enum {string} */
+      city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
+      /** @enum {string} */
+      priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /**
        * @example [
        *       "React",
@@ -1077,8 +1207,6 @@ export interface components {
        *     ]
        */
       techStack?: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: string | null;
     };
     MergeFieldOverridesDto: {
       industry?: string | null;
@@ -1333,38 +1461,6 @@ export interface components {
       /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
       matchedCompany?: components['schemas']['MatchedCompanyDto'] | null;
     };
-    ParseJobDto: {
-      /**
-       * Format: uri
-       * @example https://jobs.example.com/123
-       */
-      url?: string;
-      /** @example Senior Engineer at Acme... */
-      text?: string;
-    };
-    ParsedJobDto: {
-      /** @example Acme Corp */
-      company?: string | null;
-      /** @example Senior Engineer */
-      position?: string | null;
-      /** @example Remote */
-      location?: string | null;
-      /** @example https://jobs.example.com/123 */
-      url?: string;
-      /** @enum {string} */
-      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER';
-    };
     PaginatedJobsDto: {
       data: components['schemas']['JobResponseDto'][];
       meta: components['schemas']['PaginationMetaDto'];
@@ -1443,10 +1539,52 @@ export interface components {
       /** @example 20 */
       total: number;
       /**
-       * @description Percentage of applications from this source that got a response
+       * @description Percentage of applications sent through this channel that ever got a reply
        * @example 45.2
        */
       responseRate: number;
+    };
+    DiscoverySourceResponseRateDto: {
+      /**
+       * @example ROZEE
+       * @enum {string}
+       */
+      source:
+        | 'LINKEDIN'
+        | 'LINKEDIN_JOBS'
+        | 'GOOGLE_SEARCH'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
+        | 'OTHER'
+        | 'UNSPECIFIED';
+      /** @example 20 */
+      total: number;
+      /**
+       * @description Percentage of applications found through this source that ever got a reply
+       * @example 12.5
+       */
+      responseRate: number;
+    };
+    ReplyTimingDto: {
+      /**
+       * @description Replies with a known date. Jobs added straight into a replied status have none and are excluded.
+       * @example 12
+       */
+      repliedCount: number;
+      /**
+       * @description Median days from applying to the first reply; null when there are no dated replies
+       * @example 6.5
+       */
+      medianDays: number | null;
+      /**
+       * @description Share of dated replies that arrived after the 14-day "looks ghosted" cutoff
+       * @example 16.7
+       */
+      repliedAfter14DaysPercent: number;
     };
     FunnelStatsDto: {
       funnel: components['schemas']['FunnelStageDto'][];
@@ -1459,7 +1597,11 @@ export interface components {
        *     }
        */
       avgTimeInStageDays: Record<string, never>;
+      /** @description Response rate by application channel (where the application was sent) */
       responseRateBySource: components['schemas']['SourceResponseRateDto'][];
+      /** @description Response rate by discovery source (where the job was found) */
+      responseRateByDiscoverySource: components['schemas']['DiscoverySourceResponseRateDto'][];
+      replyTiming: components['schemas']['ReplyTimingDto'];
     };
     TrendBucketDto: {
       /** @example Jul 24 */
@@ -1497,6 +1639,30 @@ export interface components {
        */
       since: string;
       job: components['schemas']['JobResponseDto'];
+    };
+    GhostSuggestionDto: {
+      /**
+       * Format: date-time
+       * @description Last activity: latest event, last dismissal, or applied date, whichever is newest
+       */
+      since: string;
+      job: components['schemas']['JobResponseDto'];
+    };
+    MarkGhostedDto: {
+      /**
+       * @description Job ids the user saw on the "Looks ghosted" card. Ids that are no longer suggestions are skipped.
+       * @example [
+       *       "cmu18sgs801l2a0w8irq9wjr4"
+       *     ]
+       */
+      jobIds: string[];
+    };
+    MarkGhostedResultDto: {
+      /**
+       * @description Jobs moved to GHOSTED
+       * @example 12
+       */
+      updated: number;
     };
     JobEventDto: {
       /** Format: cuid */
@@ -1584,6 +1750,43 @@ export interface components {
        * @example 2024-03-15
        */
       appliedAt?: string;
+    };
+    ParseJobDto: {
+      /**
+       * Format: uri
+       * @example https://jobs.example.com/123
+       */
+      url?: string;
+      /** @example Senior Engineer at Acme... */
+      text?: string;
+    };
+    ParsedJobDto: {
+      /** @example Acme Corp */
+      company?: string | null;
+      /** @example Senior Engineer */
+      position?: string | null;
+      /** @example Remote */
+      location?: string | null;
+      /** @example https://jobs.example.com/123 */
+      url?: string;
+      /** @enum {string} */
+      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
+      /** @enum {string} */
+      applicationChannel?:
+        | 'COMPANY_WEBSITE'
+        | 'ATS'
+        | 'LINKEDIN'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'TARAKI'
+        | 'OTHER';
+      /**
+       * @description The job parser could not be reached; retrying may succeed
+       * @example true
+       */
+      parserUnavailable?: boolean;
     };
     AdminUserDto: {
       id: string;
@@ -2677,6 +2880,34 @@ export interface operations {
       };
     };
   };
+  CompaniesController_findApplicationHistory: {
+    parameters: {
+      query: {
+        name: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['CompanyApplicationHistoryDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   CompaniesController_findOne: {
     parameters: {
       query?: never;
@@ -3165,36 +3396,6 @@ export interface operations {
       };
     };
   };
-  JobsController_parseJobPosting: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        'application/json': components['schemas']['ParseJobDto'];
-      };
-    };
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['ParsedJobDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
   JobsController_getStats: {
     parameters: {
       query?: {
@@ -3344,6 +3545,62 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['AttentionItemDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsController_getGhostSuggestions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GhostSuggestionDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsController_markGhosted: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MarkGhostedDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MarkGhostedResultDto'];
         };
       };
       /** @description Missing or invalid access token */
@@ -3506,6 +3763,72 @@ export interface operations {
       };
     };
   };
+  JobsController_dismissGhostSuggestion: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Job ID */
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['MessageDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Job not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobParsingController_parseJobPosting: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ParseJobDto'];
+      };
+    };
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['ParsedJobDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   HealthController_check: {
     parameters: {
       query?: never;
@@ -3526,18 +3849,25 @@ export interface operations {
         };
         content: {
           'application/json': {
-            /** @example ok */
-            status?: string;
+            /**
+             * @example ok
+             * @enum {string}
+             */
+            status?: 'ok' | 'degraded';
             /**
              * @example {
              *       "database": {
-             *         "status": "up"
+             *         "status": "up",
+             *         "responseTime": 12
              *       }
              *     }
              */
             info?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
@@ -3545,7 +3875,10 @@ export interface operations {
             /** @example {} */
             error?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
@@ -3553,13 +3886,17 @@ export interface operations {
             /**
              * @example {
              *       "database": {
-             *         "status": "up"
+             *         "status": "up",
+             *         "responseTime": 12
              *       }
              *     }
              */
             details?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
@@ -3574,18 +3911,25 @@ export interface operations {
         };
         content: {
           'application/json': {
-            /** @example error */
-            status?: string;
+            /**
+             * @example error
+             * @enum {string}
+             */
+            status?: 'error' | 'shutting_down';
             /**
              * @example {
              *       "database": {
-             *         "status": "up"
+             *         "status": "up",
+             *         "responseTime": 12
              *       }
              *     }
              */
             info?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
@@ -3594,13 +3938,17 @@ export interface operations {
              * @example {
              *       "redis": {
              *         "status": "down",
-             *         "message": "Could not connect"
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
              *       }
              *     }
              */
             error?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
@@ -3608,17 +3956,22 @@ export interface operations {
             /**
              * @example {
              *       "database": {
-             *         "status": "up"
+             *         "status": "up",
+             *         "responseTime": 12
              *       },
              *       "redis": {
              *         "status": "down",
-             *         "message": "Could not connect"
+             *         "message": "Could not connect",
+             *         "responseTime": 3005
              *       }
              *     }
              */
             details?: {
               [key: string]: {
-                status: string;
+                /** @enum {string} */
+                status: 'up' | 'degraded' | 'down';
+                /** @description Time the health indicator took to respond, in ms */
+                responseTime?: number;
               } & {
                 [key: string]: unknown;
               };
