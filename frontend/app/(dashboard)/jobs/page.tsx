@@ -104,6 +104,9 @@ export default function JobsPage() {
           <Button
             variant="secondary"
             onClick={() => exportMutation.mutate(filters)}
+            // A second click while the first request is in flight downloads
+            // the same file twice.
+            disabled={exportMutation.isPending}
           >
             <Download className="h-4 w-4" /> Export CSV
           </Button>

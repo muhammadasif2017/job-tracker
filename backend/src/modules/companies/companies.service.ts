@@ -253,8 +253,8 @@ export class CompaniesService {
 
   /**
    * Answers "have I applied here before?" for the job-create confirmation
-   * step. Matches by name the same way `JobsService.resolveCompanyId` links
-   * a job — case-insensitive exact — since the create forms only know the
+   * step. Matches by name the same way `JobCompanyLinkService.resolveCompanyId`
+   * links a job — case-insensitive exact — since the create forms only know the
    * name the user typed.
    */
   async findApplicationHistory(userId: string, name: string) {
@@ -326,7 +326,8 @@ export class CompaniesService {
 
     // A rename needs no Serializable transaction: the functional unique index
     // on (userId, lower(name)) rejects a case-variant duplicate that slips
-    // past this pre-check in a race, same as JobsService.resolveCompanyId
+    // past this pre-check in a race, same as
+    // JobCompanyLinkService.resolveCompanyId
     // (ADR-033). The pre-check stays for the common non-racing case.
     if (dto.name !== undefined) {
       await this.ensureNameAvailable(this.prisma, userId, dto.name, companyId);

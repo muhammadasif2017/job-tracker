@@ -13,8 +13,8 @@ import { TimelineSummaryModule } from '../timeline-summary/timeline-summary.modu
 @Module({
   // EnrichmentModule: JobParsingService uses its WebFetch/Search/Llm
   // services directly (for POST /jobs/parse). CompanyEnrichmentModule:
-  // JobsService.create() and JobCompanyLinkService.enqueueRelinkedCompany()
-  // trigger company-scoped enrichment — see
+  // JobCompanyLinkService.enqueueLinkedCompany() triggers company-scoped
+  // enrichment for both create and update — see
   // docs/specs/company-fk-phase3b.md. TimelineSummaryModule: JobsService
   // (create/update) and JobGhostingService (markGhosted) trigger a
   // timeline-summary regen.

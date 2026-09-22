@@ -1,7 +1,14 @@
 /**
- * The one way this codebase matches a company by the name a user typed:
+ * The one way this codebase looks a company up by the name a user typed:
  * case-insensitive, exact, scoped to that user. No fuzzy matching
  * (docs/specs/target-companies.md, Assumption 6).
+ *
+ * Single-row lookups only. `CompaniesImportService` dedupes a CSV batch
+ * against a lowercased JS `Set` instead, because it compares thousands of
+ * rows against each other in memory rather than asking Postgres per row.
+ * The two can disagree on names JS and Postgres case-fold differently
+ * (`ß`/`ẞ`, Turkish dotted `I`) — the unique index is the tiebreaker, and a
+ * row the import lets through still fails there.
  *
  * Correctness under a race never comes from a read using this clause — it
  * comes from the functional unique index on `(userId, lower(name))` (see the
