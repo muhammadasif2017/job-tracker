@@ -1296,6 +1296,57 @@ describe('JobsStatsService', () => {
 
       expect(row).toContain(',"",');
     });
+
+    // The cap is `exportLimit = 1_000` in jobs-stats.service.ts. The query
+    // asks for one row more than that so a full page can be told apart from
+    // an overflowing one; the extra row must not reach the CSV.
+    it('reports truncated and drops the overflow row once past the cap', async () => {
+      mockPrisma.job.findMany.mockResolvedValue(
+        Array.from({ length: 1001 }, (_, i) => ({
+          company: `Company ${i}`,
+          position: 'Engineer',
+          status: 'APPLIED',
+          location: null,
+          appliedAt: new Date('2026-01-01'),
+          nextInterviewAt: null,
+          url: null,
+          notes: null,
+        })),
+      );
+
+      const { csv, truncated } = await service.exportCsv(
+        'u1',
+        new JobQueryDto(),
+      );
+
+      expect(truncated).toBe(true);
+      // Header plus exactly the cap, not the 1001 rows that came back.
+      expect(csv.split('\r\n')).toHaveLength(1001);
+      expect(csv).not.toContain('Company 1000');
+    });
+
+    it('reports not truncated on a result that exactly fills the cap', async () => {
+      mockPrisma.job.findMany.mockResolvedValue(
+        Array.from({ length: 1000 }, (_, i) => ({
+          company: `Company ${i}`,
+          position: 'Engineer',
+          status: 'APPLIED',
+          location: null,
+          appliedAt: new Date('2026-01-01'),
+          nextInterviewAt: null,
+          url: null,
+          notes: null,
+        })),
+      );
+
+      const { csv, truncated } = await service.exportCsv(
+        'u1',
+        new JobQueryDto(),
+      );
+
+      expect(truncated).toBe(false);
+      expect(csv.split('\r\n')).toHaveLength(1001);
+    });
   });
   describe('buildJobWhere', () => {
     const query = (overrides: Partial<JobQueryDto>) =>
