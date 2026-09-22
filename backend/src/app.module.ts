@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
+import { JobParsingModule } from './modules/job-parsing/job-parsing.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
@@ -112,6 +113,7 @@ function parseRedisConnection() {
     CompaniesModule,
     UsersModule,
     JobsModule,
+    JobParsingModule,
     HealthModule,
     EnrichmentModule,
     NotificationsModule,
