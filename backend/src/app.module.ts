@@ -10,6 +10,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
+import { JobsStatsModule } from './modules/jobs-stats/jobs-stats.module.js';
 import { JobParsingModule } from './modules/job-parsing/job-parsing.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
@@ -112,6 +113,13 @@ function parseRedisConnection() {
     ContactsModule,
     CompaniesModule,
     UsersModule,
+    // JobsStatsModule must stay above JobsModule: its routes (stats,
+    // stats/funnel, stats/trend, export, attention, ghost-suggestions) are
+    // fixed segments under `jobs`, and JobsController declares `:id`. Routes
+    // are matched in registration order, so a later registration sends all
+    // six into findOne and they 404. test/app.e2e-spec.ts asserts real body
+    // shapes on those paths and fails if this order is changed.
+    JobsStatsModule,
     JobsModule,
     JobParsingModule,
     HealthModule,

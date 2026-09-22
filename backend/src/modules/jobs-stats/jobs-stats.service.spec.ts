@@ -2,12 +2,12 @@ import { Test } from '@nestjs/testing';
 import { JobStatus, JobEventType } from '@prisma/client';
 import { JobsStatsService } from './jobs-stats.service.js';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { JobQueryDto } from './dto/job-query.dto.js';
+import { JobQueryDto } from '../jobs/dto/job-query.dto.js';
 import {
   REPLIED_FILTER,
   buildJobWhere,
   computeTrendBuckets,
-} from './jobs.constants.js';
+} from '../jobs/jobs.constants.js';
 
 const mockPrisma = {
   job: {

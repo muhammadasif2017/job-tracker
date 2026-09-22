@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { JobQueryDto } from './dto/job-query.dto.js';
-import { getAttentionItems } from './attention.helper.js';
-import type { AttentionType } from './dto/attention-item.dto.js';
+import { JobQueryDto } from '../jobs/dto/job-query.dto.js';
+import { getAttentionItems } from '../jobs/attention.helper.js';
+import type { AttentionType } from '../jobs/dto/attention-item.dto.js';
 import {
   buildGhostSuggestionWhere,
   getGhostSuggestions,
   ghostCutoff,
   GHOST_AFTER_DAYS,
-} from './ghost-suggestions.helper.js';
+} from '../jobs/ghost-suggestions.helper.js';
 import {
   JobStatus,
   ApplicationChannel,
@@ -32,7 +32,7 @@ import {
   buildJobWhere,
   SENT_APPLICATION_FILTER,
   upcomingInterviewAt,
-} from './jobs.constants.js';
+} from '../jobs/jobs.constants.js';
 
 /**
  * The calendar day a real instant falls on for this user, or null. Kept

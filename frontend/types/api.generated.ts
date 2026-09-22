@@ -476,24 +476,6 @@ export interface paths {
     patch: operations['UsersController_changePassword'];
     trace?: never;
   };
-  '/jobs': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** List job applications with filters and pagination */
-    get: operations['JobsController_findAll'];
-    put?: never;
-    /** Create a job application */
-    post: operations['JobsController_create'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   '/jobs/stats': {
     parameters: {
       query?: never;
@@ -502,7 +484,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get application funnel stats */
-    get: operations['JobsController_getStats'];
+    get: operations['JobsStatsController_getStats'];
     put?: never;
     post?: never;
     delete?: never;
@@ -519,7 +501,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel */
-    get: operations['JobsController_getFunnel'];
+    get: operations['JobsStatsController_getFunnel'];
     put?: never;
     post?: never;
     delete?: never;
@@ -536,7 +518,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get application volume over time (adaptive day/week/month buckets + cumulative total) */
-    get: operations['JobsController_getTrend'];
+    get: operations['JobsStatsController_getTrend'];
     put?: never;
     post?: never;
     delete?: never;
@@ -553,7 +535,7 @@ export interface paths {
       cookie?: never;
     };
     /** Export job applications as CSV */
-    get: operations['JobsController_exportCsv'];
+    get: operations['JobsStatsController_exportCsv'];
     put?: never;
     post?: never;
     delete?: never;
@@ -570,7 +552,7 @@ export interface paths {
       cookie?: never;
     };
     /** Jobs needing action: upcoming interviews and stalled applications */
-    get: operations['JobsController_getAttention'];
+    get: operations['JobsStatsController_getAttention'];
     put?: never;
     post?: never;
     delete?: never;
@@ -587,9 +569,27 @@ export interface paths {
       cookie?: never;
     };
     /** Applications with no activity for 14 days that may be ghosted (suggest-only) */
-    get: operations['JobsController_getGhostSuggestions'];
+    get: operations['JobsStatsController_getGhostSuggestions'];
     put?: never;
     post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/jobs': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List job applications with filters and pagination */
+    get: operations['JobsController_findAll'];
+    put?: never;
+    /** Create a job application */
+    post: operations['JobsController_create'];
     delete?: never;
     options?: never;
     head?: never;
@@ -1291,180 +1291,6 @@ export interface components {
       currentPassword: string;
       newPassword: string;
     };
-    CreateJobDto: {
-      /** @example Acme Corp */
-      company: string;
-      /** @example Senior Engineer */
-      position: string;
-      /** @example Remote */
-      location?: string | null;
-      /**
-       * Format: uri
-       * @example https://jobs.example.com/123
-       */
-      url?: string | null;
-      /** @enum {string} */
-      status?:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string|null} */
-      discoverySource?:
-        | 'LINKEDIN'
-        | 'LINKEDIN_JOBS'
-        | 'GOOGLE_SEARCH'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'JOBLEADS'
-        | 'TARAKI'
-        | 'OTHER'
-        | null;
-      /** @enum {string|null} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER'
-        | null;
-      /** @example Referral from John */
-      notes?: string | null;
-      /**
-       * Format: date
-       * @example 2024-03-15
-       */
-      appliedAt?: string;
-    };
-    CompanyProfileResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** Format: cuid */
-      jobId: string;
-      /** @enum {string|null} */
-      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
-      /** @example Software */
-      industry?: string | null;
-      /** @example 1000-5000 */
-      companySize?: string | null;
-      /**
-       * @example [
-       *       "TypeScript",
-       *       "React"
-       *     ]
-       */
-      techStack: string[];
-      /** @example Collaborative and fast-paced culture */
-      cultureSummary?: string | null;
-      /** @example Builds payments infrastructure for online businesses. */
-      productDescription?: string | null;
-      /**
-       * @example PRODUCT
-       * @enum {string|null}
-       */
-      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
-      errorMessage?: string | null;
-      /** Format: date-time */
-      enrichedAt?: string | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-    };
-    MatchedCompanyDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example Systems Limited */
-      name: string;
-    };
-    JobResponseDto: {
-      /** Format: cuid */
-      id: string;
-      /** @example Acme Corp */
-      company: string;
-      /** @example Senior Engineer */
-      position: string;
-      /** @example Remote */
-      location?: string | null;
-      /** @example https://jobs.example.com/123 */
-      url?: string | null;
-      /** @enum {string} */
-      status:
-        | 'WISHLIST'
-        | 'APPLIED'
-        | 'INTERVIEWING'
-        | 'OFFER'
-        | 'REJECTED'
-        | 'GHOSTED';
-      /** @enum {string} */
-      jobType: 'ONSITE' | 'HYBRID' | 'REMOTE';
-      /** @enum {string|null} */
-      discoverySource?:
-        | 'LINKEDIN'
-        | 'LINKEDIN_JOBS'
-        | 'GOOGLE_SEARCH'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'JOBLEADS'
-        | 'TARAKI'
-        | 'OTHER'
-        | null;
-      /** @enum {string|null} */
-      applicationChannel?:
-        | 'COMPANY_WEBSITE'
-        | 'ATS'
-        | 'LINKEDIN'
-        | 'INDEED'
-        | 'ROZEE'
-        | 'REFERRAL'
-        | 'CAREER_EMAIL'
-        | 'TARAKI'
-        | 'OTHER'
-        | null;
-      /** @example Referral from John */
-      notes?: string | null;
-      /** Format: date-time */
-      appliedAt: string;
-      /** Format: date-time */
-      nextInterviewAt?: string | null;
-      /**
-       * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
-       * @example Applied, then moved to interviewing.
-       */
-      timelineSummary?: string | null;
-      /** Format: date-time */
-      timelineSummaryAt?: string | null;
-      /** Format: date-time */
-      createdAt: string;
-      /** Format: date-time */
-      updatedAt: string;
-      /** Format: cuid */
-      userId: string;
-      /** Format: cuid */
-      companyId?: string | null;
-      companyProfile?:
-        components['schemas']['CompanyProfileResponseDto'] | null;
-      resume?: components['schemas']['ResumeResponseDto'] | null;
-      interviewRounds?: components['schemas']['InterviewRoundResponseDto'][];
-      /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
-      matchedCompany?: components['schemas']['MatchedCompanyDto'] | null;
-    };
-    PaginatedJobsDto: {
-      data: components['schemas']['JobResponseDto'][];
-      meta: components['schemas']['PaginationMetaDto'];
-    };
     ByStatusDto: {
       /** @example 3 */
       WISHLIST: number;
@@ -1627,6 +1453,121 @@ export interface components {
       granularity: 'day' | 'week' | 'month';
       buckets: components['schemas']['TrendBucketDto'][];
     };
+    CompanyProfileResponseDto: {
+      /** Format: cuid */
+      id: string;
+      /** Format: cuid */
+      jobId: string;
+      /** @enum {string|null} */
+      status?: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'FAILED' | null;
+      /** @example Software */
+      industry?: string | null;
+      /** @example 1000-5000 */
+      companySize?: string | null;
+      /**
+       * @example [
+       *       "TypeScript",
+       *       "React"
+       *     ]
+       */
+      techStack: string[];
+      /** @example Collaborative and fast-paced culture */
+      cultureSummary?: string | null;
+      /** @example Builds payments infrastructure for online businesses. */
+      productDescription?: string | null;
+      /**
+       * @example PRODUCT
+       * @enum {string|null}
+       */
+      businessMode?: 'PRODUCT' | 'SERVICES' | 'HYBRID' | null;
+      errorMessage?: string | null;
+      /** Format: date-time */
+      enrichedAt?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+    };
+    MatchedCompanyDto: {
+      /** Format: cuid */
+      id: string;
+      /** @example Systems Limited */
+      name: string;
+    };
+    JobResponseDto: {
+      /** Format: cuid */
+      id: string;
+      /** @example Acme Corp */
+      company: string;
+      /** @example Senior Engineer */
+      position: string;
+      /** @example Remote */
+      location?: string | null;
+      /** @example https://jobs.example.com/123 */
+      url?: string | null;
+      /** @enum {string} */
+      status:
+        | 'WISHLIST'
+        | 'APPLIED'
+        | 'INTERVIEWING'
+        | 'OFFER'
+        | 'REJECTED'
+        | 'GHOSTED';
+      /** @enum {string} */
+      jobType: 'ONSITE' | 'HYBRID' | 'REMOTE';
+      /** @enum {string|null} */
+      discoverySource?:
+        | 'LINKEDIN'
+        | 'LINKEDIN_JOBS'
+        | 'GOOGLE_SEARCH'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
+        | 'OTHER'
+        | null;
+      /** @enum {string|null} */
+      applicationChannel?:
+        | 'COMPANY_WEBSITE'
+        | 'ATS'
+        | 'LINKEDIN'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'TARAKI'
+        | 'OTHER'
+        | null;
+      /** @example Referral from John */
+      notes?: string | null;
+      /** Format: date-time */
+      appliedAt: string;
+      /** Format: date-time */
+      nextInterviewAt?: string | null;
+      /**
+       * @description LLM-generated one-line summary of this job's event timeline, regenerated asynchronously after each status change.
+       * @example Applied, then moved to interviewing.
+       */
+      timelineSummary?: string | null;
+      /** Format: date-time */
+      timelineSummaryAt?: string | null;
+      /** Format: date-time */
+      createdAt: string;
+      /** Format: date-time */
+      updatedAt: string;
+      /** Format: cuid */
+      userId: string;
+      /** Format: cuid */
+      companyId?: string | null;
+      companyProfile?:
+        components['schemas']['CompanyProfileResponseDto'] | null;
+      resume?: components['schemas']['ResumeResponseDto'] | null;
+      interviewRounds?: components['schemas']['InterviewRoundResponseDto'][];
+      /** @description Only present on the create response — a saved target company whose name case-insensitively matches this job's company field, or null if none matched. */
+      matchedCompany?: components['schemas']['MatchedCompanyDto'] | null;
+    };
     AttentionItemDto: {
       /**
        * @example STALE_APPLIED
@@ -1647,6 +1588,65 @@ export interface components {
        */
       since: string;
       job: components['schemas']['JobResponseDto'];
+    };
+    CreateJobDto: {
+      /** @example Acme Corp */
+      company: string;
+      /** @example Senior Engineer */
+      position: string;
+      /** @example Remote */
+      location?: string | null;
+      /**
+       * Format: uri
+       * @example https://jobs.example.com/123
+       */
+      url?: string | null;
+      /** @enum {string} */
+      status?:
+        | 'WISHLIST'
+        | 'APPLIED'
+        | 'INTERVIEWING'
+        | 'OFFER'
+        | 'REJECTED'
+        | 'GHOSTED';
+      /** @enum {string} */
+      jobType?: 'ONSITE' | 'HYBRID' | 'REMOTE';
+      /** @enum {string|null} */
+      discoverySource?:
+        | 'LINKEDIN'
+        | 'LINKEDIN_JOBS'
+        | 'GOOGLE_SEARCH'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'JOBLEADS'
+        | 'TARAKI'
+        | 'OTHER'
+        | null;
+      /** @enum {string|null} */
+      applicationChannel?:
+        | 'COMPANY_WEBSITE'
+        | 'ATS'
+        | 'LINKEDIN'
+        | 'INDEED'
+        | 'ROZEE'
+        | 'REFERRAL'
+        | 'CAREER_EMAIL'
+        | 'TARAKI'
+        | 'OTHER'
+        | null;
+      /** @example Referral from John */
+      notes?: string | null;
+      /**
+       * Format: date
+       * @example 2024-03-15
+       */
+      appliedAt?: string;
+    };
+    PaginatedJobsDto: {
+      data: components['schemas']['JobResponseDto'][];
+      meta: components['schemas']['PaginationMetaDto'];
     };
     MarkGhostedDto: {
       /**
@@ -3317,6 +3317,192 @@ export interface operations {
       };
     };
   };
+  JobsStatsController_getStats: {
+    parameters: {
+      query?: {
+        range?: '30d' | '90d' | 'all';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['JobStatsDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsStatsController_getFunnel: {
+    parameters: {
+      query?: {
+        range?: '30d' | '90d' | 'all';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['FunnelStatsDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsStatsController_getTrend: {
+    parameters: {
+      query?: {
+        range?: '30d' | '90d' | 'all';
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['TrendStatsDto'];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsStatsController_exportCsv: {
+    parameters: {
+      query?: {
+        page?: number;
+        status?:
+          | 'WISHLIST'
+          | 'APPLIED'
+          | 'INTERVIEWING'
+          | 'OFFER'
+          | 'REJECTED'
+          | 'GHOSTED';
+        statusIn?: (
+          | 'WISHLIST'
+          | 'APPLIED'
+          | 'INTERVIEWING'
+          | 'OFFER'
+          | 'REJECTED'
+          | 'GHOSTED'
+        )[];
+        search?: string;
+        limit?: number;
+        sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';
+        sortOrder?: 'asc' | 'desc';
+        dateFrom?: string;
+        dateTo?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description CSV file download */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'text/csv': unknown;
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsStatsController_getAttention: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['AttentionItemDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
+  JobsStatsController_getGhostSuggestions: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['GhostSuggestionDto'][];
+        };
+      };
+      /** @description Missing or invalid access token */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+    };
+  };
   JobsController_findAll: {
     parameters: {
       query?: {
@@ -3385,192 +3571,6 @@ export interface operations {
         };
         content: {
           'application/json': components['schemas']['JobResponseDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getStats: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['JobStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getFunnel: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['FunnelStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getTrend: {
-    parameters: {
-      query?: {
-        range?: '30d' | '90d' | 'all';
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['TrendStatsDto'];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_exportCsv: {
-    parameters: {
-      query?: {
-        page?: number;
-        status?:
-          | 'WISHLIST'
-          | 'APPLIED'
-          | 'INTERVIEWING'
-          | 'OFFER'
-          | 'REJECTED'
-          | 'GHOSTED';
-        statusIn?: (
-          | 'WISHLIST'
-          | 'APPLIED'
-          | 'INTERVIEWING'
-          | 'OFFER'
-          | 'REJECTED'
-          | 'GHOSTED'
-        )[];
-        search?: string;
-        limit?: number;
-        sortBy?: 'appliedAt' | 'company' | 'position' | 'createdAt' | 'status';
-        sortOrder?: 'asc' | 'desc';
-        dateFrom?: string;
-        dateTo?: string;
-      };
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description CSV file download */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'text/csv': unknown;
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getAttention: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['AttentionItemDto'][];
-        };
-      };
-      /** @description Missing or invalid access token */
-      401: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content?: never;
-      };
-    };
-  };
-  JobsController_getGhostSuggestions: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['GhostSuggestionDto'][];
         };
       };
       /** @description Missing or invalid access token */

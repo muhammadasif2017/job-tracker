@@ -9,10 +9,8 @@ import {
   Patch,
   Post,
   Query,
-  Res,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import type { Response } from 'express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -24,7 +22,6 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JobsService } from './jobs.service.js';
-import { JobsStatsService } from './jobs-stats.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
 import { JobQueryDto } from './dto/job-query.dto.js';
@@ -32,12 +29,6 @@ import { JobResponseDto } from './dto/job-response.dto.js';
 import { PaginatedJobsDto } from './dto/paginated-jobs.dto.js';
 import { PaginatedJobEventsDto } from './dto/paginated-job-events.dto.js';
 import { JobEventsQueryDto } from './dto/job-events-query.dto.js';
-import { JobStatsDto } from './dto/job-stats.dto.js';
-import { FunnelStatsDto } from './dto/funnel-stats.dto.js';
-import { TrendStatsDto } from './dto/trend-stats.dto.js';
-import { StatsQueryDto } from './dto/stats-query.dto.js';
-import { AttentionItemDto } from './dto/attention-item.dto.js';
-import { GhostSuggestionDto } from './dto/ghost-suggestion.dto.js';
 import {
   MarkGhostedDto,
   MarkGhostedResultDto,
@@ -47,24 +38,24 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
 
 /**
- * Everything about a user's job applications: the list and detail views,
- * the dashboard aggregates, CSV export, the ghost-suggestion actions.
- * Quick Add's posting parser lives in `JobParsingModule`, mounted under the
- * same prefix.
+ * A user's job applications: the list and detail views, create, update and
+ * delete, the job event history, and the two ghost-suggestion write actions.
+ * The read-only aggregates — stats, funnel, trend, CSV export, the
+ * needs-attention list and the ghost suggestions themselves — live in
+ * `JobsStatsModule`, and Quick Add's posting parser in `JobParsingModule`,
+ * both mounted under this same prefix.
  *
- * Every literal route — `stats`, `stats/funnel`, `stats/trend`, `export`,
- * `attention`, `ghost-suggestions` — must stay above `:id`. A fixed segment
- * only wins over a parameterized one when it is registered first.
+ * Every literal route — here `ghost-suggestions/mark-ghosted`, and every
+ * route on `JobsStatsController` — must stay above `:id`. A fixed segment
+ * only wins over a parameterized one when it is registered first, which is
+ * also why `JobsStatsModule` is registered before `JobsModule`.
  */
 @ApiTags('jobs')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @Controller('jobs')
 export class JobsController {
-  constructor(
-    private jobsService: JobsService,
-    private jobsStats: JobsStatsService,
-  ) {}
+  constructor(private jobsService: JobsService) {}
 
   /** Creates a job application. */
   @Post()
@@ -86,94 +77,6 @@ export class JobsController {
   @ApiOkResponse({ type: PaginatedJobsDto })
   findAll(@CurrentUser() user: { id: string }, @Query() query: JobQueryDto) {
     return this.jobsService.findAll(user.id, query);
-  }
-
-  /** The dashboard's headline numbers. */
-  @Get('stats')
-  @ApiOperation({ summary: 'Get application funnel stats' })
-  @ApiOkResponse({ type: JobStatsDto })
-  getStats(@CurrentUser() user: { id: string }, @Query() query: StatsQueryDto) {
-    return this.jobsStats.getStats(user.id, query.range ?? 'all');
-  }
-
-  @Get('stats/funnel')
-  @ApiOperation({
-    summary:
-      'Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel',
-  })
-  /** The application funnel and its per-source breakdowns. */
-  @ApiOkResponse({ type: FunnelStatsDto })
-  getFunnel(
-    @CurrentUser() user: { id: string },
-    @Query() query: StatsQueryDto,
-  ) {
-    return this.jobsStats.getFunnel(user.id, query.range ?? 'all');
-  }
-
-  @Get('stats/trend')
-  @ApiOperation({
-    summary:
-      'Get application volume over time (adaptive day/week/month buckets + cumulative total)',
-  })
-  /** Applications over time, bucketed for the trend chart. */
-  @ApiOkResponse({ type: TrendStatsDto })
-  getTrend(@CurrentUser() user: { id: string }, @Query() query: StatsQueryDto) {
-    return this.jobsStats.getTrend(user.id, query.range ?? 'all');
-  }
-
-  @Get('export')
-  @ApiOperation({ summary: 'Export job applications as CSV' })
-  @ApiOkResponse({
-    description: 'CSV file download',
-    content: { 'text/csv': {} },
-  })
-  /**
-   * Downloads the filtered job list as CSV. Sets a response header when the
-   * export hit its row cap, so the client can warn rather than hand over a
-   * silently partial file.
-   */
-  async exportCsv(
-    @CurrentUser() user: { id: string },
-    @Query() query: JobQueryDto,
-    @Res() res: Response,
-  ) {
-    const { csv, truncated } = await this.jobsStats.exportCsv(user.id, query);
-    const suffix = query.status ? `-${query.status.toLowerCase()}` : '';
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="jobs${suffix}.csv"`,
-    );
-    if (truncated) res.setHeader('X-Export-Truncated', 'true');
-    res.send(csv);
-  }
-
-  @Get('attention')
-  @ApiOperation({
-    summary:
-      'Jobs needing action: upcoming interviews and stalled applications',
-  })
-  /**
-   * The "Needs Attention" list: upcoming interviews and stalled
-   * applications.
-   */
-  @ApiOkResponse({ type: AttentionItemDto, isArray: true })
-  getAttention(@CurrentUser() user: { id: string }) {
-    return this.jobsStats.getAttention(user.id);
-  }
-
-  @Get('ghost-suggestions')
-  @ApiOperation({
-    summary:
-      'Applications with no activity for 14 days that may be ghosted (suggest-only)',
-  })
-  /**
-   * Applications quiet long enough to look ghosted. Suggest-only — nothing
-   * here changes a status.
-   */
-  @ApiOkResponse({ type: GhostSuggestionDto, isArray: true })
-  getGhostSuggestions(@CurrentUser() user: { id: string }) {
-    return this.jobsStats.getGhostSuggestions(user.id);
   }
 
   @Post('ghost-suggestions/mark-ghosted')
