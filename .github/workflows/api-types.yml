@@ -1,0 +1,125 @@
+name: API Types
+
+# `frontend/types/api.generated.ts` is produced by `npm run generate:api-types`,
+# which reads the live Swagger document off a running backend. Nothing regenerated
+# it in CI, so it only ever changed when someone happened to run that command
+# locally — and it drifted: by the time #415 regenerated it, it was missing
+# `/companies/application-history`, `/jobs/ghost-suggestions`,
+# `/jobs/ghost-suggestions/mark-ghosted` and `/jobs/{id}/ghost-suggestion/dismiss`.
+# A stale copy is worse than no copy, because it type-checks. This job boots the
+# backend, regenerates, and fails if the result differs from what is committed.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.filter.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        with:
+          filters: |
+            relevant:
+              - 'backend/**'
+              - 'frontend/types/api.generated.ts'
+              - 'frontend/package.json'
+              - '.github/workflows/api-types.yml'
+
+  api-types:
+    name: API types are current
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+
+    # The generator talks to a real running app, so the backend needs the same
+    # dependencies it needs to boot anywhere else. Mirrors e2e-pr.yml.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: job_tracker
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/job_tracker?schema=public
+      JWT_SECRET: api-types-jwt-secret-not-for-prod-use-32-chars
+      JWT_REFRESH_SECRET: api-types-refresh-secret-not-for-prod-64-chars
+      REDIS_URL: redis://localhost:6379
+      STORAGE_DRIVER: local
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Apply migrations
+        working-directory: ./backend
+        run: npx prisma migrate deploy
+
+      - name: Generate Prisma client
+        working-directory: ./backend
+        run: npx prisma generate
+
+      - name: Start backend
+        working-directory: ./backend
+        run: npm run start &
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Wait for backend
+        run: npx --yes wait-on --timeout 60000 http://localhost:3001/health
+
+      - name: Regenerate API types
+        working-directory: ./frontend
+        run: npm run generate:api-types
+
+      # `generate:api-types` pipes through prettier, so a diff here is a real
+      # schema difference rather than formatting noise.
+      - name: Fail if the committed types are stale
+        run: |
+          if ! git diff --quiet -- frontend/types/api.generated.ts; then
+            echo "::error file=frontend/types/api.generated.ts::Committed API types do not match the backend's Swagger document. Run 'npm run generate:api-types' in frontend/ with the backend running, and commit the result."
+            git diff -- frontend/types/api.generated.ts
+            exit 1
+          fi
+          echo "API types are current."
