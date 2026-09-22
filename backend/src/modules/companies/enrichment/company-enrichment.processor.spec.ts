@@ -1,6 +1,5 @@
 import { UnrecoverableError, type Job } from 'bullmq';
 import { EnrichmentStatus, JobType } from '@prisma/client';
-import { WORKER_METADATA } from '@nestjs/bullmq/dist/bull.constants.js';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
 import {
@@ -8,6 +7,11 @@ import {
   SearchUnavailableError,
 } from '../../enrichment/services/search.service.js';
 import { LlmService } from '../../enrichment/services/llm.service.js';
+
+// `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
+// be deep-imported from `dist/bull.constants.js`, and the package root does
+// not re-export it. The value is the metadata key `@Processor()` writes.
+const WORKER_METADATA = 'bullmq:worker_metadata';
 
 // Mirrors enrichment.processor.spec.ts's mock shape — same three injectable
 // services, reused unmodified per docs/specs/target-companies.md Assumption 2.

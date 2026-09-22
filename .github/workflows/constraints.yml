@@ -19,7 +19,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
 
       - run: node scripts/floor-guard.mjs --base origin/${{ github.base_ref || 'main' }}
 
@@ -50,7 +50,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
 
       # osv-scanner has no severity or dependency-group gate of its own: it exits
       # 1 on any finding at any severity, dev-only packages included. That is
