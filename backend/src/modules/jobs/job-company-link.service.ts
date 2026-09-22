@@ -7,15 +7,11 @@ import { companyNameMatch } from '../companies/company-name-match.helper.js';
 
 /**
  * Resolves the `Job.companyId` FK from the company label a user typed, and
- * queues enrichment for a company a job was just re-linked to.
+ * queues enrichment for a company a job was just linked to.
  *
  * Split out of `JobsService`: the find-or-create race handling and the
  * enrichment contract are one concern, shared by create and update, and
  * neither is about job CRUD.
- *
- * Enrichment enqueueing is only half here — `JobsService.create` still
- * enqueues its own newly linked company inline, with the same best-effort
- * contract and the same log line. Change one and change the other.
  */
 @Injectable()
 export class JobCompanyLinkService {
@@ -26,7 +22,9 @@ export class JobCompanyLinkService {
   ) {}
 
   /**
-   * Queues enrichment for a company a job was just re-linked to.
+   * Queues enrichment for a company a job was just linked to — by `create`,
+   * or by an edit that re-resolved the label. One best-effort contract for
+   * both: a queue hiccup never fails the mutation that triggered it.
    *
    * Editing a job's company label re-resolves the FK, and
    * `resolveCompanyId` auto-creates the row when no company of that name
@@ -39,7 +37,7 @@ export class JobCompanyLinkService {
    * is already enriched, running or failed must not re-burn search quota
    * (ADR-035).
    */
-  async enqueueRelinkedCompany(
+  async enqueueLinkedCompany(
     jobId: string,
     companyId: string | null,
   ): Promise<void> {
@@ -47,8 +45,7 @@ export class JobCompanyLinkService {
     try {
       await this.companyEnrichment.enqueueIfStale(companyId);
     } catch (err: unknown) {
-      // Best-effort, same contract as the inline enqueue in
-      // `JobsService.create` — the job update stands.
+      // Best-effort — the job create or update stands.
       this.logger.warn('Enrichment enqueue failed', { jobId, companyId, err });
     }
   }

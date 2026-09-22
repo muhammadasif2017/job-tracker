@@ -150,6 +150,8 @@ Pulls from `http://localhost:3001/api/docs-json` (Nest Swagger's auto-exposed JS
 
 ## Doc Comment Convention
 
+Naming, file layout and the rest of the house style: `../docs/CODE-STYLE.md`.
+
 Mirrors `backend/CLAUDE.md`'s convention. Every exported function, hook, component, type and constant carries a `/** */` doc comment, as do module-private helpers. `types/api.generated.ts` is generated and never hand-edited.
 
 - **No `@param`/`@returns`.** The TypeScript signature already states them.

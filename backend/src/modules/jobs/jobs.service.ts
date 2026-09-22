@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -23,11 +22,11 @@ import { civilDateFromInput, todayFor } from './jobs-dates.helper.js';
 import { buildUpdateData } from './job-update-data.helper.js';
 import {
   assertCompanyNotCleared,
-  companyLabelNeedsResolving,
+  companyLabelToResolve,
   shouldRestampAppliedAt,
 } from './job-update-rules.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
-import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
+import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.helper.js';
 
 /**
  * `Job.nextInterviewAt` goes stale on its own: `InterviewRoundsService`
@@ -61,7 +60,6 @@ function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
 export class JobsService {
   constructor(
     private prisma: PrismaService,
-    private companyEnrichment: CompanyEnrichmentService,
     private timelineSummary: TimelineSummaryService,
     private companyLink: JobCompanyLinkService,
     private ghosting: JobGhostingService,
@@ -128,30 +126,14 @@ export class JobsService {
         },
       },
     });
-    // Kept inline rather than routed through
-    // `JobCompanyLinkService.enqueueRelinkedCompany`: same best-effort
-    // contract and same log line, but this is the create path, not a
-    // re-link. Change one and change the other.
-    //
     // Company-scoped, not job-scoped (see docs/specs/company-fk-phase3b.md)
     // — one AI research run per company, not duplicated per job at that
     // company. enqueueIfStale, not enqueueEnrichment, is what actually
     // enforces that "not duplicated": it no-ops for a company already
-    // enriched, already running, or already failed (ADR-035). Skipped
-    // entirely for a blank company name (nothing to enrich; there's no
-    // linked Company).
-    if (company) {
-      try {
-        await this.companyEnrichment.enqueueIfStale(company.id);
-      } catch (err: unknown) {
-        // enrichment is best-effort; job creation always succeeds
-        this.logger.warn('Enrichment enqueue failed', {
-          jobId: job.id,
-          companyId: company.id,
-          err,
-        });
-      }
-    }
+    // enriched, already running, or already failed (ADR-035). A blank
+    // company name resolves to no Company, so the null id skips it
+    // entirely (nothing to enrich).
+    await this.companyLink.enqueueLinkedCompany(job.id, company?.id ?? null);
 
     await this.enqueueTimelineSummary(job.id);
 
@@ -336,7 +318,7 @@ export class JobsService {
         include: { resume: true },
         data,
       });
-      await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
+      await this.companyLink.enqueueLinkedCompany(jobId, relinkedCompanyId);
       return withUpcomingInterview(updated);
     }
 
@@ -347,7 +329,7 @@ export class JobsService {
       data,
     );
 
-    await this.companyLink.enqueueRelinkedCompany(jobId, relinkedCompanyId);
+    await this.companyLink.enqueueLinkedCompany(jobId, relinkedCompanyId);
     await this.enqueueTimelineSummary(jobId);
     return withUpcomingInterview(result);
   }
@@ -378,7 +360,8 @@ export class JobsService {
     data: ReturnType<typeof buildUpdateData> & { companyId?: string | null };
     relinkedCompanyId: string | null;
   }> {
-    if (!companyLabelNeedsResolving(dto, existing)) {
+    const label = companyLabelToResolve(dto, existing);
+    if (label === null) {
       return { data: baseData, relinkedCompanyId: null };
     }
     // Same location anchor create() seeds onto an auto-created company.
@@ -386,7 +369,7 @@ export class JobsService {
     // stored value; only an omitted field falls back to it.
     const { company } = await this.companyLink.resolveCompanyId(
       userId,
-      dto.company!.trim(),
+      label,
       dto.location !== undefined ? dto.location : existing.location,
     );
     return {

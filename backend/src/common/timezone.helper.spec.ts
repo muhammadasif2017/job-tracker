@@ -3,9 +3,9 @@ import {
   localCivilDay,
   safeTimeZone,
   startOfCivilMonth,
-} from './timezone.util.js';
+} from './timezone.helper.js';
 
-describe('timezone.util', () => {
+describe('timezone.helper', () => {
   describe('safeTimeZone', () => {
     it('passes a valid IANA zone through', () => {
       expect(safeTimeZone('Asia/Karachi')).toBe('Asia/Karachi');

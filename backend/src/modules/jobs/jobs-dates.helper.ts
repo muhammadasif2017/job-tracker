@@ -1,5 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { localCivilDay } from '../../common/timezone.util.js';
+import { localCivilDay } from '../../common/timezone.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 
 /**
@@ -10,9 +10,6 @@ import { findUserTimeZone } from '../../common/user-timezone.js';
  */
 export function civilDateFromInput(value: string): Date {
   const parsed = new Date(value);
-  // A date-only string already parses to UTC midnight; a full ISO datetime
-  // (which the DTO's @IsDateString also accepts) gets floored to the UTC
-  // day it names rather than smuggling a time-of-day into the column.
   return new Date(
     Date.UTC(
       parsed.getUTCFullYear(),

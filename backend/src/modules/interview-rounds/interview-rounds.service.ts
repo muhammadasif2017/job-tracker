@@ -15,7 +15,7 @@ import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
-import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
+import { deriveInterviewRoundStatus } from './interview-round-status.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 
 /**

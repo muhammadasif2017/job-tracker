@@ -26,8 +26,8 @@ export function assertCompanyNotCleared(dto: UpdateJobDto): void {
 }
 
 /**
- * Whether this edit actually changed the company label, as opposed to
- * resending it.
+ * The trimmed company label this edit needs re-resolved to a `Company`, or
+ * null when there is nothing to re-resolve.
  *
  * JobForm always resends the pre-filled `company` label on every submit,
  * even when the user only touched an unrelated field — so
@@ -37,16 +37,20 @@ export function assertCompanyNotCleared(dto: UpdateJobDto): void {
  * label after the linked Company was renamed or merged elsewhere would
  * silently re-link to (or recreate) a different company, undoing that
  * rename/merge on an unrelated edit (ADR-030).
+ *
+ * Returns the label rather than a boolean so the caller trims once and
+ * needs no non-null assertion to use it.
  */
-export function companyLabelNeedsResolving(
+export function companyLabelToResolve(
   dto: UpdateJobDto,
   existing: { company: string; companyId: string | null },
-): boolean {
-  if (dto.company === undefined) return false;
+): string | null {
+  if (dto.company === undefined) return null;
+  const trimmed = dto.company.trim();
   const matchesCurrentLabel =
     existing.companyId !== null &&
-    dto.company.trim().toLowerCase() === existing.company.toLowerCase();
-  return !matchesCurrentLabel;
+    trimmed.toLowerCase() === existing.company.toLowerCase();
+  return matchesCurrentLabel ? null : trimmed;
 }
 
 /**

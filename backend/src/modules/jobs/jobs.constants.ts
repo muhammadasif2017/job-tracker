@@ -4,7 +4,7 @@ import {
   civilDaysAgo,
   localCivilDay,
   safeTimeZone,
-} from '../../common/timezone.util.js';
+} from '../../common/timezone.helper.js';
 
 /** Statuses a job moves forward through, in funnel order. */
 export const FUNNEL_STAGES = [
@@ -243,7 +243,7 @@ export function rangeToGranularity(range: StatsRange): TrendGranularity {
  * The first civil day of the day, Monday-start week or month containing `civil`.
  *
  * This helper and the two after it operate on *civil* dates — wall-clock days
- * encoded as UTC midnight (see common/timezone.util.ts). Everything is UTC
+ * encoded as UTC midnight (see common/timezone.helper.ts). Everything is UTC
  * arithmetic on purpose: the calendar has already been resolved in the
  * user's zone, so a DST shift must not move a bucket boundary here.
  */

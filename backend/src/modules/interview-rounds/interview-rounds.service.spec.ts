@@ -468,7 +468,7 @@ describe('InterviewRoundsService', () => {
   });
 
   describe('derivedStatus', () => {
-    // Real thresholding is covered by interview-round-status.util.spec.ts —
+    // Real thresholding is covered by interview-round-status.helper.spec.ts —
     // these just confirm every read/write path attaches the field.
     it('is attached to a freshly created round', async () => {
       mockPrisma.job.findFirst.mockResolvedValue({ id: 'job-1' });
