@@ -12,6 +12,10 @@ npx prisma generate                           # regenerate client after schema c
 npx prisma studio                             # GUI DB browser
 ```
 
+**Node 24 is required to run the test suite.** NestJS 12 core packages are ESM-only and Jest has its own module registry, so it does not inherit Node's `require(esm)` interop. Jest needs **both** Node 24.9+ **and** `--experimental-vm-modules` — either alone still fails with `Must use import to load ES Module: node_modules/@nestjs/testing/index.js`. The flag is spelled into every `jest` script in `package.json` rather than set through `NODE_OPTIONS`, so don't call bare `npx jest` — use `npm test`. The built app still runs on Node 22.12+; only the test runner needs 24. See ADR-044. The `ExperimentalWarning: VM Modules` line per worker is expected.
+
+**Don't deep-import from `@nestjs/*` `dist/`.** v12 added `exports` maps, so a path like `@nestjs/bullmq/dist/bull.constants.js` no longer resolves even though the file is there.
+
 **After every `prisma migrate dev`, run `prisma generate`** — the TypeScript client (including new enums) is not updated by migrate alone.
 
 **`tsBuildInfoFile` must live inside `dist/`** (set in `tsconfig.json`). `nest start --watch` deletes `dist/` on startup (`deleteOutDir: true`), but a tsbuildinfo stored outside `dist/` survives and tells tsc the build is current — tsc emits nothing and the server crashes with `Cannot find module dist\main`. Keeping the tsbuildinfo inside `dist/` makes both get wiped together. If you ever see that crash, delete any stray `*.tsbuildinfo` at the backend root.
