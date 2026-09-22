@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { JobResponseDto } from './job-response.dto.js';
+import { JobResponseDto } from '../../jobs/dto/job-response.dto.js';
 
 /** One "Looks ghosted" suggestion: the job and the date it went silent. */
 export class GhostSuggestionDto {

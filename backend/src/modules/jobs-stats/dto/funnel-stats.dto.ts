@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { JobStatus, ApplicationChannel, DiscoverySource } from '@prisma/client';
-import { FUNNEL_STAGES, DROPOFF_STAGES } from '../jobs.constants.js';
+import { FUNNEL_STAGES, DROPOFF_STAGES } from '../../jobs/jobs.constants.js';
 
 /** How many jobs ever reached one funnel stage. */
 export class FunnelStageDto {
