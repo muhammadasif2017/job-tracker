@@ -1,5 +1,5 @@
 import { PrismaService } from '../../prisma/prisma.service.js';
-import { localCivilDay } from '../../common/timezone.util.js';
+import { localCivilDay } from '../../common/timezone.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 
 /**

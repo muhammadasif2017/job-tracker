@@ -3,7 +3,7 @@ import { InterviewOutcome } from '@prisma/client';
 import {
   INTERVIEW_ROUND_DERIVED_STATUSES,
   type InterviewRoundDerivedStatus,
-} from '../interview-round-status.util.js';
+} from '../interview-round-status.helper.js';
 
 /** An interview round, with its computed `derivedStatus`. */
 export class InterviewRoundResponseDto {
@@ -31,7 +31,7 @@ export class InterviewRoundResponseDto {
 
   /**
    * Computed, not stored — splits PENDING into SCHEDULED/AWAITING_RESPONSE/
-   * POSSIBLY_GHOSTED based on scheduledAt vs now (see interview-round-status.util.ts).
+   * POSSIBLY_GHOSTED based on scheduledAt vs now (see interview-round-status.helper.ts).
    */
   @ApiProperty({ enum: INTERVIEW_ROUND_DERIVED_STATUSES })
   derivedStatus: InterviewRoundDerivedStatus;

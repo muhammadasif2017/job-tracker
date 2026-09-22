@@ -18,7 +18,7 @@ import {
 import {
   localCivilDay,
   startOfCivilMonth,
-} from '../../common/timezone.util.js';
+} from '../../common/timezone.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 import {
   FUNNEL_STAGES,

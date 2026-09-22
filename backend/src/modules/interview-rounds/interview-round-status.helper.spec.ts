@@ -1,5 +1,5 @@
 import { InterviewOutcome } from '@prisma/client';
-import { deriveInterviewRoundStatus } from './interview-round-status.util.js';
+import { deriveInterviewRoundStatus } from './interview-round-status.helper.js';
 
 describe('deriveInterviewRoundStatus', () => {
   const now = new Date('2026-08-27T00:00:00.000Z');

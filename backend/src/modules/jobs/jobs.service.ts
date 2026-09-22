@@ -26,7 +26,7 @@ import {
   shouldRestampAppliedAt,
 } from './job-update-rules.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
-import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.util.js';
+import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.helper.js';
 
 /**
  * `Job.nextInterviewAt` goes stale on its own: `InterviewRoundsService`

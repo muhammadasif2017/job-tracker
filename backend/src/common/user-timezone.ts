@@ -1,5 +1,5 @@
 import type { PrismaService } from '../prisma/prisma.service.js';
-import { safeTimeZone } from './timezone.util.js';
+import { safeTimeZone } from './timezone.helper.js';
 
 /**
  * The one read of `User.timezone` for request-time date logic (jobs'

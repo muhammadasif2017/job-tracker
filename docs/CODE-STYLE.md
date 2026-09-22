@@ -114,9 +114,9 @@ PascalCase React component (`kanban-board.tsx` exports `KanbanBoard`). No
 exceptions in either package.
 
 The suffix is a type declaration. Backend census: 57 `.dto`, 50 `.spec`, 25
-`.service`, 17 `.module`, 11 `.controller`, 8 `.helper`, 6 `.constants`, 5
-`.strategy`, 4 `.decorator`, 3 each `.validator` / `.processor` / `.guard`, 2
-`.util`, 1 each `.scheduler` / `.filter`.
+`.service`, 17 `.module`, 11 `.controller`, 10 `.helper`, 6 `.constants`, 5
+`.strategy`, 4 `.decorator`, 3 each `.validator` / `.processor` / `.guard`, 1
+each `.scheduler` / `.filter`.
 
 | Suffix           | Holds                                                                            |
 | ---------------- | -------------------------------------------------------------------------------- |
@@ -125,13 +125,13 @@ The suffix is a type declaration. Backend census: 57 `.dto`, 50 `.spec`, 25
 | `.dto.ts`        | One request or response shape, one class per file.                               |
 | `.helper.ts`     | Free functions for one module's concern. **The default for new extracted code.** |
 | `.constants.ts`  | Shared constant values and the query builders over them.                         |
-| `.util.ts`       | Same as `.helper.ts`. Only 2 files, both older — don't add more.                 |
 | `.spec.ts`       | Backend unit test (Jest), beside its subject.                                    |
 | `.test.ts(x)`    | Frontend unit test (Vitest), beside its subject.                                 |
 
-`.helper.ts` vs `.util.ts` is **not** a live distinction — neither
-cross-module use nor purity separates them in practice. `.helper.ts` won; use
-it.
+There is no `.util.ts`. Two files carried that suffix historically —
+`timezone.util.ts` and `interview-round-status.util.ts` — and neither
+cross-module use nor purity distinguished them from a `.helper.ts`, so both
+were renamed rather than leaving two words for one thing.
 
 A helper file is named for the **concern**, not the module it came out of:
 `job-update-rules.helper.ts`, `ghost-suggestions.helper.ts`,

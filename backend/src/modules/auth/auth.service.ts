@@ -14,7 +14,7 @@ import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { safeTimeZone } from '../../common/timezone.util.js';
+import { safeTimeZone } from '../../common/timezone.helper.js';
 import {
   API_TOKEN_PREFIX,
   PAT_SCOPE,
