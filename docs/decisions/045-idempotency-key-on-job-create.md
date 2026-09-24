@@ -61,11 +61,21 @@ form session would turn "fix a typo after a failed save" into a 422. A key per
 
 ## Trade-offs
 
-- **Fail-open on a Redis outage.** If the claim cannot reach Redis, the
-  request runs without the guarantee and a warning is logged. Job creation
-  stays available when Redis is down. The cost is that a retry during the
-  outage can duplicate. For a job tracker, availability wins. A payments API
-  would fail closed.
+- **The idempotency layer fails open on a Redis outage.** If the claim
+  cannot reach Redis, the request runs without the guarantee and a warning
+  is logged. A payments API would fail closed; a job tracker should not
+  refuse a save because its dedup store is down.
+
+  **This does not make job creation available during a Redis outage.** A
+  manual test on 2026-09-24 stopped the Redis container and POSTed `/jobs`.
+  The interceptor logged its warning and let the request through. The job
+  row committed, but the response then hung until the client timed out
+  (30s and 60s runs), with or without a key. The hang is in the existing
+  create path: it awaits BullMQ enqueues (enrichment, timeline summary), and
+  BullMQ's connection uses `maxRetriesPerRequest: null`, so it waits for
+  Redis indefinitely. During an outage a client sees a timeout for a job
+  that was saved, and its retry creates a duplicate, since the idempotency
+  layer is down too. Bounding those enqueues is a separate change.
 - **A crashed request holds its key for up to 60 seconds.** If the process
   dies between the claim and the store, retries get 409 until the pending TTL
   expires. A create finishes in well under a second, so 60 seconds only
