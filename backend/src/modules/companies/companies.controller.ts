@@ -33,6 +33,7 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { CompaniesService } from './companies.service.js';
+import { CompanyDedupService } from './company-dedup.service.js';
 import { CompaniesImportService } from './companies-import.service.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
@@ -66,6 +67,7 @@ const MAX_CSV_SIZE = 1 * 1024 * 1024;
 export class CompaniesController {
   constructor(
     private companiesService: CompaniesService,
+    private companyDedup: CompanyDedupService,
     private companiesImport: CompaniesImportService,
   ) {}
 
@@ -110,7 +112,7 @@ export class CompaniesController {
    */
   @ApiOkResponse({ type: DuplicateSuggestionDto, isArray: true })
   findDuplicates(@CurrentUser() user: { id: string }) {
-    return this.companiesService.findDuplicateSuggestions(user.id);
+    return this.companyDedup.findDuplicateSuggestions(user.id);
   }
 
   @Get('application-history')
@@ -214,7 +216,7 @@ export class CompaniesController {
     @Param('id') id: string,
     @Body() dto: MergeCompanyDto,
   ) {
-    return this.companiesService.mergeCompanies(
+    return this.companyDedup.mergeCompanies(
       user.id,
       id,
       dto.duplicateCompanyId,

@@ -4,6 +4,7 @@ import request from 'supertest';
 import { CompaniesController } from './companies.controller.js';
 import { CompaniesService } from './companies.service.js';
 import { CompaniesImportService } from './companies-import.service.js';
+import { CompanyDedupService } from './company-dedup.service.js';
 
 // Exercises the real HTTP pipeline (FileInterceptor's multer limits), same
 // rationale as resumes.upload-limits.spec.ts — a controller-level test
@@ -13,6 +14,7 @@ import { CompaniesImportService } from './companies-import.service.js';
 describe('CompaniesController CSV import size limit (HTTP pipeline)', () => {
   let app: INestApplication;
   const mockCompaniesService = {};
+  const mockDedupService = {};
   const mockImportService = {
     import: jest.fn().mockResolvedValue({ imported: 0, errors: [] }),
   };
@@ -23,6 +25,7 @@ describe('CompaniesController CSV import size limit (HTTP pipeline)', () => {
       providers: [
         { provide: CompaniesService, useValue: mockCompaniesService },
         { provide: CompaniesImportService, useValue: mockImportService },
+        { provide: CompanyDedupService, useValue: mockDedupService },
       ],
     }).compile();
     app = moduleRef.createNestApplication();
