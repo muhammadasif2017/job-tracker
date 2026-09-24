@@ -4,15 +4,15 @@ import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
 
 /**
- * The app's shared Redis client for request-path state — idempotency keys
- * and response caches. BullMQ keeps its own connections, and `AuthService`
- * still opens its own for OAuth codes.
+ * The app's shared Redis client for request-path state: idempotency keys
+ * and `AuthService`'s one-time OAuth codes. BullMQ keeps its own connections.
  *
- * Fails fast like the BullMQ queue connection (ADR-046): callers treat
- * Redis as best-effort, so a command during an outage should reject rather
- * than wait behind reconnect attempts and stall the request. Unlike BullMQ,
- * nothing here waits for the first connection, so this also holds when
- * Redis is down at boot.
+ * Fails fast like the BullMQ queue connection (ADR-046). Each caller decides
+ * what a failed command means — the idempotency layer runs the request
+ * anyway, the OAuth code store answers 503 — so a command during an outage
+ * should reject rather than wait behind reconnect attempts and stall the
+ * request. Unlike BullMQ, nothing here waits for the first connection, so
+ * this also holds when Redis is down at boot.
  */
 @Injectable()
 export class RedisService implements OnModuleDestroy {

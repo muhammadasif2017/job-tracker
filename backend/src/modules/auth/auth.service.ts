@@ -3,16 +3,17 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
-  OnModuleDestroy,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import ms, { type StringValue } from 'ms';
-import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { RedisService } from '../../infrastructure/redis/redis.service.js';
+import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
 import {
@@ -25,6 +26,14 @@ import {
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 /** Lifetime of a one-time OAuth code, in seconds. */
 const OAUTH_CODE_TTL_SECONDS = 60;
+/**
+ * The 503 message when the OAuth code store is unreachable. It says to sign
+ * in again, not to retry: a `GETDEL` that timed out may still have spent the
+ * code, so a retry of the same code can only get a 403, while a fresh OAuth
+ * sign-in always works once Redis is back.
+ */
+export const OAUTH_UNAVAILABLE_MESSAGE =
+  'Sign-in is temporarily unavailable. Please sign in again.';
 
 /**
  * What an OAuth sign-in hands to the callback controller and parks behind
@@ -76,35 +85,20 @@ function refreshTokenMatches(rawToken: string, storedHash: string): boolean {
  * carries an OAuth sign-in back to the browser, and the exchange that turns
  * a personal access token into a scoped access JWT.
  *
- * Redis is opened here directly rather than through BullMQ because the only
- * thing it stores for this service is the short-lived OAuth code.
+ * The OAuth code lives in Redis through the shared `RedisService`, whose
+ * commands fail fast during an outage (ADR-046). A Redis failure there
+ * becomes a 503 instead of a hung sign-in.
  */
 @Injectable()
-export class AuthService implements OnModuleDestroy {
-  private readonly redis: Redis;
+export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
-  ) {
-    this.redis = new Redis(
-      this.config.get<string>('REDIS_URL') ?? 'redis://localhost:6379',
-      { maxRetriesPerRequest: null },
-    );
-    this.redis.on('error', (err) =>
-      this.logger.error('Redis connection error', err),
-    );
-  }
-
-  /**
-   * Closes the Redis connection so a shutdown or a test teardown does not
-   * hang on an open socket.
-   */
-  async onModuleDestroy() {
-    await this.redis.quit();
-  }
+    private redis: RedisService,
+  ) {}
 
   /**
    * Deletes refresh-token rows past their expiry. Both naturally expired
@@ -232,17 +226,36 @@ export class AuthService implements OnModuleDestroy {
   }
 
   /**
+   * Runs one OAuth-code command, turning an unreachable Redis into a 503.
+   * Without this an outage surfaced as an opaque 500 from the filter's
+   * catch-all. Only unavailability is mapped: a permanent fault (wrong
+   * password, a Redis too old for `GETDEL`) is rethrown and stays a logged
+   * 500, so a misconfiguration is not disguised as a passing outage.
+   */
+  private async withOAuthCodeStore<T>(command: () => Promise<T>): Promise<T> {
+    try {
+      return await command();
+    } catch (err) {
+      if (!isRedisUnavailable(this.redis.client, err)) throw err;
+      this.logger.error('OAuth code store unavailable', err);
+      throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
+    }
+  }
+
+  /**
    * Parks a freshly minted token pair in Redis behind a single-use code
    * with a 60-second life. The provider redirect lands on a URL the browser
    * puts in its history, so the code travels there and the tokens do not.
    */
   async storeOAuthCode(tokens: OAuthLoginResult): Promise<string> {
     const code = randomUUID();
-    await this.redis.set(
-      OAUTH_CODE_PREFIX + code,
-      JSON.stringify(tokens),
-      'EX',
-      OAUTH_CODE_TTL_SECONDS,
+    await this.withOAuthCodeStore(() =>
+      this.redis.client.set(
+        OAUTH_CODE_PREFIX + code,
+        JSON.stringify(tokens),
+        'EX',
+        OAUTH_CODE_TTL_SECONDS,
+      ),
     );
     return code;
   }
@@ -262,7 +275,9 @@ export class AuthService implements OnModuleDestroy {
     // the value before either deleted it, and both walked away with a full
     // token pair minted from one single-use code — the same replay window
     // the refresh-token rotation CAS in refresh() above exists to close.
-    const raw = await this.redis.getdel(OAUTH_CODE_PREFIX + code);
+    const raw = await this.withOAuthCodeStore(() =>
+      this.redis.client.getdel(OAUTH_CODE_PREFIX + code),
+    );
     if (!raw) {
       throw new ForbiddenException('OAuth code expired or already used');
     }

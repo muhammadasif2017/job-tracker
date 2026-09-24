@@ -51,8 +51,8 @@ It is implemented as `IdempotencyInterceptor`
 (`backend/src/common/interceptors/`), applied per route with
 `@UseInterceptors`. Any other create endpoint can opt in with one decorator.
 Redis access goes through a new global `RedisModule`, shaped like
-`PrismaModule`. `AuthService` keeps its own client; moving it is not part of
-this change.
+`PrismaModule`. `AuthService` kept its own client when this ADR was written;
+it has since moved onto `RedisService` too (see ADR-046, "Not covered").
 
 **`JobForm` ties the key to the payload, not to the form session.** An
 unchanged resubmit reuses the key; an edited one mints a new key. A key per

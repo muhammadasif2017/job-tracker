@@ -7,6 +7,7 @@ import {
   Post,
   Req,
   Res,
+  ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
@@ -271,10 +272,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiExcludeEndpoint()
   async googleCallback(@Req() req: Request, @Res() res: Response) {
-    const tokens = req.user as OAuthLoginResult;
-    const fe = this.config.get('FRONTEND_URL');
-    const code = await this.authService.storeOAuthCode(tokens);
-    res.redirect(`${fe}/callback?code=${code}`);
+    await this.redirectWithOAuthCode(req, res);
   }
 
   // ── GitHub OAuth ──────────────────────────────────────────────────────────
@@ -301,9 +299,25 @@ export class AuthController {
   @UseGuards(AuthGuard('github'))
   @ApiExcludeEndpoint()
   async githubCallback(@Req() req: Request, @Res() res: Response) {
+    await this.redirectWithOAuthCode(req, res);
+  }
+
+  /**
+   * Parks the provider's sign-in behind a one-time code and sends the browser
+   * to the frontend with it. The browser reached this callback by top-level
+   * navigation, so an error must also be a redirect: a thrown 503 would leave
+   * the user on a bare JSON page on the API origin. `/callback?error=` is
+   * the frontend's existing failure path.
+   */
+  private async redirectWithOAuthCode(req: Request, res: Response) {
     const tokens = req.user as OAuthLoginResult;
-    const fe = this.config.get('FRONTEND_URL');
-    const code = await this.authService.storeOAuthCode(tokens);
-    res.redirect(`${fe}/callback?code=${code}`);
+    const fe = this.config.get<string>('FRONTEND_URL');
+    try {
+      const code = await this.authService.storeOAuthCode(tokens);
+      res.redirect(`${fe}/callback?code=${code}`);
+    } catch (err) {
+      if (!(err instanceof ServiceUnavailableException)) throw err;
+      res.redirect(`${fe}/callback?error=unavailable`);
+    }
   }
 }

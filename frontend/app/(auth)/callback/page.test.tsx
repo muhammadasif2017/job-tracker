@@ -54,6 +54,28 @@ describe('CallbackPage', () => {
     expect(vi.mocked(api.post)).not.toHaveBeenCalled();
   });
 
+  it('says sign-in is unavailable when the backend could not store the code', async () => {
+    params = new URLSearchParams({ error: 'unavailable' });
+    render(<CallbackPage />);
+    await waitFor(() => expect(replace).toHaveBeenCalledWith('/login'));
+    expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+      'Sign-in is temporarily unavailable. Please sign in again.',
+    );
+    expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+  });
+
+  it('says sign-in is unavailable when the code exchange answers 503', async () => {
+    params = new URLSearchParams({ code: 'abc123' });
+    vi.mocked(api.post).mockRejectedValue({ response: { status: 503 } });
+    render(<CallbackPage />);
+    await waitFor(() =>
+      expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+        'Sign-in is temporarily unavailable. Please sign in again.',
+      ),
+    );
+    expect(replace).toHaveBeenCalledWith('/login');
+  });
+
   it('exchanges the code, sets auth, and redirects home on success', async () => {
     params = new URLSearchParams({ code: 'abc123' });
     vi.mocked(api.post).mockResolvedValue({ data: { accessToken: 'tok-1' } });

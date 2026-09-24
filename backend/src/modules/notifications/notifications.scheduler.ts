@@ -5,6 +5,7 @@ import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import {
   NOTIFICATIONS_QUEUE,
@@ -25,16 +26,6 @@ const JOB_OPTIONS = {
   attempts: 2,
   backoff: { type: 'fixed' as const, delay: 10_000 },
 };
-
-/**
- * True when ioredis gave up waiting for a reply (`commandTimeout`), as
- * opposed to refusing to send the command at all. Only the refusal proves
- * nothing reached Redis. ioredis exposes no error class or code for this,
- * so the message is the only signal.
- */
-function isCommandTimeout(err: unknown): boolean {
-  return err instanceof Error && err.message === 'Command timed out';
-}
 
 /**
  * The hour (0–23) an instant falls on in `timeZone`. `hourCycle: 'h23'`
