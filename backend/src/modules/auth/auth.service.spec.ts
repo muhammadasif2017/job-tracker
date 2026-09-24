@@ -503,6 +503,45 @@ describe('AuthService', () => {
       expect(result).toMatchObject({ userId: 'u1', isNewUser: false });
     });
 
+    // A sign-up whose code could not be stored leaves the rows behind; the
+    // retry must still count as the sign-up so the browser timezone is saved.
+    it('treats a returning sign-in minutes after an unfinished sign-up as new', async () => {
+      mockPrisma.account.findUnique.mockResolvedValue({
+        user: {
+          id: 'u1',
+          email: 'u@g.com',
+          timezone: 'UTC',
+          createdAt: new Date(Date.now() - 5 * 60 * 1000),
+        },
+      });
+
+      const result = await service.handleOAuthUser(...args);
+
+      expect(result).toMatchObject({ userId: 'u1', isNewUser: true });
+    });
+
+    it.each([
+      [
+        'past the retry window',
+        { timezone: 'UTC', createdAt: new Date(Date.now() - 16 * 60 * 1000) },
+      ],
+      [
+        'with a timezone already confirmed',
+        {
+          timezone: 'Europe/Berlin',
+          createdAt: new Date(Date.now() - 60 * 1000),
+        },
+      ],
+    ])('treats a returning sign-in %s as not new', async (_label, user) => {
+      mockPrisma.account.findUnique.mockResolvedValue({
+        user: { id: 'u1', email: 'u@g.com', ...user },
+      });
+
+      const result = await service.handleOAuthUser(...args);
+
+      expect(result).toMatchObject({ isNewUser: false });
+    });
+
     it('links a new Account to an existing User when email matches', async () => {
       mockPrisma.account.findUnique.mockResolvedValue(null);
       mockPrisma.user.findUnique.mockResolvedValue({
@@ -697,6 +736,40 @@ describe('AuthService', () => {
 
       await expect(
         service.storeOAuthCode({ accessToken: 'at', refreshToken: 'rt' }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('revokes only the undelivered refresh token when the code cannot be stored', async () => {
+      redis.status = 'reconnecting';
+      redis.set.mockRejectedValueOnce(new Error('Connection is closed.'));
+      mockPrisma.refreshToken.updateMany.mockResolvedValue({ count: 1 });
+
+      await expect(
+        service.storeOAuthCode({
+          accessToken: 'at',
+          refreshToken: 'rt',
+          userId: 'u1',
+        }),
+      ).rejects.toThrow(ServiceUnavailableException);
+      expect(mockPrisma.refreshToken.updateMany).toHaveBeenCalledWith({
+        where: { userId: 'u1', tokenHash: sha256('rt'), revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('still answers 503 when revoking the undelivered token fails', async () => {
+      redis.status = 'reconnecting';
+      redis.set.mockRejectedValueOnce(new Error('Connection is closed.'));
+      mockPrisma.refreshToken.updateMany.mockRejectedValueOnce(
+        new Error('db down'),
+      );
+
+      await expect(
+        service.storeOAuthCode({
+          accessToken: 'at',
+          refreshToken: 'rt',
+          userId: 'u1',
+        }),
       ).rejects.toThrow(ServiceUnavailableException);
     });
 
