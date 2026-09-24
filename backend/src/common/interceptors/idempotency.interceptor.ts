@@ -57,9 +57,10 @@ type IdempotencyRecord =
  * Keys are scoped to the user and the route, so one user's key can never
  * replay another user's response. The route is taken without its version
  * prefix, since `/v1/jobs` and the unversioned `/jobs` alias are one handler
- * (ADR-047): a retry that switches between them must hit the same key. The handler throwing — including a
- * validation 400, since pipes run inside `next.handle()` — releases the key
- * so a corrected retry can go through.
+ * (ADR-047): a retry that switches between them must hit the same key.
+ *
+ * The handler throwing — including a validation 400, since pipes run inside
+ * `next.handle()` — releases the key so a corrected retry can go through.
  *
  * Redis is best-effort here: when it is unreachable the request runs
  * without the guarantee rather than failing, and the outage is logged.
