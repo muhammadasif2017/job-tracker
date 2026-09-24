@@ -4,11 +4,11 @@ import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
 import { interviewReminderEmail, digestEmail } from './templates.js';
-import { withWorkerConnection } from '../../redis/redis-connection.helper.js';
+import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';

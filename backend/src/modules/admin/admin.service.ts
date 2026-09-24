@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 import { AdminUserQueryDto } from './dto/admin-user-query.dto.js';
 

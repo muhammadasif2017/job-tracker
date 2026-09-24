@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { isTransactionWriteConflict } from '../../infrastructure/database/prisma-errors.js';
 import type { MergeFieldOverridesDto } from './dto/merge-company.dto.js';
 import {
   normalizeCompanyName,

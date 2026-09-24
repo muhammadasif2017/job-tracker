@@ -36,11 +36,15 @@ src/
 │   ├── resumes/           # Resume upload/download per job
 │   ├── enrichment/        # BullMQ queue, processor, Tavily/Groq services
 │   └── health/            # /health endpoint
-├── storage/         # Storage drivers (local disk, Oracle Object Storage)
-├── prisma/          # PrismaService (global)
+├── infrastructure/  # Adapters to external systems, each a global module
+│   ├── database/    # PrismaService, Prisma error helpers
+│   ├── redis/       # RedisService, BullMQ queue/worker connection shapes (ADR-046)
+│   └── storage/     # Storage drivers (local disk, Oracle Object Storage)
+├── config/          # ENV_VALIDATION_SCHEMA (Joi), validated at boot
 └── common/
     ├── decorators/  # @Public(), @CurrentUser(), @Roles(), @PatAccessible()
     ├── guards/      # JwtAuthGuard, RolesGuard, PatScopeGuard, ThrottlerGuard (all global)
+    ├── interceptors/ # IdempotencyInterceptor (ADR-045)
     └── filters/     # PrismaExceptionFilter (P2002 → 409, P2025 → 404)
 ```
 

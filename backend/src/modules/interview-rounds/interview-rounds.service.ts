@@ -10,7 +10,7 @@ import {
   Prisma,
 } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';

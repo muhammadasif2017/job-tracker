@@ -12,7 +12,7 @@ import {
   IdempotencyInterceptor,
   PENDING_TTL_MS,
 } from './idempotency.interceptor.js';
-import { RedisService } from '../../redis/redis.service.js';
+import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { createHash } from 'node:crypto';
 
 const mockClient = { set: jest.fn(), get: jest.fn(), del: jest.fn() };

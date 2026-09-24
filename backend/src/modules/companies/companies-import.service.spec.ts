@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, ConflictException } from '@nestjs/common';
 import { CompaniesImportService } from './companies-import.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 const mockPrisma = {
   company: {

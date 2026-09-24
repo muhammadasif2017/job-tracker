@@ -7,8 +7,8 @@ import {
 import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { isTransactionWriteConflict } from '../../common/prisma-errors.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { isTransactionWriteConflict } from '../../infrastructure/database/prisma-errors.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
 import { UpdateCompanyDto } from './dto/update-company.dto.js';
 import { CompanyQueryDto } from './dto/company-query.dto.js';

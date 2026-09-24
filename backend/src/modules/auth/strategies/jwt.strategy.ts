@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
-import { PrismaService } from '../../../prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { PAT_SCOPE } from '../../tokens/tokens.constants.js';
 
 /** Claims signed into access and refresh tokens. */

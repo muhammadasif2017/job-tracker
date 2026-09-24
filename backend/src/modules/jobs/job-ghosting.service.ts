@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { JobStatus, JobEventType } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { buildGhostSuggestionWhere } from './ghost-suggestions.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';

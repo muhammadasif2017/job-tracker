@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { EnrichmentStatus } from '@prisma/client';
 import { CompaniesService } from './companies.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
 import { Logger } from 'nestjs-pino';
 

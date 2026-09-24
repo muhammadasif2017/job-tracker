@@ -2,10 +2,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
-import { withWorkerConnection } from '../../redis/redis-connection.helper.js';
+import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
 
 /**
  * Bounds prompt size and cost for a job with a long event history — a

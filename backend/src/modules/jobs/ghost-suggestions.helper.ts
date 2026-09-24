@@ -1,4 +1,4 @@
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { JobStatus, Prisma } from '@prisma/client';
 
 // "Looks ghosted" suggestions (docs/specs/response-insights.md): applications

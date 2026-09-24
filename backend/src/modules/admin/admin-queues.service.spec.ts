@@ -3,7 +3,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { AdminQueuesService } from './admin-queues.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';

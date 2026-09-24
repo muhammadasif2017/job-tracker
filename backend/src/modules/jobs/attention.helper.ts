@@ -1,4 +1,4 @@
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { JobStatus } from '@prisma/client';
 import { ATTENTION_TYPES } from './dto/attention-item.dto.js';
 

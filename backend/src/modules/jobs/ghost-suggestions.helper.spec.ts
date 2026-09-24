@@ -5,7 +5,7 @@ import {
   buildSilentJobWhere,
   getGhostSuggestions,
 } from './ghost-suggestions.helper.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 const mockPrisma = { job: { findMany: jest.fn() } };
 const prisma = mockPrisma as unknown as PrismaService;
