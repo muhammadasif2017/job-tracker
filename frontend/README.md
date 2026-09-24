@@ -35,7 +35,7 @@ NEXT_PUBLIC_API_URL=http://localhost:3001
 **API client (`lib/api.ts`)**
 
 - Axios instance with a request interceptor that attaches the Bearer token.
-- Response interceptor queues 401s, calls `POST /auth/refresh`, retries queued requests. Redirects to `/login` on refresh failure.
+- Response interceptor queues 401s, calls `POST /v1/auth/refresh`, retries queued requests. Redirects to `/login` on refresh failure.
 
 **OAuth callback (`app/(auth)/callback/page.tsx`)**
 

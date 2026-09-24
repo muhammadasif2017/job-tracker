@@ -148,7 +148,7 @@ sequenceDiagram
     BE-->>FE: accessToken + jt_refresh cookie
 
     Note over B,DB: Refresh + theft detection
-    FE->>BE: POST /auth/refresh (cookie)
+    FE->>BE: POST /v1/auth/refresh (cookie)
     BE->>DB: lookup RefreshToken by jti hash
     alt token already revoked (replay)
         BE->>DB: revoke ALL user's refresh tokens

@@ -17,13 +17,21 @@ import { useAuthStore } from '../store/auth.store';
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
+ * Base URL of the versioned API (ADR-047). `NEXT_PUBLIC_API_URL` stays the
+ * bare origin, because the OAuth start links and the `/health` probe are
+ * version-neutral and are built from it directly.
+ */
+// `?? ''`: an unset variable must not become the literal path `undefined/v1`.
+export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/v1`;
+
+/**
  * The app's axios instance. Attaches the access token to every request and,
  * on a 401, refreshes it once through the httpOnly refresh cookie, queueing
  * concurrent 401s behind that single refresh. A definitive refresh rejection
  * (401/403) signs the user out.
  */
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: API_BASE_URL,
   // Required both ways: lets the browser store the httpOnly refresh cookie
   // from login/register/refresh responses, and resend it on later requests.
   withCredentials: true,
@@ -89,7 +97,7 @@ api.interceptors.response.use(
       // attaches automatically. If it's missing or expired, this 401s and
       // falls into the catch below.
       const { data } = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/refresh`,
+        `${API_BASE_URL}/auth/refresh`,
         {},
         { withCredentials: true, timeout: DEFAULT_TIMEOUT_MS },
       );

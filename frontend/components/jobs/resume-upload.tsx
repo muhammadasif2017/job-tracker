@@ -26,13 +26,16 @@ function formatBytes(bytes: number) {
  * Whether a resume URL points at this app's own API.
  *
  * The resume URL comes in two shapes, by backend STORAGE_DRIVER:
- * - local: our own auth-gated `/jobs/resumes/file` endpoint, which needs the
+ * - local: our own auth-gated `/v1/jobs/resumes/file` endpoint, which needs the
  *   Bearer header only the `api` client attaches (a bare fetch gets a 401).
  * - oracle: a presigned object-storage URL, fetched without that header,
  *   which the storage service would reject alongside the URL signature.
  * Either way a non-OK response is an error, never a file to save.
  */
 function isApiUrl(url: string): boolean {
+  // Matched on the API origin, not `API_BASE_URL`: any URL on our own API
+  // gets the header, whatever its version, and reading the env here (not a
+  // module-level constant) keeps it stubbable in tests.
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   return Boolean(apiUrl && url.startsWith(apiUrl));
 }

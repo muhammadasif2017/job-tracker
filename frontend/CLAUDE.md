@@ -74,7 +74,7 @@ Persisted to `localStorage` under key `jt-auth`. Exposes:
 
 ## Axios Instance (`lib/api.ts`)
 
-Base URL from `NEXT_PUBLIC_API_URL`.
+Base URL is `API_BASE_URL` = `${NEXT_PUBLIC_API_URL}/v1` (ADR-047). `NEXT_PUBLIC_API_URL` itself stays the bare origin: the OAuth start links (`oauth-button.tsx`) and the `<link rel="preconnect">` use it directly, because those routes are version-neutral. Playwright's `API` fixture includes `/v1` too, so `page.route` patterns match the app's requests.
 
 The instance is created with `withCredentials: true` — required both to let the browser store the `jt_refresh` httpOnly cookie from login/register/refresh responses, and to resend it on later requests.
 
@@ -92,7 +92,7 @@ Attaches `Authorization: Bearer <token>` unless the caller already set it. The m
 
 Handles concurrent 401s without duplicate refresh calls:
 
-1. First 401: marks `isRefreshing = true`, POSTs to `/auth/refresh` with no body — the browser attaches the `jt_refresh` cookie automatically.
+1. First 401: marks `isRefreshing = true`, POSTs to `/v1/auth/refresh` with no body — the browser attaches the `jt_refresh` cookie automatically.
 2. Subsequent 401s while refreshing: queued in `failedQueue`, stamped `_retry = true` so a repeat 401 on the same request can't re-enter the refresh cycle.
 3. On refresh success: drains queue, retries all queued requests with new token.
 4. On failure (missing/expired refresh cookie): clears storage, expires cookie, `window.location.href = '/login'`.
@@ -173,9 +173,9 @@ See `frontend/COMPONENTS.md` for per-component reference (`JobForm`, `ResumeUplo
 
 ## Environment Variables
 
-| Variable              | Required | Notes                                          |
-| --------------------- | -------- | ---------------------------------------------- |
-| `NEXT_PUBLIC_API_URL` | Yes      | Backend base URL, e.g. `http://localhost:3001` |
+| Variable              | Required | Notes                                                            |
+| --------------------- | -------- | ---------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL` | Yes      | Backend origin without the version, e.g. `http://localhost:3001` |
 
 ---
 

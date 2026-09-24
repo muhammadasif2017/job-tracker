@@ -45,7 +45,7 @@ describe('background.js retry/self-heal logic', () => {
 
       expect(token).toBe('new-token');
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BACKEND_URL}/auth/token/exchange`,
+        `${BACKEND_URL}/v1/auth/token/exchange`,
         expect.objectContaining({ method: 'POST' }),
       );
       const saved = await ctx.getConnection();
@@ -163,7 +163,7 @@ describe('background.js retry/self-heal logic', () => {
 
       expect(result).toEqual({ ok: true });
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BACKEND_URL}/auth/token/exchange`,
+        `${BACKEND_URL}/v1/auth/token/exchange`,
         expect.objectContaining({
           body: JSON.stringify({ token: 'jt_pat_id.secret' }),
         }),
@@ -228,7 +228,7 @@ describe('background.js retry/self-heal logic', () => {
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it('parseJob: delegates to apiFetch against /jobs/parse and returns the parsed data', async () => {
+    it('parseJob: delegates to apiFetch against /v1/jobs/parse and returns the parsed data', async () => {
       await chrome.storage.local.set({ [STORAGE_KEY]: baseConn() });
       fetchMock.mockResolvedValueOnce(jsonResponse(200, { company: 'Acme', position: 'Engineer' }));
 
@@ -242,7 +242,7 @@ describe('background.js retry/self-heal logic', () => {
         data: { company: 'Acme', position: 'Engineer' },
       });
       expect(fetchMock).toHaveBeenCalledWith(
-        `${BACKEND_URL}/jobs/parse`,
+        `${BACKEND_URL}/v1/jobs/parse`,
         expect.objectContaining({
           method: 'POST',
           body: JSON.stringify({ url: 'https://jobs.example.com/1' }),
