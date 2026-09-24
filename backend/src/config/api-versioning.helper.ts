@@ -18,8 +18,8 @@ export const CURRENT_API_PREFIX = `/v${CURRENT_API_VERSION}`;
  * OAuth routes whose callback URLs are registered with Google and GitHub —
  * opts out with `@Version(VERSION_NEUTRAL)`.
  *
- * Called from `main.ts` and mirrored in `test/app.e2e-spec.ts`, so both
- * serve the same URLs.
+ * Called from `configureApp`, which both `main.ts` and the e2e setup use,
+ * so both serve the same URLs.
  */
 export function applyApiVersioning(app: INestApplication) {
   app.enableVersioning({

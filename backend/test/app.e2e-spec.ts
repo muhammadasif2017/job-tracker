@@ -1,16 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
+import { configureApp } from '../src/config/configure-app.helper';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/infrastructure/database/prisma.service';
-import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
-import { RolesGuard } from '../src/common/guards/roles.guard';
-import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';
-import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
-import { applyApiVersioning } from '../src/config/api-versioning.helper';
 import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constants';
 
 // Unique email per run so tests are safe to run against the dev DB
@@ -23,7 +16,7 @@ const EXPORT_CAP_EMAIL = `e2e-export-cap-${Date.now()}@test.dev`;
 const PASSWORD = 'E2ePass123!';
 
 describe('Job Tracker (e2e)', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
   // Agent persists the httpOnly refresh cookie across requests, same as a browser.
   let agent: ReturnType<typeof request.agent>;
@@ -40,22 +33,8 @@ describe('Job Tracker (e2e)', () => {
       imports: [AppModule],
     }).compile();
 
-    app = module.createNestApplication();
-    app.use(cookieParser());
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        transform: true,
-        forbidNonWhitelisted: true,
-      }),
-    );
-    app.useGlobalGuards(
-      new JwtAuthGuard(app.get(Reflector)),
-      new RolesGuard(app.get(Reflector)),
-      new PatScopeGuard(app.get(Reflector)),
-    );
-    app.useGlobalFilters(new GlobalExceptionFilter());
-    applyApiVersioning(app);
+    app = module.createNestApplication<NestExpressApplication>();
+    configureApp(app);
     await app.init();
 
     prisma = app.get(PrismaService);

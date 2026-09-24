@@ -40,7 +40,7 @@ npx prisma studio                             # GUI DB browser
 
 ### Global Protection
 
-`JwtAuthGuard` is applied globally in `main.ts`. Every route is protected by default. Use `@Public()` to opt out:
+`JwtAuthGuard` is applied globally in `configureApp` (`src/config/configure-app.helper.ts`, called by `main.ts` and the e2e setup). Every route is protected by default. Use `@Public()` to opt out:
 
 ```ts
 @Public()
@@ -93,13 +93,13 @@ GET /auth/google
 
 `ApiToken` (see `TokensModule`, `POST/GET/DELETE /tokens`) is a long-lived credential for clients that can't hold the httpOnly refresh cookie (the browser extension). `AuthService.exchangeApiToken` trades a raw PAT for a normal 15-minute access JWT — but that JWT carries an extra `scope: 'pat'` claim (`PAT_SCOPE` in `tokens.constants.ts`) that a login/OAuth/refresh-issued JWT never has.
 
-`JwtStrategy.validate()` copies `payload.scope` onto `req.user` when present. `PatScopeGuard` (global, registered in `main.ts` right after `RolesGuard` — order matters, same as `RolesGuard` needing `req.user`) reads it: a token with no scope (normal login) passes through untouched; a token with `scope: 'pat'` is rejected on any route that isn't explicitly marked `@PatAccessible()`. This is opt-in, same shape as `@Public()`/`@Roles()` — a leaked PAT can only reach the handful of endpoints the extension actually needs (currently `POST /jobs` and `POST /jobs/parse`), not password change, account deletion, admin routes, or minting more tokens.
+`JwtStrategy.validate()` copies `payload.scope` onto `req.user` when present. `PatScopeGuard` (global, registered in `configureApp` right after `RolesGuard` — order matters, same as `RolesGuard` needing `req.user`) reads it: a token with no scope (normal login) passes through untouched; a token with `scope: 'pat'` is rejected on any route that isn't explicitly marked `@PatAccessible()`. This is opt-in, same shape as `@Public()`/`@Roles()` — a leaked PAT can only reach the handful of endpoints the extension actually needs (currently `POST /jobs` and `POST /jobs/parse`), not password change, account deletion, admin routes, or minting more tokens.
 
 The access JWT itself is otherwise stateless — to make `DELETE /tokens/:id` take effect immediately instead of up to 15 minutes later, PAT-scoped tokens also carry a `patId` claim (the source `ApiToken.id`), and `JwtStrategy.validate()` re-checks that row's `revokedAt`/`expiresAt` on every request. This lookup only runs for `scope: 'pat'` tokens — normal login/refresh-derived tokens skip it.
 
 `ApiToken.expiresAt` (`PAT_EXPIRY_DAYS` in `tokens.constants.ts`, currently 180 days from creation) bounds exposure from a token that's never manually revoked — checked both in `AuthService.exchangeApiToken` (can't exchange an expired PAT) and in `JwtStrategy.validate()` (an already-issued JWT stops working once its source PAT expires, same as revocation).
 
-`test/app.e2e-spec.ts` manually mirrors `main.ts`'s guard list — `PatScopeGuard` must be added there too if the global guard set changes again.
+`test/app.e2e-spec.ts` calls the same `configureApp` as `main.ts`, so a change to the global guard set reaches the e2e suite automatically.
 
 **No explicit `algorithm`/`algorithms` pin on sign or verify** — tried once, reverted same branch. Both `JWT_SECRET` and `JWT_REFRESH_SECRET` are plain HMAC secret strings, and `jsonwebtoken` (under `@nestjs/jwt`/`passport-jwt`) already restricts `verify()` to the HMAC family (HS256/384/512) whenever `secretOrKey` is a string/Buffer rather than an asymmetric public key — the classic RS256→HS256 alg-confusion attack only applies when a public key is in play. Pinning `algorithm: 'HS256'` here was redundant defensive code, not a fix for a real gap. Re-pin only if either secret is ever swapped for an asymmetric keypair.
 
@@ -107,7 +107,7 @@ The access JWT itself is otherwise stateless — to make `DELETE /tokens/:id` ta
 
 ## Admin Architecture
 
-`User.role` (`Role` enum: `USER` | `ADMIN`) gates `admin/users` routes via `RolesGuard`, a second global guard registered in `main.ts` right after `JwtAuthGuard` (order matters — it reads `req.user`). Mark a route with `@Roles(Role.ADMIN)`; unannotated routes are open to any authenticated user, same opt-in shape as `@Public()`.
+`User.role` (`Role` enum: `USER` | `ADMIN`) gates `admin/users` routes via `RolesGuard`, a second global guard registered in `configureApp` right after `JwtAuthGuard` (order matters — it reads `req.user`). Mark a route with `@Roles(Role.ADMIN)`; unannotated routes are open to any authenticated user, same opt-in shape as `@Public()`.
 
 `AdminService` does not scope by the requesting user's own ID (the point is acting on other users' rows) — the only identity checks are the guard plus an explicit self-delete block in `deleteUser`. Admin deletion reuses `UsersService.deleteById` (same routine as self-service delete); storage `storageKey`s are collected before the DB delete and cleaned up after, since they're outside Prisma's cascade.
 
@@ -427,5 +427,5 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 - Run against the **live dev database** — no mocking.
 - Each run uses a unique email: `e2e-${Date.now()}@test.dev`.
 - `afterAll` deletes that user (cascades to all jobs and events).
-- Test setup in `beforeAll` manually mirrors `main.ts` — if `main.ts` adds a global pipe/guard/filter, add it to the test setup too.
+- Test setup in `beforeAll` calls `configureApp` (`src/config/configure-app.helper.ts`), the same pipeline `main.ts` uses. Add a new global pipe, guard, filter or middleware there, not in `main.ts`, and both pick it up.
 - **A green run still reports `Test Suites: 1 failed` locally — check the test count, not the suite line.** Jest's default 5s hook budget applies to `afterAll`, and `app.close()` tears down the BullMQ workers and Redis connections, which routinely takes longer. The output reads `Tests: 82 passed` alongside `Test Suites: 1 failed` with the failure pointing at `app.e2e-spec.ts:59` (the `afterAll`). That is teardown, not a test failure, and it does not reproduce in CI (`e2e-pr.yml` / `e2e-nightly.yml` are green on `main`). Don't go hunting for a regression in the change under test, and don't blame DB latency — it happens against a local Postgres on a near-empty database.
