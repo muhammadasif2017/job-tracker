@@ -6,6 +6,7 @@
 - On create success: stays open and renders `<ResumeUpload>` so the user can optionally attach a PDF before closing. Closing at that point calls `reset()` + `onClose()`.
 - On edit success: invalidates `['jobs']`, `['stats']`, `['job', job.id]`, then closes immediately.
 - URL field: empty string is sent as `undefined` to the API (backend requires valid URL or nothing)
+- Create sends an `Idempotency-Key` tied to the payload: an unchanged resubmit (timeout, double click, "Add anyway") reuses it so the backend replays the first job; an edited payload gets a new key (ADR-045).
 
 ### `ResumeUpload`
 

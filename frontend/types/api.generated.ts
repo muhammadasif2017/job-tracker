@@ -3555,7 +3555,10 @@ export interface operations {
   JobsController_create: {
     parameters: {
       query?: never;
-      header?: never;
+      header?: {
+        /** @description Client-generated key (1-255 chars). A retry with the same key and body returns the first response with `Idempotent-Replayed: true` instead of creating a duplicate. Remembered for 24 hours. */
+        'Idempotency-Key'?: string;
+      };
       path?: never;
       cookie?: never;
     };
@@ -3575,6 +3578,20 @@ export interface operations {
       };
       /** @description Missing or invalid access token */
       401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description A request with this Idempotency-Key is still in progress */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Idempotency-Key was already used with a different body */
+      422: {
         headers: {
           [name: string]: unknown;
         };

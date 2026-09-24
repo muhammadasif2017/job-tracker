@@ -407,6 +407,54 @@ describe('Job Tracker (e2e)', () => {
       });
     });
 
+    it('creates one job when a request is retried with the same Idempotency-Key', async () => {
+      const key = `e2e-idem-${Date.now()}`;
+      const body = { company: 'E2E Idempotent Co', position: 'Retry Role' };
+      const send = () =>
+        agent
+          .post('/jobs')
+          .set('Authorization', `Bearer ${accessToken}`)
+          .set('Idempotency-Key', key)
+          .send(body);
+
+      const first = await send().expect(201);
+      const retry = await send().expect(201);
+
+      expect(first.headers['idempotent-replayed']).toBeUndefined();
+      expect(retry.headers['idempotent-replayed']).toBe('true');
+      expect(retry.body).toEqual(first.body);
+      expect(
+        await prisma.job.count({
+          where: { userId, company: body.company, position: body.position },
+        }),
+      ).toBe(1);
+
+      // Same key, different body: a client bug, not a retry.
+      await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Idempotency-Key', key)
+        .send({ ...body, position: 'Different Role' })
+        .expect(422);
+    });
+
+    it('releases the Idempotency-Key when the request fails validation', async () => {
+      const key = `e2e-idem-invalid-${Date.now()}`;
+      await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Idempotency-Key', key)
+        .send({ company: '', position: 'Dev' })
+        .expect(400);
+
+      await agent
+        .post('/jobs')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .set('Idempotency-Key', key)
+        .send({ company: '', position: 'Dev' })
+        .expect(400);
+    });
+
     it('returns 401 without token', () =>
       agent.post('/jobs').send({ company: 'X', position: 'Y' }).expect(401));
   });

@@ -182,6 +182,44 @@ describe('JobForm', () => {
       );
     });
 
+    it('resends the same Idempotency-Key when an unchanged create is retried', async () => {
+      vi.mocked(api.post)
+        .mockRejectedValueOnce(new Error('timeout'))
+        .mockResolvedValueOnce({ data: { id: 'new-job' } });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled());
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledTimes(2));
+
+      const [first, retry] = vi
+        .mocked(api.post)
+        .mock.calls.map((call) => call[2]?.headers?.['Idempotency-Key']);
+      expect(first).toEqual(expect.any(String));
+      expect(retry).toBe(first);
+    });
+
+    it('sends a new Idempotency-Key when the payload changed before retrying', async () => {
+      vi.mocked(api.post)
+        .mockRejectedValueOnce(new Error('timeout'))
+        .mockResolvedValueOnce({ data: { id: 'new-job' } });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled());
+      fireEvent.change(screen.getByLabelText(/position/i), {
+        target: { value: 'Staff Engineer' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalledTimes(2));
+
+      const [first, retry] = vi
+        .mocked(api.post)
+        .mock.calls.map((call) => call[2]?.headers?.['Idempotency-Key']);
+      expect(retry).not.toBe(first);
+    });
+
     it('shows a success toast and stays open on the resume-attach step', async () => {
       vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-job' } });
       const { onClose } = renderForm();
@@ -315,6 +353,7 @@ describe('JobForm', () => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
           '/jobs',
           expect.objectContaining({ company: 'Acme' }),
+          { headers: { 'Idempotency-Key': expect.any(String) } },
         ),
       );
       expect(await screen.findByText('Job Added')).toBeInTheDocument();
@@ -353,6 +392,7 @@ describe('JobForm', () => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
           '/jobs',
           expect.objectContaining({ company: 'Globex' }),
+          { headers: { 'Idempotency-Key': expect.any(String) } },
         ),
       );
       expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(
@@ -531,6 +571,7 @@ describe('JobForm', () => {
         expect(vi.mocked(api.post)).toHaveBeenCalledWith(
           '/jobs',
           expect.objectContaining({ company: 'Brand New Startup' }),
+          { headers: { 'Idempotency-Key': expect.any(String) } },
         ),
       );
     });
