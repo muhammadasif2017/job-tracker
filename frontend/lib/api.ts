@@ -18,10 +18,11 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
  * Base URL of the versioned API (ADR-047). `NEXT_PUBLIC_API_URL` stays the
- * bare origin, because the OAuth start links and the `/health` probe are
- * version-neutral and are built from it directly.
+ * bare origin, because the OAuth start links (version-neutral routes) and
+ * the root layout's `<link rel="preconnect">` are built from it directly.
+ * The `?? ''` keeps an unset variable from becoming the literal path
+ * `undefined/v1`.
  */
-// `?? ''`: an unset variable must not become the literal path `undefined/v1`.
 export const API_BASE_URL = `${process.env.NEXT_PUBLIC_API_URL ?? ''}/v1`;
 
 /**
