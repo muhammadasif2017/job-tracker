@@ -34,6 +34,16 @@ const OAUTH_CODE_TTL_SECONDS = 60;
  */
 export const OAUTH_UNAVAILABLE_MESSAGE =
   'Sign-in is temporarily unavailable. Please sign in again.';
+/**
+ * How long after an OAuth sign-up a returning sign-in still counts as that
+ * sign-up for the timezone. The user and account rows are written before the
+ * code store is reached, so a sign-up whose code could not be stored leaves
+ * an account behind, and the retry finds it. Without this window that retry
+ * reads as a returning user and the browser's timezone is never saved.
+ */
+export const OAUTH_SIGNUP_RETRY_WINDOW_MS = 15 * 60 * 1000;
+/** The `User.timezone` column default: a zone nobody has confirmed yet. */
+const DEFAULT_TIMEZONE = 'UTC';
 
 /**
  * What an OAuth sign-in hands to the callback controller and parks behind
@@ -77,6 +87,22 @@ function refreshTokenMatches(rawToken: string, storedHash: string): boolean {
   const actual = Buffer.from(storedHash, 'hex');
   if (actual.length !== expected.length) return false;
   return timingSafeEqual(actual, expected);
+}
+
+/**
+ * True when an OAuth account's user was created moments ago and still has
+ * the default timezone: a sign-up whose first attempt failed after the rows
+ * were written (see `OAUTH_SIGNUP_RETRY_WINDOW_MS`). The timezone check keeps
+ * a zone the user already confirmed from being overwritten.
+ */
+function isUnfinishedSignup(user: {
+  createdAt: Date;
+  timezone: string;
+}): boolean {
+  return (
+    user.timezone === DEFAULT_TIMEZONE &&
+    Date.now() - user.createdAt.getTime() < OAUTH_SIGNUP_RETRY_WINDOW_MS
+  );
 }
 
 /**
@@ -249,15 +275,47 @@ export class AuthService {
    */
   async storeOAuthCode(tokens: OAuthLoginResult): Promise<string> {
     const code = randomUUID();
-    await this.withOAuthCodeStore(() =>
-      this.redis.client.set(
-        OAUTH_CODE_PREFIX + code,
-        JSON.stringify(tokens),
-        'EX',
-        OAUTH_CODE_TTL_SECONDS,
-      ),
-    );
+    try {
+      await this.withOAuthCodeStore(() =>
+        this.redis.client.set(
+          OAUTH_CODE_PREFIX + code,
+          JSON.stringify(tokens),
+          'EX',
+          OAUTH_CODE_TTL_SECONDS,
+        ),
+      );
+    } catch (err) {
+      // The code never reached the browser, so its refresh token never will
+      // either. Revoke it now rather than leave a live 7-day credential row.
+      await this.revokeUnusedRefreshToken(tokens);
+      throw err;
+    }
     return code;
+  }
+
+  /**
+   * Revokes the refresh token of an OAuth sign-in that could not be handed
+   * to the browser. Matched on user and hash, so only this token is revoked
+   * and the user's other sessions are untouched. Best-effort: a failure is
+   * logged, and the row still expires on its own.
+   */
+  private async revokeUnusedRefreshToken(tokens: OAuthLoginResult) {
+    if (!tokens.userId) return;
+    try {
+      await this.prisma.refreshToken.updateMany({
+        where: {
+          userId: tokens.userId,
+          tokenHash: hashRefreshToken(tokens.refreshToken),
+          revokedAt: null,
+        },
+        data: { revokedAt: new Date() },
+      });
+    } catch (err) {
+      this.logger.warn('Could not revoke an undelivered OAuth refresh token', {
+        userId: tokens.userId,
+        err,
+      });
+    }
   }
 
   /**
@@ -336,7 +394,11 @@ export class AuthService {
         account.user.id,
         account.user.email,
       );
-      return { ...tokens, userId: account.user.id, isNewUser: false };
+      return {
+        ...tokens,
+        userId: account.user.id,
+        isNewUser: isUnfinishedSignup(account.user),
+      };
     }
 
     // 2. Find by email and link, or create new user
