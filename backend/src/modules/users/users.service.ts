@@ -7,11 +7,11 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   STORAGE_SERVICE,
   type IStorageService,
-} from '../../storage/storage.service.js';
+} from '../../infrastructure/storage/storage.service.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';

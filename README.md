@@ -269,9 +269,12 @@ job-tracker/
 │   │   │   ├── resumes/          # Resume upload/download per job
 │   │   │   ├── enrichment/       # BullMQ queue, processor, AI/search services
 │   │   │   └── health/           # /health endpoint
-│   │   ├── storage/         # Storage drivers (local disk, Oracle Object Storage)
-│   │   ├── prisma/          # PrismaService
-│   │   └── common/          # Guards, filters, decorators
+│   │   ├── infrastructure/  # Adapters to external systems (global modules)
+│   │   │   ├── database/    # PrismaService, Prisma error helpers
+│   │   │   ├── redis/       # RedisService, BullMQ queue/worker connections
+│   │   │   └── storage/     # Storage drivers (local disk, Oracle Object Storage)
+│   │   ├── config/          # Env validation schema
+│   │   └── common/          # Guards, filters, interceptors, decorators
 │   └── test/                # E2E tests (supertest)
 ├── frontend/
 │   ├── app/

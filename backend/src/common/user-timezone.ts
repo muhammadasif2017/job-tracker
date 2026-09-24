@@ -1,4 +1,4 @@
-import type { PrismaService } from '../prisma/prisma.service.js';
+import type { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { safeTimeZone } from './timezone.helper.js';
 
 /**

@@ -12,7 +12,7 @@ import * as bcrypt from 'bcrypt';
 import ms, { type StringValue } from 'ms';
 import Redis from 'ioredis';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
 import {

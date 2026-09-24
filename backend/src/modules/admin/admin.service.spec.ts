@@ -1,7 +1,7 @@
 import { Test } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { AdminService } from './admin.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { UsersService } from '../users/users.service.js';
 
 const mockPrisma = {

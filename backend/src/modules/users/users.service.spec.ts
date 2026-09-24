@@ -7,8 +7,8 @@ import {
 import * as bcrypt from 'bcrypt';
 import { Logger } from 'nestjs-pino';
 import { UsersService } from './users.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
-import { STORAGE_SERVICE } from '../../storage/storage.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),

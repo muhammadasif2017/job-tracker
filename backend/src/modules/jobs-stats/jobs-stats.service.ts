@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { JobQueryDto } from '../jobs/dto/job-query.dto.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import type { AttentionType } from '../jobs/dto/attention-item.dto.js';

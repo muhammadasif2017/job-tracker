@@ -10,7 +10,7 @@ import { createHash } from 'crypto';
 // keeps them honest about what actually has to match.
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 import { AuthService } from './auth.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 jest.mock('bcrypt');
 jest.mock('ioredis', () => {

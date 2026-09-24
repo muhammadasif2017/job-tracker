@@ -121,7 +121,7 @@ Match existing repo conventions exactly:
 
 ```ts
 // .js import extensions (ESM-style paths, compiles to CJS)
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 // Nest exceptions only — never plain Error (GlobalExceptionFilter passes them through)
 throw new BadRequestException('Invalid digest frequency');

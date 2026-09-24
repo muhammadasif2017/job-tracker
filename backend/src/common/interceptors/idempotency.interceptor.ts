@@ -11,7 +11,7 @@ import {
 import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { catchError, from, mergeMap, Observable, of, throwError } from 'rxjs';
-import { RedisService } from '../../redis/redis.service.js';
+import { RedisService } from '../../infrastructure/redis/redis.service.js';
 
 /** Request header carrying the client's idempotency key. */
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';

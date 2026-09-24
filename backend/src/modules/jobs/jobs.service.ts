@@ -5,7 +5,7 @@ import {
   Inject,
 } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobDto } from './dto/update-job.dto.js';
@@ -14,7 +14,7 @@ import { JobStatus, JobEventType, JobType } from '@prisma/client';
 import {
   STORAGE_SERVICE,
   type IStorageService,
-} from '../../storage/storage.service.js';
+} from '../../infrastructure/storage/storage.service.js';
 import { buildJobWhere, upcomingInterviewAt } from './jobs.constants.js';
 import { JobCompanyLinkService } from './job-company-link.service.js';
 import { JobGhostingService } from './job-ghosting.service.js';

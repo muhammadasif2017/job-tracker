@@ -1,5 +1,5 @@
 import { JobStatus } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   REPLIED_FILTER,
   SENT_APPLICATION_FILTER,

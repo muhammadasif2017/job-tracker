@@ -5,7 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types';
 import cookieParser from 'cookie-parser';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/prisma/prisma.service';
+import { PrismaService } from '../src/infrastructure/database/prisma.service';
 import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';

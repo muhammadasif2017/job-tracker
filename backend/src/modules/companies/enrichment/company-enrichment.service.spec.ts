@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import { CompanyEnrichmentService } from './company-enrichment.service.js';
-import { PrismaService } from '../../../prisma/prisma.service.js';
+import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 
 const mockPrisma = { company: { update: jest.fn(), updateMany: jest.fn() } };

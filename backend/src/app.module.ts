@@ -5,10 +5,11 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
-import * as Joi from 'joi';
-import { PrismaModule } from './prisma/prisma.module.js';
-import { queueConnection } from './redis/redis-connection.helper.js';
-import { RedisModule } from './redis/redis.module.js';
+import { ENV_VALIDATION_SCHEMA } from './config/env.constants.js';
+import { PrismaModule } from './infrastructure/database/prisma.module.js';
+import { queueConnection } from './infrastructure/redis/redis-connection.helper.js';
+import { RedisModule } from './infrastructure/redis/redis.module.js';
+import { StorageModule } from './infrastructure/storage/storage.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
@@ -17,20 +18,12 @@ import { JobParsingModule } from './modules/job-parsing/job-parsing.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { EnrichmentModule } from './modules/enrichment/enrichment.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
-import { StorageModule } from './storage/storage.module.js';
 import { ResumesModule } from './modules/resumes/resumes.module.js';
 import { InterviewRoundsModule } from './modules/interview-rounds/interview-rounds.module.js';
 import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { CompaniesModule } from './modules/companies/companies.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { TokensModule } from './modules/tokens/tokens.module.js';
-
-/** Required only when `STORAGE_DRIVER=oracle`; optional for local storage. */
-const ociRequired = Joi.when('STORAGE_DRIVER', {
-  is: 'oracle',
-  then: Joi.string().required(),
-  otherwise: Joi.string().optional(),
-});
 
 /**
  * Root module. Validates the environment at boot, so a missing required
@@ -42,33 +35,7 @@ const ociRequired = Joi.when('STORAGE_DRIVER', {
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      validationSchema: Joi.object({
-        NODE_ENV: Joi.string()
-          .valid('development', 'production', 'test')
-          .default('development'),
-        DATABASE_URL: Joi.string().required(),
-        PORT: Joi.number().default(3001),
-        JWT_SECRET: Joi.string().min(32).required(),
-        JWT_REFRESH_SECRET: Joi.string().min(32).required(),
-        JWT_EXPIRES_IN: Joi.string().default('15m'),
-        JWT_REFRESH_EXPIRES_IN: Joi.string().default('7d'),
-        FRONTEND_URL: Joi.string().default('http://localhost:3000'),
-        REDIS_URL: Joi.string().default('redis://localhost:6379'),
-        GROQ_API_KEY: Joi.string().optional(),
-        TAVILY_API_KEY: Joi.string().optional(),
-        GOOGLE_CLIENT_ID: Joi.string().optional(),
-        GOOGLE_CLIENT_SECRET: Joi.string().optional(),
-        GITHUB_CLIENT_ID: Joi.string().optional(),
-        GITHUB_CLIENT_SECRET: Joi.string().optional(),
-        RESEND_API_KEY: Joi.string().optional(),
-        EMAIL_FROM: Joi.string().default('onboarding@resend.dev'),
-        STORAGE_DRIVER: Joi.string().valid('local', 'oracle').default('local'),
-        OCI_NAMESPACE: ociRequired,
-        OCI_REGION: ociRequired,
-        OCI_BUCKET_NAME: ociRequired,
-        OCI_ACCESS_KEY_ID: ociRequired,
-        OCI_SECRET_ACCESS_KEY: ociRequired,
-      }),
+      validationSchema: ENV_VALIDATION_SCHEMA,
     }),
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),

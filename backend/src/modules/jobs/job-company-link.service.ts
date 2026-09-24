@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { CompanyCity } from '@prisma/client';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { companyNameMatch } from '../companies/company-name-match.helper.js';
 

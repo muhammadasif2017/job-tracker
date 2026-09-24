@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CreateTokenDto } from './dto/create-token.dto.js';
 import { CreatedTokenDto } from './dto/created-token.dto.js';
 import { TokenResponseDto } from './dto/token-response.dto.js';

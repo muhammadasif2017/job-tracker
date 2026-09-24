@@ -13,10 +13,10 @@ import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { JobCompanyLinkService } from './job-company-link.service.js';
 import { JobGhostingService } from './job-ghosting.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
-import { STORAGE_SERVICE } from '../../storage/storage.service.js';
+import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 
 // The stored `appliedAt` every ownership mock below reports. `findOwned`

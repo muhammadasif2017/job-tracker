@@ -3,7 +3,7 @@ import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
 import { InterviewRoundsService } from './interview-rounds.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 

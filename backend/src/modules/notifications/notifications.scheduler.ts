@@ -4,7 +4,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import { Logger } from 'nestjs-pino';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import {
   NOTIFICATIONS_QUEUE,

@@ -8,7 +8,7 @@ import {
   REPLIED_FILTER,
   SENT_APPLICATION_FILTER,
 } from '../jobs/jobs.constants.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 
 const mockPrisma = { job: { groupBy: jest.fn() } };
 const prisma = mockPrisma as unknown as PrismaService;

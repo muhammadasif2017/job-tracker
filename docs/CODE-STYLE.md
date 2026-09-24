@@ -52,7 +52,13 @@ it recognizes.
 
 ```
 backend/src/
-  common/                     cross-module: decorators/ dto/ filters/ guards/ validators/
+  config/                     env validation schema (env.constants.ts)
+  infrastructure/             adapters to external systems, one global module each
+    database/                 PrismaService, prisma-errors
+    redis/                    RedisService, BullMQ connection shapes
+    storage/                  STORAGE_SERVICE token + local / oracle drivers
+  common/                     cross-module HTTP concerns: decorators/ dto/ filters/
+                              guards/ interceptors/ validators/, plus shared helpers
   modules/<feature>/
     <feature>.module.ts
     <feature>.controller.ts

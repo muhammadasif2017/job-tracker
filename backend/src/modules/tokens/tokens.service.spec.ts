@@ -2,7 +2,7 @@ import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { TokensService } from './tokens.service.js';
-import { PrismaService } from '../../prisma/prisma.service.js';
+import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   API_TOKEN_PREFIX,
   MAX_ACTIVE_TOKENS_PER_USER,
