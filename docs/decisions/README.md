@@ -49,6 +49,8 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [040](./040-work-policy-from-linked-jobs.md) | Derive workPolicy from linked jobs' jobType - careers pages carry no policy wording | Superseded by 041 |
 | [041](./041-company-profile-drops-work-policy.md) | Drop Company.workPolicy (it belongs to Job.jobType); enrich productDescription and businessMode instead | Accepted |
 | [042](./042-techstack-noise-and-tracked-roles.md) | Keep site-scanner output out of techStack; feed tracked job titles in as first-party tech signal | Accepted |
+| [043](./043-interview-rounds-carry-a-time-and-a-length.md) | `InterviewRound.scheduledAt` is a real instant resolved in the browser (`HasUtcOffset` rejects offset-less times); every round carries a user-supplied `durationMinutes` | Accepted |
+| [044](./044-nestjs-12-forces-node-24-for-tests.md) | Move all `@nestjs/*` to 12 in one step; ESM-only core forces Node 24 and `--experimental-vm-modules` in every backend `jest` script | Accepted |
 | [045](./045-idempotency-key-on-job-create.md) | `POST /jobs` takes an optional Idempotency-Key: Redis `SET NX` claim, 24h replay, 409 in flight, 422 on a changed body, fail-open | Accepted |
 | [046](./046-queue-adds-fail-fast-on-redis-outage.md) | Queue adds fail fast on a Redis outage (`enableOfflineQueue: false`); workers keep a waiting connection via `withWorkerConnection` | Accepted |
 
