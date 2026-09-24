@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // floor-guard.mjs — diff-scoped enforcement of the CONSTRAINTS.md floor.
-// Usage: node scripts/floor-guard.mjs [--base <ref>]   (default base: origin/main)
+// Usage: node scripts/floor-guard.mjs [--base <ref>] [--message-file <path>]
+//   --base          default origin/main
+//   --message-file  the commit-msg hook's $1, so a Constraints-Change trailer on the
+//                   commit being written is seen before that commit exists
 // Exit: 0 clean, 1 floor violation, 2 could not run.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
@@ -74,9 +77,29 @@ const constraintsExistedAtBase = Boolean(
 // trailer is an explicit, reviewable statement of intent: the finding is still
 // printed, it just stops blocking. Loosening stays loud; it does not become
 // impossible.
-const constraintsChangeAck = (git(['log', '--format=%B', `${mergeBase}..HEAD`]) ?? '')
+//
+// `--message-file` is how the commit-msg hook hands over the message of the commit
+// being written. Without it the trailer could never be seen locally: the commit
+// does not exist yet when a hook runs, so it is absent from `mergeBase..HEAD`, and
+// the very commit that adds an exception row would be the one unable to pass. CI
+// sees it in the range instead, which is why this only ever bit locally.
+const messageFile = (() => {
+  const i = process.argv.indexOf('--message-file');
+  return i > -1 ? process.argv[i + 1] : null;
+})();
+const pendingMessage =
+  messageFile && existsSync(messageFile) ? readFileSync(messageFile, 'utf8') : '';
+const constraintsChangeAck = [
+  pendingMessage,
+  git(['log', '--format=%B', `${mergeBase}..HEAD`]) ?? '',
+]
+  .join('\n')
   .split('\n')
   .map((l) => l.trim())
+  // A comment line in the editor template is not a trailer: git strips `#` lines
+  // from the final message, so honouring one would let a commented-out trailer
+  // unblock a commit whose real message never carries it.
+  .filter((l) => !l.startsWith('#'))
   .find((l) => /^Constraints-Change:\s*\S/i.test(l));
 
 // Exceptions tracked in CONSTRAINTS.md. That table is the documented place to

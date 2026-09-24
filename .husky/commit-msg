@@ -1,0 +1,6 @@
+# The floor guard runs here, not in pre-commit, because a `Constraints-Change:`
+# trailer can only be read once the message exists. At pre-commit time the commit
+# has not been written, so the trailer is absent from `mergeBase..HEAD` and the
+# one commit that deliberately changes the bar is the one that cannot be made.
+# `$1` is the path to the message git is about to use.
+node scripts/floor-guard.mjs --message-file "$1" || exit 1
