@@ -8,6 +8,7 @@ import { LoggerModule } from 'nestjs-pino';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { queueConnection } from './redis/redis-connection.helper.js';
+import { RedisModule } from './redis/redis.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
@@ -94,6 +95,7 @@ const ociRequired = Joi.when('STORAGE_DRIVER', {
       },
     }),
     PrismaModule,
+    RedisModule,
     StorageModule,
     AuthModule,
     ResumesModule,

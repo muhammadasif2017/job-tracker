@@ -9,6 +9,7 @@ import {
   Patch,
   Post,
   Query,
+  UseInterceptors,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -20,6 +21,9 @@ import {
   ApiOkResponse,
   ApiNotFoundResponse,
   ApiUnauthorizedResponse,
+  ApiHeader,
+  ApiConflictResponse,
+  ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
 import { JobsService } from './jobs.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -36,6 +40,7 @@ import {
 import { MessageDto } from '../../common/dto/message.dto.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.js';
+import { IdempotencyInterceptor } from '../../common/interceptors/idempotency.interceptor.js';
 
 /**
  * A user's job applications: the list and detail views, create, update and
@@ -57,11 +62,27 @@ import { PatAccessible } from '../../common/decorators/pat-accessible.decorator.
 export class JobsController {
   constructor(private jobsService: JobsService) {}
 
-  /** Creates a job application. */
+  /**
+   * Creates a job application. Safe to retry with the same
+   * `Idempotency-Key`: see `IdempotencyInterceptor`.
+   */
   @Post()
   @PatAccessible()
+  @UseInterceptors(IdempotencyInterceptor)
   @ApiOperation({ summary: 'Create a job application' })
+  @ApiHeader({
+    name: 'Idempotency-Key',
+    required: false,
+    description:
+      'Client-generated key (1-255 chars). A retry with the same key and body returns the first response with `Idempotent-Replayed: true` instead of creating a duplicate. Remembered for 24 hours.',
+  })
   @ApiCreatedResponse({ type: JobResponseDto })
+  @ApiConflictResponse({
+    description: 'A request with this Idempotency-Key is still in progress',
+  })
+  @ApiUnprocessableEntityResponse({
+    description: 'Idempotency-Key was already used with a different body',
+  })
   create(@CurrentUser() user: { id: string }, @Body() dto: CreateJobDto) {
     return this.jobsService.create(user.id, dto);
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useForm } from 'react-hook-form';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDebounce } from '../../lib/use-debounce';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -96,6 +96,12 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   const [companyHistory, setCompanyHistory] =
     useState<CompanyApplicationHistory | null>(null);
   const [checkingHistory, setCheckingHistory] = useState(false);
+  // Create only: the Idempotency-Key for the payload last sent. A retry of
+  // the same payload (a timeout, a double click, the "Add anyway" path)
+  // reuses the key so the backend returns the first job instead of a
+  // duplicate; an edited payload is a new intent and gets a new key, since
+  // the backend rejects a key reused with a different body.
+  const createAttempt = useRef<{ payload: string; key: string } | null>(null);
 
   const {
     register,
@@ -129,6 +135,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
   );
 
   const handleClose = () => {
+    createAttempt.current = null;
     setCompanyHistory(null);
     setCreatedJobId(null);
     setMatchedCompany(null);
@@ -182,9 +189,18 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         applicationChannel: data.applicationChannel || blank,
         notes: data.notes || blank,
       };
-      return isEdit
-        ? api.patch(`/jobs/${job.id}`, payload).then((r) => r.data)
-        : api.post('/jobs', payload).then((r) => r.data);
+      if (isEdit) {
+        return api.patch(`/jobs/${job.id}`, payload).then((r) => r.data);
+      }
+      const body = JSON.stringify(payload);
+      if (createAttempt.current?.payload !== body) {
+        createAttempt.current = { payload: body, key: crypto.randomUUID() };
+      }
+      return api
+        .post('/jobs', payload, {
+          headers: { 'Idempotency-Key': createAttempt.current.key },
+        })
+        .then((r) => r.data);
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ['jobs'] });
@@ -200,6 +216,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         reset();
         onClose();
       } else {
+        createAttempt.current = null;
         toast.success('Job added');
         setCompanyHistory(null);
         setCreatedJobId(data.id);
