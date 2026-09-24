@@ -13,6 +13,7 @@ import ms, { type StringValue } from 'ms';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
+import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
 import {
@@ -25,6 +26,14 @@ import {
 const OAUTH_CODE_PREFIX = 'oauth_code:';
 /** Lifetime of a one-time OAuth code, in seconds. */
 const OAUTH_CODE_TTL_SECONDS = 60;
+/**
+ * The 503 message when the OAuth code store is unreachable. It says to sign
+ * in again, not to retry: a `GETDEL` that timed out may still have spent the
+ * code, so a retry of the same code can only get a 403, while a fresh OAuth
+ * sign-in always works once Redis is back.
+ */
+export const OAUTH_UNAVAILABLE_MESSAGE =
+  'Sign-in is temporarily unavailable. Please sign in again.';
 
 /**
  * What an OAuth sign-in hands to the callback controller and parks behind
@@ -217,19 +226,19 @@ export class AuthService {
   }
 
   /**
-   * Runs one OAuth-code command, turning a Redis failure into a 503. Without
-   * this a Redis outage surfaced as an opaque 500 from the filter's catch-all;
-   * the sign-in cannot proceed without the code store, but the client should
-   * be told it is a temporary outage rather than a bug.
+   * Runs one OAuth-code command, turning an unreachable Redis into a 503.
+   * Without this an outage surfaced as an opaque 500 from the filter's
+   * catch-all. Only unavailability is mapped: a permanent fault (wrong
+   * password, a Redis too old for `GETDEL`) is rethrown and stays a logged
+   * 500, so a misconfiguration is not disguised as a passing outage.
    */
   private async withOAuthCodeStore<T>(command: () => Promise<T>): Promise<T> {
     try {
       return await command();
     } catch (err) {
+      if (!isRedisUnavailable(this.redis.client, err)) throw err;
       this.logger.error('OAuth code store unavailable', err);
-      throw new ServiceUnavailableException(
-        'Sign-in is temporarily unavailable, please try again',
-      );
+      throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
     }
   }
 

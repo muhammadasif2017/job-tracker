@@ -13,7 +13,7 @@ import { createHash } from 'crypto';
 // stored hash the same way rather than mocking the comparison away — that
 // keeps them honest about what actually has to match.
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
-import { AuthService } from './auth.service.js';
+import { AuthService, OAUTH_UNAVAILABLE_MESSAGE } from './auth.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 
@@ -23,6 +23,8 @@ jest.mock('bcrypt');
 function createRedisClient() {
   const store = new Map<string, string>();
   return {
+    // ioredis connection state; anything but 'ready' reads as an outage.
+    status: 'ready',
     set: jest.fn((key: string, value: string) => {
       store.set(key, value);
       return Promise.resolve('OK');
@@ -685,7 +687,8 @@ describe('AuthService', () => {
 
     // RedisService fails fast during an outage (ADR-046); the sign-in must
     // answer with a 503 rather than the filter's opaque 500.
-    it('answers 503 when Redis cannot store the code', async () => {
+    it('answers 503 when Redis is disconnected while storing the code', async () => {
+      redis.status = 'reconnecting';
       redis.set.mockRejectedValueOnce(
         new Error(
           "Stream isn't writeable and enableOfflineQueue options is false",
@@ -697,11 +700,23 @@ describe('AuthService', () => {
       ).rejects.toThrow(ServiceUnavailableException);
     });
 
-    it('answers 503 when Redis cannot claim the code', async () => {
+    it('tells the user to sign in again, not retry, when the claim times out', async () => {
+      // A timed-out GETDEL may already have spent the code, so retrying the
+      // same code can only 403; a fresh sign-in always works.
       redis.getdel.mockRejectedValueOnce(new Error('Command timed out'));
 
       await expect(service.exchangeOAuthCode('some-code')).rejects.toThrow(
-        ServiceUnavailableException,
+        new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE),
+      );
+      expect(OAUTH_UNAVAILABLE_MESSAGE).toMatch(/sign in again/i);
+    });
+
+    it('lets a permanent Redis error surface as-is rather than as a 503', async () => {
+      const wrongpass = new Error('WRONGPASS invalid username-password pair');
+      redis.getdel.mockRejectedValueOnce(wrongpass);
+
+      await expect(service.exchangeOAuthCode('some-code')).rejects.toBe(
+        wrongpass,
       );
     });
   });

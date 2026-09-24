@@ -8,6 +8,20 @@ import { useAuthStore } from '../../../store/auth.store';
 import api from '../../../lib/api';
 
 /**
+ * Shown when the backend's OAuth code store (Redis) is unreachable: either
+ * the provider callback redirected here with `?error=unavailable`, or the
+ * code exchange answered 503. It says to sign in again rather than retry,
+ * because the one-time code may already be spent.
+ */
+const SIGN_IN_UNAVAILABLE =
+  'Sign-in is temporarily unavailable. Please sign in again.';
+
+/** True for a 503 from the code exchange: an outage, not a bad code. */
+function isServiceUnavailable(err: unknown): boolean {
+  return (err as { response?: { status?: number } })?.response?.status === 503;
+}
+
+/**
  * Trades the OAuth redirect's one-time code for tokens, loads the user, and
  * signs them in; any failure returns to `/login`.
  */
@@ -20,6 +34,11 @@ function CallbackHandler() {
     const code = params.get('code');
     const error = params.get('error');
 
+    if (error === 'unavailable') {
+      toast.error(SIGN_IN_UNAVAILABLE);
+      router.replace('/login');
+      return;
+    }
     if (error || !code) {
       toast.error('Authentication failed. Please try again.');
       router.replace('/login');
@@ -46,8 +65,12 @@ function CallbackHandler() {
             router.replace('/');
           });
       })
-      .catch(() => {
-        toast.error('Could not complete sign-in. Please try again.');
+      .catch((err: unknown) => {
+        toast.error(
+          isServiceUnavailable(err)
+            ? SIGN_IN_UNAVAILABLE
+            : 'Could not complete sign-in. Please try again.',
+        );
         router.replace('/login');
       });
   }, [params, router, setAuth]);
