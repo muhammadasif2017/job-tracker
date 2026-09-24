@@ -202,6 +202,8 @@ Swagger UI is available at `http://localhost:3001/api/docs` in development (`NOD
 
 ### Key endpoints
 
+Every route is served under `/v1` (ADR-047), for example `POST /v1/auth/login`. The paths below omit that prefix. The unversioned paths still answer as an alias for older clients. `/health` and the OAuth start and callback routes are version-neutral and exist only unversioned.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | POST | `/auth/register` | Create account |

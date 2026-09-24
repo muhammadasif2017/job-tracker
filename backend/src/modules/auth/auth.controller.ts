@@ -9,6 +9,8 @@ import {
   Res,
   ServiceUnavailableException,
   UseGuards,
+  Version,
+  VERSION_NEUTRAL,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
@@ -38,6 +40,27 @@ import { MessageDto } from '../../common/dto/message.dto.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { REFRESH_COOKIE_NAME } from './strategies/jwt-refresh.strategy.js';
+import { CURRENT_API_PREFIX } from '../../config/api-versioning.helper.js';
+
+/** The refresh cookie's path for a client on the versioned API. */
+const REFRESH_COOKIE_PATH = `${CURRENT_API_PREFIX}/auth`;
+/** The refresh cookie's path for a client still on the unversioned alias. */
+const LEGACY_REFRESH_COOKIE_PATH = '/auth';
+
+/**
+ * The cookie path for a request: the auth routes of whichever URL surface the
+ * client called (ADR-047). A cookie is only sent to paths under its `Path`,
+ * so it has to live where that same client will later refresh. Scoping it by
+ * the request keeps a `/v1` client and a pre-versioning client on separate
+ * cookies: if an alias refresh wrote to `/v1/auth`, the client's old `/auth`
+ * cookie would survive, and its next refresh would replay a revoked token and
+ * trip replay detection, which deletes every session the user has.
+ */
+function refreshCookiePathFor(requestPath: string): string {
+  return requestPath.startsWith(`${CURRENT_API_PREFIX}/`)
+    ? REFRESH_COOKIE_PATH
+    : LEGACY_REFRESH_COOKIE_PATH;
+}
 
 /**
  * Every route that mints, rotates or drops a credential. All of them are
@@ -55,23 +78,37 @@ export class AuthController {
   ) {}
 
   /**
-   * The refresh token never touches a response body — it is set as an
-   * httpOnly cookie scoped to /auth, so client-side JS, and therefore any
-   * XSS, cannot read or exfiltrate it.
+   * The attributes every refresh-cookie write shares, including the clearing
+   * writes on logout. A clearing `Set-Cookie` must carry the same `SameSite`
+   * and `Secure` as the original: in production the API is cross-site, and
+   * a browser drops a cross-site `Set-Cookie` without `SameSite=None; Secure`,
+   * so logout would silently leave the cookie in place.
    */
-  private setRefreshCookie(res: Response, refreshToken: string) {
-    const expiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+  private refreshCookieAttributes() {
     const isProduction = this.config.get('NODE_ENV') === 'production';
-    res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+    return {
       httpOnly: true,
       secure: isProduction,
       // Frontend (Vercel) and backend live on different domains in production,
       // making every request cross-site. SameSite=Lax is only sent on top-level
-      // navigations for cross-site requests, so it never reaches /auth/refresh
-      // called via fetch/XHR - the refresh cookie would silently never arrive.
+      // navigations for cross-site requests, so it never reaches the refresh
+      // route called via fetch/XHR - the cookie would silently never arrive.
       // None requires Secure, which only holds over HTTPS (production).
-      sameSite: isProduction ? 'none' : 'lax',
-      path: '/auth',
+      sameSite: isProduction ? ('none' as const) : ('lax' as const),
+    };
+  }
+
+  /**
+   * The refresh token never touches a response body — it is set as an
+   * httpOnly cookie scoped to the auth routes the client called (see
+   * `refreshCookiePathFor`), so client-side JS, and therefore any XSS,
+   * cannot read or exfiltrate it.
+   */
+  private setRefreshCookie(res: Response, refreshToken: string) {
+    const expiresIn = this.config.get<string>('JWT_REFRESH_EXPIRES_IN') ?? '7d';
+    res.cookie(REFRESH_COOKIE_NAME, refreshToken, {
+      ...this.refreshCookieAttributes(),
+      path: refreshCookiePathFor(res.req.path),
       maxAge: ms(expiresIn as StringValue),
     });
   }
@@ -230,7 +267,14 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.logout(user.id);
-    res.clearCookie(REFRESH_COOKIE_NAME, { path: '/auth' });
+    // Clear both paths: a browser can hold one per URL surface (ADR-047),
+    // and logout deleted every refresh token for this user above anyway.
+    for (const path of [REFRESH_COOKIE_PATH, LEGACY_REFRESH_COOKIE_PATH]) {
+      res.clearCookie(REFRESH_COOKIE_NAME, {
+        ...this.refreshCookieAttributes(),
+        path,
+      });
+    }
     return result;
   }
 
@@ -254,6 +298,7 @@ export class AuthController {
    * redirects before the handler would run.
    */
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('google')
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Initiate Google OAuth flow' })
@@ -268,6 +313,7 @@ export class AuthController {
    * lands in browser history and server logs.
    */
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('google/callback')
   @UseGuards(AuthGuard('google'))
   @ApiExcludeEndpoint()
@@ -282,6 +328,7 @@ export class AuthController {
    * `googleAuth`.
    */
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('github')
   @UseGuards(AuthGuard('github'))
   @ApiOperation({ summary: 'Initiate GitHub OAuth flow' })
@@ -295,6 +342,7 @@ export class AuthController {
    * callback is.
    */
   @Public()
+  @Version(VERSION_NEUTRAL)
   @Get('github/callback')
   @UseGuards(AuthGuard('github'))
   @ApiExcludeEndpoint()

@@ -33,6 +33,14 @@ export const COMPLETED_TTL_MS = 24 * 60 * 60 * 1000;
  */
 export const PENDING_TTL_MS = 60 * 1000;
 
+/**
+ * `path` without a leading `/v<n>` segment, so the versioned route and its
+ * unversioned alias share one idempotency keyspace.
+ */
+export function unversionedPath(path: string): string {
+  return path.replace(/^\/v\d+(?=\/)/, '');
+}
+
 /** What Redis holds under one idempotency key. */
 type IdempotencyRecord =
   | { state: 'pending'; fingerprint: string }
@@ -47,7 +55,9 @@ type IdempotencyRecord =
  * so existing clients are unaffected.
  *
  * Keys are scoped to the user and the route, so one user's key can never
- * replay another user's response. The handler throwing — including a
+ * replay another user's response. The route is taken without its version
+ * prefix, since `/v1/jobs` and the unversioned `/jobs` alias are one handler
+ * (ADR-047): a retry that switches between them must hit the same key. The handler throwing — including a
  * validation 400, since pipes run inside `next.handle()` — releases the key
  * so a corrected retry can go through.
  *
@@ -68,7 +78,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const key = this.readKey(req);
     if (key === null || !req.user) return next.handle();
 
-    const redisKey = `idem:${req.user.id}:${req.method}:${req.path}:${key}`;
+    const redisKey = `idem:${req.user.id}:${req.method}:${unversionedPath(req.path)}:${key}`;
     const fingerprint = createHash('sha256')
       .update(JSON.stringify(req.body ?? null))
       .digest('hex');

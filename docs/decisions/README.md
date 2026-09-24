@@ -53,6 +53,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [044](./044-nestjs-12-forces-node-24-for-tests.md) | Move all `@nestjs/*` to 12 in one step; ESM-only core forces Node 24 and `--experimental-vm-modules` in every backend `jest` script | Accepted |
 | [045](./045-idempotency-key-on-job-create.md) | `POST /jobs` takes an optional Idempotency-Key: Redis `SET NX` claim, 24h replay, 409 in flight, 422 on a changed body, fail-open | Accepted |
 | [046](./046-queue-adds-fail-fast-on-redis-outage.md) | Queue adds fail fast on a Redis outage (`enableOfflineQueue: false`); workers keep a waiting connection via `withWorkerConnection` | Accepted |
+| [047](./047-api-versioning-under-v1.md) | Serve every route at `/v1` plus an unversioned alias; `/health` and OAuth stay neutral; refresh cookie is scoped to the auth path of the surface the request used | Accepted |
 
 ## How to read an ADR
 

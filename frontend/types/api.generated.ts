@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/auth/register': {
+  '/v1/auth/register': {
     parameters: {
       query?: never;
       header?: never;
@@ -14,14 +14,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Register a new user */
-    post: operations['AuthController_register'];
+    post: operations['AuthController_register[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/login': {
+  '/v1/auth/login': {
     parameters: {
       query?: never;
       header?: never;
@@ -31,14 +31,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Login with email and password */
-    post: operations['AuthController_login'];
+    post: operations['AuthController_login[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/refresh': {
+  '/v1/auth/refresh': {
     parameters: {
       query?: never;
       header?: never;
@@ -48,14 +48,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Rotate tokens using the refresh token cookie */
-    post: operations['AuthController_refresh'];
+    post: operations['AuthController_refresh[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/exchange-code': {
+  '/v1/auth/exchange-code': {
     parameters: {
       query?: never;
       header?: never;
@@ -65,14 +65,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Exchange short-lived OAuth code for tokens */
-    post: operations['AuthController_exchangeCode'];
+    post: operations['AuthController_exchangeCode[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/token/exchange': {
+  '/v1/auth/token/exchange': {
     parameters: {
       query?: never;
       header?: never;
@@ -82,14 +82,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Exchange a personal access token for a short-lived access JWT (no refresh token/cookie is issued) */
-    post: operations['AuthController_exchangeApiToken'];
+    post: operations['AuthController_exchangeApiToken[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/logout': {
+  '/v1/auth/logout': {
     parameters: {
       query?: never;
       header?: never;
@@ -99,14 +99,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Invalidate the current refresh token */
-    post: operations['AuthController_logout'];
+    post: operations['AuthController_logout[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/auth/me': {
+  '/v1/auth/me': {
     parameters: {
       query?: never;
       header?: never;
@@ -114,7 +114,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get current authenticated user */
-    get: operations['AuthController_me'];
+    get: operations['AuthController_me[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -123,7 +123,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/resumes': {
+  '/v1/jobs/{jobId}/resumes': {
     parameters: {
       query?: never;
       header?: never;
@@ -131,18 +131,18 @@ export interface paths {
       cookie?: never;
     };
     /** Get resume metadata for a job */
-    get: operations['ResumesController_findByJob'];
+    get: operations['ResumesController_findByJob[0]_v1'];
     put?: never;
     /** Upload or replace a resume PDF for a job */
-    post: operations['ResumesController_uploadResume'];
+    post: operations['ResumesController_uploadResume[0]_v1'];
     /** Delete the resume for a job */
-    delete: operations['ResumesController_remove'];
+    delete: operations['ResumesController_remove[0]_v1'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/resumes/url': {
+  '/v1/jobs/{jobId}/resumes/url': {
     parameters: {
       query?: never;
       header?: never;
@@ -150,7 +150,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get a presigned URL to download the resume (oracle driver only) */
-    get: operations['ResumesController_getPresignedUrl'];
+    get: operations['ResumesController_getPresignedUrl[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -159,7 +159,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/resumes/file': {
+  '/v1/jobs/resumes/file': {
     parameters: {
       query?: never;
       header?: never;
@@ -167,7 +167,7 @@ export interface paths {
       cookie?: never;
     };
     /** Serve a resume file by storage key (local driver only) */
-    get: operations['ResumesController_serveFile'];
+    get: operations['ResumesController_serveFile[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -176,7 +176,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/interview-rounds': {
+  '/v1/jobs/{jobId}/interview-rounds': {
     parameters: {
       query?: never;
       header?: never;
@@ -184,17 +184,17 @@ export interface paths {
       cookie?: never;
     };
     /** List interview rounds for a job */
-    get: operations['InterviewRoundsController_findAll'];
+    get: operations['InterviewRoundsController_findAll[0]_v1'];
     put?: never;
     /** Add an interview round to a job */
-    post: operations['InterviewRoundsController_create'];
+    post: operations['InterviewRoundsController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/interview-rounds/{roundId}': {
+  '/v1/jobs/{jobId}/interview-rounds/{roundId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -205,14 +205,14 @@ export interface paths {
     put?: never;
     post?: never;
     /** Delete an interview round */
-    delete: operations['InterviewRoundsController_remove'];
+    delete: operations['InterviewRoundsController_remove[0]_v1'];
     options?: never;
     head?: never;
     /** Update an interview round */
-    patch: operations['InterviewRoundsController_update'];
+    patch: operations['InterviewRoundsController_update[0]_v1'];
     trace?: never;
   };
-  '/jobs/{jobId}/interview-rounds/{roundId}/ics': {
+  '/v1/jobs/{jobId}/interview-rounds/{roundId}/ics': {
     parameters: {
       query?: never;
       header?: never;
@@ -220,7 +220,7 @@ export interface paths {
       cookie?: never;
     };
     /** Download an interview round as a calendar (.ics) file */
-    get: operations['InterviewRoundsController_exportIcs'];
+    get: operations['InterviewRoundsController_exportIcs[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -229,7 +229,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/contacts': {
+  '/v1/jobs/{jobId}/contacts': {
     parameters: {
       query?: never;
       header?: never;
@@ -237,17 +237,17 @@ export interface paths {
       cookie?: never;
     };
     /** List contacts for a job */
-    get: operations['ContactsController_findAll'];
+    get: operations['ContactsController_findAll[0]_v1'];
     put?: never;
     /** Add a contact to a job */
-    post: operations['ContactsController_create'];
+    post: operations['ContactsController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/{jobId}/contacts/{contactId}': {
+  '/v1/jobs/{jobId}/contacts/{contactId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -258,14 +258,14 @@ export interface paths {
     put?: never;
     post?: never;
     /** Delete a contact */
-    delete: operations['ContactsController_remove'];
+    delete: operations['ContactsController_remove[0]_v1'];
     options?: never;
     head?: never;
     /** Update a contact */
-    patch: operations['ContactsController_update'];
+    patch: operations['ContactsController_update[0]_v1'];
     trace?: never;
   };
-  '/companies/{companyId}/contacts': {
+  '/v1/companies/{companyId}/contacts': {
     parameters: {
       query?: never;
       header?: never;
@@ -273,17 +273,17 @@ export interface paths {
       cookie?: never;
     };
     /** List contacts for a target company */
-    get: operations['CompanyContactsController_findAll'];
+    get: operations['CompanyContactsController_findAll[0]_v1'];
     put?: never;
     /** Add an HR/company contact to a target company */
-    post: operations['CompanyContactsController_create'];
+    post: operations['CompanyContactsController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/companies/{companyId}/contacts/{contactId}': {
+  '/v1/companies/{companyId}/contacts/{contactId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -294,14 +294,14 @@ export interface paths {
     put?: never;
     post?: never;
     /** Delete a company contact */
-    delete: operations['CompanyContactsController_remove'];
+    delete: operations['CompanyContactsController_remove[0]_v1'];
     options?: never;
     head?: never;
     /** Update a company contact */
-    patch: operations['CompanyContactsController_update'];
+    patch: operations['CompanyContactsController_update[0]_v1'];
     trace?: never;
   };
-  '/companies': {
+  '/v1/companies': {
     parameters: {
       query?: never;
       header?: never;
@@ -309,17 +309,17 @@ export interface paths {
       cookie?: never;
     };
     /** List target companies (filter by city, priority) */
-    get: operations['CompaniesController_findAll'];
+    get: operations['CompaniesController_findAll[0]_v1'];
     put?: never;
     /** Add a target company */
-    post: operations['CompaniesController_create'];
+    post: operations['CompaniesController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/companies/duplicates': {
+  '/v1/companies/duplicates': {
     parameters: {
       query?: never;
       header?: never;
@@ -327,7 +327,7 @@ export interface paths {
       cookie?: never;
     };
     /** Find likely-duplicate company pairs (websiteUrl match or fuzzy name match) */
-    get: operations['CompaniesController_findDuplicates'];
+    get: operations['CompaniesController_findDuplicates[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -336,7 +336,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/companies/application-history': {
+  '/v1/companies/application-history': {
     parameters: {
       query?: never;
       header?: never;
@@ -344,7 +344,7 @@ export interface paths {
       cookie?: never;
     };
     /** Past applications to a company, by case-insensitive name (job-create confirm) */
-    get: operations['CompaniesController_findApplicationHistory'];
+    get: operations['CompaniesController_findApplicationHistory[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -353,7 +353,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/companies/{id}': {
+  '/v1/companies/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -361,18 +361,18 @@ export interface paths {
       cookie?: never;
     };
     /** Get a target company */
-    get: operations['CompaniesController_findOne'];
+    get: operations['CompaniesController_findOne[0]_v1'];
     put?: never;
     post?: never;
     /** Delete a target company */
-    delete: operations['CompaniesController_remove'];
+    delete: operations['CompaniesController_remove[0]_v1'];
     options?: never;
     head?: never;
     /** Update a target company */
-    patch: operations['CompaniesController_update'];
+    patch: operations['CompaniesController_update[0]_v1'];
     trace?: never;
   };
-  '/companies/{id}/enrichment': {
+  '/v1/companies/{id}/enrichment': {
     parameters: {
       query?: never;
       header?: never;
@@ -382,14 +382,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Queue AI company research for a target company */
-    post: operations['CompaniesController_triggerEnrichment'];
+    post: operations['CompaniesController_triggerEnrichment[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/companies/{id}/merge': {
+  '/v1/companies/{id}/merge': {
     parameters: {
       query?: never;
       header?: never;
@@ -399,14 +399,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Merge a duplicate company into this one — reassigns its jobs and contacts, then deletes it */
-    post: operations['CompaniesController_merge'];
+    post: operations['CompaniesController_merge[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/companies/import': {
+  '/v1/companies/import': {
     parameters: {
       query?: never;
       header?: never;
@@ -416,14 +416,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Bulk-import target companies from a CSV (name,city,businessMode) */
-    post: operations['CompaniesController_importCsv'];
+    post: operations['CompaniesController_importCsv[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/users/me': {
+  '/v1/users/me': {
     parameters: {
       query?: never;
       header?: never;
@@ -431,18 +431,18 @@ export interface paths {
       cookie?: never;
     };
     /** Get current user profile */
-    get: operations['UsersController_getProfile'];
+    get: operations['UsersController_getProfile[0]_v1'];
     put?: never;
     post?: never;
     /** Delete account and all associated data */
-    delete: operations['UsersController_deleteAccount'];
+    delete: operations['UsersController_deleteAccount[0]_v1'];
     options?: never;
     head?: never;
     /** Update name or email */
-    patch: operations['UsersController_updateProfile'];
+    patch: operations['UsersController_updateProfile[0]_v1'];
     trace?: never;
   };
-  '/users/me/notifications': {
+  '/v1/users/me/notifications': {
     parameters: {
       query?: never;
       header?: never;
@@ -456,10 +456,10 @@ export interface paths {
     options?: never;
     head?: never;
     /** Update email notification preferences */
-    patch: operations['UsersController_updateNotificationPrefs'];
+    patch: operations['UsersController_updateNotificationPrefs[0]_v1'];
     trace?: never;
   };
-  '/users/me/password': {
+  '/v1/users/me/password': {
     parameters: {
       query?: never;
       header?: never;
@@ -473,10 +473,10 @@ export interface paths {
     options?: never;
     head?: never;
     /** Change password */
-    patch: operations['UsersController_changePassword'];
+    patch: operations['UsersController_changePassword[0]_v1'];
     trace?: never;
   };
-  '/jobs/stats': {
+  '/v1/jobs/stats': {
     parameters: {
       query?: never;
       header?: never;
@@ -484,7 +484,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get application funnel stats */
-    get: operations['JobsStatsController_getStats'];
+    get: operations['JobsStatsController_getStats[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -493,7 +493,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/stats/funnel': {
+  '/v1/jobs/stats/funnel': {
     parameters: {
       query?: never;
       header?: never;
@@ -501,7 +501,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get funnel conversion, dropoff, avg time-in-stage, and response rate by application channel */
-    get: operations['JobsStatsController_getFunnel'];
+    get: operations['JobsStatsController_getFunnel[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -510,7 +510,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/stats/trend': {
+  '/v1/jobs/stats/trend': {
     parameters: {
       query?: never;
       header?: never;
@@ -518,7 +518,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get application volume over time (adaptive day/week/month buckets + cumulative total) */
-    get: operations['JobsStatsController_getTrend'];
+    get: operations['JobsStatsController_getTrend[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -527,7 +527,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/export': {
+  '/v1/jobs/export': {
     parameters: {
       query?: never;
       header?: never;
@@ -535,7 +535,7 @@ export interface paths {
       cookie?: never;
     };
     /** Export job applications as CSV */
-    get: operations['JobsStatsController_exportCsv'];
+    get: operations['JobsStatsController_exportCsv[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -544,7 +544,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/attention': {
+  '/v1/jobs/attention': {
     parameters: {
       query?: never;
       header?: never;
@@ -552,7 +552,7 @@ export interface paths {
       cookie?: never;
     };
     /** Jobs needing action: upcoming interviews and stalled applications */
-    get: operations['JobsStatsController_getAttention'];
+    get: operations['JobsStatsController_getAttention[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -561,7 +561,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/ghost-suggestions': {
+  '/v1/jobs/ghost-suggestions': {
     parameters: {
       query?: never;
       header?: never;
@@ -569,7 +569,7 @@ export interface paths {
       cookie?: never;
     };
     /** Applications with no activity for 14 days that may be ghosted (suggest-only) */
-    get: operations['JobsStatsController_getGhostSuggestions'];
+    get: operations['JobsStatsController_getGhostSuggestions[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -578,7 +578,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs': {
+  '/v1/jobs': {
     parameters: {
       query?: never;
       header?: never;
@@ -586,17 +586,17 @@ export interface paths {
       cookie?: never;
     };
     /** List job applications with filters and pagination */
-    get: operations['JobsController_findAll'];
+    get: operations['JobsController_findAll[0]_v1'];
     put?: never;
     /** Create a job application */
-    post: operations['JobsController_create'];
+    post: operations['JobsController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/ghost-suggestions/mark-ghosted': {
+  '/v1/jobs/ghost-suggestions/mark-ghosted': {
     parameters: {
       query?: never;
       header?: never;
@@ -606,14 +606,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Mark the listed jobs GHOSTED, skipping any that are no longer ghost suggestions */
-    post: operations['JobsController_markGhosted'];
+    post: operations['JobsController_markGhosted[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/{id}': {
+  '/v1/jobs/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -621,18 +621,18 @@ export interface paths {
       cookie?: never;
     };
     /** Get a single job application */
-    get: operations['JobsController_findOne'];
+    get: operations['JobsController_findOne[0]_v1'];
     put?: never;
     post?: never;
     /** Delete a job application */
-    delete: operations['JobsController_remove'];
+    delete: operations['JobsController_remove[0]_v1'];
     options?: never;
     head?: never;
     /** Update a job application */
-    patch: operations['JobsController_update'];
+    patch: operations['JobsController_update[0]_v1'];
     trace?: never;
   };
-  '/jobs/{id}/events': {
+  '/v1/jobs/{id}/events': {
     parameters: {
       query?: never;
       header?: never;
@@ -640,7 +640,7 @@ export interface paths {
       cookie?: never;
     };
     /** Get timeline events for a job */
-    get: operations['JobsController_getEvents'];
+    get: operations['JobsController_getEvents[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -649,7 +649,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/jobs/{id}/ghost-suggestion/dismiss': {
+  '/v1/jobs/{id}/ghost-suggestion/dismiss': {
     parameters: {
       query?: never;
       header?: never;
@@ -659,14 +659,14 @@ export interface paths {
     get?: never;
     put?: never;
     /** Dismiss the ghost suggestion for a job until 14 more days pass with no activity */
-    post: operations['JobsController_dismissGhostSuggestion'];
+    post: operations['JobsController_dismissGhostSuggestion[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/jobs/parse': {
+  '/v1/jobs/parse': {
     parameters: {
       query?: never;
       header?: never;
@@ -676,7 +676,7 @@ export interface paths {
     get?: never;
     put?: never;
     /** Extract job fields from a posting URL or pasted text, for quick-add prefill */
-    post: operations['JobParsingController_parseJobPosting'];
+    post: operations['JobParsingController_parseJobPosting[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
@@ -700,7 +700,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/admin/users': {
+  '/v1/admin/users': {
     parameters: {
       query?: never;
       header?: never;
@@ -708,7 +708,7 @@ export interface paths {
       cookie?: never;
     };
     /** List all users with pagination and search */
-    get: operations['AdminController_findAll'];
+    get: operations['AdminController_findAll[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -717,7 +717,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/admin/users/{id}': {
+  '/v1/admin/users/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -725,17 +725,17 @@ export interface paths {
       cookie?: never;
     };
     /** Get a single user */
-    get: operations['AdminController_findOne'];
+    get: operations['AdminController_findOne[0]_v1'];
     put?: never;
     post?: never;
     /** Delete a user account */
-    delete: operations['AdminController_remove'];
+    delete: operations['AdminController_remove[0]_v1'];
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/admin/queues': {
+  '/v1/admin/queues': {
     parameters: {
       query?: never;
       header?: never;
@@ -746,7 +746,7 @@ export interface paths {
      * Queue depths, company enrichment status counts, and the mismatch
      * @description Reports both halves of the enrichment pipeline — BullMQ job counts and the Company.status distribution in Postgres — because a row stranded in one is invisible in the other.
      */
-    get: operations['AdminQueuesController_getObservability'];
+    get: operations['AdminQueuesController_getObservability[0]_v1'];
     put?: never;
     post?: never;
     delete?: never;
@@ -755,7 +755,7 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  '/tokens': {
+  '/v1/tokens': {
     parameters: {
       query?: never;
       header?: never;
@@ -763,17 +763,17 @@ export interface paths {
       cookie?: never;
     };
     /** List active personal access tokens */
-    get: operations['TokensController_findAll'];
+    get: operations['TokensController_findAll[0]_v1'];
     put?: never;
     /** Create a personal access token (e.g. for the browser extension) — raw value is only ever returned here */
-    post: operations['TokensController_create'];
+    post: operations['TokensController_create[0]_v1'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/tokens/{id}': {
+  '/v1/tokens/{id}': {
     parameters: {
       query?: never;
       header?: never;
@@ -784,7 +784,7 @@ export interface paths {
     put?: never;
     post?: never;
     /** Revoke a personal access token */
-    delete: operations['TokensController_revoke'];
+    delete: operations['TokensController_revoke[0]_v1'];
     options?: never;
     head?: never;
     patch?: never;
@@ -1899,7 +1899,7 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  AuthController_register: {
+  'AuthController_register[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -1929,7 +1929,7 @@ export interface operations {
       };
     };
   };
-  AuthController_login: {
+  'AuthController_login[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -1959,7 +1959,7 @@ export interface operations {
       };
     };
   };
-  AuthController_refresh: {
+  'AuthController_refresh[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -1985,7 +1985,7 @@ export interface operations {
       };
     };
   };
-  AuthController_exchangeCode: {
+  'AuthController_exchangeCode[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2015,7 +2015,7 @@ export interface operations {
       };
     };
   };
-  AuthController_exchangeApiToken: {
+  'AuthController_exchangeApiToken[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2045,7 +2045,7 @@ export interface operations {
       };
     };
   };
-  AuthController_logout: {
+  'AuthController_logout[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2064,7 +2064,7 @@ export interface operations {
       };
     };
   };
-  AuthController_me: {
+  'AuthController_me[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2083,7 +2083,7 @@ export interface operations {
       };
     };
   };
-  ResumesController_findByJob: {
+  'ResumesController_findByJob[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2119,7 +2119,7 @@ export interface operations {
       };
     };
   };
-  ResumesController_uploadResume: {
+  'ResumesController_uploadResume[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2158,7 +2158,7 @@ export interface operations {
       };
     };
   };
-  ResumesController_remove: {
+  'ResumesController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2193,7 +2193,7 @@ export interface operations {
       };
     };
   };
-  ResumesController_getPresignedUrl: {
+  'ResumesController_getPresignedUrl[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2228,7 +2228,7 @@ export interface operations {
       };
     };
   };
-  ResumesController_serveFile: {
+  'ResumesController_serveFile[0]_v1': {
     parameters: {
       query: {
         /** @description Storage key (resumes/<userId>/<jobId>/<uuid>.pdf) */
@@ -2274,7 +2274,7 @@ export interface operations {
       };
     };
   };
-  InterviewRoundsController_findAll: {
+  'InterviewRoundsController_findAll[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2310,7 +2310,7 @@ export interface operations {
       };
     };
   };
-  InterviewRoundsController_create: {
+  'InterviewRoundsController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2350,7 +2350,7 @@ export interface operations {
       };
     };
   };
-  InterviewRoundsController_remove: {
+  'InterviewRoundsController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2388,7 +2388,7 @@ export interface operations {
       };
     };
   };
-  InterviewRoundsController_update: {
+  'InterviewRoundsController_update[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2430,7 +2430,7 @@ export interface operations {
       };
     };
   };
-  InterviewRoundsController_exportIcs: {
+  'InterviewRoundsController_exportIcs[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2466,7 +2466,7 @@ export interface operations {
       };
     };
   };
-  ContactsController_findAll: {
+  'ContactsController_findAll[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2502,7 +2502,7 @@ export interface operations {
       };
     };
   };
-  ContactsController_create: {
+  'ContactsController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2542,7 +2542,7 @@ export interface operations {
       };
     };
   };
-  ContactsController_remove: {
+  'ContactsController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2580,7 +2580,7 @@ export interface operations {
       };
     };
   };
-  ContactsController_update: {
+  'ContactsController_update[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2622,7 +2622,7 @@ export interface operations {
       };
     };
   };
-  CompanyContactsController_findAll: {
+  'CompanyContactsController_findAll[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2658,7 +2658,7 @@ export interface operations {
       };
     };
   };
-  CompanyContactsController_create: {
+  'CompanyContactsController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2698,7 +2698,7 @@ export interface operations {
       };
     };
   };
-  CompanyContactsController_remove: {
+  'CompanyContactsController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2736,7 +2736,7 @@ export interface operations {
       };
     };
   };
-  CompanyContactsController_update: {
+  'CompanyContactsController_update[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2778,7 +2778,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_findAll: {
+  'CompaniesController_findAll[0]_v1': {
     parameters: {
       query?: {
         page?: number;
@@ -2810,7 +2810,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_create: {
+  'CompaniesController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2854,7 +2854,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_findDuplicates: {
+  'CompaniesController_findDuplicates[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2880,7 +2880,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_findApplicationHistory: {
+  'CompaniesController_findApplicationHistory[0]_v1': {
     parameters: {
       query: {
         name: string;
@@ -2908,7 +2908,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_findOne: {
+  'CompaniesController_findOne[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2944,7 +2944,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_remove: {
+  'CompaniesController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -2980,7 +2980,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_update: {
+  'CompaniesController_update[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3027,7 +3027,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_triggerEnrichment: {
+  'CompaniesController_triggerEnrichment[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3071,7 +3071,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_merge: {
+  'CompaniesController_merge[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3118,7 +3118,7 @@ export interface operations {
       };
     };
   };
-  CompaniesController_importCsv: {
+  'CompaniesController_importCsv[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3154,7 +3154,7 @@ export interface operations {
       };
     };
   };
-  UsersController_getProfile: {
+  'UsersController_getProfile[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3180,7 +3180,7 @@ export interface operations {
       };
     };
   };
-  UsersController_deleteAccount: {
+  'UsersController_deleteAccount[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3206,7 +3206,7 @@ export interface operations {
       };
     };
   };
-  UsersController_updateProfile: {
+  'UsersController_updateProfile[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3243,7 +3243,7 @@ export interface operations {
       };
     };
   };
-  UsersController_updateNotificationPrefs: {
+  'UsersController_updateNotificationPrefs[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3273,7 +3273,7 @@ export interface operations {
       };
     };
   };
-  UsersController_changePassword: {
+  'UsersController_changePassword[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3317,7 +3317,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_getStats: {
+  'JobsStatsController_getStats[0]_v1': {
     parameters: {
       query?: {
         range?: '30d' | '90d' | 'all';
@@ -3345,7 +3345,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_getFunnel: {
+  'JobsStatsController_getFunnel[0]_v1': {
     parameters: {
       query?: {
         range?: '30d' | '90d' | 'all';
@@ -3373,7 +3373,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_getTrend: {
+  'JobsStatsController_getTrend[0]_v1': {
     parameters: {
       query?: {
         range?: '30d' | '90d' | 'all';
@@ -3401,7 +3401,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_exportCsv: {
+  'JobsStatsController_exportCsv[0]_v1': {
     parameters: {
       query?: {
         page?: number;
@@ -3451,7 +3451,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_getAttention: {
+  'JobsStatsController_getAttention[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3477,7 +3477,7 @@ export interface operations {
       };
     };
   };
-  JobsStatsController_getGhostSuggestions: {
+  'JobsStatsController_getGhostSuggestions[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3503,7 +3503,7 @@ export interface operations {
       };
     };
   };
-  JobsController_findAll: {
+  'JobsController_findAll[0]_v1': {
     parameters: {
       query?: {
         page?: number;
@@ -3552,7 +3552,7 @@ export interface operations {
       };
     };
   };
-  JobsController_create: {
+  'JobsController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: {
@@ -3599,7 +3599,7 @@ export interface operations {
       };
     };
   };
-  JobsController_markGhosted: {
+  'JobsController_markGhosted[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3629,7 +3629,7 @@ export interface operations {
       };
     };
   };
-  JobsController_findOne: {
+  'JobsController_findOne[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3665,7 +3665,7 @@ export interface operations {
       };
     };
   };
-  JobsController_remove: {
+  'JobsController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3701,7 +3701,7 @@ export interface operations {
       };
     };
   };
-  JobsController_update: {
+  'JobsController_update[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3741,7 +3741,7 @@ export interface operations {
       };
     };
   };
-  JobsController_getEvents: {
+  'JobsController_getEvents[0]_v1': {
     parameters: {
       query?: {
         page?: number;
@@ -3780,7 +3780,7 @@ export interface operations {
       };
     };
   };
-  JobsController_dismissGhostSuggestion: {
+  'JobsController_dismissGhostSuggestion[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3816,7 +3816,7 @@ export interface operations {
       };
     };
   };
-  JobParsingController_parseJobPosting: {
+  'JobParsingController_parseJobPosting[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -3998,7 +3998,7 @@ export interface operations {
       };
     };
   };
-  AdminController_findAll: {
+  'AdminController_findAll[0]_v1': {
     parameters: {
       query?: {
         page?: number;
@@ -4036,7 +4036,7 @@ export interface operations {
       };
     };
   };
-  AdminController_findOne: {
+  'AdminController_findOne[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -4079,7 +4079,7 @@ export interface operations {
       };
     };
   };
-  AdminController_remove: {
+  'AdminController_remove[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -4122,7 +4122,7 @@ export interface operations {
       };
     };
   };
-  AdminQueuesController_getObservability: {
+  'AdminQueuesController_getObservability[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -4155,7 +4155,7 @@ export interface operations {
       };
     };
   };
-  TokensController_findAll: {
+  'TokensController_findAll[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -4181,7 +4181,7 @@ export interface operations {
       };
     };
   };
-  TokensController_create: {
+  'TokensController_create[0]_v1': {
     parameters: {
       query?: never;
       header?: never;
@@ -4211,7 +4211,7 @@ export interface operations {
       };
     };
   };
-  TokensController_revoke: {
+  'TokensController_revoke[0]_v1': {
     parameters: {
       query?: never;
       header?: never;

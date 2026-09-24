@@ -10,6 +10,7 @@ import {
   COMPLETED_TTL_MS,
   IDEMPOTENCY_IN_PROGRESS_CODE,
   IdempotencyInterceptor,
+  unversionedPath,
   PENDING_TTL_MS,
 } from './idempotency.interceptor.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
@@ -28,8 +29,9 @@ function context(
   headers: Record<string, string | string[]>,
   user: { id: string } | null = { id: 'u-1' },
   body: unknown = BODY,
+  path = '/jobs',
 ) {
-  const req = { headers, user, body, method: 'POST', path: '/jobs' };
+  const req = { headers, user, body, method: 'POST', path };
   return {
     switchToHttp: () => ({
       getRequest: () => req,
@@ -262,5 +264,32 @@ describe('IdempotencyInterceptor', () => {
     );
 
     expect(mockClient.set.mock.calls[0][0]).toBe('idem:u-2:POST:/jobs:key-1');
+  });
+
+  it('shares one key between /v1/jobs and the unversioned /jobs alias', async () => {
+    mockClient.set.mockResolvedValue('OK');
+    await lastValueFrom(
+      interceptor.intercept(
+        context(
+          { 'idempotency-key': 'key-1' },
+          { id: 'u-1' },
+          BODY,
+          '/v1/jobs',
+        ),
+        handler(),
+      ),
+    );
+
+    expect(mockClient.set.mock.calls[0][0]).toBe(REDIS_KEY);
+  });
+});
+
+describe('unversionedPath', () => {
+  it('drops a leading version segment and nothing else', () => {
+    expect(unversionedPath('/v1/jobs')).toBe('/jobs');
+    expect(unversionedPath('/v12/jobs/abc')).toBe('/jobs/abc');
+    expect(unversionedPath('/jobs')).toBe('/jobs');
+    expect(unversionedPath('/jobs/v1')).toBe('/jobs/v1');
+    expect(unversionedPath('/v1')).toBe('/v1');
   });
 });

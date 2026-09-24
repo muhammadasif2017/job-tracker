@@ -10,6 +10,7 @@ import { JwtAuthGuard } from '../src/common/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/common/guards/roles.guard';
 import { PatScopeGuard } from '../src/common/guards/pat-scope.guard';
 import { GlobalExceptionFilter } from '../src/common/filters/global-exception.filter';
+import { applyApiVersioning } from '../src/config/api-versioning.helper';
 import { MAX_ACTIVE_TOKENS_PER_USER } from '../src/modules/tokens/tokens.constants';
 
 // Unique email per run so tests are safe to run against the dev DB
@@ -54,6 +55,7 @@ describe('Job Tracker (e2e)', () => {
       new PatScopeGuard(app.get(Reflector)),
     );
     app.useGlobalFilters(new GlobalExceptionFilter());
+    applyApiVersioning(app);
     await app.init();
 
     prisma = app.get(PrismaService);
@@ -137,10 +139,39 @@ describe('Job Tracker (e2e)', () => {
     it('returns 401 without token', () => agent.get('/auth/me').expect(401));
   });
 
-  describe('POST /auth/refresh', () => {
+  describe('POST /v1/auth/refresh', () => {
+    it('scopes the refresh cookie to the versioned auth routes', async () => {
+      // The browser only sends a cookie to paths under its Path, so this must
+      // match the URL the frontend refreshes on (ADR-047).
+      const res = await agent
+        .post('/v1/auth/login')
+        .send({ email: EMAIL, password: PASSWORD })
+        .expect(200);
+
+      expect(res.headers['set-cookie']?.[0]).toMatch(/Path=\/v1\/auth(;|$)/);
+    });
+
+    it('keeps a client on the unversioned alias on its own /auth cookie', async () => {
+      // A tab still on the pre-versioning build refreshes via /auth/refresh.
+      // Its rotated cookie must land back on /auth, or its old cookie
+      // survives and the next refresh replays a revoked token (ADR-047).
+      const legacy = request.agent(app.getHttpServer());
+      const login = await legacy
+        .post('/auth/login')
+        .send({ email: EMAIL, password: PASSWORD })
+        .expect(200);
+      expect(login.headers['set-cookie']?.[0]).toMatch(/Path=\/auth(;|$)/);
+
+      const first = await legacy.post('/auth/refresh').expect(200);
+      expect(first.headers['set-cookie']?.[0]).toMatch(/Path=\/auth(;|$)/);
+      // A second rotation proves the first one replaced the cookie rather
+      // than leaving a revoked one behind for the browser to resend.
+      await legacy.post('/auth/refresh').expect(200);
+    });
+
     it('issues a new access token using the refresh cookie', async () => {
       // No body needed — the agent resends the httpOnly cookie set at login.
-      const res = await agent.post('/auth/refresh').expect(200);
+      const res = await agent.post('/v1/auth/refresh').expect(200);
 
       expect(res.body).toHaveProperty('accessToken');
       expect(res.body).not.toHaveProperty('refreshToken');
@@ -148,7 +179,44 @@ describe('Job Tracker (e2e)', () => {
     });
 
     it('rejects a request with no refresh cookie', () =>
-      request(app.getHttpServer()).post('/auth/refresh').expect(401));
+      request(app.getHttpServer()).post('/v1/auth/refresh').expect(401));
+  });
+
+  // ── API versioning (ADR-047) ────────────────────────────────────────────────
+
+  describe('API versioning', () => {
+    it('serves a route at /v1 and at its unversioned alias', async () => {
+      const [versioned, alias] = await Promise.all(
+        ['/v1/auth/me', '/auth/me'].map((path) =>
+          agent
+            .get(path)
+            .set('Authorization', `Bearer ${accessToken}`)
+            .expect(200),
+        ),
+      );
+
+      expect(versioned.body).toEqual(alias.body);
+    });
+
+    it('routes fixed stats segments under /v1 before the :id route', async () => {
+      const res = await agent
+        .get('/v1/jobs/stats')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body).toHaveProperty('total');
+    });
+
+    it('rejects an unknown version with 404', () =>
+      agent
+        .get('/v2/auth/me')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404));
+
+    it('keeps /health version-neutral for probes', async () => {
+      await agent.get('/health').expect(200);
+      await agent.get('/v1/health').expect(404);
+    });
   });
 
   // ── Personal access tokens ──────────────────────────────────────────────────
@@ -2073,11 +2141,20 @@ describe('Job Tracker (e2e)', () => {
     });
   });
 
-  describe('POST /auth/logout', () => {
-    it('clears the refresh token', () =>
-      agent
-        .post('/auth/logout')
+  describe('POST /v1/auth/logout', () => {
+    it('clears the refresh cookie on the current and the pre-versioning path', async () => {
+      const res = await agent
+        .post('/v1/auth/logout')
         .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200));
+        .expect(200);
+
+      const cleared = (res.headers['set-cookie'] as unknown as string[]) ?? [];
+      expect(cleared).toEqual(
+        expect.arrayContaining([
+          expect.stringMatching(/^jt_refresh=;.*Path=\/v1\/auth(;|$)/),
+          expect.stringMatching(/^jt_refresh=;.*Path=\/auth(;|$)/),
+        ]),
+      );
+    });
   });
 });
