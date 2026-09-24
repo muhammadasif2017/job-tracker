@@ -29,7 +29,7 @@ async function parseErrorBody(res) {
 // token is missing/near expiry - the PAT itself never expires server-side,
 // so this is cheap to repeat.
 async function exchangeToken(backendUrl, patToken) {
-  const res = await fetch(`${backendUrl}/auth/token/exchange`, {
+  const res = await fetch(`${backendUrl}${API_PREFIX}/auth/token/exchange`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token: patToken }),
@@ -72,7 +72,7 @@ async function ensureAccessToken(conn, { forceRefresh = false } = {}) {
 
 async function apiFetch(conn, path, options = {}, retrying = false) {
   const accessToken = await ensureAccessToken(conn, { forceRefresh: retrying });
-  const res = await fetch(`${conn.backendUrl}${path}`, {
+  const res = await fetch(`${conn.backendUrl}${API_PREFIX}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',

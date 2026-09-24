@@ -1,6 +1,11 @@
 import type { Page } from '@playwright/test';
 
-export const API = process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001';
+/**
+ * The versioned API base (ADR-047). The app calls `/v1/...`, so both direct
+ * `fetch` calls and `page.route` interception patterns must use it too — an
+ * unversioned pattern would never match the app's requests.
+ */
+export const API = `${process.env.PLAYWRIGHT_API_URL ?? 'http://localhost:3001'}/v1`;
 
 export interface TestUser {
   id: string;

@@ -290,12 +290,12 @@ describe('ResumeUpload', () => {
       expect(URL.createObjectURL).not.toHaveBeenCalled();
     });
 
-    // STORAGE_DRIVER=local hands back our own auth-gated /jobs/resumes/file
+    // STORAGE_DRIVER=local hands back our own auth-gated /v1/jobs/resumes/file
     // URL; a bare fetch() carries no Bearer token and gets a 401.
     it('fetches a backend-served file through the authenticated API client', async () => {
       const fetchMock = vi.fn();
       vi.stubGlobal('fetch', fetchMock);
-      const fileUrl = `${API_URL}/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf`;
+      const fileUrl = `${API_URL}/v1/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf`;
       vi.mocked(api.get)
         .mockResolvedValueOnce({ data: { url: fileUrl } })
         .mockResolvedValueOnce({ data: new Blob(['%PDF']) });
@@ -330,7 +330,7 @@ describe('ResumeUpload', () => {
     });
 
     // STORAGE_DRIVER=local: a new tab can't carry the Bearer token the
-    // auth-gated /jobs/resumes/file endpoint needs, so the file is fetched
+    // auth-gated /v1/jobs/resumes/file endpoint needs, so the file is fetched
     // through the API client and opened as a blob URL instead.
     it('opens a backend-served file as a blob URL fetched with auth', async () => {
       vi.stubEnv('NEXT_PUBLIC_API_URL', 'http://localhost:3001');
@@ -338,7 +338,7 @@ describe('ResumeUpload', () => {
       URL.revokeObjectURL = vi.fn();
       const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
       const fileUrl =
-        'http://localhost:3001/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf';
+        'http://localhost:3001/v1/jobs/resumes/file?key=resumes%2Fu%2Fj-1%2Fcv.pdf';
       vi.mocked(api.get)
         .mockResolvedValueOnce({ data: { url: fileUrl } })
         .mockResolvedValueOnce({ data: new Blob(['%PDF']) });
