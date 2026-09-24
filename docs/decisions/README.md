@@ -49,6 +49,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [040](./040-work-policy-from-linked-jobs.md) | Derive workPolicy from linked jobs' jobType - careers pages carry no policy wording | Superseded by 041 |
 | [041](./041-company-profile-drops-work-policy.md) | Drop Company.workPolicy (it belongs to Job.jobType); enrich productDescription and businessMode instead | Accepted |
 | [042](./042-techstack-noise-and-tracked-roles.md) | Keep site-scanner output out of techStack; feed tracked job titles in as first-party tech signal | Accepted |
+| [046](./046-queue-adds-fail-fast-on-redis-outage.md) | Queue adds fail fast on a Redis outage (`enableOfflineQueue: false`); workers keep a waiting connection via `withWorkerConnection` | Accepted |
 
 ## How to read an ADR
 

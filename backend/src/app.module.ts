@@ -7,6 +7,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
 import * as Joi from 'joi';
 import { PrismaModule } from './prisma/prisma.module.js';
+import { queueConnection } from './redis/redis-connection.helper.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { JobsModule } from './modules/jobs/jobs.module.js';
@@ -29,20 +30,6 @@ const ociRequired = Joi.when('STORAGE_DRIVER', {
   then: Joi.string().required(),
   otherwise: Joi.string().optional(),
 });
-
-/**
- * BullMQ's connection options from `REDIS_URL`. BullMQ requires
- * `maxRetriesPerRequest: null` for its blocking worker connections.
- */
-function parseRedisConnection() {
-  const u = new URL(process.env.REDIS_URL ?? 'redis://localhost:6379');
-  return {
-    host: u.hostname,
-    port: Number(u.port || 6379),
-    ...(u.password ? { password: decodeURIComponent(u.password) } : {}),
-    maxRetriesPerRequest: null,
-  };
-}
 
 /**
  * Root module. Validates the environment at boot, so a missing required
@@ -85,7 +72,8 @@ function parseRedisConnection() {
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 100 }]),
     ScheduleModule.forRoot(),
     BullModule.forRoot({
-      connection: parseRedisConnection(),
+      // Producer shape; each @Processor overrides it with the worker shape.
+      connection: queueConnection(),
     }),
     LoggerModule.forRoot({
       pinoHttp: {

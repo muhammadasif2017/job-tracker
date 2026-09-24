@@ -27,6 +27,16 @@ const JOB_OPTIONS = {
 };
 
 /**
+ * True when ioredis gave up waiting for a reply (`commandTimeout`), as
+ * opposed to refusing to send the command at all. Only the refusal proves
+ * nothing reached Redis. ioredis exposes no error class or code for this,
+ * so the message is the only signal.
+ */
+function isCommandTimeout(err: unknown): boolean {
+  return err instanceof Error && err.message === 'Command timed out';
+}
+
+/**
  * The hour (0–23) an instant falls on in `timeZone`. `hourCycle: 'h23'`
  * avoids an ICU quirk where `hour12: false` formats midnight as "24" instead
  * of "0", which would silently make `DIGEST_SEND_HOUR` unreachable for a user
@@ -108,7 +118,29 @@ export class NotificationsScheduler {
       if (count === 0) continue;
 
       const data: InterviewReminderJobData = { roundId: id };
-      await this.queue.add('interview-reminder', data, JOB_OPTIONS);
+      try {
+        await this.queue.add('interview-reminder', data, JOB_OPTIONS);
+      } catch (err) {
+        // Queue adds fail fast on a Redis outage (ADR-046). A refused add
+        // queued nothing, so un-stamp the round and the next hourly scan
+        // retries it. A timed-out add may have run in Redis with only the
+        // reply lost, so the stamp stays: un-stamping could send the
+        // reminder twice, and this scan skips rather than double-sends.
+        // Either way stop the scan — every later add would fail the same way.
+        const refused = !isCommandTimeout(err);
+        if (refused) {
+          await this.prisma.interviewRound.updateMany({
+            where: { id, reminderSentAt: now },
+            data: { reminderSentAt: null },
+          });
+        }
+        this.logger.warn('interview_reminder_enqueue_failed', {
+          roundId: id,
+          unstamped: refused,
+          err,
+        });
+        return;
+      }
       this.logger.log('interview_reminder_enqueued', { roundId: id });
     }
   }
