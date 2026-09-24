@@ -66,16 +66,13 @@ form session would turn "fix a typo after a failed save" into a 422. A key per
   is logged. A payments API would fail closed; a job tracker should not
   refuse a save because its dedup store is down.
 
-  **This does not make job creation available during a Redis outage.** A
-  manual test on 2026-09-24 stopped the Redis container and POSTed `/jobs`.
-  The interceptor logged its warning and let the request through. The job
-  row committed, but the response then hung until the client timed out
-  (30s and 60s runs), with or without a key. The hang is in the existing
-  create path: it awaits BullMQ enqueues (enrichment, timeline summary), and
-  BullMQ's connection uses `maxRetriesPerRequest: null`, so it waits for
-  Redis indefinitely. During an outage a client sees a timeout for a job
-  that was saved, and its retry creates a duplicate, since the idempotency
-  layer is down too. Bounding those enqueues is a separate change.
+  With ADR-046 the rest of the create path fails fast too, so during an
+  outage a keyed `POST /jobs` returns `201` promptly: the job is saved,
+  the replay just isn't recorded. Before ADR-046, the response hung on the
+  BullMQ enqueues, and the client's timeout-and-retry created exactly the
+  duplicate this ADR exists to prevent. `RedisService` uses the same
+  fail-fast settings as the queue connection (`enableOfflineQueue: false`,
+  a 2s `commandTimeout`).
 - **A crashed request holds its key for up to 60 seconds.** If the process
   dies between the claim and the store, retries get 409 until the pending TTL
   expires. A create finishes in well under a second, so 60 seconds only
