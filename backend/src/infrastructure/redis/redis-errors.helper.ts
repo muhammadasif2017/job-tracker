@@ -22,3 +22,28 @@ export function isRedisUnavailable(
 ): boolean {
   return client.status !== 'ready' || isCommandTimeout(err);
 }
+
+/**
+ * The messages ioredis rejects a command with when it cannot reach Redis at
+ * all, as opposed to Redis answering with an error. ioredis has no error
+ * codes for these, so matching the text is the only way to tell.
+ */
+const CONNECTION_FAILURE_MESSAGES = new Set([
+  'Command timed out',
+  "Stream isn't writeable and enableOfflineQueue options is false",
+  'Connection is closed.',
+]);
+
+/**
+ * True for an ioredis rejection that means Redis was unreachable, judged
+ * from the error alone. Used where no client is at hand to ask for its
+ * status: the global exception filter, which only sees what a caller let
+ * escape. Prefer `isRedisUnavailable` when the client is available.
+ */
+export function isRedisConnectionError(err: unknown): err is Error {
+  if (!(err instanceof Error)) return false;
+  return (
+    err.name === 'MaxRetriesPerRequestError' ||
+    CONNECTION_FAILURE_MESSAGES.has(err.message)
+  );
+}
