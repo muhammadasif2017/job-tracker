@@ -122,8 +122,7 @@ never retried. After Redis came back, `/health` stayed `503` and every add
 kept failing until the process restarted. That trades a hang that heals
 itself for an outage that doesn't.
 
-**OAuth code exchange.**
-
-`AuthService` opens its own ioredis client with `maxRetriesPerRequest:
-null` for OAuth exchange codes, so `POST /auth/exchange-code` still hangs
-during an outage. It is a separate client, so it is left for its own change.
+**OAuth code exchange.** Resolved later on 2026-09-24. `AuthService` now
+uses the shared `RedisService` (fail-fast, see ADR-045) instead of its own
+client, and turns a Redis failure into a `503`. Measured with Redis stopped:
+`POST /auth/exchange-code` answered `503` in 0.01s. It used to hang.

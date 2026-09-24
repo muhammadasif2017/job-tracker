@@ -1,5 +1,9 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -11,32 +15,31 @@ import { createHash } from 'crypto';
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 import { AuthService } from './auth.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { RedisService } from '../../infrastructure/redis/redis.service.js';
 
 jest.mock('bcrypt');
-jest.mock('ioredis', () => {
-  return jest.fn().mockImplementation(() => {
-    const store = new Map<string, string>();
-    return {
-      set: jest.fn((key: string, value: string) => {
-        store.set(key, value);
-        return Promise.resolve('OK');
-      }),
-      get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
-      // Mirrors the real GETDEL: one command that both reads and removes.
-      getdel: jest.fn((key: string) => {
-        const value = store.get(key) ?? null;
-        store.delete(key);
-        return Promise.resolve(value);
-      }),
-      del: jest.fn((key: string) => {
-        store.delete(key);
-        return Promise.resolve(1);
-      }),
-      on: jest.fn(),
-      quit: jest.fn().mockResolvedValue('OK'),
-    };
-  });
-});
+
+/** A fresh in-memory stand-in for `RedisService.client`, one per test. */
+function createRedisClient() {
+  const store = new Map<string, string>();
+  return {
+    set: jest.fn((key: string, value: string) => {
+      store.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    get: jest.fn((key: string) => Promise.resolve(store.get(key) ?? null)),
+    // Mirrors the real GETDEL: one command that both reads and removes.
+    getdel: jest.fn((key: string) => {
+      const value = store.get(key) ?? null;
+      store.delete(key);
+      return Promise.resolve(value);
+    }),
+    del: jest.fn((key: string) => {
+      store.delete(key);
+      return Promise.resolve(1);
+    }),
+  };
+}
 
 const mockPrisma = {
   user: {
@@ -67,6 +70,7 @@ const mockConfig = { get: jest.fn().mockReturnValue('secret') };
 
 describe('AuthService', () => {
   let service: AuthService;
+  let redis: ReturnType<typeof createRedisClient>;
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -75,12 +79,14 @@ describe('AuthService', () => {
     mockPrisma.refreshToken.create.mockResolvedValue({});
     mockPrisma.apiToken.update.mockResolvedValue({});
 
+    redis = createRedisClient();
     const module = await Test.createTestingModule({
       providers: [
         AuthService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
         { provide: ConfigService, useValue: mockConfig },
+        { provide: RedisService, useValue: { client: redis } },
       ],
     }).compile();
 
@@ -662,8 +668,6 @@ describe('AuthService', () => {
     // tokens. Asserted at the command level because a mocked store cannot
     // reproduce the interleaving: reading and deleting must be ONE command.
     it('claims the code with a single atomic GETDEL, never a separate GET then DEL', async () => {
-      const redis = (service as unknown as { redis: Record<string, jest.Mock> })
-        .redis;
       const code = await service.storeOAuthCode({
         accessToken: 'at',
         refreshToken: 'rt',
@@ -677,6 +681,28 @@ describe('AuthService', () => {
       expect(redis.getdel).toHaveBeenCalledTimes(1);
       expect(redis.get).not.toHaveBeenCalled();
       expect(redis.del).not.toHaveBeenCalled();
+    });
+
+    // RedisService fails fast during an outage (ADR-046); the sign-in must
+    // answer with a 503 rather than the filter's opaque 500.
+    it('answers 503 when Redis cannot store the code', async () => {
+      redis.set.mockRejectedValueOnce(
+        new Error(
+          "Stream isn't writeable and enableOfflineQueue options is false",
+        ),
+      );
+
+      await expect(
+        service.storeOAuthCode({ accessToken: 'at', refreshToken: 'rt' }),
+      ).rejects.toThrow(ServiceUnavailableException);
+    });
+
+    it('answers 503 when Redis cannot claim the code', async () => {
+      redis.getdel.mockRejectedValueOnce(new Error('Command timed out'));
+
+      await expect(service.exchangeOAuthCode('some-code')).rejects.toThrow(
+        ServiceUnavailableException,
+      );
     });
   });
 });
