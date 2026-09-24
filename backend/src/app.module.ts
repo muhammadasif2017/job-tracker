@@ -29,7 +29,8 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
  * Root module. Validates the environment at boot, so a missing required
  * variable stops startup, and wires global rate limiting, cron scheduling, the
  * BullMQ Redis connection and pino logging with credentials redacted. The JWT,
- * roles and PAT-scope guards are registered globally in `main.ts`, not here.
+ * roles and PAT-scope guards are registered globally in `configureApp`
+ * (`config/configure-app.helper.ts`), not here.
  */
 @Module({
   imports: [
