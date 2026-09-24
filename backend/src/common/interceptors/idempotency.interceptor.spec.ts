@@ -8,6 +8,7 @@ import {
 import { lastValueFrom, of, throwError } from 'rxjs';
 import {
   COMPLETED_TTL_MS,
+  IDEMPOTENCY_IN_PROGRESS_CODE,
   IdempotencyInterceptor,
   PENDING_TTL_MS,
 } from './idempotency.interceptor.js';
@@ -154,11 +155,15 @@ describe('IdempotencyInterceptor', () => {
     );
     const next = handler();
 
-    await expect(
-      lastValueFrom(
-        interceptor.intercept(context({ 'idempotency-key': 'key-1' }), next),
-      ),
-    ).rejects.toBeInstanceOf(ConflictException);
+    const error = await lastValueFrom(
+      interceptor.intercept(context({ 'idempotency-key': 'key-1' }), next),
+    ).catch((err: unknown) => err);
+
+    expect(error).toBeInstanceOf(ConflictException);
+    // Clients tell this 409 apart from the route's other 409s by `code`.
+    expect((error as ConflictException).getResponse()).toMatchObject({
+      code: IDEMPOTENCY_IN_PROGRESS_CODE,
+    });
     expect(next.handle).not.toHaveBeenCalled();
   });
 

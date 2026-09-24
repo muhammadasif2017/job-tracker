@@ -182,6 +182,47 @@ describe('JobForm', () => {
       );
     });
 
+    it('shows no error toast for the in-flight 409 of a duplicate create', async () => {
+      vi.mocked(api.post).mockRejectedValue({
+        isAxiosError: true,
+        response: {
+          status: 409,
+          data: {
+            message: 'A request with this Idempotency-Key is still in progress',
+            code: 'IDEMPOTENCY_IN_PROGRESS',
+          },
+        },
+      });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+      await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /add job/i })).toBeEnabled(),
+      );
+
+      expect(vi.mocked(toast.error)).not.toHaveBeenCalled();
+    });
+
+    it('still shows the error toast for an unrelated 409 on create', async () => {
+      vi.mocked(api.post).mockRejectedValue({
+        isAxiosError: true,
+        response: {
+          status: 409,
+          data: { message: 'A record with this value already exists' },
+        },
+      });
+      renderForm();
+      await fillRequired();
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      await waitFor(() =>
+        expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
+          'A record with this value already exists',
+        ),
+      );
+    });
+
     it('resends the same Idempotency-Key when an unchanged create is retried', async () => {
       vi.mocked(api.post)
         .mockRejectedValueOnce(new Error('timeout'))

@@ -438,6 +438,36 @@ describe('Job Tracker (e2e)', () => {
         .expect(422);
     });
 
+    it('creates one job when two requests with the same Idempotency-Key race', async () => {
+      const key = `e2e-idem-race-${Date.now()}`;
+      const body = { company: 'E2E Race Co', position: 'Double Click' };
+      const responses = await Promise.all(
+        [0, 1].map(() =>
+          agent
+            .post('/jobs')
+            .set('Authorization', `Bearer ${accessToken}`)
+            .set('Idempotency-Key', key)
+            .send(body),
+        ),
+      );
+
+      // Whichever loses the SET NX claim either sees the winner still
+      // running (409 with the in-progress code) or its stored response.
+      for (const res of responses) {
+        if (res.status === 409) {
+          expect(res.body.code).toBe('IDEMPOTENCY_IN_PROGRESS');
+        } else {
+          expect(res.status).toBe(201);
+        }
+      }
+      expect(responses.some((res) => res.status === 201)).toBe(true);
+      expect(
+        await prisma.job.count({
+          where: { userId, company: body.company, position: body.position },
+        }),
+      ).toBe(1);
+    });
+
     it('releases the Idempotency-Key when the request fails validation', async () => {
       const key = `e2e-idem-invalid-${Date.now()}`;
       await agent
