@@ -80,6 +80,18 @@ interface JobFormProps {
 }
 
 /**
+ * True for the backend's 409 on a create whose `Idempotency-Key` is still in
+ * flight (ADR-045). Matched on the body's `code`, not the status: `POST /jobs`
+ * can also 409 on a company-name race, and that one must still surface.
+ */
+function isIdempotencyInProgress(err: unknown): boolean {
+  const response = (err as { response?: { status?: number; data?: unknown } })
+    ?.response;
+  const data = response?.data as { code?: unknown } | undefined;
+  return response?.status === 409 && data?.code === 'IDEMPOTENCY_IN_PROGRESS';
+}
+
+/**
  * Modal form for adding or editing a job. On create it checks for past
  * applications to the company first, and afterwards offers a link when the
  * company matches a target company.
@@ -223,8 +235,13 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         setMatchedCompany(data.matchedCompany ?? null);
       }
     },
-    onError: (err: unknown) =>
-      toast.error(getErrorMessage(err, 'Something went wrong')),
+    onError: (err: unknown) => {
+      // A second create with the same key while the first is still running
+      // (a double click that beat the button's disabled state). The first
+      // request's own success toast reports the outcome; this one is noise.
+      if (!isEdit && isIdempotencyInProgress(err)) return;
+      toast.error(getErrorMessage(err, 'Something went wrong'));
+    },
   });
 
   // docs/specs/company-reply-history.md — before creating, show past jobs at

@@ -17,6 +17,12 @@ import { RedisService } from '../../redis/redis.service.js';
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
 /** Response header set when the body is a stored replay, not a fresh result. */
 export const IDEMPOTENT_REPLAYED_HEADER = 'Idempotent-Replayed';
+/**
+ * `code` on the 409 body for a key whose first request is still running.
+ * Clients match on it rather than on the status, because the same route can
+ * return an unrelated 409 (a company-name race in `JobCompanyLinkService`).
+ */
+export const IDEMPOTENCY_IN_PROGRESS_CODE = 'IDEMPOTENCY_IN_PROGRESS';
 /** Longest key accepted, so the header cannot be used to fill Redis. */
 export const MAX_IDEMPOTENCY_KEY_LENGTH = 255;
 /** How long a completed response is replayed for the same key. */
@@ -78,9 +84,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
           );
         }
         if (existing.state === 'pending') {
-          throw new ConflictException(
-            'A request with this Idempotency-Key is still in progress',
-          );
+          throw new ConflictException({
+            message: 'A request with this Idempotency-Key is still in progress',
+            error: 'Conflict',
+            code: IDEMPOTENCY_IN_PROGRESS_CODE,
+          });
         }
         res.setHeader(IDEMPOTENT_REPLAYED_HEADER, 'true');
         return of(existing.body);
