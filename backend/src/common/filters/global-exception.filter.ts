@@ -6,6 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
@@ -16,8 +17,8 @@ const PRISMA_NOT_FOUND = 'P2025';
  * Catch-all filter that gives every error response one JSON shape:
  * `statusCode`, `message`, `timestamp` and `path`. Nest HTTP exceptions keep
  * their own body; the two Prisma codes above become a 409 or 404 instead of a
- * bare 500; anything else is logged with its stack and returned as an opaque
- * 500.
+ * bare 500; an unhandled Redis connection failure becomes a 503; anything
+ * else is logged with its stack and returned as an opaque 500.
  */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
@@ -79,6 +80,21 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: HttpStatus.NOT_FOUND,
         message: 'Record not found',
         error: 'Not Found',
+        timestamp,
+        path,
+      };
+    }
+
+    // Safety net for a Redis outage no caller handled. Callers that treat
+    // Redis as best-effort (idempotency) or answer their own 503 (OAuth code
+    // store) catch it first and never reach here; anything else that lets it
+    // escape gets an honest 503 instead of an opaque 500 (ADR-046).
+    if (isRedisConnectionError(exception)) {
+      this.logger.warn(`Redis unavailable: ${exception.message}`);
+      return {
+        statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+        message: 'Service temporarily unavailable, please try again',
+        error: 'Service Unavailable',
         timestamp,
         path,
       };

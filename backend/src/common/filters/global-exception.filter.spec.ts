@@ -34,6 +34,44 @@ describe('GlobalExceptionFilter', () => {
     );
   });
 
+  it.each([
+    ['a timed-out command', new Error('Command timed out')],
+    [
+      'a command refused while disconnected',
+      new Error(
+        "Stream isn't writeable and enableOfflineQueue options is false",
+      ),
+    ],
+  ])('maps an unhandled Redis outage (%s) to 503', (_label, exception) => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
+    filter.catch(exception, mockHost as never);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(503);
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        statusCode: 503,
+        error: 'Service Unavailable',
+        path: '/test-path',
+      }),
+    );
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('keeps a Redis error that is not an outage a 500', () => {
+    const error = jest
+      .spyOn(Logger.prototype, 'error')
+      .mockImplementation(() => undefined);
+
+    filter.catch(new Error('WRONGPASS invalid password'), mockHost as never);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(500);
+    error.mockRestore();
+  });
+
   it('maps Prisma P2002 (unique constraint) to 409 Conflict', () => {
     filter.catch({ code: 'P2002' }, mockHost as never);
     expect(mockResponse.status).toHaveBeenCalledWith(409);
