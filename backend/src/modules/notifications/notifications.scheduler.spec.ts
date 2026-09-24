@@ -75,7 +75,30 @@ describe('NotificationsScheduler', () => {
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
         'interview_reminder_enqueue_failed',
-        expect.objectContaining({ roundId: 'round1' }),
+        expect.objectContaining({ roundId: 'round1', unstamped: true }),
+      );
+    });
+
+    it('keeps the stamp when the add timed out, since Redis may have queued it', async () => {
+      const prisma = {
+        interviewRound: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'round1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      queue.add.mockRejectedValueOnce(new Error('Command timed out'));
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.scanInterviewReminders();
+
+      expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'interview_reminder_enqueue_failed',
+        expect.objectContaining({ roundId: 'round1', unstamped: false }),
       );
     });
 

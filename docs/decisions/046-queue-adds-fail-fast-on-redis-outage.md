@@ -65,6 +65,15 @@ it, the add fails. Left alone, that would stamp the round and silently skip
 the reminder. The scan now un-stamps the round, with a compare-and-swap on
 its own stamp, then logs and stops. The next hourly scan retries it.
 
+That applies only when ioredis *refused* the command. A `commandTimeout`
+rejection (`Command timed out`) means the reply was late, not that the add
+failed. Redis may have queued the job anyway, so the stamp stays, and the
+scan still prefers skipping a reminder to sending it twice. A stable BullMQ
+`jobId` per round would have made the retry a no-op instead. It was
+rejected because a reschedule clears `reminderSentAt` so that a second
+reminder goes out, and a kept completed job under that id would swallow
+it.
+
 The digest cron needs no change. A failed add throws out of the cron,
 `@nestjs/schedule` logs it, and that hour's digests are skipped. Before
 this change they were delivered late instead.
@@ -94,6 +103,26 @@ specs now assert the worker connection shape. The scheduler spec covers the
 un-stamp.
 
 ## Not covered
+
+**Redis already down when the backend boots.** Fail-fast only applies once
+BullMQ's first connection has succeeded. Until then, every `Queue` awaits
+its connection's `ready`, and a create awaiting an add hangs just as it
+did before this change. Measured on 2026-09-24 with Redis stopped before
+boot: `/health` and `POST /jobs` both hung until the client timed out.
+Once Redis started, without a backend restart, the pending create
+finished, and both companies enriched to `COMPLETED`. So the hang clears
+by itself when Redis returns, and nothing regressed. In prod, the backend
+`depends_on: redis: condition: service_healthy`, which covers a normal
+start.
+
+BullMQ's `skipWaitingForReady: true` looks like the fix, and its docs
+suggest it for adding jobs from HTTP handlers. It was tried and rejected.
+With Redis down at boot, the queue's one-time connection init fails and is
+never retried. After Redis came back, `/health` stayed `503` and every add
+kept failing until the process restarted. That trades a hang that heals
+itself for an outage that doesn't.
+
+**OAuth code exchange.**
 
 `AuthService` opens its own ioredis client with `maxRetriesPerRequest:
 null` for OAuth exchange codes, so `POST /auth/exchange-code` still hangs
