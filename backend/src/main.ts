@@ -11,6 +11,10 @@ import { JwtAuthGuard } from './common/guards/jwt-auth.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { PatScopeGuard } from './common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter.js';
+import {
+  applyApiVersioning,
+  withoutUnversionedAliases,
+} from './config/api-versioning.helper.js';
 
 /**
  * Boots the API: proxy trust, security headers, cookies, CORS, request
@@ -70,6 +74,7 @@ async function bootstrap() {
     new PatScopeGuard(app.get(Reflector)),
   );
   app.useGlobalFilters(new GlobalExceptionFilter());
+  applyApiVersioning(app);
 
   if (config.get('NODE_ENV') !== 'production') {
     const swaggerConfig = new DocumentBuilder()
@@ -83,7 +88,9 @@ async function bootstrap() {
       .addTag('admin', 'Admin-only user management')
       .build();
 
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    const document = withoutUnversionedAliases(
+      SwaggerModule.createDocument(app, swaggerConfig),
+    );
     SwaggerModule.setup('api/docs', app, document);
   }
 

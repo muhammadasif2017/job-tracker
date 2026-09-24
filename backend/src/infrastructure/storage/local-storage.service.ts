@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import type { IStorageService } from './storage.service.js';
+import { CURRENT_API_PREFIX } from '../../config/api-versioning.helper.js';
 
 /**
  * The dev driver: files live under `backend/uploads/` and are served back
@@ -39,7 +40,7 @@ export class LocalStorageService implements IStorageService {
    */
   getPresignedUrl(key: string, _expiresIn?: number): Promise<string> {
     return Promise.resolve(
-      `${this.backendUrl}/jobs/resumes/file?key=${encodeURIComponent(key)}`,
+      `${this.backendUrl}${CURRENT_API_PREFIX}/jobs/resumes/file?key=${encodeURIComponent(key)}`,
     );
   }
 
