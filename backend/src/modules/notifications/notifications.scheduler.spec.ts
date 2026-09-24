@@ -43,6 +43,42 @@ describe('NotificationsScheduler', () => {
       );
     });
 
+    it('un-stamps the round and stops the scan when the queue refuses the add', async () => {
+      const prisma = {
+        interviewRound: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ id: 'round1' }, { id: 'round2' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      queue.add.mockRejectedValueOnce(
+        new Error(
+          "Stream isn't writeable and enableOfflineQueue options is false",
+        ),
+      );
+      const scheduler = new NotificationsScheduler(
+        queue as any,
+        prisma as any,
+        logger as any,
+      );
+
+      await scheduler.scanInterviewReminders();
+
+      const stamp = prisma.interviewRound.updateMany.mock.calls[0][0].data
+        .reminderSentAt as Date;
+      expect(prisma.interviewRound.updateMany).toHaveBeenLastCalledWith({
+        where: { id: 'round1', reminderSentAt: stamp },
+        data: { reminderSentAt: null },
+      });
+      expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(2);
+      expect(queue.add).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        'interview_reminder_enqueue_failed',
+        expect.objectContaining({ roundId: 'round1' }),
+      );
+    });
+
     it('skips enqueueing when the round was already claimed (dedup race)', async () => {
       const prisma = {
         interviewRound: {

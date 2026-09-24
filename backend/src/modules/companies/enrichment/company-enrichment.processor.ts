@@ -16,6 +16,7 @@ import {
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 import { techFromJobTitles } from '../../../common/tech-tokens.js';
+import { withWorkerConnection } from '../../../redis/redis-connection.helper.js';
 
 /**
  * Character budget for the official-website section of the assembled LLM
@@ -45,7 +46,10 @@ const SEARCH_SECTION_BUDGET = 8_000;
  * docs/company-profile-enrichment.md §3.
  */
 @Injectable()
-@Processor(COMPANY_ENRICHMENT_QUEUE, { lockDuration: 90_000 })
+@Processor(
+  COMPANY_ENRICHMENT_QUEUE,
+  withWorkerConnection({ lockDuration: 90_000 }),
+)
 export class CompanyEnrichmentProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,

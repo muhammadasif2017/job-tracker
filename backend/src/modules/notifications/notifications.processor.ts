@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
 import { interviewReminderEmail, digestEmail } from './templates.js';
+import { withWorkerConnection } from '../../redis/redis-connection.helper.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
@@ -45,7 +46,7 @@ function dedupField(
  * waits on the queue.
  */
 @Injectable()
-@Processor(NOTIFICATIONS_QUEUE)
+@Processor(NOTIFICATIONS_QUEUE, withWorkerConnection({}))
 export class NotificationsProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,

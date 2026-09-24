@@ -108,7 +108,23 @@ export class NotificationsScheduler {
       if (count === 0) continue;
 
       const data: InterviewReminderJobData = { roundId: id };
-      await this.queue.add('interview-reminder', data, JOB_OPTIONS);
+      try {
+        await this.queue.add('interview-reminder', data, JOB_OPTIONS);
+      } catch (err) {
+        // The add was refused, so nothing was queued: un-stamp the round so
+        // the next hourly scan retries it instead of skipping the reminder.
+        // Queue adds fail fast on a Redis outage (ADR-046), so this is the
+        // outage path. Stop the scan — every later add would fail the same way.
+        await this.prisma.interviewRound.updateMany({
+          where: { id, reminderSentAt: now },
+          data: { reminderSentAt: null },
+        });
+        this.logger.warn('interview_reminder_enqueue_failed', {
+          roundId: id,
+          err,
+        });
+        return;
+      }
       this.logger.log('interview_reminder_enqueued', { roundId: id });
     }
   }

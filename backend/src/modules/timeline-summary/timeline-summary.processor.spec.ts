@@ -38,7 +38,14 @@ describe('TimelineSummaryProcessor', () => {
       TimelineSummaryProcessor,
     ) as { lockDuration?: number } | undefined;
 
-    expect(workerOptions).toEqual({ lockDuration: 90_000 });
+    // The worker connection must keep waiting out a Redis outage; the
+    // fail-fast queue connection from BullModule.forRoot would break its
+    // blocking commands (ADR-046).
+    expect(workerOptions).toMatchObject({
+      lockDuration: 90_000,
+      connection: { maxRetriesPerRequest: null },
+    });
+    expect(workerOptions).not.toHaveProperty('connection.enableOfflineQueue');
   });
 
   let processor: TimelineSummaryProcessor;

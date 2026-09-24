@@ -5,6 +5,7 @@ import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../prisma/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
+import { withWorkerConnection } from '../../redis/redis-connection.helper.js';
 
 /**
  * Bounds prompt size and cost for a job with a long event history — a
@@ -23,7 +24,10 @@ const MAX_EVENTS_FOR_SUMMARY = 50;
  * while `process()` runs.
  */
 @Injectable()
-@Processor(JOB_TIMELINE_SUMMARY_QUEUE, { lockDuration: 90_000 })
+@Processor(
+  JOB_TIMELINE_SUMMARY_QUEUE,
+  withWorkerConnection({ lockDuration: 90_000 }),
+)
 export class TimelineSummaryProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
