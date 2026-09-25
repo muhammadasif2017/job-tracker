@@ -370,7 +370,7 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 | `OCI_BUCKET_NAME`        | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                                                                                                                                                                                     |
 | `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
 | `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
-| `SENTRY_DSN`             | No       | —                        | Sentry error tracking (ADR-050); unset means off. Read by `src/instrument.ts` before `ConfigModule` exists. Production passes it through `docker-compose.prod.yml`, and the image sets `SENTRY_RELEASE` to the commit SHA                                                                                 |
+| `SENTRY_DSN`             | No       | —                        | Sentry error tracking (ADR-050); unset or empty means off (`SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` may be empty too). Read by `src/instrument.ts` before `ConfigModule` exists. Production passes it through `docker-compose.prod.yml`, and the image sets `SENTRY_RELEASE` to the commit SHA           |
 
 ---
 
@@ -395,7 +395,7 @@ Key relationships: `User → Job[] / Company[] / Account[] / RefreshToken[] / Ap
 - Throw NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) — `GlobalExceptionFilter` passes them through unchanged.
 - Do **not** throw plain `Error` objects — they fall through to the 500 catch-all.
 - `GlobalExceptionFilter` catches `P2002` (unique) → 409, `P2025` (not found) → 404.
-- **Sentry (ADR-050).** `GlobalExceptionFilter` reports every response ≥ 500 except 503 through `reportError` (`src/infrastructure/error-tracking/error-tracking.helper.ts`). `CorrelatedWorkerHost` reports a job failure only when it is final. Both tag the event with `requestId`. To report an error you catch and handle yourself, call `reportError(err, { tags })`; it is a no-op without `SENTRY_DSN`. Never pass PII in tags or extra: a user ID is fine, an email is not.
+- **Sentry (ADR-050).** `GlobalExceptionFilter` reports every response ≥ 500 except 503 through `reportError` (`src/infrastructure/error-tracking/error-tracking.helper.ts`). `CorrelatedWorkerHost` reports a job failure only when it is final (never a BullMQ control-flow error). **Every `@Cron` method wraps its body in `runCronScan('<name>', ...)`** (`src/common/cron-scan.helper.ts`), which gives it a correlation ID and reports its failure. The SDK's own auto-capture is off (`src/instrument.ts` drops the `Nest` integration), so a handler that doesn't go through these helpers or `reportError` is not reported. All of them tag the event with `requestId`. To report an error you catch and handle yourself, call `reportError(err, { tags })`; it is a no-op without `SENTRY_DSN`. Never pass PII in tags or extra: a user ID is fine, an email is not.
 - Use `ValidationPipe` errors for DTO validation failures — these are automatic.
 
 ---
@@ -429,7 +429,7 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 - `GlobalExceptionFilter` puts `requestId` in every error body.
 - **When enqueueing a job**, wrap its data in `withRequestId({ ... })`.
 - **A new processor** extends `CorrelatedWorkerHost` (`src/common/correlated-worker-host.ts`) and implements `handle()`; the base class runs it in the job's context. An `@OnWorkerEvent` handler runs outside `process`, so it wraps its body in `runJobWithRequestId(job, ...)` itself.
-- **A new cron scan** runs its body in `runWithRequestId(cronRequestId('<scan>'), ...)`, so the scan and its jobs share one ID. A job with no ID at all falls back to `job:<queue>:<id>`.
+- **A new cron scan** wraps its body in `runCronScan('<scan>', ...)` (`src/common/cron-scan.helper.ts`), so the scan and its jobs share one ID and a failure reaches Sentry. A job with no ID at all falls back to `job:<queue>:<id>`.
 
 To follow one user action end to end, grep the logs for its ID.
 

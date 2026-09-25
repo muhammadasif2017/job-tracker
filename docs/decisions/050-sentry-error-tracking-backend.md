@@ -27,9 +27,25 @@ Report unexpected errors to Sentry (`@sentry/nestjs` v11, project
   - `environment` comes from `SENTRY_ENVIRONMENT`, falling back to `NODE_ENV`.
   - `release` is the commit SHA: `deploy.yml` passes it as the `GIT_SHA`
     build arg, and the image bakes it in as `SENTRY_RELEASE`.
+- **Empty means off, and never blocks boot.** `docker-compose.prod.yml`
+  passes `${SENTRY_DSN:-}` and `${SENTRY_ENVIRONMENT:-}`, which arrive as
+  empty strings, and an image built without the `GIT_SHA` build arg has
+  `SENTRY_RELEASE=""`. The env schema allows `''` on all three.
+  `instrument.ts` treats an empty DSN as off and an empty release as none.
+  Review caught that the first version rejected `''`, which would have
+  stopped production from booting after the merge.
 - **Errors only.** `tracesSampleRate: 0` and no profiling, so no native
   dependency. Tracing is a later OpenTelemetry step. `SentryModule` is not
   registered: it only adds the tracing interceptor.
+- **Only deliberate captures.** The SDK's default `Nest` integration is
+  removed. With tracing off, all it does is auto-capture from every
+  `@Processor`, `@Cron`, `@Interval` and `@OnEvent` handler. That would
+  report retried job attempts and each deliberate `DelayedError`, report
+  final failures twice, and send cron errors with no `requestId`.
+- **Unhandled rejections are `strict`.** The SDK's default `warn` mode
+  installs a listener that stops Node from exiting on an unhandled
+  rejection, so a failed boot would leave a process that serves nothing
+  instead of letting Docker restart it. `strict` reports, then exits.
 - **Data collection is locked down.** SDK v11's defaults collect cookies,
   HTTP headers and request bodies, which here means the refresh-token cookie,
   `Authorization` headers and login passwords. `dataCollection` turns off
@@ -47,8 +63,19 @@ Report unexpected errors to Sentry (`@sentry/nestjs` v11, project
     reports the original error.
   - `CorrelatedWorkerHost`: a job failure only when it is **final**, meaning
     an `UnrecoverableError` or the last allowed attempt. A failure that will
-    be retried, and a deliberate `DelayedError` deferral (ADR-048), are not
-    reported. The event is tagged with its queue and job name.
+    be retried is not reported. Neither are BullMQ's control-flow errors
+    (`DelayedError`, as in ADR-048, plus `WaitingChildrenError`,
+    `WaitingError` and `RateLimitError`). Errors are matched by `name`, as
+    BullMQ itself does, so a second copy of the package can't slip past an
+    `instanceof`. The event is tagged with its queue and job name.
+  - `runCronScan(name, work)` (`src/common/cron-scan.helper.ts`), which wraps
+    all five `@Cron` methods. It runs the pass under `cron:<name>:<time>`
+    (ADR-049), reports a failure with that `requestId` and a `cron` tag, then
+    rethrows so `@nestjs/schedule` still logs it.
+  - If `GlobalExceptionFilter` itself fails, it reports the original error
+    only when it failed **before** deciding the status. A failure while
+    sending an already-judged response (for example headers already sent)
+    neither double-reports a 500 nor reports a 4xx.
 
 ## Consequences
 

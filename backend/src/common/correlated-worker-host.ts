@@ -1,7 +1,20 @@
 import { WorkerHost } from '@nestjs/bullmq';
-import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
+import type { Job } from 'bullmq';
 import { runJobWithRequestId } from './request-context.helper.js';
 import { reportError } from '../infrastructure/error-tracking/error-tracking.helper.js';
+
+/**
+ * BullMQ errors a processor throws on purpose to steer the job (defer it,
+ * wait for children, back off a rate limit). None of them is a failure.
+ * Matched by name, as BullMQ itself does, so a second copy of the package
+ * can't slip past an `instanceof`.
+ */
+const CONTROL_FLOW_ERRORS = new Set([
+  'DelayedError',
+  'WaitingChildrenError',
+  'WaitingError',
+  'RateLimitError',
+]);
 
 /**
  * Whether a job failure will not be retried: an `UnrecoverableError`, or a
@@ -9,8 +22,9 @@ import { reportError } from '../infrastructure/error-tracking/error-tracking.hel
  * that already failed before this one.
  */
 function isFinalFailure(job: Job, err: unknown): boolean {
-  if (err instanceof DelayedError) return false;
-  if (err instanceof UnrecoverableError) return true;
+  const name = err instanceof Error ? err.name : undefined;
+  if (name && CONTROL_FLOW_ERRORS.has(name)) return false;
+  if (name === 'UnrecoverableError') return true;
   return job.attemptsMade + 1 >= (job.opts?.attempts ?? 1);
 }
 

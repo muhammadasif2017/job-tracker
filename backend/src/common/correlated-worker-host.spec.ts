@@ -117,5 +117,32 @@ describe('CorrelatedWorkerHost', () => {
 
       expect(reportError).not.toHaveBeenCalled();
     });
+
+    it('treats an UnrecoverableError from another bullmq copy as final, by name', async () => {
+      const foreign = Object.assign(new Error('quota'), {
+        name: 'UnrecoverableError',
+      });
+      await expect(
+        new FailingProcessor(foreign).process(
+          job({}, '9', { attemptsMade: 0, allowed: 2 }),
+        ),
+      ).rejects.toBe(foreign);
+
+      expect(reportError).toHaveBeenCalled();
+    });
+
+    it.each(['WaitingChildrenError', 'WaitingError', 'RateLimitError'])(
+      'never reports the %s control-flow error, even on the last attempt',
+      async (name) => {
+        const steer = Object.assign(new Error('steer'), { name });
+        await expect(
+          new FailingProcessor(steer).process(
+            job({}, '9', { attemptsMade: 1, allowed: 2 }),
+          ),
+        ).rejects.toBe(steer);
+
+        expect(reportError).not.toHaveBeenCalled();
+      },
+    );
   });
 });

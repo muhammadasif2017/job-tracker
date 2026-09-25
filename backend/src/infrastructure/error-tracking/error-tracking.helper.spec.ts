@@ -4,6 +4,7 @@ import { runWithRequestId } from '../../common/request-context.helper.js';
 
 const scope = {
   setTag: jest.fn(),
+  setTags: jest.fn(),
   setUser: jest.fn(),
   setExtras: jest.fn(),
 };
@@ -28,10 +29,9 @@ describe('reportError', () => {
 
     expect(scope.setTag).toHaveBeenCalledWith('requestId', 'req-1');
     expect(scope.setUser).toHaveBeenCalledWith({ id: 'u-1' });
-    expect(scope.setTag).toHaveBeenCalledWith(
-      'queue',
-      'company-target-enrichment',
-    );
+    expect(scope.setTags).toHaveBeenCalledWith({
+      queue: 'company-target-enrichment',
+    });
     expect(scope.setExtras).toHaveBeenCalledWith({ jobId: '9' });
     expect(Sentry.captureException).toHaveBeenCalledWith(err);
   });

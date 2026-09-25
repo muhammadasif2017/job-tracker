@@ -211,5 +211,30 @@ describe('GlobalExceptionFilter', () => {
 
       expect(reportError).toHaveBeenCalledWith(err, {});
     });
+
+    it('does not report again when sending an already-judged response fails', () => {
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const throwingResponse = {
+        status: jest.fn().mockReturnThis(),
+        json: jest
+          .fn()
+          .mockImplementationOnce(() => {
+            throw new Error('ERR_HTTP_HEADERS_SENT');
+          })
+          .mockReturnThis(),
+      };
+      const host = {
+        switchToHttp: () => ({
+          getResponse: () => throwingResponse,
+          getRequest: () => ({ url: '/v1/jobs/1/resumes/file', id: 'r-1' }),
+        }),
+      };
+
+      // A 404 thrown after headers went out: judged not reportable, and the
+      // failed send must not report it after all.
+      filter.catch(new NotFoundException('gone'), host as never);
+
+      expect(reportError).not.toHaveBeenCalled();
+    });
   });
 });

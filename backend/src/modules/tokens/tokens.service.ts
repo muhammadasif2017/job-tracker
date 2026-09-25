@@ -16,6 +16,7 @@ import {
   MAX_ACTIVE_TOKENS_PER_USER,
   PAT_EXPIRY_DAYS,
 } from './tokens.constants.js';
+import { runCronScan } from '../../common/cron-scan.helper.js';
 
 /**
  * Personal access tokens: long-lived credentials for clients that cannot
@@ -127,11 +128,13 @@ export class TokensService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupExpiredApiTokens() {
-    const { count } = await this.prisma.apiToken.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
+    await runCronScan('api-token-cleanup', async () => {
+      const { count } = await this.prisma.apiToken.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      if (count > 0) {
+        this.logger.log(`Cleaned up ${count} expired personal access token(s)`);
+      }
     });
-    if (count > 0) {
-      this.logger.log(`Cleaned up ${count} expired personal access token(s)`);
-    }
   }
 }

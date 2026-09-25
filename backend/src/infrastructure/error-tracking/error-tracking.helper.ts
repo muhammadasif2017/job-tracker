@@ -23,9 +23,7 @@ export function reportError(err: unknown, context: ErrorReportContext = {}) {
   Sentry.withScope((scope) => {
     if (requestId) scope.setTag('requestId', requestId);
     if (context.userId) scope.setUser({ id: context.userId });
-    for (const [key, value] of Object.entries(context.tags ?? {})) {
-      scope.setTag(key, value);
-    }
+    if (context.tags) scope.setTags(context.tags);
     if (context.extra) scope.setExtras(context.extra);
     Sentry.captureException(err);
   });

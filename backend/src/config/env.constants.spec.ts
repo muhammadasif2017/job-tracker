@@ -57,4 +57,17 @@ describe('ENV_VALIDATION_SCHEMA', () => {
         .error?.message,
     ).toMatch(/SENTRY_DSN/);
   });
+
+  it('boots with the empty Sentry values docker-compose and a no-GIT_SHA build produce', () => {
+    // `${SENTRY_DSN:-}` and `${SENTRY_ENVIRONMENT:-}` arrive as "", and an
+    // image built without the GIT_SHA build arg has SENTRY_RELEASE="".
+    const { error } = ENV_VALIDATION_SCHEMA.validate({
+      ...REQUIRED,
+      SENTRY_DSN: '',
+      SENTRY_ENVIRONMENT: '',
+      SENTRY_RELEASE: '',
+    });
+
+    expect(error).toBeUndefined();
+  });
 });
