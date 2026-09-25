@@ -51,7 +51,9 @@ async function bootstrap() {
   const metricsPort = config.get<number | ''>('METRICS_PORT');
   if (metricsPort) {
     const logger = app.get(Logger);
-    startMetricsServer(metricsPort, app.get(MetricsService).registry, (err) =>
+    const metrics = app.get(MetricsService);
+    metrics.collectProcessMetrics();
+    startMetricsServer(metricsPort, metrics.registry, (err) =>
       logger.error({ err }, 'Metrics listener failed'),
     );
   }

@@ -3,9 +3,10 @@ import { collectDefaultMetrics, Histogram, Registry } from 'prom-client';
 import { HTTP_DURATION_BUCKETS } from './metrics.constants.js';
 
 /**
- * Owns this process's Prometheus registry (ADR-052): Node's default process
- * metrics plus the HTTP request histogram. Feature modules register their own
- * gauges on `registry` (see `QueueMetricsService`).
+ * Owns this process's Prometheus registry (ADR-052): the HTTP request
+ * histogram, plus Node's process metrics once `collectProcessMetrics` runs.
+ * Feature modules register their own gauges on `registry` (see
+ * `QueueMetricsService`).
  *
  * A registry per instance, not prom-client's global one: the e2e setup
  * builds several apps in one process, and a second registration of the same
@@ -28,7 +29,13 @@ export class MetricsService {
     registers: [this.registry],
   });
 
-  constructor() {
+  /**
+   * Starts Node's default process metrics: CPU, memory, heap, GC and
+   * event-loop lag. Called from `main.ts` only when `METRICS_PORT` is set.
+   * They install a GC observer and an event-loop monitor that nothing stops,
+   * so local runs and the test suites, which never read them, skip it.
+   */
+  collectProcessMetrics() {
     collectDefaultMetrics({ register: this.registry });
   }
 }

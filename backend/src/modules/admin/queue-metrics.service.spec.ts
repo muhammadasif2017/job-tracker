@@ -3,7 +3,6 @@ import { getQueueToken } from '@nestjs/bullmq';
 import { Logger } from 'nestjs-pino';
 import { QueueMetricsService } from './queue-metrics.service.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
-import { QUEUE_COUNT_TIMEOUT_MS } from '../../infrastructure/metrics/metrics.constants.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
@@ -75,10 +74,6 @@ describe('QueueMetricsService', () => {
     metrics = module.get(MetricsService);
   });
 
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   it('exports each queue’s job counts by state', async () => {
     const text = await scrape();
 
@@ -122,13 +117,14 @@ describe('QueueMetricsService', () => {
     );
   });
 
-  it('gives up on a queue that does not answer in time, so the scrape still completes', async () => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
-    mockNotificationsQueue.getJobCounts.mockReturnValue(new Promise(() => {}));
+  it('reports a queue whose Redis command timed out as down, like any other failure', async () => {
+    // The 2 s limit itself is the connection's `commandTimeout` (ADR-046),
+    // tested with the Redis connection helper; here it arrives as a rejection.
+    mockNotificationsQueue.getJobCounts.mockRejectedValue(
+      new Error('Command timed out'),
+    );
 
-    const pending = scrape();
-    await jest.advanceTimersByTimeAsync(QUEUE_COUNT_TIMEOUT_MS);
-    const text = await pending;
+    const text = await scrape();
 
     expect(text).toContain(
       `jobtracker_queue_up{queue="${NOTIFICATIONS_QUEUE}"} 0`,

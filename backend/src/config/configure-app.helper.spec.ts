@@ -52,8 +52,18 @@ describe('configureApp', () => {
 
     expect(app.use).toHaveBeenCalledTimes(4);
     expect(app.use.mock.calls[0][0]).toBe(requestIdMiddleware);
-    // The metrics middleware is a closure, so it is identified by position.
-    expect(app.get).toHaveBeenCalledWith(MetricsService);
+    // The metrics middleware is a closure, so it is recognised by what it
+    // does: it hooks the response's `finish` to stop its timer.
+    const second = app.use.mock.calls[1][0] as (
+      req: unknown,
+      res: unknown,
+      next: () => void,
+    ) => void;
+    const res = { on: jest.fn() };
+    const next = jest.fn();
+    second({ method: 'GET' }, res, next);
+    expect(res.on).toHaveBeenCalledWith('finish', expect.any(Function));
+    expect(next).toHaveBeenCalled();
   });
 
   it('allows the frontend origin with credentials and exposes the export headers', () => {

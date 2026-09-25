@@ -37,17 +37,21 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
   on prom-client's global registry throws.
 - **What is exported:**
   - Node's default process metrics: CPU, memory, heap, event-loop lag, GC.
+    `main.ts` starts them only when `METRICS_PORT` is set, because they
+    install monitors that nothing stops.
   - `http_request_duration_seconds`, a histogram by `method`, `route` and
     `status_class`. It is recorded by Express middleware placed right after
     the correlation-ID middleware, not by a Nest interceptor, because guards
     run before interceptors and an interceptor never sees the 401, 403 and
     429 responses they send.
   - `jobtracker_queue_jobs{queue,state}` and `jobtracker_queue_up{queue}`
-    from `QueueMetricsService` (admin module, beside `AdminQueuesService`,
-    which already reads the same queues). Counts are read at scrape time,
-    once per scrape for both gauges, with a 2 s timeout per queue. A queue
-    that fails or times out reports `up 0` and has its counts removed, not
-    left at a stale value, and the rest of the scrape still succeeds. The
+    from `QueueMetricsService` (admin module). It and `AdminQueuesService`
+    read counts through one helper, `readQueueCounts`, so the admin page and
+    the gauges cannot disagree. Counts are read at scrape time, once per
+    scrape for both gauges. A slow Redis cannot stall the scrape: the queues'
+    connection already has a 2 s `commandTimeout` (ADR-046). A queue that
+    fails or times out reports `up 0` and has its counts removed, not left
+    at a stale value, and the rest of the scrape still succeeds. The
     Postgres company-status buckets are not exported: a `groupBy` over every
     company every 60 s is not worth it.
   - `jobtracker_circuit_state{circuit}`: 0 closed, 1 half-open, 2 open
@@ -61,17 +65,26 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
   - The histogram has eight buckets, not prom-client's eleven.
   - `/v1/...` and the unversioned alias (ADR-047) keep separate labels, which
     shows how much traffic still uses the old paths.
-  - A local run exported about 130 series.
+  - A local run exported about 130 series. The worst case for the histogram,
+    with every route hit on both paths with three status classes, is about
+    68 × 2 × 3 × 11 ≈ 4,500 series, under the free tier's 10,000. In
+    practice only the combinations that get traffic exist.
 - **Alloy in compose, not the install script.** `alloy` in
   `docker-compose.prod.yml` runs the pinned image `grafana/alloy:v1.20.0`
-  with `alloy/config.alloy`, mounted read-only. It scrapes every 60 s and
+  with the `alloy/` directory mounted read-only. It scrapes every 60 s and
   pushes to Grafana Cloud with a write-only token (`GRAFANA_CLOUD_TOKEN`,
   read with `sys.env`), which exists only in the VM's `.env`. The URL and
   username are not secrets and sit in the config. The service publishes no
   ports, keeps its write-ahead log in a volume, and is capped
   (`mem_limit: 160m`, `GOMEMLIMIT: 100MiB`) because the VM has 1 GB of RAM.
-  The backend does not depend on it. `deploy.yml` now also deploys on
-  changes under `alloy/`.
+  The backend does not depend on it.
+- **Config changes need a restart.** Alloy reads its config only at startup,
+  and `docker compose up -d` leaves the container alone when only the config
+  changed. So `deploy.yml` deploys on changes under `alloy/` and runs
+  `docker compose restart alloy` on every deploy; the write-ahead log keeps
+  unsent samples across it. The directory is mounted rather than the file
+  because `git pull` replaces the file with a new one, and a single-file
+  bind mount keeps showing the old one.
 
 ## Consequences
 

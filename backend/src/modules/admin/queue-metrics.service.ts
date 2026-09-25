@@ -5,15 +5,12 @@ import { Logger } from 'nestjs-pino';
 import { Gauge } from 'prom-client';
 import type { CircuitState } from '../../infrastructure/resilience/circuit-breaker.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
-import { QUEUE_COUNT_TIMEOUT_MS } from '../../infrastructure/metrics/metrics.constants.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { COUNTED_STATES } from './admin-queues.constants.js';
-
-/** One queue's counts at scrape time, or null when they could not be read. */
-type QueueCounts = Record<(typeof COUNTED_STATES)[number], number> | null;
+import { readQueueCounts, type QueueCounts } from './queue-counts.helper.js';
 
 /** Gauge value per circuit state; the help text states the same mapping. */
 const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
@@ -34,7 +31,7 @@ const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
 export class QueueMetricsService implements OnModuleInit {
   private readonly queues: ReadonlyArray<readonly [string, Queue]>;
   /** The counts one scrape is reading, shared by both queue gauges. */
-  private inFlight: Promise<Map<string, QueueCounts>> | null = null;
+  private inFlight: Promise<Map<string, QueueCounts | null>> | null = null;
 
   constructor(
     private readonly metrics: MetricsService,
@@ -101,7 +98,7 @@ export class QueueMetricsService implements OnModuleInit {
    * `collect` in the same tick, so both queue gauges get the same promise
    * and the same numbers, and Redis is asked once, not twice.
    */
-  readCounts(): Promise<Map<string, QueueCounts>> {
+  readCounts(): Promise<Map<string, QueueCounts | null>> {
     this.inFlight ??= Promise.all(
       this.queues.map(
         async ([name, queue]) =>
@@ -115,31 +112,23 @@ export class QueueMetricsService implements OnModuleInit {
     return this.inFlight;
   }
 
-  /** Per queue, so one slow or failing queue does not blank the others. */
-  private async countOne(name: string, queue: Queue): Promise<QueueCounts> {
-    let timer: NodeJS.Timeout | undefined;
+  /**
+   * Per queue, so one failing queue does not blank the others. A slow Redis
+   * cannot stall the scrape: the queues' connection has a 2 s
+   * `commandTimeout` (ADR-046), which lands here as a rejection.
+   */
+  private async countOne(
+    name: string,
+    queue: Queue,
+  ): Promise<QueueCounts | null> {
     try {
-      const counts = await Promise.race([
-        queue.getJobCounts(...COUNTED_STATES),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(
-            () =>
-              reject(new Error(`timed out after ${QUEUE_COUNT_TIMEOUT_MS} ms`)),
-            QUEUE_COUNT_TIMEOUT_MS,
-          );
-        }),
-      ]);
-      return Object.fromEntries(
-        COUNTED_STATES.map((state) => [state, counts[state] ?? 0]),
-      ) as NonNullable<QueueCounts>;
+      return await readQueueCounts(queue);
     } catch (error) {
       this.logger.warn(
         { err: error, queue: name },
         'Queue counts unavailable for metrics',
       );
       return null;
-    } finally {
-      clearTimeout(timer);
     }
   }
 }

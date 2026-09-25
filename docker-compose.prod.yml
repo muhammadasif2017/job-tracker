@@ -94,12 +94,8 @@ services:
   alloy:
     image: grafana/alloy:v1.20.0
     restart: unless-stopped
-    command:
-      [
-        'run',
-        '/etc/alloy/config.alloy',
-        '--storage.path=/var/lib/alloy/data',
-      ]
+    # The image's default command runs /etc/alloy/config.alloy with its
+    # storage in /var/lib/alloy/data, which is what the mounts below provide.
     environment:
       # Write-only Grafana Cloud token, set in the VM's .env only. Empty means
       # every push is rejected with 401 and logged; the API is unaffected.
@@ -109,7 +105,10 @@ services:
       GOMEMLIMIT: 100MiB
     mem_limit: 160m
     volumes:
-      - ./alloy/config.alloy:/etc/alloy/config.alloy:ro
+      # The directory, not the file: `git pull` replaces config.alloy with a
+      # new file, and a single-file bind mount would keep showing the old one.
+      # Alloy does not reload on its own, so deploy.yml restarts it.
+      - ./alloy:/etc/alloy:ro
       # Write-ahead log, so samples queued during a network blip survive a
       # restart.
       - alloy_data:/var/lib/alloy/data
