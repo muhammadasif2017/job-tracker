@@ -86,6 +86,12 @@ describe('proxy', () => {
 
     it('skips the Sentry tunnel, so signed-out error reports are not redirected', () => {
       expect(matches('/monitoring')).toBe(false);
+      expect(matches('/monitoring/')).toBe(false);
+    });
+
+    it('still guards a page whose path only starts with "monitoring"', () => {
+      expect(matches('/monitoring-dashboard')).toBe(true);
+      expect(matches('/monitoringx')).toBe(true);
     });
 
     it('still runs on app routes', () => {

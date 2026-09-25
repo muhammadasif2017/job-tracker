@@ -9,8 +9,9 @@ import {
 } from '@sentry/browser';
 import {
   SENTRY_DSN,
-  SENTRY_TUNNEL_ROUTE,
   sharedSentryOptions,
+  tunnelFor,
+  withoutNavigationQuery,
 } from './lib/sentry-options';
 
 /**
@@ -26,14 +27,17 @@ import {
  * off, since their URLs can carry search terms, and console crumbs are off
  * because the console integration is not added.
  *
- * `@sentry/nextjs` still runs the server and edge runtimes and the build
- * (source maps, release, the tunnel route). Its build step injects the
- * release that this SDK picks up.
+ * `@sentry/nextjs` still runs the server runtime and the build (source maps,
+ * release, the tunnel rewrite). Its build step inlines the release as
+ * `process.env._sentryRelease`; only its own init reads that, so it is passed
+ * here by hand. The tunnel URL is built the same way, by `tunnelFor`.
  */
 if (SENTRY_DSN) {
   init({
     ...sharedSentryOptions(),
-    tunnel: SENTRY_TUNNEL_ROUTE,
+    release: process.env._sentryRelease || undefined,
+    tunnel: tunnelFor(SENTRY_DSN),
+    beforeBreadcrumb: withoutNavigationQuery,
     defaultIntegrations: false,
     integrations: [
       functionToStringIntegration(),

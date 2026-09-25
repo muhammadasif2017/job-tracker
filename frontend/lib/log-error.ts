@@ -9,8 +9,8 @@ import { captureException } from '@sentry/browser';
  * console, so a screenshot is enough to act on (which boundary caught it,
  * what the user was looking at, and the `digest` that ties a production
  * error back to the server-side stack Next.js logged and stripped from the
- * client bundle), and reports to Sentry with the same boundary and digest
- * (ADR-051). The report is a no-op when no DSN is set.
+ * client bundle). It also reports client-side errors to Sentry, tagged with
+ * the boundary (ADR-051). The report is a no-op when no DSN is set.
  */
 export function logBoundaryError(
   error: Error & { digest?: string },
@@ -30,8 +30,9 @@ export function logBoundaryError(
     },
     error,
   );
-  captureException(error, {
-    tags: { boundary },
-    extra: { digest: error.digest },
-  });
+  // A digest means the error came from the server, and `onRequestError` in
+  // instrumentation.ts already reported the real one. The browser only has a
+  // sanitised copy, and every such copy would group into one issue.
+  if (error.digest) return;
+  captureException(error, { tags: { boundary } });
 }

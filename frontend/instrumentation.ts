@@ -1,15 +1,13 @@
 import * as Sentry from '@sentry/nextjs';
 
 /**
- * Server- and edge-side Sentry (ADR-051). Next.js calls `register` once per
- * runtime; each config file starts Sentry only when a DSN is set.
+ * Server-side Sentry (ADR-051). Only the Node.js runtime is set up: in
+ * Next 16 `proxy.ts` always runs on Node.js, and no route opts into edge.
+ * The config file starts Sentry only when a DSN is set.
  */
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('./sentry.server.config');
-  }
-  if (process.env.NEXT_RUNTIME === 'edge') {
-    await import('./sentry.edge.config');
   }
 }
 

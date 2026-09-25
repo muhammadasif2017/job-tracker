@@ -36,15 +36,23 @@ describe('logBoundaryError', () => {
     expect(spy.mock.calls[0][1]).toMatchObject({ digest: undefined });
   });
 
-  it('reports to Sentry with the boundary tag and the digest', () => {
+  it('reports a client-side error to Sentry with the boundary tag', () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
-    const error = Object.assign(new Error('boom'), { digest: 'abc123' });
+    const error = new Error('boom');
 
     logBoundaryError(error, 'dashboard');
 
     expect(captureException).toHaveBeenCalledWith(error, {
       tags: { boundary: 'dashboard' },
-      extra: { digest: 'abc123' },
     });
+  });
+
+  it('does not report a server error, which the server already reported', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = Object.assign(new Error('boom'), { digest: 'abc123' });
+
+    logBoundaryError(error, 'dashboard');
+
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

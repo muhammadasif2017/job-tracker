@@ -26,14 +26,17 @@ runs, the unit tests, CI and the Playwright suite send nothing.
   handlers, linked causes, de-duplication and click/navigation breadcrumbs.
   `@sentry/nextjs`'s browser `init` statically imports tracing and its other
   default integrations, and Turbopack does not tree-shake them.
-- **Server and edge: `@sentry/nextjs`.** `instrumentation.ts` loads
-  `sentry.server.config.ts` or `sentry.edge.config.ts` and exports
-  `onRequestError`, so errors in server components, route handlers and
-  `proxy.ts` are reported.
+- **Server: `@sentry/nextjs`.** `instrumentation.ts` loads
+  `sentry.server.config.ts` and exports `onRequestError`, so errors in
+  server components, route handlers and `proxy.ts` are reported. There is no
+  edge config: in Next 16 `proxy.ts` always runs on Node.js, and no route
+  opts into the edge runtime.
 - **Error boundaries report.** `logBoundaryError` (used by `app/error.tsx`,
   `app/(dashboard)/error.tsx` and `app/global-error.tsx`) still logs to the
-  console, and now also calls `captureException` with a `boundary` tag and
-  the error's `digest`, which ties a client event to the server-side stack.
+  console, and now also calls `captureException` with a `boundary` tag. It
+  skips errors that carry a `digest`: those came from the server, which
+  `onRequestError` already reported with the real stack. The browser only
+  has Next's sanitised copy, and every such copy would group into one issue.
 - **One set of privacy options.** `lib/sentry-options.ts` holds the options
   every runtime shares: `tracesSampleRate: 0`, and `dataCollection` with
   user info, cookies, headers, bodies, URL query params and stack-frame
@@ -41,15 +44,24 @@ runs, the unit tests, CI and the Playwright suite send nothing.
   browser events come from users' own machines. The project's "Prevent
   Storing of IP Addresses" setting is also on; the code does not rely on it.
   Fetch and XHR breadcrumbs are off, since their URLs can carry search terms.
+  Navigation breadcrumbs lose their query string (`withoutNavigationQuery`),
+  because `/callback?code=...` carries the one-time OAuth code and
+  `urlQueryParams: false` does not cover breadcrumbs.
 - **Tunnel.** Events go to `/monitoring` on the app's own origin, and
   `withSentryConfig`'s `tunnelRoute` forwards them, so ad blockers that block
-  sentry.io do not drop them. `proxy.ts`'s matcher excludes `/monitoring`:
-  otherwise its sign-in redirect would swallow reports from signed-out pages.
+  sentry.io do not drop them. The rewrite only matches
+  `/monitoring?o=<org>&p=<project>&r=<region>`, and only `@sentry/nextjs`'s
+  own client init adds that query, so `tunnelFor` builds it from the DSN.
+  `proxy.ts`'s matcher excludes exactly `/monitoring` (`monitoring(?:/|$)`):
+  otherwise its sign-in redirect would swallow reports from signed-out pages,
+  while a page like `/monitoring-dashboard` must still be guarded.
 - **Source maps.** `withSentryConfig` uploads them and then deletes them from
   the output, so they are never served. The upload runs only when
   `SENTRY_AUTH_TOKEN` is set, which is on Vercel only. A build without it
   still succeeds, with minified stack traces. The release is Vercel's commit
-  SHA.
+  SHA. `withSentryConfig` inlines it as `process.env._sentryRelease`, which
+  only `@sentry/nextjs`'s own init reads, so `instrumentation-client.ts`
+  passes it to `@sentry/browser` by hand.
 
 ## Consequences
 
