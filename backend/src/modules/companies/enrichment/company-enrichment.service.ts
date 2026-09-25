@@ -4,6 +4,7 @@ import { EnrichmentStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
+import { withRequestId } from '../../../common/request-context.helper.js';
 
 /**
  * Queues company enrichment runs. There are two enqueue methods and picking
@@ -113,7 +114,8 @@ export class CompanyEnrichmentService {
   private async enqueue(companyId: string): Promise<void> {
     await this.queue.add(
       'enrich',
-      { companyId },
+      // Carries the enqueuing request's correlation ID into the worker's logs.
+      withRequestId({ companyId }),
       { attempts: 2, backoff: { type: 'fixed', delay: 10_000 } },
     );
   }

@@ -6,6 +6,10 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
 import { ENV_VALIDATION_SCHEMA } from './config/env.constants.js';
+import {
+  currentRequestId,
+  requestIdField,
+} from './common/request-context.helper.js';
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { queueConnection } from './infrastructure/redis/redis-connection.helper.js';
 import { RedisModule } from './infrastructure/redis/redis.module.js';
@@ -52,6 +56,11 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
         autoLogging: true,
+        // No genReqId: requestIdMiddleware runs first and sets req.id, which
+        // pino-http reuses as-is (ADR-049). The mixin stamps every log line,
+        // in a request or in a job it enqueued, with the correlation ID,
+        // including lines written far from the request.
+        mixin: () => requestIdField(currentRequestId()),
         redact: [
           'req.headers.authorization',
           'req.body.password',

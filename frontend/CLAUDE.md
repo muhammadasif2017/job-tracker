@@ -82,7 +82,7 @@ Default `timeout: 15_000` (`DEFAULT_TIMEOUT_MS` in `lib/api.ts`) so a hung backe
 
 Also used by `app/(auth)/callback/page.tsx` to POST `/auth/exchange-code` with the OAuth code — same instance, so the refresh/queue interceptor applies to that call too.
 
-`getErrorMessage(err, fallback)` (exported alongside the default instance) normalizes NestJS's `ValidationPipe` error shape — `message` is a `string[]` for DTO validation failures, a plain `string` otherwise — into one readable string. Use it in every mutation's `onError` instead of reading `err.response?.data?.message` directly; the raw array renders as concatenated text with no separator.
+`getErrorMessage(err, fallback)` (exported alongside the default instance) appends `(ref: <requestId>)` to a **5xx** message, so a user can quote the backend's correlation ID (ADR-049). It also normalizes NestJS's `ValidationPipe` error shape — `message` is a `string[]` for DTO validation failures, a plain `string` otherwise — into one readable string. Use it in every mutation's `onError` instead of reading `err.response?.data?.message` directly; the raw array renders as concatenated text with no separator.
 
 ### Request Interceptor
 

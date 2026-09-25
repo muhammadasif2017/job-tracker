@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
+import { withRequestId } from '../../common/request-context.helper.js';
 
 /**
  * Queues regeneration of a job's LLM-written timeline summary. Nothing here
@@ -37,7 +38,9 @@ export class TimelineSummaryService {
     // first version, silently, until Redis was wiped.
     await this.queue.add(
       'summarize',
-      { jobId },
+      // A burst coalesces into one job, which keeps the first request's
+      // correlation ID; see ADR-049.
+      withRequestId({ jobId }),
       {
         jobId: `summarize-${jobId}`,
         attempts: 2,

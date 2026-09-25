@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
+import { requestIdField } from '../request-context.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
@@ -15,7 +16,7 @@ const PRISMA_NOT_FOUND = 'P2025';
 
 /**
  * Catch-all filter that gives every error response one JSON shape:
- * `statusCode`, `message`, `timestamp` and `path`. Nest HTTP exceptions keep
+ * `statusCode`, `message`, `timestamp`, `path` and `requestId`. Nest HTTP exceptions keep
  * their own body; the two Prisma codes above become a 409 or 404 instead of a
  * bare 500; an unhandled Redis connection failure becomes a 503; anything
  * else is logged with its stack and returned as an opaque 500.
@@ -29,10 +30,17 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
+    // The correlation ID comes from the request itself (set by
+    // requestIdMiddleware), not from async context, which a callback-based
+    // library can lose before throwing. It lets a user quote the error
+    // against the logs (ADR-049). Read inside the try: getRequest() can
+    // throw too, and this filter must not.
+    let correlation: { requestId?: string } = {};
     try {
-      const path = ctx.getRequest<Request>()?.url;
-      const body = this.buildBody(exception, path);
-      return response.status(body.statusCode).json(body);
+      const request = ctx.getRequest<Request & { id?: string }>();
+      correlation = requestIdField(request?.id);
+      const body = this.buildBody(exception, request?.url);
+      return response.status(body.statusCode).json({ ...body, ...correlation });
     } catch (filterError) {
       // The filter itself must never throw — a bug here would otherwise
       // crash the request with a raw, unhandled Express error instead of
@@ -45,6 +53,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Internal server error',
         timestamp: new Date().toISOString(),
+        ...correlation,
       });
     }
   }

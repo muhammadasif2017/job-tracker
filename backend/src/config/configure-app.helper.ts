@@ -9,10 +9,14 @@ import { RolesGuard } from '../common/guards/roles.guard.js';
 import { PatScopeGuard } from '../common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter.js';
 import { applyApiVersioning } from './api-versioning.helper.js';
+import {
+  REQUEST_ID_HEADER,
+  requestIdMiddleware,
+} from '../common/request-context.helper.js';
 
 /**
- * The request pipeline every instance of the app runs: proxy trust,
- * security headers, cookies, CORS, validation, the global guards, the
+ * The request pipeline every instance of the app runs: correlation IDs,
+ * proxy trust, security headers, cookies, CORS, validation, the global guards, the
  * exception filter and API versioning.
  *
  * `main.ts` and the e2e setup both call this, so the suite tests the same
@@ -39,6 +43,9 @@ export function configureApp(app: NestExpressApplication) {
     app.set('trust proxy', 1);
   }
 
+  // First, so every later middleware, guard, handler and log line runs inside
+  // the request's correlation context (ADR-049).
+  app.use(requestIdMiddleware);
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({
@@ -48,9 +55,14 @@ export function configureApp(app: NestExpressApplication) {
     // here. The CSV export needs both: `Content-Disposition` carries the
     // server-chosen filename, and `X-Export-Truncated` is the only signal
     // that the download hit the row cap — without it the browser silently
-    // saves a partial file. Caddy is a plain reverse proxy in prod (see
-    // Caddyfile), so this is the only place CORS is configured.
-    exposedHeaders: ['Content-Disposition', 'X-Export-Truncated'],
+    // saves a partial file. `X-Request-Id` lets the client show or report the
+    // correlation ID of a failed call. Caddy is a plain reverse proxy in prod
+    // (see Caddyfile), so this is the only place CORS is configured.
+    exposedHeaders: [
+      'Content-Disposition',
+      'X-Export-Truncated',
+      REQUEST_ID_HEADER,
+    ],
   });
 
   app.useGlobalPipes(

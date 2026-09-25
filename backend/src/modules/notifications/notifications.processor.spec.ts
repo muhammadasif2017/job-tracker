@@ -1,6 +1,7 @@
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsProcessor } from './notifications.processor.js';
 import { EmailService } from './email.service.js';
+import { currentRequestId } from '../../common/request-context.helper.js';
 
 describe('NotificationsProcessor', () => {
   const email = {
@@ -420,6 +421,35 @@ describe('NotificationsProcessor', () => {
         where: { id: 'round1', reminderSentAt: { not: null } },
         data: { reminderSentAt: null },
       });
+    });
+
+    it('logs the reset under the correlation ID of the failed job', async () => {
+      let idDuringReset: string | undefined;
+      const prisma = {
+        interviewRound: {
+          updateMany: jest.fn(() => {
+            idDuringReset = currentRequestId();
+            return Promise.resolve({ count: 1 });
+          }),
+        },
+      };
+      const processor = new NotificationsProcessor(
+        prisma as any,
+        email as any,
+        config as any,
+        logger as any,
+      );
+
+      await processor.onFailed({
+        id: '17',
+        queueName: 'notifications',
+        name: 'interview-reminder',
+        data: { roundId: 'round1', requestId: 'cron:interview-reminders:t0' },
+        attemptsMade: 2,
+        opts: { attempts: 2 },
+      } as any);
+
+      expect(idDuringReset).toBe('cron:interview-reminders:t0');
     });
 
     it('does nothing while attempts remain (BullMQ will retry on its own)', async () => {

@@ -1,4 +1,4 @@
-import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
+import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
@@ -9,6 +9,8 @@ import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
 import { interviewReminderEmail, digestEmail } from './templates.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
+import { runJobWithRequestId } from '../../common/request-context.helper.js';
+import { CorrelatedWorkerHost } from '../../common/correlated-worker-host.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
@@ -47,7 +49,9 @@ function dedupField(
  */
 @Injectable()
 @Processor(NOTIFICATIONS_QUEUE, withWorkerConnection({}))
-export class NotificationsProcessor extends WorkerHost {
+export class NotificationsProcessor extends CorrelatedWorkerHost<
+  Job<InterviewReminderJobData | DigestJobData>
+> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
@@ -57,8 +61,12 @@ export class NotificationsProcessor extends WorkerHost {
     super();
   }
 
-  /** Dispatches a queue job by name to its handler. Unknown names are ignored. */
-  async process(
+  /**
+   * Dispatches a queue job by name to its handler. Unknown names are
+   * ignored. Jobs carry the correlation ID of the cron scan that enqueued
+   * them (ADR-049).
+   */
+  protected async handle(
     job: Job<InterviewReminderJobData | DigestJobData>,
   ): Promise<void> {
     if (job.name === 'interview-reminder') {
@@ -83,13 +91,18 @@ export class NotificationsProcessor extends WorkerHost {
     if (!job || job.name !== 'interview-reminder') return;
     if (job.attemptsMade < (job.opts.attempts ?? 1)) return; // will retry itself
 
-    const { roundId } = job.data as InterviewReminderJobData;
-    await this.prisma.interviewRound.updateMany({
-      where: { id: roundId, reminderSentAt: { not: null } },
-      data: { reminderSentAt: null },
-    });
-    this.logger.warn('interview_reminder_permanently_failed_reset', {
-      roundId,
+    // Worker events fire outside `process`, so this runs in the job's
+    // correlation context by hand; otherwise the one line explaining why
+    // the round was un-stamped would carry no requestId (ADR-049).
+    await runJobWithRequestId(job, async () => {
+      const { roundId } = job.data as InterviewReminderJobData;
+      await this.prisma.interviewRound.updateMany({
+        where: { id: roundId, reminderSentAt: { not: null } },
+        data: { reminderSentAt: null },
+      });
+      this.logger.warn('interview_reminder_permanently_failed_reset', {
+        roundId,
+      });
     });
   }
 
