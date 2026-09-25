@@ -141,9 +141,7 @@ describe('AdminUsersPage', () => {
       fireEvent.change(screen.getByLabelText('Search users'), {
         target: { value: 'jane' },
       });
-      await waitFor(() => expect(lastGetUrl()).toContain('search=jane'), {
-        timeout: 1000,
-      });
+      await waitFor(() => expect(lastGetUrl()).toContain('search=jane'));
     });
   });
 

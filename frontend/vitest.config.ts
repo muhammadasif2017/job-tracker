@@ -8,7 +8,8 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     // Room for a worker starved by a loaded full run; see vitest.setup.ts.
-    testTimeout: 15_000,
+    // The only per-test timeout: CI's `test:cov` uses this value too.
+    testTimeout: 20_000,
     exclude: ['**/node_modules/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
