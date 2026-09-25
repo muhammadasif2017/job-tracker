@@ -170,7 +170,10 @@ describe('GlobalExceptionFilter', () => {
       filter.catch(
         err,
         hostWith({
-          url: '/v1/jobs',
+          method: 'GET',
+          url: '/v1/jobs/clx9abc',
+          baseUrl: '',
+          route: { path: '/v1/jobs/:id' },
           id: 'req-7',
           user: { id: 'u-7' },
         }) as never,
@@ -179,6 +182,8 @@ describe('GlobalExceptionFilter', () => {
       expect(reportError).toHaveBeenCalledWith(err, {
         requestId: 'req-7',
         userId: 'u-7',
+        // Named by route template, so the record ID stays out of the title.
+        transaction: 'GET /v1/jobs/:id',
       });
     });
 

@@ -9,6 +9,7 @@ import type { Request, Response } from 'express';
 import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
 import { requestIdField } from '../request-context.helper.js';
 import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
+import { routeLabel } from '../../infrastructure/metrics/http-metrics.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
@@ -64,6 +65,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         reportError(exception, {
           requestId: request?.id,
           userId: request?.user?.id,
+          // The route template, as the metrics use, never the raw path.
+          transaction: request
+            ? `${request.method} ${routeLabel(request)}`
+            : undefined,
         });
       }
       reportDecided = true;

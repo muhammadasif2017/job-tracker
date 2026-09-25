@@ -11,6 +11,12 @@ export interface ErrorReportContext {
   tags?: Record<string, string>;
   /** Unsearchable detail shown on the event. */
   extra?: Record<string, unknown>;
+  /**
+   * The event's title in Sentry, such as `GET /v1/jobs/:id`. Without spans the
+   * SDK can only name an event by its raw path, which carries record IDs and
+   * splits one route into many titles.
+   */
+  transaction?: string;
 }
 
 /**
@@ -25,6 +31,7 @@ export function reportError(err: unknown, context: ErrorReportContext = {}) {
     if (context.userId) scope.setUser({ id: context.userId });
     if (context.tags) scope.setTags(context.tags);
     if (context.extra) scope.setExtras(context.extra);
+    if (context.transaction) scope.setTransactionName(context.transaction);
     Sentry.captureException(err);
   });
 }
