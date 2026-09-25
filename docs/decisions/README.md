@@ -56,6 +56,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [047](./047-api-versioning-under-v1.md) | Serve every route at `/v1` plus an unversioned alias; `/health` and OAuth stay neutral; refresh cookie is scoped to the auth path of the surface the request used | Accepted |
 | [048](./048-circuit-breaker-around-groq.md) | A hand-rolled circuit breaker wraps every Groq call: 3 consecutive outages (no status, 429, 5xx) open it for 30s, then one trial call | Accepted |
 | [049](./049-correlation-ids.md) | `X-Request-Id` in, out and on every log line; carried into BullMQ jobs through AsyncLocalStorage and job data | Accepted |
+| [050](./050-sentry-error-tracking-backend.md) | Sentry for unexpected 5xx (not 503) and final job failures, tagged with `requestId`; cookies, headers and bodies never collected | Accepted |
 
 ## How to read an ADR
 

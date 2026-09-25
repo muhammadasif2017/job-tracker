@@ -32,6 +32,11 @@ COPY --from=builder /app/package.json ./package.json
 # ownership included. See the backend_uploads volume in docker-compose.prod.yml.
 RUN mkdir -p /app/uploads && chown nodeapp:nodejs /app/uploads
 USER nodeapp
+# The commit this image was built from, reported as the Sentry release so an
+# error maps to the exact code that threw it (ADR-050). Declared last so a
+# new SHA does not invalidate the cached layers above.
+ARG GIT_SHA
+ENV SENTRY_RELEASE=${GIT_SHA}
 EXPOSE 3001
 # Apply pending migrations, then boot. migrate deploy never generates or resets — safe for prod.
 CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node dist/main"]

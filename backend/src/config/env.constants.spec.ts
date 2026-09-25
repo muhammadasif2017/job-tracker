@@ -44,4 +44,17 @@ describe('ENV_VALIDATION_SCHEMA', () => {
 
     expect(error?.message).toMatch(/OCI_NAMESPACE/);
   });
+
+  it('accepts a Sentry DSN and rejects a malformed one', () => {
+    expect(
+      ENV_VALIDATION_SCHEMA.validate({
+        ...REQUIRED,
+        SENTRY_DSN: 'https://key@o1.ingest.us.sentry.io/2',
+      }).error,
+    ).toBeUndefined();
+    expect(
+      ENV_VALIDATION_SCHEMA.validate({ ...REQUIRED, SENTRY_DSN: 'not a url' })
+        .error?.message,
+    ).toMatch(/SENTRY_DSN/);
+  });
 });

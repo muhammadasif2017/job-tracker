@@ -370,6 +370,7 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 | `OCI_BUCKET_NAME`        | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`                                                                                                                                                                                                                                                                     |
 | `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
 | `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
+| `SENTRY_DSN`             | No       | —                        | Sentry error tracking (ADR-050); unset means off. Read by `src/instrument.ts` before `ConfigModule` exists. Production passes it through `docker-compose.prod.yml`, and the image sets `SENTRY_RELEASE` to the commit SHA                                                                                 |
 
 ---
 
@@ -394,6 +395,7 @@ Key relationships: `User → Job[] / Company[] / Account[] / RefreshToken[] / Ap
 - Throw NestJS built-in exceptions (`NotFoundException`, `ForbiddenException`, `BadRequestException`) — `GlobalExceptionFilter` passes them through unchanged.
 - Do **not** throw plain `Error` objects — they fall through to the 500 catch-all.
 - `GlobalExceptionFilter` catches `P2002` (unique) → 409, `P2025` (not found) → 404.
+- **Sentry (ADR-050).** `GlobalExceptionFilter` reports every response ≥ 500 except 503 through `reportError` (`src/infrastructure/error-tracking/error-tracking.helper.ts`). `CorrelatedWorkerHost` reports a job failure only when it is final. Both tag the event with `requestId`. To report an error you catch and handle yourself, call `reportError(err, { tags })`; it is a no-op without `SENTRY_DSN`. Never pass PII in tags or extra: a user ID is fine, an email is not.
 - Use `ValidationPipe` errors for DTO validation failures — these are automatic.
 
 ---

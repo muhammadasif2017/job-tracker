@@ -5,6 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter.js';
+import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
+
+jest.mock(
+  '../../infrastructure/error-tracking/error-tracking.helper.js',
+  () => ({
+    reportError: jest.fn(),
+  }),
+);
 
 const mockResponse = {
   status: jest.fn().mockReturnThis(),
@@ -143,5 +151,65 @@ describe('GlobalExceptionFilter', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(500);
     const body = mockResponse.json.mock.calls[0][0] as { message: string };
     expect(body.message).toBe('Internal server error');
+  });
+
+  describe('Sentry reporting (ADR-050)', () => {
+    function hostWith(request: object) {
+      return {
+        switchToHttp: () => ({
+          getResponse: () => mockResponse,
+          getRequest: () => request,
+        }),
+      };
+    }
+
+    it('reports an unexpected 500 with the request ID and user ID', () => {
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const err = new Error('db exploded');
+
+      filter.catch(
+        err,
+        hostWith({
+          url: '/v1/jobs',
+          id: 'req-7',
+          user: { id: 'u-7' },
+        }) as never,
+      );
+
+      expect(reportError).toHaveBeenCalledWith(err, {
+        requestId: 'req-7',
+        userId: 'u-7',
+      });
+    });
+
+    it.each([
+      ['a 404 HttpException', new NotFoundException('Job not found')],
+      ['a Prisma unique violation (409)', { code: 'P2002' }],
+      ['a Prisma not-found (404)', { code: 'P2025' }],
+      ['a Redis outage mapped to 503', new Error('Command timed out')],
+    ])('does not report %s', (_label, exception) => {
+      jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => {});
+
+      filter.catch(exception, hostWith({ url: '/v1/jobs' }) as never);
+
+      expect(reportError).not.toHaveBeenCalled();
+    });
+
+    it('still reports the original error when the filter itself fails', () => {
+      jest.spyOn(Logger.prototype, 'error').mockImplementation(() => {});
+      const err = new Error('original');
+      const brokenHost = {
+        switchToHttp: () => ({
+          getResponse: () => mockResponse,
+          getRequest: () => {
+            throw new Error('request context unavailable');
+          },
+        }),
+      };
+
+      filter.catch(err, brokenHost as never);
+
+      expect(reportError).toHaveBeenCalledWith(err, {});
+    });
   });
 });

@@ -68,6 +68,9 @@ services:
       OCI_BUCKET_NAME: ${OCI_BUCKET_NAME}
       OCI_ACCESS_KEY_ID: ${OCI_ACCESS_KEY_ID}
       OCI_SECRET_ACCESS_KEY: ${OCI_SECRET_ACCESS_KEY}
+      # Sentry error tracking (ADR-050). Empty means off. The DSN is not a
+      # secret: it only lets a client send events to this project.
+      SENTRY_DSN: ${SENTRY_DSN:-}
     # Only used when STORAGE_DRIVER=local, where resume PDFs are written to
     # /app/uploads inside the container. Without a volume they live in the
     # container's writable layer and `pull && up -d` destroys them, while the

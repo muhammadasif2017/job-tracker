@@ -39,4 +39,10 @@ export const ENV_VALIDATION_SCHEMA = Joi.object({
   OCI_BUCKET_NAME: ociRequired,
   OCI_ACCESS_KEY_ID: ociRequired,
   OCI_SECRET_ACCESS_KEY: ociRequired,
+  // Sentry (ADR-050). Unset means error tracking is off. src/instrument.ts
+  // reads these from process.env before ConfigModule exists; listed here so
+  // a malformed value still stops boot.
+  SENTRY_DSN: Joi.string().uri().optional(),
+  SENTRY_ENVIRONMENT: Joi.string().optional(),
+  SENTRY_RELEASE: Joi.string().optional(),
 });
