@@ -1841,6 +1841,21 @@ export interface components {
       /** @example 42 */
       count: number;
     };
+    CircuitStatusDto: {
+      /** @example Groq */
+      name: string;
+      /**
+       * @description closed: calls pass through. open: calls fail fast without reaching the upstream. half-open: one trial call is in flight.
+       * @example closed
+       * @enum {string}
+       */
+      state: 'closed' | 'open' | 'half-open';
+      /**
+       * @description Milliseconds until an open circuit lets a trial call through. 0 means the cool-down has passed and the next call will be the trial. Null unless open.
+       * @example null
+       */
+      retryAfterMs: number | null;
+    };
     QueueObservabilityDto: {
       queues: components['schemas']['QueueSnapshotDto'][];
       /** @description Global company enrichment status counts, not user-scoped. */
@@ -1850,6 +1865,8 @@ export interface components {
        * @example 0
        */
       strandedPending: number | null;
+      /** @description Circuit breakers around upstream services, in this process. */
+      circuits: components['schemas']['CircuitStatusDto'][];
     };
     CreateTokenDto: {
       /** @example Chrome extension */

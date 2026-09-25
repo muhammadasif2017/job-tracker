@@ -47,6 +47,7 @@ function observability(
       { status: null, label: 'Never triggered', count: 27 },
     ],
     strandedPending: 0,
+    circuits: [{ name: 'Groq', state: 'closed', retryAfterMs: null }],
     ...overrides,
   };
 }
@@ -115,6 +116,41 @@ describe('QueueHealthPanel', () => {
 
     await screen.findByText('Company enrichment');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows a closed circuit as passing calls through', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+
+    const row = (await screen.findByText('Groq')).closest('li');
+    expect(row).toHaveTextContent('Closed');
+    expect(row).toHaveTextContent('Calls pass through.');
+  });
+
+  it('shows an open circuit with the time until its trial call', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: observability({
+        circuits: [{ name: 'Groq', state: 'open', retryAfterMs: 12_400 }],
+      }),
+    });
+    renderPanel();
+
+    const row = (await screen.findByText('Groq')).closest('li');
+    expect(row).toHaveTextContent('Open');
+    expect(row).toHaveTextContent('trial call in 13s');
+  });
+
+  it('says the next call is the trial once the cool-down has passed', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: observability({
+        circuits: [{ name: 'Groq', state: 'open', retryAfterMs: 0 }],
+      }),
+    });
+    renderPanel();
+
+    expect(
+      await screen.findByText('Cool-down over; the next call is the trial.'),
+    ).toBeInTheDocument();
   });
 
   it('raises a prominent alert when companies are stranded', async () => {

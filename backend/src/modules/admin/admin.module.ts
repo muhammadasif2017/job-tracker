@@ -5,6 +5,7 @@ import { AdminController } from './admin.controller.js';
 import { AdminQueuesService } from './admin-queues.service.js';
 import { AdminQueuesController } from './admin-queues.controller.js';
 import { UsersModule } from '../users/users.module.js';
+import { EnrichmentModule } from '../enrichment/enrichment.module.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
@@ -15,6 +16,8 @@ import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js
   // a handle on them — same pattern as HealthModule.
   imports: [
     UsersModule,
+    // For LlmService's circuit state on the queues page.
+    EnrichmentModule,
     BullModule.registerQueue({ name: COMPANY_ENRICHMENT_QUEUE }),
     BullModule.registerQueue({ name: JOB_TIMELINE_SUMMARY_QUEUE }),
     BullModule.registerQueue({ name: NOTIFICATIONS_QUEUE }),

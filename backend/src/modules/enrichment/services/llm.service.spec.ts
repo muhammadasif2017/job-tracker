@@ -537,6 +537,19 @@ describe('LlmService Groq circuit breaker', () => {
     );
   });
 
+  it('reports the circuit state for the admin page', async () => {
+    expect(service.circuitStatus()).toMatchObject({
+      name: 'Groq',
+      state: 'closed',
+    });
+    mockCreate.mockRejectedValue(outage);
+    for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {
+      await expect(service.generateRoundPrep(input)).rejects.toBe(outage);
+    }
+
+    expect(service.circuitStatus()).toMatchObject({ state: 'open' });
+  });
+
   it('is shared by every Groq call, since they hit one upstream', async () => {
     mockCreate.mockRejectedValue(outage);
     for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {

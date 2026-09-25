@@ -3,7 +3,10 @@ import { BusinessMode } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
-import { CircuitBreaker } from '../../../infrastructure/resilience/circuit-breaker.js';
+import {
+  CircuitBreaker,
+  type CircuitStatus,
+} from '../../../infrastructure/resilience/circuit-breaker.js';
 
 /**
  * What one enrichment run yields about a company. Every field is nullable
@@ -262,6 +265,11 @@ export class LlmService {
           ? this.logger.warn('llm_circuit_opened', { from })
           : this.logger.log('llm_circuit_state', { from, to }),
     });
+  }
+
+  /** The Groq circuit's current state, for the admin queues page. */
+  circuitStatus(): CircuitStatus {
+    return this.breaker.status();
   }
 
   /**

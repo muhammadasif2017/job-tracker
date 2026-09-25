@@ -760,6 +760,14 @@ export interface CompanyStatusBucket {
 }
 
 /** The admin queues page data. */
+/** One circuit breaker around an upstream service (ADR-048). */
+export interface CircuitStatus {
+  name: string;
+  state: 'closed' | 'open' | 'half-open';
+  /** Ms until an open circuit allows a trial call; 0 = the next call is the trial; null unless open. */
+  retryAfterMs: number | null;
+}
+
 export interface QueueObservability {
   queues: QueueSnapshot[];
   companyStatuses: CompanyStatusBucket[];
@@ -769,4 +777,5 @@ export interface QueueObservability {
    * otherwise flag every legitimately queued row.
    */
   strandedPending: number | null;
+  circuits: CircuitStatus[];
 }

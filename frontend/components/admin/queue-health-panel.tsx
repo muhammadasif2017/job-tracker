@@ -5,7 +5,7 @@ import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '../../lib/utils';
 import { useAdminQueuesQuery } from '../../features/admin/hooks';
-import type { QueueSnapshot } from '../../types';
+import type { CircuitStatus, QueueSnapshot } from '../../types';
 
 /** Readable names for the BullMQ queues, keyed by queue name. */
 const QUEUE_LABELS: Record<string, string> = {
@@ -62,10 +62,29 @@ function QueueCard({ queue }: { queue: QueueSnapshot }) {
   );
 }
 
+/** Label and colour for each breaker state. */
+const CIRCUIT_STATE: Record<
+  CircuitStatus['state'],
+  { label: string; className: string }
+> = {
+  closed: { label: 'Closed', className: 'text-ink' },
+  'half-open': { label: 'Half-open', className: 'text-warning' },
+  open: { label: 'Open', className: 'text-danger' },
+};
+
+/** What an open circuit is waiting for, in words. */
+function circuitDetail(circuit: CircuitStatus): string {
+  if (circuit.state === 'closed') return 'Calls pass through.';
+  if (circuit.state === 'half-open') return 'One trial call in flight.';
+  if (!circuit.retryAfterMs)
+    return 'Cool-down over; the next call is the trial.';
+  return `Failing fast; trial call in ${Math.ceil(circuit.retryAfterMs / 1000)}s.`;
+}
+
 /**
- * The admin queues page body: per-queue depth, enrichment status counts from
- * the database, and a warning for companies stranded at PENDING. Refreshes
- * only on demand.
+ * The admin queues page body: per-queue depth, the circuit breakers in front
+ * of upstream services, enrichment status counts from the database, and a
+ * warning for companies stranded at PENDING. Refreshes only on demand.
  */
 export function QueueHealthPanel() {
   const { data, isLoading, isError, refetch, isFetching } =
@@ -158,6 +177,35 @@ export function QueueHealthPanel() {
                 <QueueCard key={q.name} queue={q} />
               ))}
             </div>
+
+            {data.circuits.length > 0 && (
+              <div className="rounded-md border border-line bg-paper p-4">
+                <h3 className="text-sm font-medium text-ink">
+                  Upstream circuit breakers
+                </h3>
+                <ul className="mt-3 space-y-2">
+                  {data.circuits.map((circuit) => {
+                    const state = CIRCUIT_STATE[circuit.state];
+                    return (
+                      <li
+                        key={circuit.name}
+                        className="flex flex-wrap items-baseline gap-x-3 text-sm"
+                      >
+                        <span className="font-medium text-ink">
+                          {circuit.name}
+                        </span>
+                        <span className={cn('font-semibold', state.className)}>
+                          {state.label}
+                        </span>
+                        <span className="text-muted">
+                          {circuitDetail(circuit)}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
 
             <div className="rounded-md border border-line bg-paper p-4">
               <h3 className="text-sm font-medium text-ink">

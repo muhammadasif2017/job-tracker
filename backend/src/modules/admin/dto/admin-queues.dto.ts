@@ -63,6 +63,28 @@ export class CompanyStatusBucketDto {
   count: number;
 }
 
+/** One circuit breaker on the admin queues page (ADR-048). */
+export class CircuitStatusDto {
+  @ApiProperty({ example: 'Groq' })
+  name: string;
+
+  @ApiProperty({
+    enum: ['closed', 'open', 'half-open'],
+    description:
+      'closed: calls pass through. open: calls fail fast without reaching the upstream. half-open: one trial call is in flight.',
+    example: 'closed',
+  })
+  state: 'closed' | 'open' | 'half-open';
+
+  @ApiProperty({
+    nullable: true,
+    example: null,
+    description:
+      'Milliseconds until an open circuit lets a trial call through. 0 means the cool-down has passed and the next call will be the trial. Null unless open.',
+  })
+  retryAfterMs: number | null;
+}
+
 /**
  * Response for the admin queues page: every queue, global company enrichment
  * status counts, and stranded PENDING rows.
@@ -85,4 +107,11 @@ export class QueueObservabilityDto {
       'Companies stuck at status PENDING with no matching enrichment job in Redis: DB PENDING count minus (waiting + active + delayed), floored at 0. These rows show "Queued…" forever and the CAS in triggerEnrichment rejects a retry with 409, so no user can recover them from the UI. Null when the enrichment queue is unavailable, because the subtraction would then report every legitimately queued row as stranded.',
   })
   strandedPending: number | null;
+
+  @ApiProperty({
+    type: () => CircuitStatusDto,
+    isArray: true,
+    description: 'Circuit breakers around upstream services, in this process.',
+  })
+  circuits: CircuitStatusDto[];
 }

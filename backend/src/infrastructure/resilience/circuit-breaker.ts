@@ -18,6 +18,14 @@ export class CircuitOpenError extends Error {
   }
 }
 
+/** A point-in-time view of one breaker, for the admin queues page. */
+export interface CircuitStatus {
+  name: string;
+  state: CircuitState;
+  /** Milliseconds until an open circuit lets a trial call through; null otherwise. */
+  retryAfterMs: number | null;
+}
+
 /** Tuning and hooks for one breaker. */
 export interface CircuitBreakerOptions {
   /** Names the upstream in errors and logs. */
@@ -70,6 +78,25 @@ export class CircuitBreaker {
   /** The current state, for health reporting and tests. */
   get currentState(): CircuitState {
     return this.state;
+  }
+
+  /**
+   * The breaker's name, state and remaining cool-down. An open circuit whose
+   * cool-down has passed still reads `open` with `retryAfterMs: 0`: it only
+   * moves to half-open when the next call arrives to be the trial.
+   */
+  status(): CircuitStatus {
+    return {
+      name: this.options.name,
+      state: this.state,
+      retryAfterMs:
+        this.state === 'open'
+          ? Math.max(
+              0,
+              this.options.resetTimeoutMs - (this.now() - this.openedAt),
+            )
+          : null,
+    };
   }
 
   /** Runs `call` through the breaker, or throws `CircuitOpenError` without running it. */

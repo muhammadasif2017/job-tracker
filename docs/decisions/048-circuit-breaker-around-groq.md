@@ -60,11 +60,23 @@ did before, only without the wait.
 
 ## Consequences
 
-- **During a Groq outage, requests fail fast.** Measured by pointing
-  `GROQ_BASE_URL` at a closed port: the circuit opened after the third
-  failing `POST /v1/jobs/parse`, and later calls answered
-  `parserUnavailable` in 16ms without calling Groq. A hanging Groq is where
-  it pays off: each call would otherwise wait up to about 90s.
+- **During a Groq outage, requests fail fast.** Measured on 2026-09-24
+  against a stub that accepts connections and never answers, standing in
+  for a hanging Groq:
+
+  | `POST /v1/jobs/parse` | Time |
+  |---|---|
+  | calls 1–3, circuit closed | 90.5s each (45s SDK timeout, retried once) |
+  | calls 4–5, circuit open | 0.05s, 0.01s, `parserUnavailable` |
+
+  Without the breaker, the frontend's 60s timeout on this call fired first,
+  so the user saw a timeout while the server kept working for another 30s.
+- **The state is visible on the admin queues page.** `GET
+  /v1/admin/queues` returns `circuits: [{ name, state, retryAfterMs }]`, and
+  the page shows a row per breaker: closed, open with the time left until
+  the trial call, or half-open. It is kept out of `/health` on purpose. A
+  Groq outage must not turn the API's health check red, since CI's boot
+  wait and container monitoring poll it.
 - **Background jobs fail fast too.** An enrichment job that hits an open
   circuit fails, is retried by BullMQ after 10s, and most likely hits the
   circuit again, so the company ends up `FAILED`. That is where it would

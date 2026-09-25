@@ -151,4 +151,24 @@ describe('CircuitBreaker', () => {
 
     await expect(breaker.execute(ok)).resolves.toBe('ok');
   });
+
+  it('reports its state and remaining cool-down', async () => {
+    const { breaker, advance } = setup();
+    expect(breaker.status()).toEqual({
+      name: 'Upstream',
+      state: 'closed',
+      retryAfterMs: null,
+    });
+
+    await failTimes(breaker, 3);
+    advance(12_000);
+    expect(breaker.status()).toEqual({
+      name: 'Upstream',
+      state: 'open',
+      retryAfterMs: 18_000,
+    });
+
+    advance(40_000);
+    expect(breaker.status().retryAfterMs).toBe(0);
+  });
 });
