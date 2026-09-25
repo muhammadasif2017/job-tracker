@@ -72,13 +72,23 @@ const CIRCUIT_STATE: Record<
   open: { label: 'Open', className: 'text-danger' },
 };
 
-/** What an open circuit is waiting for, in words. */
+/**
+ * What a circuit is doing, in words. An open circuit names the clock time of
+ * its trial call rather than a countdown: the data may come from a cache
+ * entry up to 30s old, and an absolute time stays right regardless.
+ */
 function circuitDetail(circuit: CircuitStatus): string {
   if (circuit.state === 'closed') return 'Calls pass through.';
   if (circuit.state === 'half-open') return 'One trial call in flight.';
-  if (!circuit.retryAfterMs)
+  if (!circuit.retryAfterMs || circuit.retryAt === null) {
     return 'Cool-down over; the next call is the trial.';
-  return `Failing fast; trial call in ${Math.ceil(circuit.retryAfterMs / 1000)}s.`;
+  }
+  const at = new Date(circuit.retryAt).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+  return `Failing fast; trial call from ${at}.`;
 }
 
 /**

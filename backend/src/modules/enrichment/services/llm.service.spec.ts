@@ -535,6 +535,7 @@ describe('LlmService Groq circuit breaker', () => {
     await expect(service.generateRoundPrep(input)).resolves.toBe(
       '- Prepare a system design',
     );
+    expect(service.circuitStatus().state).toBe('closed');
   });
 
   it('reports the circuit state for the admin page', async () => {
@@ -566,15 +567,15 @@ describe('isGroqOutage', () => {
   it.each([
     [
       'a connection failure or timeout (no status)',
-      new Error('ECONNRESET'),
       true,
+      new Error('ECONNRESET'),
     ],
-    ['a 429 rate limit', { status: 429 }, true],
-    ['a 500', { status: 500 }, true],
-    ['a 503', { status: 503 }, true],
-    ['a 400 such as tool_use_failed', { status: 400 }, false],
-    ['a 401 bad key', { status: 401 }, false],
-  ])('treats %s as outage=%s', (_label, err, expected) => {
+    ['a 429 rate limit', true, { status: 429 }],
+    ['a 500', true, { status: 500 }],
+    ['a 503', true, { status: 503 }],
+    ['a 400 such as tool_use_failed', false, { status: 400 }],
+    ['a 401 bad key', false, { status: 401 }],
+  ])('treats %s as outage=%s', (_label, expected, err) => {
     expect(isGroqOutage(err)).toBe(expected);
   });
 });

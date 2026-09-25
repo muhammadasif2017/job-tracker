@@ -759,15 +759,21 @@ export interface CompanyStatusBucket {
   count: number;
 }
 
-/** The admin queues page data. */
 /** One circuit breaker around an upstream service (ADR-048). */
 export interface CircuitStatus {
   name: string;
   state: 'closed' | 'open' | 'half-open';
-  /** Ms until an open circuit allows a trial call; 0 = the next call is the trial; null unless open. */
+  /** Ms until an open circuit allows a trial call, as of the response; 0 = the next call is the trial; null unless open. */
   retryAfterMs: number | null;
+  /**
+   * Client-side: epoch ms when the trial call becomes possible, fixed by
+   * `useAdminQueuesQuery` when the response arrives, so a cached response
+   * still shows the right moment. Null unless open.
+   */
+  retryAt: number | null;
 }
 
+/** The admin queues page data. */
 export interface QueueObservability {
   queues: QueueSnapshot[];
   companyStatuses: CompanyStatusBucket[];

@@ -162,13 +162,6 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
 }
 
 /**
- * Groq's structured-output generation occasionally produces a tool call
- * that fails its own schema validation (400, code `tool_use_failed`) — a
- * generation-time glitch, not a bad request. Duck-typed rather than
- * `instanceof Groq.APIError` so it works whether the SDK's real error class
- * or a test double is thrown.
- */
-/**
  * Whether a Groq error means Groq itself is unhealthy, for the circuit
  * breaker. No HTTP status (a connection failure or a client-side timeout),
  * a 429 and any 5xx count. Other 4xx do not: Groq answered, and the request
@@ -184,7 +177,21 @@ export function isGroqOutage(err: unknown): boolean {
 export const GROQ_FAILURE_THRESHOLD = 3;
 /** How long the Groq circuit stays open before one trial call. */
 export const GROQ_RESET_TIMEOUT_MS = 30_000;
+/**
+ * Breaker-level deadline on the half-open trial. The SDK's 45s timeout does
+ * not cover the whole call: it is cleared once response headers arrive, so a
+ * stalled body, or a long 429 `retry-after` it sleeps through, could hold the
+ * trial, and with it every other Groq call, for minutes.
+ */
+export const GROQ_TRIAL_TIMEOUT_MS = 60_000;
 
+/**
+ * Groq's structured-output generation occasionally produces a tool call
+ * that fails its own schema validation (400, code `tool_use_failed`) — a
+ * generation-time glitch, not a bad request. Duck-typed rather than
+ * `instanceof Groq.APIError` so it works whether the SDK's real error class
+ * or a test double is thrown.
+ */
 function isToolUseFailedError(err: unknown): boolean {
   if (!err || typeof err !== 'object') return false;
   const e = err as { status?: number; error?: { error?: { code?: string } } };
@@ -259,6 +266,7 @@ export class LlmService {
       name: 'Groq',
       failureThreshold: GROQ_FAILURE_THRESHOLD,
       resetTimeoutMs: GROQ_RESET_TIMEOUT_MS,
+      trialTimeoutMs: GROQ_TRIAL_TIMEOUT_MS,
       isFailure: isGroqOutage,
       onStateChange: (from, to) =>
         to === 'open'

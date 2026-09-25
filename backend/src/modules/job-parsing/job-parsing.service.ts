@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationChannel } from '@prisma/client';
 import { Logger } from 'nestjs-pino';
+import { CircuitOpenError } from '../../infrastructure/resilience/circuit-breaker.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
 import {
   SearchService,
@@ -62,9 +63,11 @@ export class JobParsingService {
    * extract from", which the response reports as `parserUnavailable` — the
    * two mean different things to the user.
    */
-  private async tryExtractJobPosting(
-    content: string,
-  ): Promise<{ parsed?: ParsedJobData; failed: boolean }> {
+  private async tryExtractJobPosting(content: string): Promise<{
+    parsed?: ParsedJobData;
+    failed: boolean;
+    circuitOpen?: boolean;
+  }> {
     if (!content) return { failed: false };
     try {
       return {
@@ -75,8 +78,18 @@ export class JobParsingService {
       this.logger.warn('parse_job_posting_failed', {
         error: err instanceof Error ? err.message : String(err),
       });
-      return { failed: true };
+      return { failed: true, circuitOpen: err instanceof CircuitOpenError };
     }
+  }
+
+  /**
+   * True while the Groq circuit is open and still cooling down (ADR-048). A
+   * search fallback would then spend a Tavily call only to hand its results
+   * to an extraction that is certain to fail fast.
+   */
+  private isParserCircuitOpen(): boolean {
+    const circuit = this.llm.circuitStatus();
+    return circuit.state === 'open' && (circuit.retryAfterMs ?? 0) > 0;
   }
 
   /**
@@ -116,7 +129,14 @@ export class JobParsingService {
     // Second phase: primary content was missing or extraction failed. Only
     // worth retrying when we have a URL to search for - a bare failed-text
     // extraction gives us nothing to search with.
-    if (!parsed && dto.url) {
+    if (
+      !parsed &&
+      dto.url &&
+      (primary.circuitOpen || this.isParserCircuitOpen())
+    ) {
+      // The parser cannot run right now; skip the paid search fallback.
+      llmFailed = true;
+    } else if (!parsed && dto.url) {
       let snippets: string[];
       try {
         snippets = (await this.search.search(dto.url)) ?? [];

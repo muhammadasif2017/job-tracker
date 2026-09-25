@@ -8,6 +8,10 @@ import {
   SearchUnavailableError,
 } from '../enrichment/services/search.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
+import {
+  CircuitOpenError,
+  type CircuitStatus,
+} from '../../infrastructure/resilience/circuit-breaker.js';
 
 const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
   WebFetchService,
@@ -17,10 +21,15 @@ const mockSearch = { search: jest.fn() } satisfies Pick<
   SearchService,
   'search'
 >;
-const mockLlm = { extractJobPosting: jest.fn() } satisfies Pick<
-  LlmService,
-  'extractJobPosting'
->;
+const CIRCUIT_CLOSED: CircuitStatus = {
+  name: 'Groq',
+  state: 'closed',
+  retryAfterMs: null,
+};
+const mockLlm = {
+  extractJobPosting: jest.fn(),
+  circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
+} satisfies Pick<LlmService, 'extractJobPosting' | 'circuitStatus'>;
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 
 describe('JobParsingService', () => {
@@ -28,6 +37,7 @@ describe('JobParsingService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockLlm.circuitStatus.mockReturnValue(CIRCUIT_CLOSED);
     const module = await Test.createTestingModule({
       providers: [
         JobParsingService,
@@ -38,6 +48,60 @@ describe('JobParsingService', () => {
       ],
     }).compile();
     service = module.get(JobParsingService);
+  });
+
+  describe('parseJobPosting while the Groq circuit is open', () => {
+    it('skips the paid search fallback when extraction hit the open circuit', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('Senior Engineer at Acme');
+      mockLlm.extractJobPosting.mockRejectedValue(
+        new CircuitOpenError('Groq', 12_000),
+      );
+
+      const result = await service.parseJobPosting({
+        url: 'https://jobs.example.com/1',
+      });
+
+      expect(result).toEqual({
+        url: 'https://jobs.example.com/1',
+        parserUnavailable: true,
+      });
+      expect(mockSearch.search).not.toHaveBeenCalled();
+    });
+
+    it('skips it too when the page gave no content but the circuit is open', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.circuitStatus.mockReturnValue({
+        name: 'Groq',
+        state: 'open',
+        retryAfterMs: 5_000,
+      });
+
+      const result = await service.parseJobPosting({
+        url: 'https://jobs.example.com/1',
+      });
+
+      expect(result).toMatchObject({ parserUnavailable: true });
+      expect(mockSearch.search).not.toHaveBeenCalled();
+      expect(mockLlm.extractJobPosting).not.toHaveBeenCalled();
+    });
+
+    it('still searches once the cool-down is over, since the next call is the trial', async () => {
+      mockWebFetch.fetchPageText.mockResolvedValue('');
+      mockLlm.circuitStatus.mockReturnValue({
+        name: 'Groq',
+        state: 'open',
+        retryAfterMs: 0,
+      });
+      mockSearch.search.mockResolvedValue([]);
+
+      await service
+        .parseJobPosting({ url: 'https://jobs.example.com/1' })
+        .catch(() => undefined);
+
+      expect(mockSearch.search).toHaveBeenCalledWith(
+        'https://jobs.example.com/1',
+      );
+    });
   });
 
   describe('parseJobPosting', () => {

@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
-import type { PaginatedAdminUsers, QueueObservability } from '../../types';
+import type {
+  CircuitStatus,
+  PaginatedAdminUsers,
+  QueueObservability,
+} from '../../types';
 
 /** Paging and search state for the admin user list. */
 export interface AdminUsersFilters {
@@ -39,6 +43,32 @@ export function useDeleteAdminUserMutation(onDeleted?: () => void) {
 }
 
 /**
+ * Normalizes the queues response as it arrives. `circuits` defaults to []:
+ * the frontend deploys before the backend, so for a while it can talk to a
+ * backend that has no such field. Each open circuit's relative
+ * `retryAfterMs` becomes an absolute `retryAt` now, at receipt: the cache is
+ * shared with the sidebar badge and stays fresh for 30s, as long as the
+ * cool-down itself, so a relative value read later could be off by all of it.
+ */
+function withCircuitDeadlines(
+  data: Omit<QueueObservability, 'circuits'> & {
+    circuits?: Array<Omit<CircuitStatus, 'retryAt'>>;
+  },
+): QueueObservability {
+  const receivedAt = Date.now();
+  return {
+    ...data,
+    circuits: (data.circuits ?? []).map((circuit) => ({
+      ...circuit,
+      retryAt:
+        circuit.retryAfterMs === null
+          ? null
+          : receivedAt + circuit.retryAfterMs,
+    })),
+  };
+}
+
+/**
  * Queue and enrichment health for the admin queues page and the sidebar badge.
  *
  * Deliberately no `refetchInterval` short enough to be a poll. The stranded
@@ -54,7 +84,8 @@ export function useDeleteAdminUserMutation(onDeleted?: () => void) {
 export function useAdminQueuesQuery(enabled = true) {
   return useQuery<QueueObservability>({
     queryKey: ['admin-queues'],
-    queryFn: () => api.get('/admin/queues').then((r) => r.data),
+    queryFn: () =>
+      api.get('/admin/queues').then((r) => withCircuitDeadlines(r.data)),
     staleTime: 30_000,
     enabled,
   });

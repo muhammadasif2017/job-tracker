@@ -1,7 +1,7 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus, type Company } from '@prisma/client';
-import { UnrecoverableError, type Job } from 'bullmq';
+import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
@@ -18,6 +18,12 @@ import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 import { techFromJobTitles } from '../../../common/tech-tokens.js';
 import { withWorkerConnection } from '../../../infrastructure/redis/redis-connection.helper.js';
 
+/**
+ * Slack added to the circuit's remaining cool-down before a deferred job
+ * runs again, so it lands after the circuit is ready for its trial rather
+ * than a few milliseconds before.
+ */
+const CIRCUIT_DELAY_MARGIN_MS = 1_000;
 /**
  * Character budget for the official-website section of the assembled LLM
  * context. Both budgets sit well inside gpt-oss-120b's window: the previous
@@ -67,7 +73,10 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
    * not retry them; other failures rethrow for a retry unless an extraction
    * was already salvaged. A company deleted mid-run is left alone.
    */
-  async process(job: Job<{ companyId: string }>): Promise<void> {
+  async process(
+    job: Job<{ companyId: string }>,
+    token?: string,
+  ): Promise<void> {
     const { companyId } = job.data;
     const startedAt = Date.now();
 
@@ -77,6 +86,22 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
     if (!dbCompany) {
       this.logger.warn('company_enrichment_not_found', { companyId });
       return;
+    }
+
+    // While the Groq circuit is open the extraction at the end is certain to
+    // fail fast, so running now would spend Tavily searches and page fetches
+    // for nothing and burn both attempts inside one cool-down (ADR-048).
+    // Park the job until the circuit allows its trial call instead. A
+    // delayed job keeps its attempts, and the row stays PENDING ("Queued").
+    const circuit = this.llm.circuitStatus();
+    if (circuit.state === 'open' && circuit.retryAfterMs) {
+      const delayMs = circuit.retryAfterMs + CIRCUIT_DELAY_MARGIN_MS;
+      this.logger.log('company_enrichment_deferred_circuit_open', {
+        companyId,
+        delayMs,
+      });
+      await job.moveToDelayed(Date.now() + delayMs, token);
+      throw new DelayedError();
     }
 
     const company = dbCompany.name;
