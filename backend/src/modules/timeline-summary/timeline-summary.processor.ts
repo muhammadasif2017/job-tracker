@@ -53,7 +53,11 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
       select: { id: true, company: true, position: true },
     });
     if (!dbJob) {
-      this.logger.warn('timeline_summary_job_not_found', { jobId });
+      this.logger.warn(
+        { jobId },
+        'timeline_summary_job_not_found',
+        TimelineSummaryProcessor.name,
+      );
       return;
     }
 
@@ -81,9 +85,13 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
         select: { id: true },
       });
       if (!stillExists) {
-        this.logger.log('timeline_summary_job_deleted_during_processing', {
-          jobId,
-        });
+        this.logger.log(
+          {
+            jobId,
+          },
+          'timeline_summary_job_deleted_during_processing',
+          TimelineSummaryProcessor.name,
+        );
         return;
       }
 
@@ -92,10 +100,14 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
         data: { timelineSummary: summary, timelineSummaryAt: new Date() },
       });
     } catch (error) {
-      this.logger.warn('timeline_summary_failed', {
-        jobId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      this.logger.warn(
+        {
+          jobId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'timeline_summary_failed',
+        TimelineSummaryProcessor.name,
+      );
       throw error;
     }
   }

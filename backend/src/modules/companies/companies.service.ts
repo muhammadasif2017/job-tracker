@@ -146,10 +146,14 @@ export class CompaniesService {
     } catch (err: unknown) {
       // Enrichment is best-effort; company creation always succeeds even if
       // the queue is unreachable — same contract as JobsService.create.
-      this.logger.warn('Company enrichment enqueue failed', {
-        companyId: company.id,
-        err,
-      });
+      this.logger.warn(
+        {
+          companyId: company.id,
+          err,
+        },
+        'Company enrichment enqueue failed',
+        CompaniesService.name,
+      );
       return company;
     }
 

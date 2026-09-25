@@ -79,8 +79,8 @@ describe('RedisService', () => {
     fake.emit('error', new Error('ECONNREFUSED'));
 
     expect(error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
       'Redis connection error',
-      expect.any(Error),
     );
   });
 

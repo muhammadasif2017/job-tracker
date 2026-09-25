@@ -113,6 +113,7 @@ export class AdminQueuesService {
       this.logger.warn(
         { err: error, queue: name },
         'Queue counts unavailable; returning the database half only',
+        AdminQueuesService.name,
       );
       return { name, available: false, counts: null };
     }

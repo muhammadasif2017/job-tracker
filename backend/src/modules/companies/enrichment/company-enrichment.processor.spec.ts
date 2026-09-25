@@ -755,8 +755,9 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'company_enrichment_profile_update_failed',
       expect.objectContaining({ phase: 'mark_failed' }),
+      'company_enrichment_profile_update_failed',
+      CompanyEnrichmentProcessor.name,
     );
   });
 });

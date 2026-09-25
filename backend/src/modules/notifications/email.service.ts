@@ -40,7 +40,11 @@ export class EmailService {
    */
   async send({ to, subject, html }: SendEmailInput): Promise<void> {
     if (!this.resend) {
-      this.logger.warn('email_send_skipped_no_api_key', { to, subject });
+      this.logger.warn(
+        { to, subject },
+        'email_send_skipped_no_api_key',
+        EmailService.name,
+      );
       return;
     }
     // The Resend SDK doesn't throw on an API-level failure — it resolves
@@ -53,7 +57,11 @@ export class EmailService {
       html,
     });
     if (error) {
-      this.logger.warn('email_send_failed', { to, subject, error });
+      this.logger.warn(
+        { to, subject, error },
+        'email_send_failed',
+        EmailService.name,
+      );
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }

@@ -17,6 +17,10 @@ export async function bestEffortEnqueueTimelineSummary(
   try {
     await timelineSummary.enqueue(jobId);
   } catch (err: unknown) {
-    logger.warn('Timeline summary enqueue failed', { jobId, err });
+    logger.warn(
+      { jobId, err },
+      'Timeline summary enqueue failed',
+      'TimelineSummaryEnqueue',
+    );
   }
 }

@@ -42,7 +42,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
       },
     );
     this.client.on('error', (err) =>
-      this.logger.error('Redis connection error', err),
+      this.logger.error({ err }, 'Redis connection error'),
     );
   }
 

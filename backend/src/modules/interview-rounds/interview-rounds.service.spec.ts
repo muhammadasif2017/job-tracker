@@ -695,8 +695,9 @@ describe('InterviewRoundsService', () => {
 
       expect(result.id).toBe('round-1');
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'round_prep_generation_failed',
         expect.objectContaining({ jobId: 'job-1' }),
+        'round_prep_generation_failed',
+        InterviewRoundsService.name,
       );
     });
   });
@@ -757,8 +758,9 @@ describe('InterviewRoundsService', () => {
         }),
       });
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'round_note_invalid_timezone',
         expect.anything(),
+        'round_note_invalid_timezone',
+        InterviewRoundsService.name,
       );
     });
 

@@ -436,6 +436,8 @@ To follow one user action end to end, grep the logs for its ID.
 
 **Sentry Logs (ADR-053).** `warn`, `error` and `fatal` lines also go to Sentry Logs (Explore → Logs, searchable by `requestId`). Only allowlisted fields leave the VM: `scrubLogAttributes` (`src/infrastructure/error-tracking/log-attributes.helper.ts`) keeps `requestId`, `context`, a few IDs, the request method and query-free path, the status code and the error's type, message and stack. To send a new field, add it to `SENT_LOG_FIELDS` deliberately. Never log PII under an allowlisted key.
 
+**Log object-first, with a fixed message.** With the injected nestjs-pino `Logger`, write `this.logger.warn({ jobId, err }, 'job_failed', MyService.name)`. It files the _last_ extra argument as the context, so without the trailing class name the message becomes the context and is lost. The old `warn('msg', { jobId })` puts the object under `context`, where no field is searchable. With Nest's `Logger` (`new Logger(X.name)`), `warn({ err }, 'msg')` is enough. Keep error text in `err`, never interpolated into the message.
+
 ---
 
 ## E2E Tests (`test/app.e2e-spec.ts`)

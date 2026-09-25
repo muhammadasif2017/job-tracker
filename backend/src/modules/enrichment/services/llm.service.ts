@@ -270,8 +270,8 @@ export class LlmService {
       isFailure: isGroqOutage,
       onStateChange: (from, to) =>
         to === 'open'
-          ? this.logger.warn('llm_circuit_opened', { from })
-          : this.logger.log('llm_circuit_state', { from, to }),
+          ? this.logger.warn({ from }, 'llm_circuit_opened', LlmService.name)
+          : this.logger.log({ from, to }, 'llm_circuit_state', LlmService.name),
     });
   }
 
@@ -294,7 +294,7 @@ export class LlmService {
       return await this.breaker.execute(call);
     } catch (err) {
       if (!isToolUseFailedError(err)) throw err;
-      this.logger.warn('llm_tool_use_failed_retry', { model });
+      this.logger.warn({ model }, 'llm_tool_use_failed_retry', LlmService.name);
       return await this.breaker.execute(call);
     }
   }
@@ -384,10 +384,14 @@ export class LlmService {
       >;
       return sanitize(raw);
     } catch (err) {
-      this.logger.warn('llm_extract_failed', {
-        company: companyName,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: companyName,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'llm_extract_failed',
+        LlmService.name,
+      );
       throw err;
     }
   }
@@ -429,9 +433,13 @@ export class LlmService {
       >;
       return sanitizeJobPosting(raw);
     } catch (err) {
-      this.logger.warn('llm_extract_job_posting_failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'llm_extract_job_posting_failed',
+        LlmService.name,
+      );
       throw err;
     }
   }
@@ -476,10 +484,14 @@ export class LlmService {
       if (!content) throw new Error('Empty response from Groq');
       return content;
     } catch (err) {
-      this.logger.warn('llm_generate_round_prep_failed', {
-        company: input.company,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: input.company,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'llm_generate_round_prep_failed',
+        LlmService.name,
+      );
       throw err;
     }
   }
@@ -531,10 +543,14 @@ export class LlmService {
       if (!content) throw new Error('Empty response from Groq');
       return content;
     } catch (err) {
-      this.logger.warn('llm_summarize_events_failed', {
-        company: context.company,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: context.company,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'llm_summarize_events_failed',
+        LlmService.name,
+      );
       throw err;
     }
   }

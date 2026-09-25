@@ -2,7 +2,8 @@
  * Log fields that may leave the VM for Sentry Logs (ADR-053). An allowlist,
  * not a denylist: a log line can carry anything a developer passed to it,
  * such as the `to` address the email service logs. A new field stays on the
- * VM until someone adds it here on purpose.
+ * VM until someone adds it here on purpose. IDs only, never names or
+ * addresses.
  */
 const SENT_LOG_FIELDS = new Set([
   'requestId',
@@ -10,21 +11,39 @@ const SENT_LOG_FIELDS = new Set([
   'jobId',
   'companyId',
   'roundId',
+  'userId',
   'queue',
   'model',
+  'phase',
   'status',
   'responseTime',
 ]);
 
-/** Prefixes of the attributes Sentry itself adds (release, SDK, level). */
-const SENTRY_OWN_PREFIXES = ['sentry.', 'pino.'];
+/**
+ * Attributes Sentry itself adds that are kept: the release, environment,
+ * SDK and level. Not every `sentry.` key: `sentry.message.parameter.*` holds
+ * values interpolated into a message template.
+ */
+const SENTRY_OWN_PREFIXES = [
+  'sentry.release',
+  'sentry.environment',
+  'sentry.sdk.',
+  'sentry.origin',
+  'sentry.timestamp.',
+  'pino.',
+];
 
 /**
- * Reduces a pino log line's fields to what Sentry may store. From `req` it
- * keeps only the method and the path without the query string (search terms
- * live there); from `res` only the status code; from `err` its type,
- * message and stack. Headers, cookies, bodies and every field not in the
- * allowlist are dropped.
+ * Reduces a pino log line's fields to what Sentry may store.
+ *
+ * - An allowlisted field passes only as a string, number or boolean. An
+ *   object under an allowed key could carry anything: nestjs-pino files the
+ *   last extra argument of `logger.warn('msg', { to })` under `context`.
+ * - From `req` it keeps the method and the path without the query string,
+ *   where search terms live; from `res` the status code.
+ * - From `err` only the type. Its message and stack can quote user input,
+ *   and the error events in Sentry Issues already carry them.
+ * - Headers, cookies, bodies and every other field are dropped.
  */
 export function scrubLogAttributes(
   attributes: Record<string, unknown>,
@@ -32,12 +51,10 @@ export function scrubLogAttributes(
   const kept: Record<string, unknown> = {};
 
   for (const [key, value] of Object.entries(attributes)) {
-    if (
+    const allowed =
       SENT_LOG_FIELDS.has(key) ||
-      SENTRY_OWN_PREFIXES.some((prefix) => key.startsWith(prefix))
-    ) {
-      kept[key] = value;
-    }
+      SENTRY_OWN_PREFIXES.some((prefix) => key.startsWith(prefix));
+    if (allowed && isPrimitive(value)) kept[key] = value;
   }
 
   const req = asRecord(attributes.req);
@@ -54,11 +71,14 @@ export function scrubLogAttributes(
   }
 
   const err = asRecord(attributes.err);
-  for (const field of ['type', 'message', 'stack'] as const) {
-    if (typeof err?.[field] === 'string') kept[`error.${field}`] = err[field];
-  }
+  if (typeof err?.type === 'string') kept['error.type'] = err.type;
 
   return kept;
+}
+
+/** True for the value kinds a log attribute may carry out of the VM. */
+function isPrimitive(value: unknown): value is string | number | boolean {
+  return ['string', 'number', 'boolean'].includes(typeof value);
 }
 
 /** The value as a plain object, or undefined when it is not one. */

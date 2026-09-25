@@ -28,8 +28,9 @@ describe('EmailService', () => {
 
     expect(sendMock).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
-      'email_send_skipped_no_api_key',
       expect.objectContaining({ to: 'a@b.com' }),
+      'email_send_skipped_no_api_key',
+      EmailService.name,
     );
   });
 
@@ -73,8 +74,9 @@ describe('EmailService', () => {
     ).rejects.toThrow('invalid from address');
 
     expect(logger.warn).toHaveBeenCalledWith(
-      'email_send_failed',
       expect.objectContaining({ to: 'a@b.com' }),
+      'email_send_failed',
+      EmailService.name,
     );
   });
 });

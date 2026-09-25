@@ -54,7 +54,11 @@ export class InterviewRoundsService {
     try {
       await this.timelineSummary.enqueue(jobId);
     } catch (err: unknown) {
-      this.logger.warn('Timeline summary enqueue failed', { jobId, err });
+      this.logger.warn(
+        { jobId, err },
+        'Timeline summary enqueue failed',
+        InterviewRoundsService.name,
+      );
     }
   }
 
@@ -110,10 +114,14 @@ export class InterviewRoundsService {
     if (invalidStoredZone) {
       // A malformed timezone (hand-edited via Prisma Studio) must not fail the
       // round creation - the note falls back to UTC, and this surfaces the row.
-      this.logger.warn('round_note_invalid_timezone', {
-        userId,
-        timezone: invalidStoredZone,
-      });
+      this.logger.warn(
+        {
+          userId,
+          timezone: invalidStoredZone,
+        },
+        'round_note_invalid_timezone',
+        InterviewRoundsService.name,
+      );
     }
     const when = scheduledAt.toLocaleString('en-US', {
       year: 'numeric',
@@ -328,7 +336,11 @@ export class InterviewRoundsService {
       try {
         await this.maybeGenerateNextRoundPrep(jobId, result);
       } catch (err: unknown) {
-        this.logger.warn('round_prep_generation_failed', { jobId, err });
+        this.logger.warn(
+          { jobId, err },
+          'round_prep_generation_failed',
+          InterviewRoundsService.name,
+        );
       }
     }
 

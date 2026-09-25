@@ -266,7 +266,7 @@ export class AuthService {
       return await command();
     } catch (err) {
       if (!isRedisUnavailable(this.redis.client, err)) throw err;
-      this.logger.error('OAuth code store unavailable', err);
+      this.logger.error({ err }, 'OAuth code store unavailable');
       throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
     }
   }
@@ -314,10 +314,13 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     } catch (err) {
-      this.logger.warn('Could not revoke an undelivered OAuth refresh token', {
-        userId: tokens.userId,
-        err,
-      });
+      this.logger.warn(
+        {
+          userId: tokens.userId,
+          err,
+        },
+        'Could not revoke an undelivered OAuth refresh token',
+      );
     }
   }
 
@@ -361,8 +364,8 @@ export class AuthService {
         });
       } catch (err) {
         this.logger.warn(
-          `Could not store the signup timezone for user ${userId}`,
-          err,
+          { err, userId },
+          'Could not store the signup timezone',
         );
       }
     }
@@ -470,9 +473,7 @@ export class AuthService {
     this.prisma.apiToken
       .update({ where: { id }, data: { lastUsedAt: new Date() } })
       .catch((err: Error) =>
-        this.logger.warn(
-          `Failed to update apiToken.lastUsedAt: ${err.message}`,
-        ),
+        this.logger.warn({ err }, 'Failed to update apiToken.lastUsedAt'),
       );
 
     const accessToken = await this.signAccessToken(

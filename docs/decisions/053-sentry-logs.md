@@ -29,28 +29,49 @@ hooks pino's own diagnostics channel, so no logger code changes.
 - **An allowlist of fields.** `beforeSendLog` passes every line through
   `scrubLogAttributes` (`infrastructure/error-tracking/log-attributes.helper.ts`).
   - It keeps `requestId`, `context`, `jobId`, `companyId`, `roundId`,
-    `queue`, `model`, `status` and `responseTime`.
+    `userId`, `queue`, `model`, `phase`, `status` and `responseTime`, and
+    only when the value is a string, number or boolean. An object under an
+    allowed key could carry anything (see the logging style below).
   - From `req` it keeps only the method and the path without its query
     string, which is where search terms live. From `res` it keeps the status
-    code, and from `err` its type, message and stack.
+    code, and from `err` only its type.
   - Everything else is dropped: headers (including the refresh cookie),
-    bodies, and any field someone logs, such as the `to` address the email
-    service logs.
+    bodies, the error's message and stack (Sentry Issues carries those for
+    reported errors), `sentry.message.parameter.*`, and any other field, such
+    as the `to` address the email service logs.
   - A denylist would leak the next field nobody thought of. With the
     allowlist, a new field stays on the VM until it is added on purpose.
+- **Object-first logging, with a fixed message.** nestjs-pino's `Logger`
+  files the _last_ extra argument as the context. So the old
+  `logger.warn('msg', { jobId, err })` put the whole object under `context`
+  (where an allowlist that passed objects would have sent an email address
+  through) and never produced a top-level `jobId` or `err`. Every call is now
+  `logger.warn({ jobId, err }, 'msg', ClassName.name)` with the injected
+  logger, or `logger.warn({ err }, 'msg')` with Nest's `Logger`, which adds
+  the context itself. Without the trailing context, the injected logger files
+  the message as the context and drops it. Messages are fixed strings:
+  error text goes in `err`, which stays on the VM, never into the message.
 - **Off without a DSN,** like the rest of `instrument.ts`.
 
 ## Consequences
 
 - An error's surrounding warn and error lines are searchable in Sentry
   (**Explore → Logs**) by `requestId`, next to the issue.
-- Checked locally against a stand-in Sentry endpoint. The Redis connection
+- Checked locally against a stand-in Sentry endpoint: the Redis connection
   errors arrived as `log` items carrying only `context` and Sentry's own
-  attributes.
+  attributes. The real output of both loggers, for each call style, was
+  checked the same way.
 - **Outage volume.** During a Redis outage, `RedisService` logs a connection
-  error on every reconnect attempt, about one every 2 s. An hour-long outage
-  sends about 1,800 lines. If that strains the quota, rate-limit that log
-  line rather than dropping the level.
+  error on every reconnect attempt, about 1,800 lines an hour. On top of
+  that, every mutating request logs an idempotency warning, and each queue
+  logs a metrics warning per scrape, so volume grows with traffic. If that
+  strains the quota, rate-limit those lines rather than dropping the level.
+- **CPU.** The integration JSON-parses every pino line, info included,
+  before filtering by level. For a line of about 1 KB that is microseconds
+  per request, which this traffic does not notice.
+- **Not covered by the allowlist:** attributes set on a Sentry scope are
+  merged after `beforeSendLog`. Nothing here sets them; do not start without
+  revisiting this ADR.
 - Log lines need the same care as error events: never log an email address,
   token or request body under an allowlisted key.
 

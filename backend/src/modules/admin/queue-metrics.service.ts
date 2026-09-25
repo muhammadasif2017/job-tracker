@@ -127,6 +127,7 @@ export class QueueMetricsService implements OnModuleInit {
       this.logger.warn(
         { err: error, queue: name },
         'Queue counts unavailable for metrics',
+        QueueMetricsService.name,
       );
       return null;
     }

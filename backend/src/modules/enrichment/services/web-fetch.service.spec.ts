@@ -282,8 +282,9 @@ describe('WebFetchService', () => {
     // Only the first hop was ever fetched — the metadata endpoint was not.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_unsafe_redirect',
       expect.objectContaining({ url: 'https://acme.com' }),
+      'web_fetch_unsafe_redirect',
+      WebFetchService.name,
     );
   });
 
@@ -297,8 +298,9 @@ describe('WebFetchService', () => {
     // Initial request plus MAX_REDIRECTS hops, then it stops.
     expect(fetchSpy).toHaveBeenCalledTimes(4);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_too_many_redirects',
       expect.objectContaining({ url: 'https://acme.com' }),
+      'web_fetch_too_many_redirects',
+      WebFetchService.name,
     );
   });
 
@@ -317,8 +319,9 @@ describe('WebFetchService', () => {
     // burning hops on a redirect it can never resolve.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_redirect_no_location',
       expect.objectContaining({ url: 'https://acme.com', status: 302 }),
+      'web_fetch_redirect_no_location',
+      WebFetchService.name,
     );
     expect(mockLogger.warn).not.toHaveBeenCalledWith(
       'web_fetch_too_many_redirects',

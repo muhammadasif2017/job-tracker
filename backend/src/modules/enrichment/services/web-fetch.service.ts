@@ -139,10 +139,14 @@ export class WebFetchService {
         // below, which would otherwise mislabel it during triage.
         const location = res.headers.get('location');
         if (!location) {
-          this.logger.warn('web_fetch_redirect_no_location', {
-            url,
-            status: res.status,
-          });
+          this.logger.warn(
+            {
+              url,
+              status: res.status,
+            },
+            'web_fetch_redirect_no_location',
+            WebFetchService.name,
+          );
           return '';
         }
 
@@ -152,10 +156,14 @@ export class WebFetchService {
           new URL(location, safeUrl).toString(),
         );
         if (!next) {
-          this.logger.warn('web_fetch_unsafe_redirect', {
-            url,
-            status: res.status,
-          });
+          this.logger.warn(
+            {
+              url,
+              status: res.status,
+            },
+            'web_fetch_unsafe_redirect',
+            WebFetchService.name,
+          );
           return '';
         }
 
@@ -164,11 +172,19 @@ export class WebFetchService {
       }
 
       if (this.isRedirect(res.status)) {
-        this.logger.warn('web_fetch_too_many_redirects', { url });
+        this.logger.warn(
+          { url },
+          'web_fetch_too_many_redirects',
+          WebFetchService.name,
+        );
         return '';
       }
       if (!res.ok) {
-        this.logger.warn('web_fetch_error', { url, status: res.status });
+        this.logger.warn(
+          { url, status: res.status },
+          'web_fetch_error',
+          WebFetchService.name,
+        );
         return '';
       }
 
@@ -207,10 +223,14 @@ export class WebFetchService {
 
       return text.slice(0, LLM_CONTEXT_BUDGET);
     } catch (err) {
-      this.logger.warn('web_fetch_failed', {
-        url,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          url,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'web_fetch_failed',
+        WebFetchService.name,
+      );
       return '';
     }
   }

@@ -515,9 +515,13 @@ describe('LlmService Groq circuit breaker', () => {
       CircuitOpenError,
     );
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(mockLogger.warn).toHaveBeenCalledWith('llm_circuit_opened', {
-      from: 'closed',
-    });
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      {
+        from: 'closed',
+      },
+      'llm_circuit_opened',
+      LlmService.name,
+    );
   });
 
   it('lets a trial call through after the cool-down and closes on success', async () => {

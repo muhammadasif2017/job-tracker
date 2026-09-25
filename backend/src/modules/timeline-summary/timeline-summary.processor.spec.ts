@@ -147,8 +147,9 @@ describe('TimelineSummaryProcessor', () => {
 
     await expect(processor.process(bullJob)).rejects.toThrow('Groq down');
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'timeline_summary_failed',
       expect.objectContaining({ jobId: 'job-1' }),
+      'timeline_summary_failed',
+      TimelineSummaryProcessor.name,
     );
   });
 });

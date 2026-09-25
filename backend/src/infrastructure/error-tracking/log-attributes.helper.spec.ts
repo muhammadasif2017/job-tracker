@@ -47,7 +47,27 @@ describe('scrubLogAttributes', () => {
     });
   });
 
-  it('keeps the type, message and stack of a logged error', () => {
+  it('drops an object under an allowed key, like the context nestjs-pino builds', () => {
+    const kept = scrubLogAttributes({
+      context: { to: 'someone@example.com', subject: 'Interview' },
+      jobId: { nested: 'x' },
+      requestId: 'req-3',
+    });
+
+    expect(kept).toEqual({ requestId: 'req-3' });
+  });
+
+  it('drops the values interpolated into a Sentry message template', () => {
+    const kept = scrubLogAttributes({
+      'sentry.message.template': 'Hello %s',
+      'sentry.message.parameter.0': 'someone@example.com',
+      'sentry.release': 'abc123',
+    });
+
+    expect(kept).toEqual({ 'sentry.release': 'abc123' });
+  });
+
+  it('keeps only the type of a logged error, not its message or stack', () => {
     const kept = scrubLogAttributes({
       err: {
         type: 'Error',
@@ -57,11 +77,7 @@ describe('scrubLogAttributes', () => {
       },
     });
 
-    expect(kept).toEqual({
-      'error.type': 'Error',
-      'error.message': 'ECONNREFUSED',
-      'error.stack': 'Error: ECONNREFUSED\n    at x',
-    });
+    expect(kept).toEqual({ 'error.type': 'Error' });
   });
 
   it('ignores req, res and err values that are not objects', () => {

@@ -150,10 +150,14 @@ export class UsersService {
     await Promise.all(
       resumes.map(({ storageKey }) =>
         this.storage.delete(storageKey).catch((err: unknown) =>
-          this.logger.warn('Storage delete failed after account deletion', {
-            storageKey,
-            err,
-          }),
+          this.logger.warn(
+            {
+              storageKey,
+              err,
+            },
+            'Storage delete failed after account deletion',
+            UsersService.name,
+          ),
         ),
       ),
     );

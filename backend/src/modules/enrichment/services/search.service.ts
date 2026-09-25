@@ -85,7 +85,11 @@ export class SearchService {
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
-        this.logger.warn('tavily_search_error', { query, status: res.status });
+        this.logger.warn(
+          { query, status: res.status },
+          'tavily_search_error',
+          SearchUnavailableError.name,
+        );
         // 429/432: Tavily's rate-limit and monthly-quota-exceeded statuses.
         // Worded to match the frontend's RATE_LIMITED classifier regardless
         // of which of the two Tavily actually sends.
@@ -125,10 +129,14 @@ export class SearchService {
       return snippets;
     } catch (err) {
       if (err instanceof SearchUnavailableError) throw err;
-      this.logger.warn('tavily_search_failed', {
-        query,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          query,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'tavily_search_failed',
+        SearchUnavailableError.name,
+      );
       return [];
     }
   }

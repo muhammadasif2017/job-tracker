@@ -78,8 +78,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // crash the request with a raw, unhandled Express error instead of
       // the JSON shape every client expects.
       this.logger.error(
+        { err: filterError },
         'Exception filter failed while handling an exception',
-        filterError instanceof Error ? filterError.stack : filterError,
       );
       if (!reportDecided) reportError(exception, correlation);
       return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -135,7 +135,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // store) catch it first and never reach here; anything else that lets it
     // escape gets an honest 503 instead of an opaque 500 (ADR-046).
     if (isRedisConnectionError(exception)) {
-      this.logger.warn(`Redis unavailable: ${exception.message}`);
+      this.logger.warn({ err: exception }, 'Redis unavailable');
       return {
         statusCode: HttpStatus.SERVICE_UNAVAILABLE,
         message: 'Service temporarily unavailable, please try again',
@@ -146,7 +146,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Unknown/unexpected error — log the stack so the opaque 500 is debuggable.
-    this.logger.error(exception?.message ?? 'Unknown error', exception?.stack);
+    // Object first, so the message stays fixed: exception text can quote
+    // user input, and fixed messages are what Sentry Logs receives (ADR-053).
+    this.logger.error({ err: exception }, 'Unhandled exception');
 
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

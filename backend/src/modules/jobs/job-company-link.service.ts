@@ -46,7 +46,11 @@ export class JobCompanyLinkService {
       await this.companyEnrichment.enqueueIfStale(companyId);
     } catch (err: unknown) {
       // Best-effort — the job create or update stands.
-      this.logger.warn('Enrichment enqueue failed', { jobId, companyId, err });
+      this.logger.warn(
+        { jobId, companyId, err },
+        'Enrichment enqueue failed',
+        JobCompanyLinkService.name,
+      );
     }
   }
 

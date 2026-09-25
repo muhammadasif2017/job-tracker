@@ -138,14 +138,22 @@ export class NotificationsScheduler {
             data: { reminderSentAt: null },
           });
         }
-        this.logger.warn('interview_reminder_enqueue_failed', {
-          roundId: id,
-          unstamped: refused,
-          err,
-        });
+        this.logger.warn(
+          {
+            roundId: id,
+            unstamped: refused,
+            err,
+          },
+          'interview_reminder_enqueue_failed',
+          NotificationsScheduler.name,
+        );
         return;
       }
-      this.logger.log('interview_reminder_enqueued', { roundId: id });
+      this.logger.log(
+        { roundId: id },
+        'interview_reminder_enqueued',
+        NotificationsScheduler.name,
+      );
     }
   }
 
@@ -195,11 +203,15 @@ export class NotificationsScheduler {
         // normal ops path here) would otherwise throw out of the `for`
         // loop entirely, silently skipping the digest for every other user
         // this tick. Contain the blast radius to just this one user.
-        this.logger.warn('digest_invalid_timezone', {
-          userId,
-          timezone,
-          error,
-        });
+        this.logger.warn(
+          {
+            userId,
+            timezone,
+            error,
+          },
+          'digest_invalid_timezone',
+          NotificationsScheduler.name,
+        );
         continue;
       }
 
@@ -216,7 +228,11 @@ export class NotificationsScheduler {
         ...JOB_OPTIONS,
         jobId: `digest-${frequency}-${userId}-${dateKey}`,
       });
-      this.logger.log('digest_enqueued', { userId, itemCount: items.length });
+      this.logger.log(
+        { userId, itemCount: items.length },
+        'digest_enqueued',
+        NotificationsScheduler.name,
+      );
     }
   }
 }

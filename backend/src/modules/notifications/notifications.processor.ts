@@ -100,9 +100,13 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
         where: { id: roundId, reminderSentAt: { not: null } },
         data: { reminderSentAt: null },
       });
-      this.logger.warn('interview_reminder_permanently_failed_reset', {
-        roundId,
-      });
+      this.logger.warn(
+        {
+          roundId,
+        },
+        'interview_reminder_permanently_failed_reset',
+        NotificationsProcessor.name,
+      );
     });
   }
 
@@ -138,7 +142,11 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       },
     });
     if (!round) {
-      this.logger.warn('notification_round_not_found', { roundId });
+      this.logger.warn(
+        { roundId },
+        'notification_round_not_found',
+        NotificationsProcessor.name,
+      );
       return;
     }
     // Outcome may have changed (e.g. cancelled) between the hourly scan
@@ -166,7 +174,11 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       frontendUrl: this.frontendUrl(),
     });
     await this.email.send({ to: user.email, subject, html });
-    this.logger.log('interview_reminder_sent', { roundId, userId: user.id });
+    this.logger.log(
+      { roundId, userId: user.id },
+      'interview_reminder_sent',
+      NotificationsProcessor.name,
+    );
   }
 
   /**
@@ -225,13 +237,21 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
               data: { [dedupField(item.type as DedupAttentionType)]: now },
             })
             .catch((error) =>
-              this.logger.warn('digest_dedup_stamp_failed', {
-                jobId: item.job.id,
-                error,
-              }),
+              this.logger.warn(
+                {
+                  jobId: item.job.id,
+                  error,
+                },
+                'digest_dedup_stamp_failed',
+                NotificationsProcessor.name,
+              ),
             ),
         ),
     );
-    this.logger.log('digest_sent', { userId, itemCount: items.length });
+    this.logger.log(
+      { userId, itemCount: items.length },
+      'digest_sent',
+      NotificationsProcessor.name,
+    );
   }
 }

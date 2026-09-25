@@ -114,6 +114,7 @@ describe('QueueMetricsService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ queue: JOB_TIMELINE_SUMMARY_QUEUE }),
       'Queue counts unavailable for metrics',
+      QueueMetricsService.name,
     );
   });
 

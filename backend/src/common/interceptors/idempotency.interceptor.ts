@@ -149,7 +149,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
       return stored ? (JSON.parse(stored) as IdempotencyRecord) : pending;
     } catch (err) {
       this.logger.warn(
-        `Redis unavailable, running request without idempotency: ${String(err)}`,
+        { err },
+        'Redis unavailable, running request without idempotency',
       );
       return 'unavailable';
     }
@@ -188,7 +189,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         COMPLETED_TTL_MS,
       );
     } catch (err) {
-      this.logger.warn(`Failed to store idempotent response: ${String(err)}`);
+      this.logger.warn({ err }, 'Failed to store idempotent response');
     }
     return body;
   }
@@ -199,7 +200,8 @@ export class IdempotencyInterceptor implements NestInterceptor {
       await this.redis.client.del(redisKey);
     } catch (err) {
       this.logger.warn(
-        `Failed to release idempotency key; it expires in ${PENDING_TTL_MS}ms: ${String(err)}`,
+        { err, expiresInMs: PENDING_TTL_MS },
+        'Failed to release idempotency key',
       );
     }
   }

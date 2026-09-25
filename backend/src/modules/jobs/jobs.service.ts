@@ -454,10 +454,14 @@ export class JobsService {
 
     if (resume) {
       await this.storage.delete(resume.storageKey).catch((err: unknown) =>
-        this.logger.warn('Storage delete failed after job remove', {
-          storageKey: resume.storageKey,
-          err,
-        }),
+        this.logger.warn(
+          {
+            storageKey: resume.storageKey,
+            err,
+          },
+          'Storage delete failed after job remove',
+          JobsService.name,
+        ),
       );
     }
 

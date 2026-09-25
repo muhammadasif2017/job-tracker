@@ -75,9 +75,13 @@ export class JobParsingService {
         failed: false,
       };
     } catch (err: unknown) {
-      this.logger.warn('parse_job_posting_failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'parse_job_posting_failed',
+        JobParsingService.name,
+      );
       return { failed: true, circuitOpen: err instanceof CircuitOpenError };
     }
   }
@@ -142,10 +146,14 @@ export class JobParsingService {
         snippets = (await this.search.search(dto.url)) ?? [];
       } catch (err: unknown) {
         if (!(err instanceof SearchUnavailableError)) throw err;
-        this.logger.warn('parse_job_search_unavailable', {
-          url: dto.url,
-          error: err.message,
-        });
+        this.logger.warn(
+          {
+            url: dto.url,
+            error: err.message,
+          },
+          'parse_job_search_unavailable',
+          JobParsingService.name,
+        );
         snippets = [];
       }
       const searchContent = snippets.filter(Boolean).join('\n\n');
@@ -155,9 +163,13 @@ export class JobParsingService {
       if (parsed) {
         applicationChannel = this.guessSourceFromUrl(dto.url);
       } else if (searchContent) {
-        this.logger.warn('parse_job_posting_fallback_failed', {
-          url: dto.url,
-        });
+        this.logger.warn(
+          {
+            url: dto.url,
+          },
+          'parse_job_posting_fallback_failed',
+          JobParsingService.name,
+        );
       }
     }
 

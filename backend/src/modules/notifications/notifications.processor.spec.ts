@@ -349,8 +349,9 @@ describe('NotificationsProcessor', () => {
 
       expect(email.send).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
-        'digest_dedup_stamp_failed',
         expect.objectContaining({ jobId: 'j1' }),
+        'digest_dedup_stamp_failed',
+        NotificationsProcessor.name,
       );
     });
 

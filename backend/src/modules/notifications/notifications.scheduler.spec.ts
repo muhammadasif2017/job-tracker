@@ -77,8 +77,9 @@ describe('NotificationsScheduler', () => {
       expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(2);
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
-        'interview_reminder_enqueue_failed',
         expect.objectContaining({ roundId: 'round1', unstamped: true }),
+        'interview_reminder_enqueue_failed',
+        NotificationsScheduler.name,
       );
     });
 
@@ -100,8 +101,9 @@ describe('NotificationsScheduler', () => {
 
       expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
-        'interview_reminder_enqueue_failed',
         expect.objectContaining({ roundId: 'round1', unstamped: false }),
+        'interview_reminder_enqueue_failed',
+        NotificationsScheduler.name,
       );
     });
 
@@ -434,8 +436,9 @@ describe('NotificationsScheduler', () => {
       await scheduler.sendDailyDigests();
 
       expect(logger.warn).toHaveBeenCalledWith(
-        'digest_invalid_timezone',
         expect.objectContaining({ userId: 'bad-user' }),
+        'digest_invalid_timezone',
+        NotificationsScheduler.name,
       );
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(

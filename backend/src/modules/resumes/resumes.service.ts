@@ -109,7 +109,11 @@ export class ResumesService {
         await this.storage
           .delete(oldKey)
           .catch((err: Error) =>
-            this.logger.warn(`Failed to delete old resume key: ${err.message}`),
+            this.logger.warn(
+              { err },
+              'Failed to delete old resume key',
+              ResumesService.name,
+            ),
           );
       }
 
@@ -185,10 +189,14 @@ export class ResumesService {
     await this.prisma.resume.delete({ where: { id: resume.id } });
 
     await this.storage.delete(resume.storageKey).catch((err: unknown) =>
-      this.logger.warn('Storage delete failed after resume remove', {
-        storageKey: resume.storageKey,
-        err,
-      }),
+      this.logger.warn(
+        {
+          storageKey: resume.storageKey,
+          err,
+        },
+        'Storage delete failed after resume remove',
+        ResumesService.name,
+      ),
     );
 
     return { message: 'Resume deleted' };
