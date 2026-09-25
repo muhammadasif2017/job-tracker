@@ -44,4 +44,30 @@ describe('ENV_VALIDATION_SCHEMA', () => {
 
     expect(error?.message).toMatch(/OCI_NAMESPACE/);
   });
+
+  it('accepts a Sentry DSN and rejects a malformed one', () => {
+    expect(
+      ENV_VALIDATION_SCHEMA.validate({
+        ...REQUIRED,
+        SENTRY_DSN: 'https://key@o1.ingest.us.sentry.io/2',
+      }).error,
+    ).toBeUndefined();
+    expect(
+      ENV_VALIDATION_SCHEMA.validate({ ...REQUIRED, SENTRY_DSN: 'not a url' })
+        .error?.message,
+    ).toMatch(/SENTRY_DSN/);
+  });
+
+  it('boots with the empty Sentry values docker-compose and a no-GIT_SHA build produce', () => {
+    // `${SENTRY_DSN:-}` and `${SENTRY_ENVIRONMENT:-}` arrive as "", and an
+    // image built without the GIT_SHA build arg has SENTRY_RELEASE="".
+    const { error } = ENV_VALIDATION_SCHEMA.validate({
+      ...REQUIRED,
+      SENTRY_DSN: '',
+      SENTRY_ENVIRONMENT: '',
+      SENTRY_RELEASE: '',
+    });
+
+    expect(error).toBeUndefined();
+  });
 });

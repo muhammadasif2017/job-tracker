@@ -8,11 +8,25 @@ import {
 import type { Request, Response } from 'express';
 import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
 import { requestIdField } from '../request-context.helper.js';
+import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
 /** Prisma error code for a missing record on update or delete, mapped to 404. */
 const PRISMA_NOT_FOUND = 'P2025';
+
+/** 503 as a plain number, for comparing against a response's status code. */
+const SERVICE_UNAVAILABLE: number = HttpStatus.SERVICE_UNAVAILABLE;
+
+/**
+ * Whether an error response is worth a Sentry event (ADR-050): a server
+ * error, except 503. Every 503 here is a deliberate "temporarily unavailable"
+ * answer to an outage (Redis, the OAuth code store), already logged, and not
+ * a bug. 4xx, including the Prisma-mapped 409 and 404, are client errors.
+ */
+function isReportable(statusCode: number): boolean {
+  return statusCode >= 500 && statusCode !== SERVICE_UNAVAILABLE;
+}
 
 /**
  * Catch-all filter that gives every error response one JSON shape:
@@ -36,10 +50,23 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // against the logs (ADR-049). Read inside the try: getRequest() can
     // throw too, and this filter must not.
     let correlation: { requestId?: string } = {};
+    // Set once the status is known, so the fallback below can tell "failed
+    // before deciding" (report: it could be anything) from "failed sending a
+    // response already judged" (don't: it was reported or deliberately not).
+    let reportDecided = false;
     try {
-      const request = ctx.getRequest<Request & { id?: string }>();
+      const request = ctx.getRequest<
+        Request & { id?: string; user?: { id?: string } }
+      >();
       correlation = requestIdField(request?.id);
       const body = this.buildBody(exception, request?.url);
+      if (isReportable(body.statusCode)) {
+        reportError(exception, {
+          requestId: request?.id,
+          userId: request?.user?.id,
+        });
+      }
+      reportDecided = true;
       return response.status(body.statusCode).json({ ...body, ...correlation });
     } catch (filterError) {
       // The filter itself must never throw — a bug here would otherwise
@@ -49,6 +76,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         'Exception filter failed while handling an exception',
         filterError instanceof Error ? filterError.stack : filterError,
       );
+      if (!reportDecided) reportError(exception, correlation);
       return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
         message: 'Internal server error',
@@ -59,7 +87,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
   }
 
   /** The response body, including its status code, for one exception. */
-  private buildBody(exception: any, path?: string) {
+  private buildBody(
+    exception: any,
+    path?: string,
+  ): { statusCode: number; [field: string]: unknown } {
     const timestamp = new Date().toISOString();
 
     // Let NestJS HTTP exceptions pass through as-is, just adding trace fields.

@@ -6,11 +6,8 @@ import type { Queue } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
-import {
-  cronRequestId,
-  runWithRequestId,
-  withRequestId,
-} from '../../common/request-context.helper.js';
+import { withRequestId } from '../../common/request-context.helper.js';
+import { runCronScan } from '../../common/cron-scan.helper.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import {
   NOTIFICATIONS_QUEUE,
@@ -91,10 +88,8 @@ export class NotificationsScheduler {
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async scanInterviewReminders(): Promise<void> {
     // One correlation ID per scan, shared by its log lines and the jobs it
-    // enqueues (ADR-049).
-    return runWithRequestId(cronRequestId('interview-reminders'), () =>
-      this.runReminderScan(),
-    );
+    // enqueues (ADR-049); a failure is reported with it (ADR-050).
+    return runCronScan('interview-reminders', () => this.runReminderScan());
   }
 
   /** The reminder scan itself; see `scanInterviewReminders`. */
@@ -161,7 +156,7 @@ export class NotificationsScheduler {
    */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendDailyDigests(): Promise<void> {
-    await runWithRequestId(cronRequestId('daily-digests'), () =>
+    await runCronScan('daily-digests', () =>
       this.fanOutDigest(DigestFrequency.DAILY),
     );
   }
@@ -169,7 +164,7 @@ export class NotificationsScheduler {
   /** Enqueues weekly digests; hourly for the same reason as the daily cron. */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendWeeklyDigests(): Promise<void> {
-    await runWithRequestId(cronRequestId('weekly-digests'), () =>
+    await runCronScan('weekly-digests', () =>
       this.fanOutDigest(DigestFrequency.WEEKLY),
     );
   }

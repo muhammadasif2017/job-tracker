@@ -13,6 +13,7 @@ import ms, { type StringValue } from 'ms';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
+import { runCronScan } from '../../common/cron-scan.helper.js';
 import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
@@ -133,12 +134,14 @@ export class AuthService {
    */
   @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
   async cleanupExpiredRefreshTokens() {
-    const { count } = await this.prisma.refreshToken.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
+    await runCronScan('refresh-token-cleanup', async () => {
+      const { count } = await this.prisma.refreshToken.deleteMany({
+        where: { expiresAt: { lt: new Date() } },
+      });
+      if (count > 0) {
+        this.logger.log(`Cleaned up ${count} expired refresh token(s)`);
+      }
     });
-    if (count > 0) {
-      this.logger.log(`Cleaned up ${count} expired refresh token(s)`);
-    }
   }
 
   /**

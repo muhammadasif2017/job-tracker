@@ -39,4 +39,12 @@ export const ENV_VALIDATION_SCHEMA = Joi.object({
   OCI_BUCKET_NAME: ociRequired,
   OCI_ACCESS_KEY_ID: ociRequired,
   OCI_SECRET_ACCESS_KEY: ociRequired,
+  // Sentry (ADR-050). Unset or empty means error tracking is off.
+  // src/instrument.ts reads these from process.env before ConfigModule
+  // exists; they are listed here so a malformed DSN still stops boot. Empty
+  // must pass: docker-compose.prod.yml passes `${SENTRY_DSN:-}`, and an image
+  // built without the GIT_SHA build arg has `SENTRY_RELEASE=""`.
+  SENTRY_DSN: Joi.string().uri().allow('').optional(),
+  SENTRY_ENVIRONMENT: Joi.string().allow('').optional(),
+  SENTRY_RELEASE: Joi.string().allow('').optional(),
 });
