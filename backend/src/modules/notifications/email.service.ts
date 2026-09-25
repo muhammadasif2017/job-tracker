@@ -1,7 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
-import { Logger } from 'nestjs-pino';
 
 /**
  * Everything the app ever sends: one recipient, a subject and an HTML body.
@@ -20,13 +19,12 @@ export interface SendEmailInput {
  */
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
+
   private readonly resend?: Resend;
   private readonly from: string;
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly logger: Logger,
-  ) {
+  constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.resend = apiKey ? new Resend(apiKey) : undefined;
     this.from =
@@ -40,11 +38,7 @@ export class EmailService {
    */
   async send({ to, subject, html }: SendEmailInput): Promise<void> {
     if (!this.resend) {
-      this.logger.warn(
-        { to, subject },
-        'email_send_skipped_no_api_key',
-        EmailService.name,
-      );
+      this.logger.warn({ to, subject }, 'email_send_skipped_no_api_key');
       return;
     }
     // The Resend SDK doesn't throw on an API-level failure — it resolves
@@ -57,11 +51,7 @@ export class EmailService {
       html,
     });
     if (error) {
-      this.logger.warn(
-        { to, subject, error },
-        'email_send_failed',
-        EmailService.name,
-      );
+      this.logger.warn({ to, subject, err: error }, 'email_send_failed');
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }

@@ -38,19 +38,25 @@ hooks pino's own diagnostics channel, so no logger code changes.
   - Everything else is dropped: headers (including the refresh cookie),
     bodies, the error's message and stack (Sentry Issues carries those for
     reported errors), `sentry.message.parameter.*`, and any other field, such
-    as the `to` address the email service logs.
+    as the `to` address the email service logs. Sentry adds a few
+    attributes of its own after `beforeSendLog` (the timestamp sequence,
+    scope attributes), so those bypass it.
   - A denylist would leak the next field nobody thought of. With the
     allowlist, a new field stays on the VM until it is added on purpose.
-- **Object-first logging, with a fixed message.** nestjs-pino's `Logger`
-  files the _last_ extra argument as the context. So the old
-  `logger.warn('msg', { jobId, err })` put the whole object under `context`
-  (where an allowlist that passed objects would have sent an email address
-  through) and never produced a top-level `jobId` or `err`. Every call is now
-  `logger.warn({ jobId, err }, 'msg', ClassName.name)` with the injected
-  logger, or `logger.warn({ err }, 'msg')` with Nest's `Logger`, which adds
-  the context itself. Without the trailing context, the injected logger files
-  the message as the context and drops it. Messages are fixed strings:
-  error text goes in `err`, which stays on the VM, never into the message.
+- **One logger, object-first, with a fixed message.** nestjs-pino's
+  injected `Logger` files the _last_ extra argument as the context. So the
+  old `logger.warn('msg', { jobId, err })` put the whole object under
+  `context` (where an allowlist that passed objects would have sent an email
+  address through) and never produced a top-level `jobId` or `err`. An
+  object-first call on it, `warn({ jobId }, 'msg')`, loses its message
+  instead, which becomes the context. So every service now uses Nest's
+  `new Logger(ClassName.name)`, which adds the context itself, and every call
+  is `logger.warn({ jobId, err }, 'fixed_message')`. Error text goes in
+  `err`, which stays on the VM, never into the message.
+- **Messages that are error text are withheld.** Pino uses `err.message` as
+  the message of a line logged with an error and no message, which is how
+  Nest's scheduler and exception handler log. `scrubLog` replaces a message
+  that contains the error's text with the error's type.
 - **Off without a DSN,** like the rest of `instrument.ts`.
 
 ## Consequences
@@ -72,6 +78,8 @@ hooks pino's own diagnostics channel, so no logger code changes.
 - **Not covered by the allowlist:** attributes set on a Sentry scope are
   merged after `beforeSendLog`. Nothing here sets them; do not start without
   revisiting this ADR.
+- The logger change touched about 20 services, whose specs now spy on
+  `Logger.prototype` instead of injecting a mock logger.
 - Log lines need the same care as error events: never log an email address,
   token or request body under an allowlisted key.
 

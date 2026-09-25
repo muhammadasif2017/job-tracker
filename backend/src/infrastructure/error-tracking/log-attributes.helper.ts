@@ -29,7 +29,6 @@ const SENTRY_OWN_PREFIXES = [
   'sentry.environment',
   'sentry.sdk.',
   'sentry.origin',
-  'sentry.timestamp.',
   'pino.',
 ];
 
@@ -74,6 +73,30 @@ export function scrubLogAttributes(
   if (typeof err?.type === 'string') kept['error.type'] = err.type;
 
   return kept;
+}
+
+/** The shape of a log line as `beforeSendLog` receives it. */
+interface SentryLogLine {
+  message: unknown;
+  attributes?: Record<string, unknown>;
+}
+
+/**
+ * The whole `beforeSendLog` step: scrubs the attributes and, when the
+ * message is the error's own text, replaces it. Pino uses `err.message` as
+ * the message of a line logged with an error and no message, which is how
+ * Nest's scheduler and exception handler log. That text can quote user
+ * input, so it stays on the VM like the error's message attribute does.
+ */
+export function scrubLog<T extends SentryLogLine>(log: T): T {
+  const attributes = log.attributes ?? {};
+  const err = asRecord(attributes.err);
+  const errText = typeof err?.message === 'string' ? err.message : '';
+  const message =
+    errText && typeof log.message === 'string' && log.message.includes(errText)
+      ? `${typeof err?.type === 'string' ? err.type : 'Error'} (message on the VM)`
+      : log.message;
+  return { ...log, message, attributes: scrubLogAttributes(attributes) };
 }
 
 /** True for the value kinds a log attribute may carry out of the VM. */

@@ -1,7 +1,6 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { Gauge } from '@prometheus-io/client';
 import type { CircuitState } from '../../infrastructure/resilience/circuit-breaker.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
@@ -29,6 +28,8 @@ const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
  */
 @Injectable()
 export class QueueMetricsService implements OnModuleInit {
+  private readonly logger = new Logger(QueueMetricsService.name);
+
   private readonly queues: ReadonlyArray<readonly [string, Queue]>;
   /** The counts one scrape is reading, shared by both queue gauges. */
   private inFlight: Promise<Map<string, QueueCounts | null>> | null = null;
@@ -39,7 +40,6 @@ export class QueueMetricsService implements OnModuleInit {
     @InjectQueue(JOB_TIMELINE_SUMMARY_QUEUE) timelineSummaryQueue: Queue,
     @InjectQueue(NOTIFICATIONS_QUEUE) notificationsQueue: Queue,
     private readonly llm: LlmService,
-    private readonly logger: Logger,
   ) {
     this.queues = [
       [COMPANY_ENRICHMENT_QUEUE, enrichmentQueue],
@@ -127,7 +127,6 @@ export class QueueMetricsService implements OnModuleInit {
       this.logger.warn(
         { err: error, queue: name },
         'Queue counts unavailable for metrics',
-        QueueMetricsService.name,
       );
       return null;
     }

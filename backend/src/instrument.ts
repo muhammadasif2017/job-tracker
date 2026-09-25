@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/nestjs';
-import { scrubLogAttributes } from './infrastructure/error-tracking/log-attributes.helper.js';
+import { scrubLog } from './infrastructure/error-tracking/log-attributes.helper.js';
 
 /**
  * Sentry error tracking (ADR-050). `main.ts` imports this before anything
@@ -34,9 +34,10 @@ import { scrubLogAttributes } from './infrastructure/error-tracking/log-attribut
  * Warn, error and fatal log lines also go to Sentry Logs (ADR-053), so the
  * lines around an error are next to it. The pino integration only forwards
  * them as logs: its option to turn log lines into error events stays off,
- * because errors are already reported deliberately. `beforeSendLog` cuts
- * every line down to an allowlist of fields (`scrubLogAttributes`), since a
- * log line can carry anything, including an email address or a cookie.
+ * because errors are already reported deliberately. `beforeSendLog`
+ * (`scrubLog`) cuts every line down to an allowlist of fields and withholds
+ * a message that is just the error's text, since a log line can carry
+ * anything, including an email address or a cookie.
  *
  * The SDK's v11
  * defaults would also send cookies, HTTP headers and request bodies, which
@@ -61,10 +62,7 @@ if (process.env.SENTRY_DSN) {
       Sentry.onUnhandledRejectionIntegration({ mode: 'strict' }),
       Sentry.pinoIntegration({ log: { levels: ['warn', 'error', 'fatal'] } }),
     ],
-    beforeSendLog: (log) => ({
-      ...log,
-      attributes: scrubLogAttributes(log.attributes ?? {}),
-    }),
+    beforeSendLog: scrubLog,
     dataCollection: {
       userInfo: false,
       cookies: false,

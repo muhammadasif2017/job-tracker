@@ -112,7 +112,7 @@ describe('instrument', () => {
       level: string;
       message: string;
       attributes?: Record<string, unknown>;
-    }) => { attributes: Record<string, unknown> };
+    }) => { message: string; attributes: Record<string, unknown> };
 
     const sent = beforeSendLog({
       level: 'warn',
@@ -121,6 +121,7 @@ describe('instrument', () => {
     });
 
     expect(sent.attributes).toEqual({ requestId: 'req-1' });
+    expect(sent.message).toBe('Email send failed');
   });
 
   it('treats an empty release as none', async () => {

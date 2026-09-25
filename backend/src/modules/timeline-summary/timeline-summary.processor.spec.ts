@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { TimelineSummaryProcessor } from './timeline-summary.processor.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
@@ -15,7 +16,15 @@ const mockLlm = { summarizeEvents: jest.fn() } satisfies Pick<
   LlmService,
   'summarizeEvents'
 >;
-const mockLogger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 
 const dbJob = { id: 'job-1', company: 'Acme', position: 'Engineer' };
 const events = [
@@ -55,7 +64,6 @@ describe('TimelineSummaryProcessor', () => {
     processor = new TimelineSummaryProcessor(
       mockPrisma as never,
       mockLlm as never,
-      mockLogger as never,
     );
   });
 
@@ -149,7 +157,6 @@ describe('TimelineSummaryProcessor', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ jobId: 'job-1' }),
       'timeline_summary_failed',
-      TimelineSummaryProcessor.name,
     );
   });
 });

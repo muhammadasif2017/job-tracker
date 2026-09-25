@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { EnrichmentStatus, JobType } from '@prisma/client';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
@@ -39,10 +40,16 @@ const mockLlm = {
   circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
 } satisfies Pick<LlmService, 'extract' | 'circuitStatus'>;
 const mockLogger = {
-  log: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+  debug: jest
+    .spyOn(Logger.prototype, 'debug')
+    .mockImplementation(() => undefined),
 };
 
 const dbCompany = {
@@ -94,7 +101,6 @@ describe('CompanyEnrichmentProcessor', () => {
       mockWebFetch as never,
       mockSearch as never,
       mockLlm as never,
-      mockLogger as never,
     );
   });
 
@@ -757,7 +763,6 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ phase: 'mark_failed' }),
       'company_enrichment_profile_update_failed',
-      CompanyEnrichmentProcessor.name,
     );
   });
 });

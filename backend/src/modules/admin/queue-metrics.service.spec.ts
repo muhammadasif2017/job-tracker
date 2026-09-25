@@ -1,6 +1,6 @@
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
-import { Logger } from 'nestjs-pino';
 import { QueueMetricsService } from './queue-metrics.service.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
@@ -12,7 +12,15 @@ import type { CircuitStatus } from '../../infrastructure/resilience/circuit-brea
 const mockEnrichmentQueue = { getJobCounts: jest.fn() };
 const mockTimelineQueue = { getJobCounts: jest.fn() };
 const mockNotificationsQueue = { getJobCounts: jest.fn() };
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 const mockLlm = {
   circuitStatus: jest.fn(
     (): CircuitStatus => ({
@@ -67,7 +75,6 @@ describe('QueueMetricsService', () => {
           useValue: mockNotificationsQueue,
         },
         { provide: LlmService, useValue: mockLlm },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     await module.init();
@@ -114,7 +121,6 @@ describe('QueueMetricsService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ queue: JOB_TIMELINE_SUMMARY_QUEUE }),
       'Queue counts unavailable for metrics',
-      QueueMetricsService.name,
     );
   });
 

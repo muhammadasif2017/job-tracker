@@ -1,5 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { JobStatus, JobEventType } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
@@ -16,10 +15,11 @@ import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.hel
  */
 @Injectable()
 export class JobGhostingService {
+  private readonly logger = new Logger(JobGhostingService.name);
+
   constructor(
     private prisma: PrismaService,
     private timelineSummary: TimelineSummaryService,
-    private logger: Logger,
   ) {}
 
   /**

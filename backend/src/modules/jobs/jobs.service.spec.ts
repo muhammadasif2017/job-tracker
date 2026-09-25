@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException } from '@nestjs/common';
+import { ConflictException, Logger } from '@nestjs/common';
 import {
   CompanyCity,
   EnrichmentStatus,
@@ -9,7 +9,6 @@ import {
   JobType,
   Prisma,
 } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { JobCompanyLinkService } from './job-company-link.service.js';
 import { JobGhostingService } from './job-ghosting.service.js';
@@ -66,7 +65,10 @@ const mockStorage = {
   getPresignedUrl: jest.fn(),
   delete: jest.fn(),
 };
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+// Silences the services' log output; no test asserts on it.
+jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
 
 describe('JobsService', () => {
   let service: JobsService;
@@ -87,7 +89,6 @@ describe('JobsService', () => {
         { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
         { provide: TimelineSummaryService, useValue: mockTimelineSummary },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(JobsService);

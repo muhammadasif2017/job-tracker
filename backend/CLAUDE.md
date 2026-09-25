@@ -411,15 +411,18 @@ A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LL
 
 ## Logging
 
-`nestjs-pino` is wired globally. Use the injected `Logger` in services if you need explicit log lines:
+`nestjs-pino` is wired globally (`app.useLogger` in `main.ts`), so Nest's own `Logger` writes through pino. Services create one as a field, never inject nestjs-pino's `Logger`:
 
 ```ts
-import { Logger } from 'nestjs-pino';
+import { Logger } from '@nestjs/common';
 
-constructor(private logger: Logger) {}
+private readonly logger = new Logger(JobsService.name);
 
-this.logger.log('Job created', { jobId });
+this.logger.log({ jobId }, 'job_created');
+this.logger.warn({ jobId, err }, 'timeline_summary_enqueue_failed');
 ```
+
+**Fields first, then a fixed message.** Nest's `Logger` adds the class name as the context itself. The message-first form `log('msg', { jobId })` would file the object under `context`, where no field is searchable. The injected nestjs-pino `Logger` is worse: it treats the last argument as the context, so object-first calls lose their message (ADR-053). Put an error under `err` (pino's serializer only formats that key, and it stays on the VM), never interpolate error text into the message. In specs, spy on `Logger.prototype` (`jest.spyOn(Logger.prototype, 'warn')`).
 
 Fields automatically redacted from logs: `req.headers.authorization`, `req.body.password`, `req.body.currentPassword`, `req.body.newPassword`, `req.body.refreshToken`.
 
@@ -434,9 +437,7 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 
 To follow one user action end to end, grep the logs for its ID.
 
-**Sentry Logs (ADR-053).** `warn`, `error` and `fatal` lines also go to Sentry Logs (Explore → Logs, searchable by `requestId`). Only allowlisted fields leave the VM: `scrubLogAttributes` (`src/infrastructure/error-tracking/log-attributes.helper.ts`) keeps `requestId`, `context`, a few IDs, the request method and query-free path, the status code and the error's type, message and stack. To send a new field, add it to `SENT_LOG_FIELDS` deliberately. Never log PII under an allowlisted key.
-
-**Log object-first, with a fixed message.** With the injected nestjs-pino `Logger`, write `this.logger.warn({ jobId, err }, 'job_failed', MyService.name)`. It files the _last_ extra argument as the context, so without the trailing class name the message becomes the context and is lost. The old `warn('msg', { jobId })` puts the object under `context`, where no field is searchable. With Nest's `Logger` (`new Logger(X.name)`), `warn({ err }, 'msg')` is enough. Keep error text in `err`, never interpolated into the message.
+**Sentry Logs (ADR-053).** `warn`, `error` and `fatal` lines also go to Sentry Logs (Explore → Logs, searchable by `requestId`). Only allowlisted fields leave the VM: `scrubLogAttributes` (`src/infrastructure/error-tracking/log-attributes.helper.ts`) keeps `requestId`, `context`, a few IDs, the request method and query-free path, the status code and the error's type, and only string, number or boolean values. The error's message and stack stay on the VM, and `scrubLog` withholds a log message that is just the error's text. To send a new field, add it to `SENT_LOG_FIELDS` deliberately. Never log PII under an allowlisted key.
 
 ---
 

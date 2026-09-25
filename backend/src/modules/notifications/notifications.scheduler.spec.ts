@@ -1,8 +1,16 @@
+import { Logger } from '@nestjs/common';
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsScheduler } from './notifications.scheduler.js';
 
 describe('NotificationsScheduler', () => {
-  const logger = { log: jest.fn(), warn: jest.fn() };
+  const logger = {
+    log: jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined),
+    warn: jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined),
+  };
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
 
   // 08:00 UTC on a Monday — matches DIGEST_SEND_HOUR for a UTC user and
@@ -24,11 +32,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -60,11 +64,7 @@ describe('NotificationsScheduler', () => {
           "Stream isn't writeable and enableOfflineQueue options is false",
         ),
       );
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -79,7 +79,6 @@ describe('NotificationsScheduler', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ roundId: 'round1', unstamped: true }),
         'interview_reminder_enqueue_failed',
-        NotificationsScheduler.name,
       );
     });
 
@@ -91,11 +90,7 @@ describe('NotificationsScheduler', () => {
         },
       };
       queue.add.mockRejectedValueOnce(new Error('Command timed out'));
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -103,7 +98,6 @@ describe('NotificationsScheduler', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ roundId: 'round1', unstamped: false }),
         'interview_reminder_enqueue_failed',
-        NotificationsScheduler.name,
       );
     });
 
@@ -114,11 +108,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -132,11 +122,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn(),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -153,11 +139,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn(),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -192,11 +174,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -244,11 +222,7 @@ describe('NotificationsScheduler', () => {
           findMany: jest.fn(() => responses.shift()),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -262,11 +236,7 @@ describe('NotificationsScheduler', () => {
         user: { findMany: jest.fn().mockResolvedValue([]) },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -288,11 +258,7 @@ describe('NotificationsScheduler', () => {
         },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -323,11 +289,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -352,11 +314,7 @@ describe('NotificationsScheduler', () => {
         },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -386,11 +344,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -427,18 +381,13 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ userId: 'bad-user' }),
         'digest_invalid_timezone',
-        NotificationsScheduler.name,
       );
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(

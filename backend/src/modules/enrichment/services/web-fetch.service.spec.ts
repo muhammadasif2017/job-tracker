@@ -1,5 +1,5 @@
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { Logger } from 'nestjs-pino';
 // Node's dns/promises exports are non-configurable, so jest.spyOn can't
 // redefine `lookup` directly — mock the whole module at the factory level
 // instead, which intercepts resolution before either this file or the
@@ -9,7 +9,15 @@ import * as dns from 'node:dns/promises';
 import { WebFetchService } from './web-fetch.service.js';
 
 const dnsLookup = dns.lookup as jest.Mock;
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 
 const htmlPage = `
 <html>
@@ -284,7 +292,6 @@ describe('WebFetchService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://acme.com' }),
       'web_fetch_unsafe_redirect',
-      WebFetchService.name,
     );
   });
 
@@ -300,7 +307,6 @@ describe('WebFetchService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://acme.com' }),
       'web_fetch_too_many_redirects',
-      WebFetchService.name,
     );
   });
 
@@ -321,11 +327,10 @@ describe('WebFetchService', () => {
     expect(mockLogger.warn).toHaveBeenCalledWith(
       expect.objectContaining({ url: 'https://acme.com', status: 302 }),
       'web_fetch_redirect_no_location',
-      WebFetchService.name,
     );
     expect(mockLogger.warn).not.toHaveBeenCalledWith(
-      'web_fetch_too_many_redirects',
       expect.anything(),
+      'web_fetch_too_many_redirects',
     );
   });
 

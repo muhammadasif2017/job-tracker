@@ -1,7 +1,7 @@
+import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { AdminQueuesService } from './admin-queues.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
@@ -14,7 +14,15 @@ const mockPrisma = { company: { groupBy: jest.fn() } };
 const mockEnrichmentQueue = { getJobCounts: jest.fn() };
 const mockTimelineQueue = { getJobCounts: jest.fn() };
 const mockNotificationsQueue = { getJobCounts: jest.fn() };
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 
 function counts(overrides: Record<string, number> = {}) {
   return {
@@ -60,7 +68,6 @@ describe('AdminQueuesService', () => {
           provide: getQueueToken(NOTIFICATIONS_QUEUE),
           useValue: mockNotificationsQueue,
         },
-        { provide: Logger, useValue: mockLogger },
         { provide: LlmService, useValue: mockLlm },
       ],
     }).compile();

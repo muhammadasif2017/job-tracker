@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import * as dns from 'node:dns/promises';
 import ipaddr from 'ipaddr.js';
-import { Logger } from 'nestjs-pino';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
 
 /**
@@ -13,7 +12,7 @@ import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
  */
 @Injectable()
 export class WebFetchService {
-  constructor(private readonly logger: Logger) {}
+  private readonly logger = new Logger(WebFetchService.name);
 
   /**
    * The SSRF guard. The URL being fetched ultimately comes from
@@ -145,7 +144,6 @@ export class WebFetchService {
               status: res.status,
             },
             'web_fetch_redirect_no_location',
-            WebFetchService.name,
           );
           return '';
         }
@@ -162,7 +160,6 @@ export class WebFetchService {
               status: res.status,
             },
             'web_fetch_unsafe_redirect',
-            WebFetchService.name,
           );
           return '';
         }
@@ -172,19 +169,11 @@ export class WebFetchService {
       }
 
       if (this.isRedirect(res.status)) {
-        this.logger.warn(
-          { url },
-          'web_fetch_too_many_redirects',
-          WebFetchService.name,
-        );
+        this.logger.warn({ url }, 'web_fetch_too_many_redirects');
         return '';
       }
       if (!res.ok) {
-        this.logger.warn(
-          { url, status: res.status },
-          'web_fetch_error',
-          WebFetchService.name,
-        );
+        this.logger.warn({ url, status: res.status }, 'web_fetch_error');
         return '';
       }
 
@@ -226,10 +215,9 @@ export class WebFetchService {
       this.logger.warn(
         {
           url,
-          error: err instanceof Error ? err.message : String(err),
+          err,
         },
         'web_fetch_failed',
-        WebFetchService.name,
       );
       return '';
     }

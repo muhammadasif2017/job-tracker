@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
@@ -15,7 +14,15 @@ const mockTimelineSummary = {
   enqueue: jest.fn().mockResolvedValue(undefined),
 };
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 
 const mockPrisma = {
   job: {
@@ -84,7 +91,6 @@ describe('InterviewRoundsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: LlmService, useValue: mockLlm },
         { provide: TimelineSummaryService, useValue: mockTimelineSummary },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(InterviewRoundsService);
@@ -607,8 +613,8 @@ describe('InterviewRoundsService', () => {
       });
 
       expect(mockLogger.warn).not.toHaveBeenCalledWith(
-        'round_prep_generation_failed',
         expect.anything(),
+        'round_prep_generation_failed',
       );
     });
 
@@ -697,7 +703,6 @@ describe('InterviewRoundsService', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ jobId: 'job-1' }),
         'round_prep_generation_failed',
-        InterviewRoundsService.name,
       );
     });
   });
@@ -760,7 +765,6 @@ describe('InterviewRoundsService', () => {
       expect(mockLogger.warn).toHaveBeenCalledWith(
         expect.anything(),
         'round_note_invalid_timezone',
-        InterviewRoundsService.name,
       );
     });
 

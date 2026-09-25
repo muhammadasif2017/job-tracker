@@ -1,4 +1,4 @@
-import { Logger } from 'nestjs-pino';
+import { Logger } from '@nestjs/common';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 
 /**
@@ -17,10 +17,6 @@ export async function bestEffortEnqueueTimelineSummary(
   try {
     await timelineSummary.enqueue(jobId);
   } catch (err: unknown) {
-    logger.warn(
-      { jobId, err },
-      'Timeline summary enqueue failed',
-      'TimelineSummaryEnqueue',
-    );
+    logger.warn({ jobId, err }, 'Timeline summary enqueue failed');
   }
 }

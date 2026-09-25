@@ -1,7 +1,6 @@
 import { Processor } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
@@ -32,10 +31,11 @@ const MAX_EVENTS_FOR_SUMMARY = 50;
 export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
   Job<{ jobId: string }>
 > {
+  private readonly logger = new Logger(TimelineSummaryProcessor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly llm: LlmService,
-    private readonly logger: Logger,
   ) {
     super();
   }
@@ -53,11 +53,7 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
       select: { id: true, company: true, position: true },
     });
     if (!dbJob) {
-      this.logger.warn(
-        { jobId },
-        'timeline_summary_job_not_found',
-        TimelineSummaryProcessor.name,
-      );
+      this.logger.warn({ jobId }, 'timeline_summary_job_not_found');
       return;
     }
 
@@ -90,7 +86,6 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
             jobId,
           },
           'timeline_summary_job_deleted_during_processing',
-          TimelineSummaryProcessor.name,
         );
         return;
       }
@@ -103,10 +98,9 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
       this.logger.warn(
         {
           jobId,
-          error: error instanceof Error ? error.message : String(error),
+          err: error,
         },
         'timeline_summary_failed',
-        TimelineSummaryProcessor.name,
       );
       throw error;
     }

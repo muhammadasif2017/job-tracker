@@ -1,4 +1,4 @@
-import { scrubLogAttributes } from './log-attributes.helper.js';
+import { scrubLog, scrubLogAttributes } from './log-attributes.helper.js';
 
 describe('scrubLogAttributes', () => {
   it('keeps allowlisted fields and the attributes Sentry adds itself', () => {
@@ -82,5 +82,59 @@ describe('scrubLogAttributes', () => {
 
   it('ignores req, res and err values that are not objects', () => {
     expect(scrubLogAttributes({ req: 'GET /', res: null, err: 7 })).toEqual({});
+  });
+});
+
+describe('scrubLog', () => {
+  const err = {
+    type: 'PrismaClientValidationError',
+    message: 'data: { email: "a@b.com" }',
+  };
+
+  it('withholds a message that is the error text pino filled in', () => {
+    const sent = scrubLog({
+      level: 'error',
+      message: err.message,
+      attributes: { err },
+    });
+
+    expect(sent.message).toBe(
+      'PrismaClientValidationError (message on the VM)',
+    );
+    expect(sent.attributes).toEqual({
+      'error.type': 'PrismaClientValidationError',
+    });
+  });
+
+  it('withholds a message that quotes the error text inside a longer string', () => {
+    const sent = scrubLog({
+      level: 'error',
+      message: `Unhandled: ${err.message}`,
+      attributes: { err },
+    });
+
+    expect(sent.message).toBe(
+      'PrismaClientValidationError (message on the VM)',
+    );
+  });
+
+  it('keeps a fixed message written by our own code', () => {
+    const sent = scrubLog({
+      level: 'warn',
+      message: 'Redis unavailable',
+      attributes: { err, requestId: 'req-1' },
+    });
+
+    expect(sent.message).toBe('Redis unavailable');
+    expect(sent.attributes).toEqual({
+      requestId: 'req-1',
+      'error.type': 'PrismaClientValidationError',
+    });
+  });
+
+  it('keeps the message of a line with no error', () => {
+    expect(scrubLog({ level: 'warn', message: 'queue_slow' }).message).toBe(
+      'queue_slow',
+    );
   });
 });

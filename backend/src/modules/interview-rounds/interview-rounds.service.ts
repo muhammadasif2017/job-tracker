@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import {
   JobStatus,
@@ -9,7 +10,6 @@ import {
   InterviewOutcome,
   Prisma,
 } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
@@ -39,11 +39,12 @@ const DEFAULT_ROUND_MINUTES = 60;
  */
 @Injectable()
 export class InterviewRoundsService {
+  private readonly logger = new Logger(InterviewRoundsService.name);
+
   constructor(
     private prisma: PrismaService,
     private llm: LlmService,
     private timelineSummary: TimelineSummaryService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -54,11 +55,7 @@ export class InterviewRoundsService {
     try {
       await this.timelineSummary.enqueue(jobId);
     } catch (err: unknown) {
-      this.logger.warn(
-        { jobId, err },
-        'Timeline summary enqueue failed',
-        InterviewRoundsService.name,
-      );
+      this.logger.warn({ jobId, err }, 'Timeline summary enqueue failed');
     }
   }
 
@@ -120,7 +117,6 @@ export class InterviewRoundsService {
           timezone: invalidStoredZone,
         },
         'round_note_invalid_timezone',
-        InterviewRoundsService.name,
       );
     }
     const when = scheduledAt.toLocaleString('en-US', {
@@ -336,11 +332,7 @@ export class InterviewRoundsService {
       try {
         await this.maybeGenerateNextRoundPrep(jobId, result);
       } catch (err: unknown) {
-        this.logger.warn(
-          { jobId, err },
-          'round_prep_generation_failed',
-          InterviewRoundsService.name,
-        );
+        this.logger.warn({ jobId, err }, 'round_prep_generation_failed');
       }
     }
 

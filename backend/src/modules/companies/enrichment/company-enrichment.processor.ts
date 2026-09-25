@@ -1,8 +1,7 @@
 import { Processor } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EnrichmentStatus, type Company } from '@prisma/client';
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
 import { WebFetchService } from '../../enrichment/services/web-fetch.service.js';
 import {
@@ -60,12 +59,13 @@ const SEARCH_SECTION_BUDGET = 8_000;
 export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
   Job<{ companyId: string }>
 > {
+  private readonly logger = new Logger(CompanyEnrichmentProcessor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly webFetch: WebFetchService,
     private readonly search: SearchService,
     private readonly llm: LlmService,
-    private readonly logger: Logger,
   ) {
     super();
   }
@@ -87,11 +87,7 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
       where: { id: companyId },
     });
     if (!dbCompany) {
-      this.logger.warn(
-        { companyId },
-        'company_enrichment_not_found',
-        CompanyEnrichmentProcessor.name,
-      );
+      this.logger.warn({ companyId }, 'company_enrichment_not_found');
       return;
     }
 
@@ -109,7 +105,6 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
           delayMs,
         },
         'company_enrichment_deferred_circuit_open',
-        CompanyEnrichmentProcessor.name,
       );
       await job.moveToDelayed(Date.now() + delayMs, token);
       throw new DelayedError();
@@ -118,11 +113,7 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
     const company = dbCompany.name;
     const location = dbCompany.location ?? undefined;
     const domain = this.extractDomain(dbCompany.websiteUrl);
-    this.logger.log(
-      { companyId, company },
-      'company_enrichment_started',
-      CompanyEnrichmentProcessor.name,
-    );
+    this.logger.log({ companyId, company }, 'company_enrichment_started');
 
     let extraction: CompanyData | undefined;
     // Set only when a search call fails for an account-level reason (quota
@@ -243,10 +234,10 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
           snippetCount: snippets.length,
           homepageTextLength: homepageText.length,
           aboutTextLength: aboutText.length,
-          context,
+          // Not `context`: that key is the logger's own class context.
+          llmContext: context,
         },
         'company_enrichment_context',
-        CompanyEnrichmentProcessor.name,
       );
 
       // No official-site text and no search snippets — the LLM would see an
@@ -298,7 +289,6 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
             companyId,
           },
           'company_enrichment_deleted_during_processing',
-          CompanyEnrichmentProcessor.name,
         );
         return;
       }
@@ -315,7 +305,6 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
           durationMs: Date.now() - startedAt,
         },
         'company_enrichment_completed',
-        CompanyEnrichmentProcessor.name,
       );
     } catch (error) {
       const raw = error instanceof Error ? error.message : 'Enrichment failed';
@@ -327,11 +316,10 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
         {
           companyId,
           company,
-          error: errorMessage,
+          err: error,
           durationMs: Date.now() - startedAt,
         },
         'company_enrichment_failed',
-        CompanyEnrichmentProcessor.name,
       );
 
       const stillExists = await this.prisma.company.findFirst({
@@ -381,11 +369,10 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
           {
             companyId,
             company,
-            error: errorMessage,
+            reason: errorMessage,
             durationMs: Date.now() - startedAt,
           },
           'company_enrichment_completed_after_late_failure',
-          CompanyEnrichmentProcessor.name,
         );
         return true;
       }
@@ -404,7 +391,6 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
             updateErr instanceof Error ? updateErr.message : String(updateErr),
         },
         'company_enrichment_profile_update_failed',
-        CompanyEnrichmentProcessor.name,
       );
       return false;
     }

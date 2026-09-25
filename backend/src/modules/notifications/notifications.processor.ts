@@ -1,9 +1,8 @@
 import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
@@ -52,11 +51,12 @@ function dedupField(
 export class NotificationsProcessor extends CorrelatedWorkerHost<
   Job<InterviewReminderJobData | DigestJobData>
 > {
+  private readonly logger = new Logger(NotificationsProcessor.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
-    private readonly logger: Logger,
   ) {
     super();
   }
@@ -105,7 +105,6 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
           roundId,
         },
         'interview_reminder_permanently_failed_reset',
-        NotificationsProcessor.name,
       );
     });
   }
@@ -142,11 +141,7 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       },
     });
     if (!round) {
-      this.logger.warn(
-        { roundId },
-        'notification_round_not_found',
-        NotificationsProcessor.name,
-      );
+      this.logger.warn({ roundId }, 'notification_round_not_found');
       return;
     }
     // Outcome may have changed (e.g. cancelled) between the hourly scan
@@ -174,11 +169,7 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       frontendUrl: this.frontendUrl(),
     });
     await this.email.send({ to: user.email, subject, html });
-    this.logger.log(
-      { roundId, userId: user.id },
-      'interview_reminder_sent',
-      NotificationsProcessor.name,
-    );
+    this.logger.log({ roundId, userId: user.id }, 'interview_reminder_sent');
   }
 
   /**
@@ -240,18 +231,13 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
               this.logger.warn(
                 {
                   jobId: item.job.id,
-                  error,
+                  err: error,
                 },
                 'digest_dedup_stamp_failed',
-                NotificationsProcessor.name,
               ),
             ),
         ),
     );
-    this.logger.log(
-      { userId, itemCount: items.length },
-      'digest_sent',
-      NotificationsProcessor.name,
-    );
+    this.logger.log({ userId, itemCount: items.length }, 'digest_sent');
   }
 }

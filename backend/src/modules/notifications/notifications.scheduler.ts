@@ -1,9 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
 import { withRequestId } from '../../common/request-context.helper.js';
@@ -74,10 +73,11 @@ function localDateKey(date: Date, timeZone: string): string {
  */
 @Injectable()
 export class NotificationsScheduler {
+  private readonly logger = new Logger(NotificationsScheduler.name);
+
   constructor(
     @InjectQueue(NOTIFICATIONS_QUEUE) private readonly queue: Queue,
     private readonly prisma: PrismaService,
-    private readonly logger: Logger,
   ) {}
 
   /**
@@ -145,15 +145,10 @@ export class NotificationsScheduler {
             err,
           },
           'interview_reminder_enqueue_failed',
-          NotificationsScheduler.name,
         );
         return;
       }
-      this.logger.log(
-        { roundId: id },
-        'interview_reminder_enqueued',
-        NotificationsScheduler.name,
-      );
+      this.logger.log({ roundId: id }, 'interview_reminder_enqueued');
     }
   }
 
@@ -207,10 +202,9 @@ export class NotificationsScheduler {
           {
             userId,
             timezone,
-            error,
+            err: error,
           },
           'digest_invalid_timezone',
-          NotificationsScheduler.name,
         );
         continue;
       }
@@ -228,11 +222,7 @@ export class NotificationsScheduler {
         ...JOB_OPTIONS,
         jobId: `digest-${frequency}-${userId}-${dateKey}`,
       });
-      this.logger.log(
-        { userId, itemCount: items.length },
-        'digest_enqueued',
-        NotificationsScheduler.name,
-      );
+      this.logger.log({ userId, itemCount: items.length }, 'digest_enqueued');
     }
   }
 }

@@ -1,6 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ApplicationChannel } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { CircuitOpenError } from '../../infrastructure/resilience/circuit-breaker.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
 import {
@@ -22,11 +21,12 @@ import { ParsedJobDto } from './dto/parsed-job.dto.js';
  */
 @Injectable()
 export class JobParsingService {
+  private readonly logger = new Logger(JobParsingService.name);
+
   constructor(
     private webFetch: WebFetchService,
     private search: SearchService,
     private llm: LlmService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -77,10 +77,9 @@ export class JobParsingService {
     } catch (err: unknown) {
       this.logger.warn(
         {
-          error: err instanceof Error ? err.message : String(err),
+          err,
         },
         'parse_job_posting_failed',
-        JobParsingService.name,
       );
       return { failed: true, circuitOpen: err instanceof CircuitOpenError };
     }
@@ -149,10 +148,9 @@ export class JobParsingService {
         this.logger.warn(
           {
             url: dto.url,
-            error: err.message,
+            err,
           },
           'parse_job_search_unavailable',
-          JobParsingService.name,
         );
         snippets = [];
       }
@@ -168,7 +166,6 @@ export class JobParsingService {
             url: dto.url,
           },
           'parse_job_posting_fallback_failed',
-          JobParsingService.name,
         );
       }
     }

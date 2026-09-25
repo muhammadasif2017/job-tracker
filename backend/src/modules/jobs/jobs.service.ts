@@ -3,8 +3,8 @@ import {
   NotFoundException,
   ConflictException,
   Inject,
+  Logger,
 } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -58,13 +58,14 @@ function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
  */
 @Injectable()
 export class JobsService {
+  private readonly logger = new Logger(JobsService.name);
+
   constructor(
     private prisma: PrismaService,
     private timelineSummary: TimelineSummaryService,
     private companyLink: JobCompanyLinkService,
     private ghosting: JobGhostingService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -460,7 +461,6 @@ export class JobsService {
             err,
           },
           'Storage delete failed after job remove',
-          JobsService.name,
         ),
       );
     }

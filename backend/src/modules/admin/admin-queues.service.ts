@@ -1,8 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
@@ -29,6 +28,8 @@ import {
  */
 @Injectable()
 export class AdminQueuesService {
+  private readonly logger = new Logger(AdminQueuesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(COMPANY_ENRICHMENT_QUEUE)
@@ -37,7 +38,6 @@ export class AdminQueuesService {
     private readonly timelineSummaryQueue: Queue,
     @InjectQueue(NOTIFICATIONS_QUEUE)
     private readonly notificationsQueue: Queue,
-    private readonly logger: Logger,
     private readonly llm: LlmService,
   ) {}
 
@@ -113,7 +113,6 @@ export class AdminQueuesService {
       this.logger.warn(
         { err: error, queue: name },
         'Queue counts unavailable; returning the database half only',
-        AdminQueuesService.name,
       );
       return { name, available: false, counts: null };
     }

@@ -1,5 +1,4 @@
-import { Injectable } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
+import { Injectable, Logger } from '@nestjs/common';
 import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
@@ -15,10 +14,11 @@ import { companyNameMatch } from '../companies/company-name-match.helper.js';
  */
 @Injectable()
 export class JobCompanyLinkService {
+  private readonly logger = new Logger(JobCompanyLinkService.name);
+
   constructor(
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -46,11 +46,7 @@ export class JobCompanyLinkService {
       await this.companyEnrichment.enqueueIfStale(companyId);
     } catch (err: unknown) {
       // Best-effort — the job create or update stands.
-      this.logger.warn(
-        { jobId, companyId, err },
-        'Enrichment enqueue failed',
-        JobCompanyLinkService.name,
-      );
+      this.logger.warn({ jobId, companyId, err }, 'Enrichment enqueue failed');
     }
   }
 

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsProcessor } from './notifications.processor.js';
 import { EmailService } from './email.service.js';
@@ -7,7 +8,14 @@ describe('NotificationsProcessor', () => {
   const email = {
     send: jest.fn().mockResolvedValue(undefined),
   } satisfies Pick<EmailService, 'send'>;
-  const logger = { log: jest.fn(), warn: jest.fn() };
+  const logger = {
+    log: jest
+      .spyOn(Logger.prototype, 'log')
+      .mockImplementation(() => undefined),
+    warn: jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined),
+  };
   const config = { get: jest.fn().mockReturnValue('http://localhost:3000') };
 
   afterEach(() => jest.clearAllMocks());
@@ -37,7 +45,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -75,7 +82,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -116,7 +122,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -135,7 +140,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -176,7 +180,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -202,7 +205,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -248,7 +250,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -292,7 +293,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -340,7 +340,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await expect(
@@ -351,7 +350,6 @@ describe('NotificationsProcessor', () => {
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ jobId: 'j1' }),
         'digest_dedup_stamp_failed',
-        NotificationsProcessor.name,
       );
     });
 
@@ -384,7 +382,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.process({
@@ -408,7 +405,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.onFailed({
@@ -438,7 +434,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.onFailed({
@@ -461,7 +456,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.onFailed({
@@ -482,7 +476,6 @@ describe('NotificationsProcessor', () => {
         prisma as any,
         email as any,
         config as any,
-        logger as any,
       );
 
       await processor.onFailed({

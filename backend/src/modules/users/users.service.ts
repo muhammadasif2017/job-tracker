@@ -4,9 +4,9 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   STORAGE_SERVICE,
@@ -24,10 +24,11 @@ import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.
  */
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -156,7 +157,6 @@ export class UsersService {
               err,
             },
             'Storage delete failed after account deletion',
-            UsersService.name,
           ),
         ),
       ),

@@ -3,9 +3,9 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
+  Logger,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   STORAGE_SERVICE,
@@ -27,10 +27,11 @@ const PRESIGNED_URL_TTL = 900;
  */
 @Injectable()
 export class ResumesService {
+  private readonly logger = new Logger(ResumesService.name);
+
   constructor(
     private prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -109,11 +110,7 @@ export class ResumesService {
         await this.storage
           .delete(oldKey)
           .catch((err: Error) =>
-            this.logger.warn(
-              { err },
-              'Failed to delete old resume key',
-              ResumesService.name,
-            ),
+            this.logger.warn({ err }, 'Failed to delete old resume key'),
           );
       }
 
@@ -195,7 +192,6 @@ export class ResumesService {
           err,
         },
         'Storage delete failed after resume remove',
-        ResumesService.name,
       ),
     );
 

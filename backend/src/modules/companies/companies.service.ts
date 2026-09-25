@@ -3,10 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isTransactionWriteConflict } from '../../infrastructure/database/prisma-errors.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
@@ -38,10 +38,11 @@ const RECENT_HISTORY_JOBS = 3;
  */
 @Injectable()
 export class CompaniesService {
+  private readonly logger = new Logger(CompaniesService.name);
+
   constructor(
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -152,7 +153,6 @@ export class CompaniesService {
           err,
         },
         'Company enrichment enqueue failed',
-        CompaniesService.name,
       );
       return company;
     }

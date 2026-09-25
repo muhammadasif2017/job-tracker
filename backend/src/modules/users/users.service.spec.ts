@@ -3,9 +3,9 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Logger } from 'nestjs-pino';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
@@ -33,7 +33,15 @@ const mockStorage = {
   delete: jest.fn(),
 };
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = {
+  warn: jest
+    .spyOn(Logger.prototype, 'warn')
+    .mockImplementation(() => undefined),
+  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
+  error: jest
+    .spyOn(Logger.prototype, 'error')
+    .mockImplementation(() => undefined),
+};
 
 describe('UsersService', () => {
   let service: UsersService;
@@ -47,7 +55,6 @@ describe('UsersService', () => {
         UsersService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(UsersService);
