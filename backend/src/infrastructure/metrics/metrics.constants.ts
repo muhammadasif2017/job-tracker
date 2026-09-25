@@ -2,7 +2,7 @@
 export const METRICS_PATH = '/metrics';
 
 /**
- * Request-duration buckets, in seconds. Eight, not prom-client's default
+ * Request-duration buckets, in seconds. Eight, not the client's default
  * eleven: every bucket is one more series per route, method and status
  * class, and the free Grafana Cloud tier caps active series. The few
  * LLM-backed calls that run past 10 s (Quick Add, round prep) land in `+Inf`.

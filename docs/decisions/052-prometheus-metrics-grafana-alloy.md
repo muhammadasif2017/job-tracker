@@ -19,7 +19,7 @@ no history.
 
 ## Decision
 
-The backend exposes Prometheus metrics (`prom-client`), and a Grafana Alloy
+The backend exposes Prometheus metrics (`@prometheus-io/client`), and a Grafana Alloy
 container on the VM scrapes them and pushes them to Grafana Cloud.
 
 - **Own port, never public.** `startMetricsServer`
@@ -34,7 +34,7 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
   API port.
 - **A registry per app, not the global one.** `MetricsService` owns it. The
   e2e setup builds apps in one process, and registering a metric name twice
-  on prom-client's global registry throws.
+  on the client's global registry throws.
 - **What is exported:**
   - Node's default process metrics: CPU, memory, heap, event-loop lag, GC.
     `main.ts` starts them only when `METRICS_PORT` is set, because they
@@ -62,7 +62,7 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
     `{/*splat}` route `nestjs-pino` mounts its middleware on, which Express
     leaves as `req.route`.
   - Status is its class (`4xx`), not the exact code.
-  - The histogram has eight buckets, not prom-client's eleven.
+  - The histogram has eight buckets, not the client's default eleven.
   - `/v1/...` and the unversioned alias (ADR-047) keep separate labels, which
     shows how much traffic still uses the old paths.
   - A local run exported about 130 series. The worst case for the histogram,
@@ -93,7 +93,9 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
   alerted on later.
 - A metrics failure never takes the API down. A listener or render error is
   logged, and a missing target shows in Grafana as `up == 0`.
-- One new production dependency, `prom-client` (two small dependencies). The
+- One new production dependency, `@prometheus-io/client` 0.16 (two small
+  dependencies). It is the Prometheus project's successor to `prom-client`,
+  which npm now marks deprecated in its favour; the API is the same. The
   production `npm audit` count is unchanged.
 - A green deploy run only proves the containers started. Check
   `docker compose logs alloy` on the VM for push errors (401 means a token
@@ -110,4 +112,4 @@ container on the VM scrapes them and pushes them to Grafana Cloud.
   and `pid: host`, and both add series. They are a follow-up once the series
   count in Grafana Cloud is known.
 - **OpenTelemetry metrics.** More moving parts for the same result today.
-  Traces may bring it in later, and prom-client metrics can be bridged.
+  Traces may bring it in later, and these metrics can be bridged.

@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { Logger } from 'nestjs-pino';
-import { Gauge } from 'prom-client';
+import { Gauge } from '@prometheus-io/client';
 import type { CircuitState } from '../../infrastructure/resilience/circuit-breaker.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
@@ -94,7 +94,7 @@ export class QueueMetricsService implements OnModuleInit {
   }
 
   /**
-   * Reads all queues once per scrape. prom-client starts every metric's
+   * Reads all queues once per scrape. The client starts every metric's
    * `collect` in the same tick, so both queue gauges get the same promise
    * and the same numbers, and Redis is asked once, not twice.
    */

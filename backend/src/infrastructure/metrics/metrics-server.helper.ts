@@ -1,5 +1,5 @@
 import { createServer, type Server } from 'node:http';
-import type { Registry } from 'prom-client';
+import type { Registry } from '@prometheus-io/client';
 import { METRICS_PATH } from './metrics.constants.js';
 
 /**

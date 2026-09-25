@@ -1,5 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
-import type { Histogram } from 'prom-client';
+import type { Histogram } from '@prometheus-io/client';
 import { UNMATCHED_ROUTE } from './metrics.constants.js';
 
 /**

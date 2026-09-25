@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { collectDefaultMetrics, Histogram, Registry } from 'prom-client';
+import {
+  collectDefaultMetrics,
+  Histogram,
+  Registry,
+} from '@prometheus-io/client';
 import { HTTP_DURATION_BUCKETS } from './metrics.constants.js';
 
 /**
@@ -8,7 +12,7 @@ import { HTTP_DURATION_BUCKETS } from './metrics.constants.js';
  * Feature modules register their own gauges on `registry` (see
  * `QueueMetricsService`).
  *
- * A registry per instance, not prom-client's global one: the e2e setup
+ * A registry per instance, not the client library's global one: the e2e setup
  * builds several apps in one process, and a second registration of the same
  * metric name on the global registry throws.
  */

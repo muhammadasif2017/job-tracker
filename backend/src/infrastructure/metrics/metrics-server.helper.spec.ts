@@ -1,6 +1,6 @@
 import type { AddressInfo } from 'node:net';
 import type { Server } from 'node:http';
-import { Counter, Registry } from 'prom-client';
+import { Counter, Registry } from '@prometheus-io/client';
 import request from 'supertest';
 import { startMetricsServer } from './metrics-server.helper.js';
 

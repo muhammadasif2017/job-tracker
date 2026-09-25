@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import type { Request } from 'express';
-import { Histogram, Registry } from 'prom-client';
+import { Histogram, Registry } from '@prometheus-io/client';
 import request from 'supertest';
 import { applyApiVersioning } from '../../config/api-versioning.helper.js';
 import {
