@@ -161,6 +161,39 @@ describe('Job Tracker (e2e)', () => {
       request(app.getHttpServer()).post('/v1/auth/refresh').expect(401));
   });
 
+  // ── Correlation IDs (ADR-049) ───────────────────────────────────────────────
+
+  describe('X-Request-Id', () => {
+    it('echoes a well-formed client ID on the response', async () => {
+      const res = await agent
+        .get('/health')
+        .set('X-Request-Id', 'e2e-trace-1')
+        .expect(200);
+
+      expect(res.headers['x-request-id']).toBe('e2e-trace-1');
+    });
+
+    it('generates one when the client sends none, and puts it in error bodies', async () => {
+      const res = await agent
+        .get('/v1/jobs/does-not-exist')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(404);
+
+      expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+      expect(res.body.requestId).toBe(res.headers['x-request-id']);
+    });
+
+    it('replaces an unsafe client ID instead of logging it', async () => {
+      const res = await agent
+        .get('/health')
+        .set('X-Request-Id', 'bad id with spaces')
+        .expect(200);
+
+      expect(res.headers['x-request-id']).not.toBe('bad id with spaces');
+      expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    });
+  });
+
   // ── API versioning (ADR-047) ────────────────────────────────────────────────
 
   describe('API versioning', () => {

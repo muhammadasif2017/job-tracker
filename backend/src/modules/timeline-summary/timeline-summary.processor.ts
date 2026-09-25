@@ -5,6 +5,7 @@ import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
+import { runJobWithRequestId } from '../../common/request-context.helper.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
 
 /**
@@ -38,11 +39,21 @@ export class TimelineSummaryProcessor extends WorkerHost {
   }
 
   /**
+   * Runs the job inside the correlation context of the request that enqueued
+   * it, so its log lines share that request's `requestId` (ADR-049).
+   */
+  async process(
+    job: Job<{ jobId: string; requestId?: string }>,
+  ): Promise<void> {
+    return runJobWithRequestId(job, () => this.summarize(job));
+  }
+
+  /**
    * Summarizes the job's most recent events and stores the result. Rethrows
    * on failure so BullMQ retries; the previous summary stays in place until a
    * run succeeds.
    */
-  async process(job: Job<{ jobId: string }>): Promise<void> {
+  private async summarize(job: Job<{ jobId: string }>): Promise<void> {
     const { jobId } = job.data;
 
     const dbJob = await this.prisma.job.findFirst({

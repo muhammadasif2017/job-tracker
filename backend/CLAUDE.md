@@ -420,6 +420,16 @@ this.logger.log('Job created', { jobId });
 
 Fields automatically redacted from logs: `req.headers.authorization`, `req.body.password`, `req.body.currentPassword`, `req.body.newPassword`, `req.body.refreshToken`.
 
+**Correlation IDs (ADR-049).** Every log line written while handling a request carries a `requestId`, and so does every line from a BullMQ job that request enqueued. It comes from `src/common/request-context.helper.ts`:
+
+- `requestIdMiddleware` runs first in `configureApp`. It adopts a safe incoming `X-Request-Id` or generates a UUID, returns it in the `X-Request-Id` response header, and runs the request inside an `AsyncLocalStorage` context.
+- The pino `mixin` in `AppModule` stamps `requestId` from that context onto every line.
+- `GlobalExceptionFilter` puts `requestId` in every error body.
+- **When enqueueing a job**, wrap its data in `withRequestId({ ... })`.
+- **In a new processor**, run the work through `runJobWithRequestId(job, () => ...)`. A job enqueued with no request behind it, such as one from a cron scan, gets `job:<queue>:<id>`.
+
+To follow one user action end to end, grep the logs for its ID.
+
 ---
 
 ## E2E Tests (`test/app.e2e-spec.ts`)

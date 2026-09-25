@@ -9,6 +9,7 @@ import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
 import { interviewReminderEmail, digestEmail } from './templates.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
+import { runJobWithRequestId } from '../../common/request-context.helper.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
@@ -57,8 +58,19 @@ export class NotificationsProcessor extends WorkerHost {
     super();
   }
 
-  /** Dispatches a queue job by name to its handler. Unknown names are ignored. */
+  /**
+   * Dispatches a queue job by name to its handler. Unknown names are
+   * ignored. Notifications are enqueued by cron, not by a request, so each
+   * job correlates under an ID built from itself (ADR-049).
+   */
   async process(
+    job: Job<InterviewReminderJobData | DigestJobData>,
+  ): Promise<void> {
+    return runJobWithRequestId(job, () => this.dispatch(job));
+  }
+
+  /** Routes the job to its handler by name. */
+  private async dispatch(
     job: Job<InterviewReminderJobData | DigestJobData>,
   ): Promise<void> {
     if (job.name === 'interview-reminder') {

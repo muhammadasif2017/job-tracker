@@ -1,5 +1,11 @@
-import { HttpException, HttpStatus, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter.js';
+import { runWithRequestId } from '../request-context.helper.js';
 
 const mockResponse = {
   status: jest.fn().mockReturnThis(),
@@ -70,6 +76,22 @@ describe('GlobalExceptionFilter', () => {
 
     expect(mockResponse.status).toHaveBeenCalledWith(500);
     error.mockRestore();
+  });
+
+  it('adds the correlation ID to the error body inside a request', () => {
+    runWithRequestId('req-err-1', () =>
+      filter.catch(new NotFoundException('Job not found'), mockHost as never),
+    );
+
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({ statusCode: 404, requestId: 'req-err-1' }),
+    );
+  });
+
+  it('omits requestId outside a request context', () => {
+    filter.catch(new NotFoundException('Job not found'), mockHost as never);
+
+    expect(mockResponse.json.mock.calls[0][0]).not.toHaveProperty('requestId');
   });
 
   it('maps Prisma P2002 (unique constraint) to 409 Conflict', () => {

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { configureApp } from './configure-app.helper.js';
+import { requestIdMiddleware } from '../common/request-context.helper.js';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { PatScopeGuard } from '../common/guards/pat-scope.guard.js';
@@ -42,8 +43,11 @@ describe('configureApp', () => {
     expect(configure({ NODE_ENV: 'test' }).set).not.toHaveBeenCalled();
   });
 
-  it('adds security headers and cookie parsing as middleware', () => {
-    expect(configure({}).use).toHaveBeenCalledTimes(2);
+  it('registers the request-ID middleware first, then security headers and cookies', () => {
+    const app = configure({});
+
+    expect(app.use).toHaveBeenCalledTimes(3);
+    expect(app.use.mock.calls[0][0]).toBe(requestIdMiddleware);
   });
 
   it('allows the frontend origin with credentials and exposes the export headers', () => {
@@ -52,7 +56,11 @@ describe('configureApp', () => {
     expect(app.enableCors).toHaveBeenCalledWith({
       origin: 'https://app.example',
       credentials: true,
-      exposedHeaders: ['Content-Disposition', 'X-Export-Truncated'],
+      exposedHeaders: [
+        'Content-Disposition',
+        'X-Export-Truncated',
+        'X-Request-Id',
+      ],
     });
   });
 
