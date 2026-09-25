@@ -13,8 +13,8 @@ import {
   QueueObservabilityDto,
   QueueSnapshotDto,
 } from './dto/admin-queues.dto.js';
+import { readQueueCounts } from './queue-counts.helper.js';
 import {
-  COUNTED_STATES,
   NEVER_TRIGGERED_LABEL,
   STATUS_LABELS,
   STATUS_ORDER,
@@ -108,18 +108,7 @@ export class AdminQueuesService {
     queue: Queue,
   ): Promise<QueueSnapshotDto> {
     try {
-      const counts = await queue.getJobCounts(...COUNTED_STATES);
-      return {
-        name,
-        available: true,
-        counts: {
-          waiting: counts.waiting ?? 0,
-          active: counts.active ?? 0,
-          delayed: counts.delayed ?? 0,
-          failed: counts.failed ?? 0,
-          completed: counts.completed ?? 0,
-        },
-      };
+      return { name, available: true, counts: await readQueueCounts(queue) };
     } catch (error) {
       this.logger.warn(
         { err: error, queue: name },

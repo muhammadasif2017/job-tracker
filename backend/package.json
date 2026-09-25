@@ -39,6 +39,7 @@
     "@nestjs/throttler": "^6.7.0",
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^7.9.1",
+    "@prometheus-io/client": "^0.16.1",
     "@sentry/nestjs": "^11.0.0",
     "bcrypt": "^6.0.0",
     "bullmq": "^6.3.4",

@@ -9,6 +9,8 @@ import { RolesGuard } from '../common/guards/roles.guard.js';
 import { PatScopeGuard } from '../common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter.js';
 import { applyApiVersioning } from './api-versioning.helper.js';
+import { MetricsService } from '../infrastructure/metrics/metrics.service.js';
+import { httpMetricsMiddleware } from '../infrastructure/metrics/http-metrics.helper.js';
 import {
   REQUEST_ID_HEADER,
   requestIdMiddleware,
@@ -16,6 +18,7 @@ import {
 
 /**
  * The request pipeline every instance of the app runs: correlation IDs,
+ * request metrics,
  * proxy trust, security headers, cookies, CORS, validation, the global guards, the
  * exception filter and API versioning.
  *
@@ -46,6 +49,9 @@ export function configureApp(app: NestExpressApplication) {
   // First, so every later middleware, guard, handler and log line runs inside
   // the request's correlation context (ADR-049).
   app.use(requestIdMiddleware);
+  // Before the rest, so its timer covers every later middleware and the
+  // guards' 401/403/429 responses too (ADR-052).
+  app.use(httpMetricsMiddleware(app.get(MetricsService).httpRequestDuration));
   app.use(helmet());
   app.use(cookieParser());
   app.enableCors({

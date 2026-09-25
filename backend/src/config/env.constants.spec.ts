@@ -70,4 +70,22 @@ describe('ENV_VALIDATION_SCHEMA', () => {
 
     expect(error).toBeUndefined();
   });
+
+  it('accepts an empty METRICS_PORT, which compose passes when it is unset', () => {
+    const { error } = ENV_VALIDATION_SCHEMA.validate({
+      ...REQUIRED,
+      METRICS_PORT: '',
+    });
+
+    expect(error).toBeUndefined();
+  });
+
+  it('rejects a METRICS_PORT that is not a port', () => {
+    const { error } = ENV_VALIDATION_SCHEMA.validate({
+      ...REQUIRED,
+      METRICS_PORT: '70000',
+    });
+
+    expect(error?.message).toMatch(/METRICS_PORT/);
+  });
 });

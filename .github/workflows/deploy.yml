@@ -27,7 +27,7 @@ jobs:
         with:
           filters: |
             relevant:
-              # Compose and Caddy config are deployed too (the deploy job
+              # Compose, Caddy and Alloy config are deployed too (the deploy job
               # syncs the checkout on the VM), so a change to either has to
               # trigger this workflow — otherwise the change lands on main
               # and silently never reaches the server.
@@ -35,6 +35,7 @@ jobs:
               - '.github/workflows/deploy.yml'
               - 'docker-compose.prod.yml'
               - 'Caddyfile'
+              - 'alloy/**'
 
   test:
     name: Backend Tests
@@ -131,4 +132,8 @@ jobs:
             git pull --ff-only origin main
             docker compose -f docker-compose.prod.yml --env-file .env pull
             docker compose -f docker-compose.prod.yml --env-file .env up -d
+            # Alloy reads its config only at startup, and `up -d` leaves the
+            # container alone when only alloy/config.alloy changed. Restarting
+            # it is cheap: its write-ahead log keeps unsent samples (ADR-052).
+            docker compose -f docker-compose.prod.yml --env-file .env restart alloy
             docker image prune -f
