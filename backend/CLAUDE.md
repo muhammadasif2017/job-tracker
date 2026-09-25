@@ -434,6 +434,8 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 
 To follow one user action end to end, grep the logs for its ID.
 
+**Sentry Logs (ADR-053).** `warn`, `error` and `fatal` lines also go to Sentry Logs (Explore → Logs, searchable by `requestId`). Only allowlisted fields leave the VM: `scrubLogAttributes` (`src/infrastructure/error-tracking/log-attributes.helper.ts`) keeps `requestId`, `context`, a few IDs, the request method and query-free path, the status code and the error's type, message and stack. To send a new field, add it to `SENT_LOG_FIELDS` deliberately. Never log PII under an allowlisted key.
+
 ---
 
 ## E2E Tests (`test/app.e2e-spec.ts`)

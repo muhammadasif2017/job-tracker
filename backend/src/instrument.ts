@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nestjs';
+import { scrubLogAttributes } from './infrastructure/error-tracking/log-attributes.helper.js';
 
 /**
  * Sentry error tracking (ADR-050). `main.ts` imports this before anything
@@ -30,6 +31,13 @@ import * as Sentry from '@sentry/nestjs';
  * `Express` integration stays: it still reports a 5xx thrown by plain Express
  * middleware, which never reaches `GlobalExceptionFilter`.
  *
+ * Warn, error and fatal log lines also go to Sentry Logs (ADR-053), so the
+ * lines around an error are next to it. The pino integration only forwards
+ * them as logs: its option to turn log lines into error events stays off,
+ * because errors are already reported deliberately. `beforeSendLog` cuts
+ * every line down to an allowlist of fields (`scrubLogAttributes`), since a
+ * log line can carry anything, including an email address or a cookie.
+ *
  * The SDK's v11
  * defaults would also send cookies, HTTP headers and request bodies, which
  * here means the refresh-token cookie, Authorization headers and login
@@ -51,7 +59,12 @@ if (process.env.SENTRY_DSN) {
           integration.name !== 'OnUnhandledRejection',
       ),
       Sentry.onUnhandledRejectionIntegration({ mode: 'strict' }),
+      Sentry.pinoIntegration({ log: { levels: ['warn', 'error', 'fatal'] } }),
     ],
+    beforeSendLog: (log) => ({
+      ...log,
+      attributes: scrubLogAttributes(log.attributes ?? {}),
+    }),
     dataCollection: {
       userInfo: false,
       cookies: false,

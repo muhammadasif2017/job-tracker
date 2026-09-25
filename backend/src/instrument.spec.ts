@@ -6,6 +6,7 @@ jest.mock('@sentry/nestjs', () => ({
     name: 'OnUnhandledRejection',
     options,
   })),
+  pinoIntegration: jest.fn((options: object) => ({ name: 'Pino', options })),
 }));
 
 const DSN = 'https://k@o1.ingest.us.sentry.io/2';
@@ -67,7 +68,11 @@ describe('instrument', () => {
       { name: 'Http' },
     ]);
 
-    expect(result.map((i) => i.name)).toEqual(['Http', 'OnUnhandledRejection']);
+    expect(result.map((i) => i.name)).toEqual([
+      'Http',
+      'OnUnhandledRejection',
+      'Pino',
+    ]);
     expect(result[1].options).toEqual({ mode: 'strict' });
   });
 
@@ -86,6 +91,36 @@ describe('instrument', () => {
     expect(integrations([{ name: 'Express' }]).map((i) => i.name)).toContain(
       'Express',
     );
+  });
+
+  it('sends warn, error and fatal log lines as logs, never as error events', async () => {
+    await loadInstrument({ SENTRY_DSN: DSN });
+    const integrations = initOptions().integrations as (
+      defaults: Array<{ name: string }>,
+    ) => Array<{ name: string; options?: object }>;
+
+    const pino = integrations([]).find((i) => i.name === 'Pino');
+
+    expect(pino?.options).toEqual({
+      log: { levels: ['warn', 'error', 'fatal'] },
+    });
+  });
+
+  it('cuts every log line down to the allowlisted fields before sending', async () => {
+    await loadInstrument({ SENTRY_DSN: DSN });
+    const beforeSendLog = initOptions().beforeSendLog as (log: {
+      level: string;
+      message: string;
+      attributes?: Record<string, unknown>;
+    }) => { attributes: Record<string, unknown> };
+
+    const sent = beforeSendLog({
+      level: 'warn',
+      message: 'Email send failed',
+      attributes: { to: 'someone@example.com', requestId: 'req-1' },
+    });
+
+    expect(sent.attributes).toEqual({ requestId: 'req-1' });
   });
 
   it('treats an empty release as none', async () => {
