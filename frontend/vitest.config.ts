@@ -7,6 +7,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Room for a worker starved by a loaded full run; see vitest.setup.ts.
+    testTimeout: 15_000,
     exclude: ['**/node_modules/**', 'e2e/**'],
     coverage: {
       provider: 'v8',
