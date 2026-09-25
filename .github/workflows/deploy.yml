@@ -27,7 +27,7 @@ jobs:
         with:
           filters: |
             relevant:
-              # Compose and Caddy config are deployed too (the deploy job
+              # Compose, Caddy and Alloy config are deployed too (the deploy job
               # syncs the checkout on the VM), so a change to either has to
               # trigger this workflow — otherwise the change lands on main
               # and silently never reaches the server.
@@ -35,6 +35,7 @@ jobs:
               - '.github/workflows/deploy.yml'
               - 'docker-compose.prod.yml'
               - 'Caddyfile'
+              - 'alloy/**'
 
   test:
     name: Backend Tests

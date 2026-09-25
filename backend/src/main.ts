@@ -8,10 +8,13 @@ import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { withoutUnversionedAliases } from './config/api-versioning.helper.js';
 import { configureApp } from './config/configure-app.helper.js';
+import { MetricsService } from './infrastructure/metrics/metrics.service.js';
+import { startMetricsServer } from './infrastructure/metrics/metrics-server.helper.js';
 
 /**
  * Boots the API: the logger, the shared request pipeline (`configureApp`),
- * and non-production Swagger docs at `/api/docs`.
+ * non-production Swagger docs at `/api/docs`, and, when `METRICS_PORT` is
+ * set, the Prometheus listener on that port (ADR-052).
  */
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -42,5 +45,15 @@ async function bootstrap() {
 
   const port = config.get<number>('PORT') ?? 3001;
   await app.listen(port);
+
+  // Empty or unset means off, so local runs and the test suites open no
+  // extra port.
+  const metricsPort = config.get<number | ''>('METRICS_PORT');
+  if (metricsPort) {
+    const logger = app.get(Logger);
+    startMetricsServer(metricsPort, app.get(MetricsService).registry, (err) =>
+      logger.error({ err }, 'Metrics listener failed'),
+    );
+  }
 }
 void bootstrap();

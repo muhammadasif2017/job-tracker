@@ -4,13 +4,17 @@ import { AdminService } from './admin.service.js';
 import { AdminController } from './admin.controller.js';
 import { AdminQueuesService } from './admin-queues.service.js';
 import { AdminQueuesController } from './admin-queues.controller.js';
+import { QueueMetricsService } from './queue-metrics.service.js';
 import { UsersModule } from '../users/users.module.js';
 import { EnrichmentModule } from '../enrichment/enrichment.module.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
 
-/** Admin-only user management and read-only views of the background queues. */
+/**
+ * Admin-only user management and read-only views of the background queues,
+ * plus the same queue state as Prometheus gauges (ADR-052).
+ */
 @Module({
   // Re-registering queues another module owns is how a read-only consumer gets
   // a handle on them — same pattern as HealthModule.
@@ -22,7 +26,7 @@ import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js
     BullModule.registerQueue({ name: JOB_TIMELINE_SUMMARY_QUEUE }),
     BullModule.registerQueue({ name: NOTIFICATIONS_QUEUE }),
   ],
-  providers: [AdminService, AdminQueuesService],
+  providers: [AdminService, AdminQueuesService, QueueMetricsService],
   controllers: [AdminController, AdminQueuesController],
 })
 export class AdminModule {}

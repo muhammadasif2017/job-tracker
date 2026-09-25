@@ -1,0 +1,24 @@
+// Grafana Alloy config for production (ADR-052), run by the `alloy` service in
+// docker-compose.prod.yml. It scrapes the backend's Prometheus listener over
+// the compose network and pushes to Grafana Cloud. Syntax check, which sends
+// nothing: docker run --rm -v "$PWD/alloy:/c:ro" grafana/alloy:v1.20.0 fmt /c/config.alloy
+
+prometheus.scrape "backend" {
+	targets         = [{"__address__" = "backend:9464"}]
+	job_name        = "job-tracker-backend"
+	scrape_interval = "60s"
+	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}
+
+// The URL and username are not secrets. The token is: it comes from the VM's
+// .env through compose and never lives in the repo.
+prometheus.remote_write "grafana_cloud" {
+	endpoint {
+		url = "https://prometheus-prod-37-prod-ap-southeast-1.grafana.net/api/prom/push"
+
+		basic_auth {
+			username = "3612320"
+			password = sys.env("GRAFANA_CLOUD_TOKEN")
+		}
+	}
+}

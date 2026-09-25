@@ -13,6 +13,7 @@ import {
 import { PrismaModule } from './infrastructure/database/prisma.module.js';
 import { queueConnection } from './infrastructure/redis/redis-connection.helper.js';
 import { RedisModule } from './infrastructure/redis/redis.module.js';
+import { MetricsModule } from './infrastructure/metrics/metrics.module.js';
 import { StorageModule } from './infrastructure/storage/storage.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -73,6 +74,7 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
     }),
     PrismaModule,
     RedisModule,
+    MetricsModule,
     StorageModule,
     AuthModule,
     ResumesModule,

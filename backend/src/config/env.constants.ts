@@ -47,4 +47,7 @@ export const ENV_VALIDATION_SCHEMA = Joi.object({
   SENTRY_DSN: Joi.string().uri().allow('').optional(),
   SENTRY_ENVIRONMENT: Joi.string().allow('').optional(),
   SENTRY_RELEASE: Joi.string().allow('').optional(),
+  // Port for the Prometheus listener (ADR-052). Empty means off, for the same
+  // reason as the Sentry values: compose passes `${METRICS_PORT:-}`.
+  METRICS_PORT: Joi.number().port().allow('').optional(),
 });

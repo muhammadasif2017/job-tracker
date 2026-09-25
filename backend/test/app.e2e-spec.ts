@@ -229,6 +229,12 @@ describe('Job Tracker (e2e)', () => {
       await agent.get('/health').expect(200);
       await agent.get('/v1/health').expect(404);
     });
+
+    it('does not serve /metrics on the API port, which Caddy exposes', async () => {
+      // Metrics live on their own unpublished port (ADR-052).
+      await agent.get('/metrics').expect(404);
+      await agent.get('/v1/metrics').expect(404);
+    });
   });
 
   // ── Personal access tokens ──────────────────────────────────────────────────

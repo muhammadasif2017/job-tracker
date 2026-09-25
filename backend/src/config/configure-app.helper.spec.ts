@@ -8,15 +8,19 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard.js';
 import { RolesGuard } from '../common/guards/roles.guard.js';
 import { PatScopeGuard } from '../common/guards/pat-scope.guard.js';
 import { GlobalExceptionFilter } from '../common/filters/global-exception.filter.js';
+import { MetricsService } from '../infrastructure/metrics/metrics.service.js';
 
 /** A stand-in app that records every configuration call. */
 function fakeApp(env: Record<string, string>) {
   const config = { get: jest.fn((key: string) => env[key]) };
   const reflector = new Reflector();
+  const metrics = new MetricsService();
   const app = {
-    get: jest.fn((token: unknown) =>
-      token === ConfigService ? config : reflector,
-    ),
+    get: jest.fn((token: unknown) => {
+      if (token === ConfigService) return config;
+      if (token === MetricsService) return metrics;
+      return reflector;
+    }),
     set: jest.fn(),
     use: jest.fn(),
     enableCors: jest.fn(),
@@ -43,11 +47,13 @@ describe('configureApp', () => {
     expect(configure({ NODE_ENV: 'test' }).set).not.toHaveBeenCalled();
   });
 
-  it('registers the request-ID middleware first, then security headers and cookies', () => {
+  it('registers the request-ID middleware first, then metrics, security headers and cookies', () => {
     const app = configure({});
 
-    expect(app.use).toHaveBeenCalledTimes(3);
+    expect(app.use).toHaveBeenCalledTimes(4);
     expect(app.use.mock.calls[0][0]).toBe(requestIdMiddleware);
+    // The metrics middleware is a closure, so it is identified by position.
+    expect(app.get).toHaveBeenCalledWith(MetricsService);
   });
 
   it('allows the frontend origin with credentials and exposes the export headers', () => {

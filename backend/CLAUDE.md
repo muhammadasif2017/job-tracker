@@ -371,6 +371,7 @@ When a job is deleted, `JobsService.remove` looks up the resume's `storageKey` b
 | `OCI_ACCESS_KEY_ID`      | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
 | `OCI_SECRET_ACCESS_KEY`  | Yes\*    | —                        | Required when `STORAGE_DRIVER=oracle`; Customer Secret Key from OCI console                                                                                                                                                                                                                               |
 | `SENTRY_DSN`             | No       | —                        | Sentry error tracking (ADR-050); unset or empty means off (`SENTRY_ENVIRONMENT` and `SENTRY_RELEASE` may be empty too). Read by `src/instrument.ts` before `ConfigModule` exists. Production passes it through `docker-compose.prod.yml`, and the image sets `SENTRY_RELEASE` to the commit SHA           |
+| `METRICS_PORT`           | No       | —                        | Port for the Prometheus listener (ADR-052); unset or empty means off. Production sets `9464` in `docker-compose.prod.yml`, unpublished, and Grafana Alloy scrapes it. Never route it through Caddy                                                                                                        |
 
 ---
 
