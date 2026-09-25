@@ -38,7 +38,10 @@ describe('NotificationsScheduler', () => {
       });
       expect(queue.add).toHaveBeenCalledWith(
         'interview-reminder',
-        { roundId: 'round1' },
+        {
+          roundId: 'round1',
+          requestId: expect.stringMatching(/^cron:interview-reminders:/),
+        },
         expect.objectContaining({ attempts: 2 }),
       );
     });
@@ -202,7 +205,10 @@ describe('NotificationsScheduler', () => {
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(
         'digest',
-        { userId: 'u1' },
+        {
+          userId: 'u1',
+          requestId: expect.stringMatching(/^cron:(daily|weekly)-digests:/),
+        },
         expect.objectContaining({
           attempts: 2,
           jobId: 'digest-DAILY-u1-2026-08-03',
@@ -325,7 +331,10 @@ describe('NotificationsScheduler', () => {
 
       expect(queue.add).toHaveBeenCalledWith(
         'digest',
-        { userId: 'u1' },
+        {
+          userId: 'u1',
+          requestId: expect.stringMatching(/^cron:(daily|weekly)-digests:/),
+        },
         expect.objectContaining({ jobId: 'digest-DAILY-u1-2026-08-03' }),
       );
     });
@@ -385,7 +394,10 @@ describe('NotificationsScheduler', () => {
 
       expect(queue.add).toHaveBeenCalledWith(
         'digest',
-        { userId: 'u1' },
+        {
+          userId: 'u1',
+          requestId: expect.stringMatching(/^cron:(daily|weekly)-digests:/),
+        },
         expect.objectContaining({ jobId: 'digest-WEEKLY-u1-2026-08-03' }),
       );
     });
@@ -428,7 +440,10 @@ describe('NotificationsScheduler', () => {
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(
         'digest',
-        { userId: 'u2' },
+        {
+          userId: 'u2',
+          requestId: expect.stringMatching(/^cron:(daily|weekly)-digests:/),
+        },
         expect.objectContaining({ jobId: 'digest-DAILY-u2-2026-08-03' }),
       );
     });

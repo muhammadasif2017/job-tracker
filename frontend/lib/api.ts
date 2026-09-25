@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { type AxiosError } from 'axios';
 import { tokenStorage } from './auth';
 import { useAuthStore } from '../store/auth.store';
 
@@ -134,15 +134,39 @@ api.interceptors.response.use(
  * validation failures (one entry per failed constraint) and a string for
  * everything else (NotFoundException, ForbiddenException, etc.) — React
  * renders a string[] as concatenated children with no separator, so this
- * normalizes both shapes into one readable string.
+ * normalizes both shapes into one readable string. A server error (5xx)
+ * also carries its reference ID; see `withServerReference`.
  */
 export function getErrorMessage(err: unknown, fallback: string): string {
   if (!axios.isAxiosError(err)) return fallback;
   const message = err.response?.data?.message;
-  if (Array.isArray(message)) {
-    return message.length > 0 ? message.join('. ') : fallback;
-  }
-  return typeof message === 'string' ? message : fallback;
+  const text = Array.isArray(message)
+    ? message.length > 0
+      ? message.join('. ')
+      : fallback
+    : typeof message === 'string'
+      ? message
+      : fallback;
+  return withServerReference(text, err);
+}
+
+/**
+ * Appends the request's correlation ID to a server-error message, as
+ * `(ref: <id>)`, so a user can quote it and it matches the backend's logs
+ * (ADR-049). Only for 5xx: a 4xx message already says what to fix, and
+ * a reference there would be noise. Read from the body first, then the
+ * `X-Request-Id` header, which CORS exposes.
+ */
+function withServerReference(text: string, err: AxiosError): string {
+  const status = err.response?.status ?? 0;
+  if (status < 500) return text;
+  const fromBody = (err.response?.data as { requestId?: unknown } | undefined)
+    ?.requestId;
+  const requestId =
+    typeof fromBody === 'string'
+      ? fromBody
+      : (err.response?.headers?.['x-request-id'] as string | undefined);
+  return requestId ? `${text} (ref: ${requestId})` : text;
 }
 
 export default api;

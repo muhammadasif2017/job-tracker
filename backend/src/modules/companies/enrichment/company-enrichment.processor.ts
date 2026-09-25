@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from '@nestjs/bullmq';
+import { Processor } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus, type Company } from '@prisma/client';
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
@@ -14,7 +14,7 @@ import {
   type CompanyData,
 } from '../../enrichment/services/llm.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from './company-enrichment.constants.js';
-import { runJobWithRequestId } from '../../../common/request-context.helper.js';
+import { CorrelatedWorkerHost } from '../../../common/correlated-worker-host.js';
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 import { techFromJobTitles } from '../../../common/tech-tokens.js';
 import { withWorkerConnection } from '../../../infrastructure/redis/redis-connection.helper.js';
@@ -57,7 +57,9 @@ const SEARCH_SECTION_BUDGET = 8_000;
   COMPANY_ENRICHMENT_QUEUE,
   withWorkerConnection({ lockDuration: 90_000 }),
 )
-export class CompanyEnrichmentProcessor extends WorkerHost {
+export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
+  Job<{ companyId: string }>
+> {
   constructor(
     private readonly prisma: PrismaService,
     private readonly webFetch: WebFetchService,
@@ -69,23 +71,12 @@ export class CompanyEnrichmentProcessor extends WorkerHost {
   }
 
   /**
-   * Runs the job inside the correlation context of the request that enqueued
-   * it, so its log lines share that request's `requestId` (ADR-049).
-   */
-  async process(
-    job: Job<{ companyId: string; requestId?: string }>,
-    token?: string,
-  ): Promise<void> {
-    return runJobWithRequestId(job, () => this.enrich(job, token));
-  }
-
-  /**
    * Runs one enrichment attempt for a company. Search quota and bad-key
    * failures that leave no context throw `UnrecoverableError` so BullMQ does
    * not retry them; other failures rethrow for a retry unless an extraction
    * was already salvaged. A company deleted mid-run is left alone.
    */
-  private async enrich(
+  protected async handle(
     job: Job<{ companyId: string }>,
     token?: string,
   ): Promise<void> {

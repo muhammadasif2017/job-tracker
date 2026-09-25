@@ -422,11 +422,12 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 
 **Correlation IDs (ADR-049).** Every log line written while handling a request carries a `requestId`, and so does every line from a BullMQ job that request enqueued. It comes from `src/common/request-context.helper.ts`:
 
-- `requestIdMiddleware` runs first in `configureApp`. It adopts a safe incoming `X-Request-Id` or generates a UUID, returns it in the `X-Request-Id` response header, and runs the request inside an `AsyncLocalStorage` context.
+- `requestIdMiddleware` runs first in `configureApp`. It adopts a safe incoming `X-Request-Id` (8–128 characters from `[A-Za-z0-9._:-]`, not starting with the reserved `job:` or `cron:`) or generates a UUID, returns it in the `X-Request-Id` response header, and runs the request inside an `AsyncLocalStorage` context.
 - The pino `mixin` in `AppModule` stamps `requestId` from that context onto every line.
 - `GlobalExceptionFilter` puts `requestId` in every error body.
 - **When enqueueing a job**, wrap its data in `withRequestId({ ... })`.
-- **In a new processor**, run the work through `runJobWithRequestId(job, () => ...)`. A job enqueued with no request behind it, such as one from a cron scan, gets `job:<queue>:<id>`.
+- **A new processor** extends `CorrelatedWorkerHost` (`src/common/correlated-worker-host.ts`) and implements `handle()`; the base class runs it in the job's context. An `@OnWorkerEvent` handler runs outside `process`, so it wraps its body in `runJobWithRequestId(job, ...)` itself.
+- **A new cron scan** runs its body in `runWithRequestId(cronRequestId('<scan>'), ...)`, so the scan and its jobs share one ID. A job with no ID at all falls back to `job:<queue>:<id>`.
 
 To follow one user action end to end, grep the logs for its ID.
 

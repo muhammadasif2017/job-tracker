@@ -6,6 +6,11 @@ import type { Queue } from 'bullmq';
 import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  cronRequestId,
+  runWithRequestId,
+  withRequestId,
+} from '../../common/request-context.helper.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import {
   NOTIFICATIONS_QUEUE,
@@ -85,6 +90,15 @@ export class NotificationsScheduler {
    */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async scanInterviewReminders(): Promise<void> {
+    // One correlation ID per scan, shared by its log lines and the jobs it
+    // enqueues (ADR-049).
+    return runWithRequestId(cronRequestId('interview-reminders'), () =>
+      this.runReminderScan(),
+    );
+  }
+
+  /** The reminder scan itself; see `scanInterviewReminders`. */
+  private async runReminderScan(): Promise<void> {
     const now = new Date();
     const in24h = new Date(now.getTime() + REMINDER_LEAD_MS);
 
@@ -110,7 +124,11 @@ export class NotificationsScheduler {
 
       const data: InterviewReminderJobData = { roundId: id };
       try {
-        await this.queue.add('interview-reminder', data, JOB_OPTIONS);
+        await this.queue.add(
+          'interview-reminder',
+          withRequestId(data),
+          JOB_OPTIONS,
+        );
       } catch (err) {
         // Queue adds fail fast on a Redis outage (ADR-046). A refused add
         // queued nothing, so un-stamp the round and the next hourly scan
@@ -143,13 +161,17 @@ export class NotificationsScheduler {
    */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendDailyDigests(): Promise<void> {
-    await this.fanOutDigest(DigestFrequency.DAILY);
+    await runWithRequestId(cronRequestId('daily-digests'), () =>
+      this.fanOutDigest(DigestFrequency.DAILY),
+    );
   }
 
   /** Enqueues weekly digests; hourly for the same reason as the daily cron. */
   @Cron(CronExpression.EVERY_HOUR, { timeZone: 'UTC' })
   async sendWeeklyDigests(): Promise<void> {
-    await this.fanOutDigest(DigestFrequency.WEEKLY);
+    await runWithRequestId(cronRequestId('weekly-digests'), () =>
+      this.fanOutDigest(DigestFrequency.WEEKLY),
+    );
   }
 
   /**
@@ -195,7 +217,7 @@ export class NotificationsScheduler {
       // job, guarding against a restart or multi-instance race re-firing the
       // same cron window twice for the same user.
       const dateKey = localDateKey(now, timezone);
-      await this.queue.add('digest', data, {
+      await this.queue.add('digest', withRequestId(data), {
         ...JOB_OPTIONS,
         jobId: `digest-${frequency}-${userId}-${dateKey}`,
       });

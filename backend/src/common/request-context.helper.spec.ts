@@ -1,6 +1,8 @@
 import type { NextFunction, Request, Response } from 'express';
 import {
+  cronRequestId,
   currentRequestId,
+  requestIdField,
   requestIdMiddleware,
   resolveRequestId,
   runJobWithRequestId,
@@ -16,8 +18,8 @@ describe('resolveRequestId', () => {
     expect(resolveRequestId('trace-abc_123:7.x')).toBe('trace-abc_123:7.x');
   });
 
-  it('takes the first value of a repeated header', () => {
-    expect(resolveRequestId(['first-id', 'second-id'])).toBe('first-id');
+  it('takes the first value of a repeated header, which Node joins with a comma', () => {
+    expect(resolveRequestId('first-id-1, second-id-2')).toBe('first-id-1');
   });
 
   it.each([
@@ -26,13 +28,16 @@ describe('resolveRequestId', () => {
     ['one that could inject a log line', 'id\nlevel=error fake'],
     ['one with spaces', 'has space'],
     ['an oversized one', 'x'.repeat(129)],
+    ['one too short to be unique', '1'],
+    ['a claim on the job: prefix', 'job:notifications:42'],
+    ['a claim on the cron: prefix', 'cron:daily-digests:2026-09-25'],
   ])('replaces %s with a fresh UUID', (_label, header) => {
     expect(resolveRequestId(header)).toMatch(UUID);
   });
 });
 
 describe('requestIdMiddleware', () => {
-  function run(headers: Record<string, string>) {
+  function run(headers: Record<string, string | string[]>) {
     const req = { headers } as unknown as Request & { id?: string };
     const setHeader = jest.fn();
     const res = { setHeader } as unknown as Response;
@@ -43,6 +48,12 @@ describe('requestIdMiddleware', () => {
     requestIdMiddleware(req, res, next);
     return { req, setHeader, inContext };
   }
+
+  it('handles a header Node delivers as an array', () => {
+    const { req } = run({ 'x-request-id': ['array-id-1', 'array-id-2'] });
+
+    expect(req.id).toBe('array-id-1');
+  });
 
   it('echoes the ID, exposes it as req.id, and runs the request inside its context', () => {
     const { req, setHeader, inContext } = run({
@@ -99,5 +110,16 @@ describe('context propagation', () => {
     );
 
     expect(seen).toBe('job:notifications:42');
+  });
+
+  it('builds a reserved cron ID from the scan name and its start time', () => {
+    expect(
+      cronRequestId('daily-digests', new Date('2026-09-25T08:00:00Z')),
+    ).toBe('cron:daily-digests:2026-09-25T08:00:00.000Z');
+  });
+
+  it('spreads to { requestId } only when there is one', () => {
+    expect(requestIdField('req-9')).toEqual({ requestId: 'req-9' });
+    expect(requestIdField(undefined)).toEqual({});
   });
 });

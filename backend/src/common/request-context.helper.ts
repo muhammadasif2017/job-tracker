@@ -8,9 +8,18 @@ export const REQUEST_ID_HEADER = 'X-Request-Id';
 /**
  * What an incoming `X-Request-Id` may look like to be adopted as-is. Anything
  * else gets a fresh ID: the value lands in every log line, so an unchecked
- * header would let a client inject newlines or megabytes into the logs.
+ * header would let a client inject newlines or megabytes into the logs. The
+ * 8-character minimum keeps a client from picking a trivially shared value
+ * such as `1` that would merge its lines with everyone else's.
  */
-const ACCEPTED_REQUEST_ID = /^[A-Za-z0-9._:-]{1,128}$/;
+const ACCEPTED_REQUEST_ID = /^[A-Za-z0-9._:-]{8,128}$/;
+
+/**
+ * Prefixes the server gives IDs it makes for work no request started
+ * (`job:<queue>:<id>`, `cron:<scan>:<time>`). A client may not claim them,
+ * or its lines would merge with a background job's.
+ */
+const RESERVED_ID_PREFIXES = ['job:', 'cron:'];
 
 /** The correlation context of the request or background job currently running. */
 interface RequestContext {
@@ -34,14 +43,28 @@ export function runWithRequestId<T>(requestId: string, work: () => T): T {
   return requestContextStorage.run({ requestId }, work);
 }
 
-/** The client's `X-Request-Id` when it is safe to log, otherwise a new UUID. */
-export function resolveRequestId(
-  header: string | string[] | undefined,
-): string {
-  const candidate = Array.isArray(header) ? header[0] : header;
-  return candidate && ACCEPTED_REQUEST_ID.test(candidate)
-    ? candidate
-    : randomUUID();
+/**
+ * The client's `X-Request-Id` when it is safe to log, otherwise a new UUID.
+ * Node joins a repeated header into one `"a, b"` string, so the first
+ * comma-separated value is the candidate.
+ */
+export function resolveRequestId(header: string | undefined): string {
+  const candidate = header?.split(',')[0].trim();
+  const acceptable =
+    !!candidate &&
+    ACCEPTED_REQUEST_ID.test(candidate) &&
+    !RESERVED_ID_PREFIXES.some((prefix) => candidate.startsWith(prefix));
+  return acceptable ? candidate : randomUUID();
+}
+
+/**
+ * `{ requestId }` when there is one, otherwise nothing, for spreading into a
+ * log mixin or a response body.
+ */
+export function requestIdField(requestId: string | undefined): {
+  requestId?: string;
+} {
+  return requestId ? { requestId } : {};
 }
 
 /**
@@ -54,10 +77,22 @@ export function requestIdMiddleware(
   res: Response,
   next: NextFunction,
 ) {
-  const requestId = resolveRequestId(req.headers['x-request-id']);
+  const header = req.headers['x-request-id'];
+  const requestId = resolveRequestId(
+    Array.isArray(header) ? header.join(', ') : header,
+  );
   (req as Request & { id?: string }).id = requestId;
   res.setHeader(REQUEST_ID_HEADER, requestId);
   runWithRequestId(requestId, next);
+}
+
+/**
+ * A correlation ID for one run of a cron scan, so the scan's own log lines
+ * and every job it enqueues share it. The `cron:` prefix is reserved: no
+ * client can claim it.
+ */
+export function cronRequestId(scan: string, at: Date = new Date()): string {
+  return `cron:${scan}:${at.toISOString()}`;
 }
 
 /**
