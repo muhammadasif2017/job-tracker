@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
 import { QueueMetricsService } from './queue-metrics.service.js';
@@ -8,19 +7,12 @@ import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import type { CircuitStatus } from '../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockEnrichmentQueue = { getJobCounts: jest.fn() };
 const mockTimelineQueue = { getJobCounts: jest.fn() };
 const mockNotificationsQueue = { getJobCounts: jest.fn() };
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 const mockLlm = {
   circuitStatus: jest.fn(
     (): CircuitStatus => ({

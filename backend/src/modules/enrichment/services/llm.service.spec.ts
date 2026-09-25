@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
@@ -9,16 +8,9 @@ import {
   LlmService,
 } from './llm.service.js';
 import { CircuitOpenError } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 const mockCreate = jest.fn();
 
 jest.mock('groq-sdk', () => ({

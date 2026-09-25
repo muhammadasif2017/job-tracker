@@ -19,7 +19,9 @@ or an email that failed to send, never reached Sentry at all.
 
 Send the backend's `warn`, `error` and `fatal` pino lines to Sentry Logs,
 through the SDK's `pinoIntegration` in `src/instrument.ts`. The integration
-hooks pino's own diagnostics channel, so no logger code changes.
+hooks pino's own diagnostics channel, so pino itself needs no setup. The
+calls do change, though: fields only arrive when logged object-first through
+Nest's `Logger`, which is why every service moved to it (below).
 
 - **Logs only, not events.** The integration can also turn log lines into
   error events. That stays off: errors are reported deliberately
@@ -67,11 +69,12 @@ hooks pino's own diagnostics channel, so no logger code changes.
   errors arrived as `log` items carrying only `context` and Sentry's own
   attributes. The real output of both loggers, for each call style, was
   checked the same way.
-- **Outage volume.** During a Redis outage, `RedisService` logs a connection
-  error on every reconnect attempt, about 1,800 lines an hour. On top of
-  that, every mutating request logs an idempotency warning, and each queue
-  logs a metrics warning per scrape, so volume grows with traffic. If that
-  strains the quota, rate-limit those lines rather than dropping the level.
+- **Outage volume.** `RedisService` logs a Redis outage at error level once,
+  when the connection drops, then each reconnect attempt (about one every
+  2 s) at debug, which stays on the VM, and "restored" when it is back.
+  Before, every attempt was an error line, about 1,800 an hour. The
+  per-request idempotency warnings and the per-scrape queue metrics warnings
+  still grow with traffic; rate-limit those too if they strain the quota.
 - **CPU.** The integration JSON-parses every pino line, info included,
   before filtering by level. For a line of about 1 KB that is microseconds
   per request, which this traffic does not notice.

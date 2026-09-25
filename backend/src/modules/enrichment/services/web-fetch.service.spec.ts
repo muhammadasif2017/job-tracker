@@ -7,17 +7,10 @@ import { Test } from '@nestjs/testing';
 jest.mock('node:dns/promises', () => ({ lookup: jest.fn() }));
 import * as dns from 'node:dns/promises';
 import { WebFetchService } from './web-fetch.service.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
 const dnsLookup = dns.lookup as jest.Mock;
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 const htmlPage = `
 <html>

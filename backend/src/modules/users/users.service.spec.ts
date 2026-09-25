@@ -3,12 +3,12 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 jest.mock('bcrypt', () => ({
   compare: jest.fn(),
@@ -33,15 +33,7 @@ const mockStorage = {
   delete: jest.fn(),
 };
 
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 describe('UsersService', () => {
   let service: UsersService;

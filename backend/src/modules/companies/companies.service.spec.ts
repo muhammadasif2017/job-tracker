@@ -3,12 +3,12 @@ import {
   BadRequestException,
   ConflictException,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import { EnrichmentStatus } from '@prisma/client';
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockPrisma = {
   company: {
@@ -33,15 +33,7 @@ const mockCompanyEnrichment = {
   enqueueEnrichment: jest.fn(),
 } satisfies Pick<CompanyEnrichmentService, 'enqueueEnrichment'>;
 
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 describe('CompaniesService', () => {
   let service: CompaniesService;

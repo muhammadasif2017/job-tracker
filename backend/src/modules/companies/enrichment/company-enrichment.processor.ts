@@ -316,7 +316,10 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
         {
           companyId,
           company,
-          err: error,
+          // The redacted message, not `err`: upstream errors here quote the
+          // URLs that were fetched or searched.
+          reason: errorMessage,
+          errorName: error instanceof Error ? error.name : 'Error',
           durationMs: Date.now() - startedAt,
         },
         'company_enrichment_failed',
@@ -387,8 +390,7 @@ export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
         {
           companyId,
           phase,
-          error:
-            updateErr instanceof Error ? updateErr.message : String(updateErr),
+          err: updateErr,
         },
         'company_enrichment_profile_update_failed',
       );

@@ -1,10 +1,11 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockLlm = {
   generateRoundPrep: jest.fn(),
@@ -14,15 +15,7 @@ const mockTimelineSummary = {
   enqueue: jest.fn().mockResolvedValue(undefined),
 };
 
-const mockLogger = {
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 const mockPrisma = {
   job: {

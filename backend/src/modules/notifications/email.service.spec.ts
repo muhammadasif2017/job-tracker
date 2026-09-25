@@ -1,6 +1,6 @@
-import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { EmailService } from './email.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const sendMock = jest.fn().mockResolvedValue({ data: { id: 'x' } });
 
@@ -11,14 +11,7 @@ jest.mock('resend', () => ({
 }));
 
 describe('EmailService', () => {
-  const logger = {
-    warn: jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => undefined),
-    log: jest
-      .spyOn(Logger.prototype, 'log')
-      .mockImplementation(() => undefined),
-  };
+  const logger = spyOnLogger();
 
   afterEach(() => jest.clearAllMocks());
 

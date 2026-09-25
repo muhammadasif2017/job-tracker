@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { ConflictException, Logger } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import {
   CompanyCity,
   EnrichmentStatus,
@@ -17,6 +17,7 @@ import { CompanyEnrichmentService } from '../companies/enrichment/company-enrich
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 // The stored `appliedAt` every ownership mock below reports. `findOwned`
 // selects it so `update` can tell a date the user actually edited from the
@@ -66,9 +67,7 @@ const mockStorage = {
   delete: jest.fn(),
 };
 // Silences the services' log output; no test asserts on it.
-jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+spyOnLogger();
 
 describe('JobsService', () => {
   let service: JobsService;

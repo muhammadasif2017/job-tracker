@@ -1,16 +1,9 @@
-import { Logger } from '@nestjs/common';
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsScheduler } from './notifications.scheduler.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 describe('NotificationsScheduler', () => {
-  const logger = {
-    log: jest
-      .spyOn(Logger.prototype, 'log')
-      .mockImplementation(() => undefined),
-    warn: jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => undefined),
-  };
+  const logger = spyOnLogger();
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
 
   // 08:00 UTC on a Monday — matches DIGEST_SEND_HOUR for a UTC user and

@@ -31,6 +31,8 @@ export const REDIS_READY_TIMEOUT_MS = 5000;
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
   private readonly logger = new Logger(RedisService.name);
+  /** Set once an outage has been logged at error level, until Redis is back. */
+  private outageLogged = false;
 
   constructor(config: ConfigService) {
     this.client = new Redis(
@@ -41,9 +43,22 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         commandTimeout: QUEUE_COMMAND_TIMEOUT_MS,
       },
     );
-    this.client.on('error', (err) =>
-      this.logger.error({ err }, 'Redis connection error'),
-    );
+    // One error line per outage, not per reconnect attempt: ioredis retries
+    // about every 2 s, and each error line also goes to Sentry Logs
+    // (ADR-053). The retries still show at debug level on the VM.
+    this.client.on('error', (err) => {
+      if (this.outageLogged) {
+        this.logger.debug({ err }, 'Redis connection error (still down)');
+        return;
+      }
+      this.outageLogged = true;
+      this.logger.error({ err }, 'Redis connection error');
+    });
+    this.client.on('ready', () => {
+      if (!this.outageLogged) return;
+      this.outageLogged = false;
+      this.logger.log('Redis connection restored');
+    });
   }
 
   /**
@@ -71,7 +86,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (onReady) this.client.off('ready', onReady);
     if (!ready) {
       this.logger.warn(
-        `Redis not ready after ${REDIS_READY_TIMEOUT_MS}ms; starting without it`,
+        { timeoutMs: REDIS_READY_TIMEOUT_MS },
+        'Redis not ready in time; starting without it',
       );
     }
   }

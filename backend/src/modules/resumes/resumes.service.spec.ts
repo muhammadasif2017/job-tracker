@@ -2,11 +2,11 @@ import { Test } from '@nestjs/testing';
 import {
   NotFoundException,
   UnprocessableEntityException,
-  Logger,
 } from '@nestjs/common';
 import { ResumesService } from './resumes.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockPrisma = {
   job: { findFirst: jest.fn() },
@@ -25,9 +25,7 @@ const mockStorage = {
 };
 
 // Silences the services' log output; no test asserts on it.
-jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+spyOnLogger();
 
 const mockFile = {
   originalname: 'resume.pdf',

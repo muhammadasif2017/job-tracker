@@ -1,5 +1,5 @@
 import { Test } from '@nestjs/testing';
-import { BadRequestException, Logger } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { JobParsingService } from './job-parsing.service.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
 import {
@@ -11,6 +11,7 @@ import {
   CircuitOpenError,
   type CircuitStatus,
 } from '../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockWebFetch = { fetchPageText: jest.fn() } satisfies Pick<
   WebFetchService,
@@ -30,9 +31,7 @@ const mockLlm = {
   circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
 } satisfies Pick<LlmService, 'extractJobPosting' | 'circuitStatus'>;
 // Silences the services' log output; no test asserts on it.
-jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+spyOnLogger();
 
 describe('JobParsingService', () => {
   let service: JobParsingService;

@@ -15,6 +15,7 @@ const SENT_LOG_FIELDS = new Set([
   'queue',
   'model',
   'phase',
+  'errorName',
   'status',
   'responseTime',
 ]);
@@ -91,12 +92,27 @@ interface SentryLogLine {
 export function scrubLog<T extends SentryLogLine>(log: T): T {
   const attributes = log.attributes ?? {};
   const err = asRecord(attributes.err);
-  const errText = typeof err?.message === 'string' ? err.message : '';
-  const message =
-    errText && typeof log.message === 'string' && log.message.includes(errText)
-      ? `${typeof err?.type === 'string' ? err.type : 'Error'} (message on the VM)`
-      : log.message;
+  const errType = typeof err?.type === 'string' ? err.type : 'Error';
+  const message = isErrorText(log.message, err?.message)
+    ? `${errType} (message on the VM)`
+    : log.message;
   return { ...log, message, attributes: scrubLogAttributes(attributes) };
+}
+
+/**
+ * True when a log message is the error's own text, which is what pino fills
+ * in for a line logged with an error and no message. The serialized
+ * `err.message` appends any causes ("outer: inner") while pino uses the bare
+ * "outer", so a message that is the first part of it counts too. A longer,
+ * fixed message that merely contains short error text ('Request timeout'
+ * and 'timeout') is ours and is kept.
+ */
+function isErrorText(message: unknown, errMessage: unknown): boolean {
+  if (typeof message !== 'string' || typeof errMessage !== 'string') {
+    return false;
+  }
+  if (!message || !errMessage) return false;
+  return message === errMessage || errMessage.startsWith(`${message}: `);
 }
 
 /** True for the value kinds a log attribute may carry out of the VM. */

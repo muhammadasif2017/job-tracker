@@ -106,16 +106,30 @@ describe('scrubLog', () => {
     });
   });
 
-  it('withholds a message that quotes the error text inside a longer string', () => {
+  it('withholds the error text of an error with a cause', () => {
+    // pino fills in the bare message; the serializer appends the cause.
     const sent = scrubLog({
       level: 'error',
-      message: `Unhandled: ${err.message}`,
-      attributes: { err },
+      message: 'Could not sync a@b.com',
+      attributes: {
+        err: {
+          type: 'Error',
+          message: 'Could not sync a@b.com: connect ECONNREFUSED',
+        },
+      },
     });
 
-    expect(sent.message).toBe(
-      'PrismaClientValidationError (message on the VM)',
-    );
+    expect(sent.message).toBe('Error (message on the VM)');
+  });
+
+  it('keeps a fixed message that happens to contain short error text', () => {
+    const sent = scrubLog({
+      level: 'warn',
+      message: 'Request timeout while fetching',
+      attributes: { err: { type: 'Error', message: 'timeout' } },
+    });
+
+    expect(sent.message).toBe('Request timeout while fetching');
   });
 
   it('keeps a fixed message written by our own code', () => {

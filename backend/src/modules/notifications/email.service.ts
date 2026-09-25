@@ -51,7 +51,12 @@ export class EmailService {
       html,
     });
     if (error) {
-      this.logger.warn({ to, subject, err: error }, 'email_send_failed');
+      // Resend's error is a plain object, so pino would type it 'Object';
+      // its `name` (e.g. 'validation_error') is the useful classification.
+      this.logger.warn(
+        { to, subject, err: error, errorName: error.name },
+        'email_send_failed',
+      );
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }

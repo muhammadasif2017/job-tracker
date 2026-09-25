@@ -4,7 +4,8 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from 'nestjs-pino';
+import { Logger } from '@nestjs/common';
+import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { withoutUnversionedAliases } from './config/api-versioning.helper.js';
 import { configureApp } from './config/configure-app.helper.js';
@@ -20,7 +21,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
-  app.useLogger(app.get(Logger));
+  app.useLogger(app.get(PinoLogger));
 
   const config = app.get(ConfigService);
   configureApp(app);
@@ -50,11 +51,11 @@ async function bootstrap() {
   // extra port.
   const metricsPort = config.get<number | ''>('METRICS_PORT');
   if (metricsPort) {
-    const logger = app.get(Logger);
+    const logger = new Logger('Bootstrap');
     const metrics = app.get(MetricsService);
     metrics.collectProcessMetrics();
     startMetricsServer(metricsPort, metrics.registry, (err) =>
-      logger.error({ err }, 'Metrics listener failed', 'Bootstrap'),
+      logger.error({ err }, 'Metrics listener failed'),
     );
   }
 }

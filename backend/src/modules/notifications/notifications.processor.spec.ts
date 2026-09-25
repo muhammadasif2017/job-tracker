@@ -1,21 +1,14 @@
-import { Logger } from '@nestjs/common';
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsProcessor } from './notifications.processor.js';
 import { EmailService } from './email.service.js';
 import { currentRequestId } from '../../common/request-context.helper.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 describe('NotificationsProcessor', () => {
   const email = {
     send: jest.fn().mockResolvedValue(undefined),
   } satisfies Pick<EmailService, 'send'>;
-  const logger = {
-    log: jest
-      .spyOn(Logger.prototype, 'log')
-      .mockImplementation(() => undefined),
-    warn: jest
-      .spyOn(Logger.prototype, 'warn')
-      .mockImplementation(() => undefined),
-  };
+  const logger = spyOnLogger();
   const config = { get: jest.fn().mockReturnValue('http://localhost:3000') };
 
   afterEach(() => jest.clearAllMocks());

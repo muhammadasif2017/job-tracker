@@ -1,7 +1,7 @@
-import { Logger } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { TimelineSummaryProcessor } from './timeline-summary.processor.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 // `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
 // be deep-imported from `dist/bull.constants.js`, and the package root does
@@ -16,15 +16,7 @@ const mockLlm = { summarizeEvents: jest.fn() } satisfies Pick<
   LlmService,
   'summarizeEvents'
 >;
-const mockLogger = {
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 const dbJob = { id: 'job-1', company: 'Acme', position: 'Engineer' };
 const events = [

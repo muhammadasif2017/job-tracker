@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { UnrecoverableError, type Job } from 'bullmq';
 import { EnrichmentStatus, JobType } from '@prisma/client';
 import { CompanyEnrichmentProcessor } from './company-enrichment.processor.js';
@@ -10,6 +9,7 @@ import {
 import { LlmService } from '../../enrichment/services/llm.service.js';
 import { DelayedError } from 'bullmq';
 import type { CircuitStatus } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
 // `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
 // be deep-imported from `dist/bull.constants.js`, and the package root does
@@ -39,18 +39,7 @@ const mockLlm = {
   extract: jest.fn(),
   circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
 } satisfies Pick<LlmService, 'extract' | 'circuitStatus'>;
-const mockLogger = {
-  log: jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined),
-  warn: jest
-    .spyOn(Logger.prototype, 'warn')
-    .mockImplementation(() => undefined),
-  error: jest
-    .spyOn(Logger.prototype, 'error')
-    .mockImplementation(() => undefined),
-  debug: jest
-    .spyOn(Logger.prototype, 'debug')
-    .mockImplementation(() => undefined),
-};
+const mockLogger = spyOnLogger();
 
 const dbCompany = {
   id: 'company-123',

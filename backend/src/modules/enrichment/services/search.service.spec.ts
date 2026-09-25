@@ -1,12 +1,10 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { SearchService, SearchUnavailableError } from './search.service.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
 // Silences the services' log output; no test asserts on it.
-jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
-jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+spyOnLogger();
 
 const tavilyResponse = {
   results: [
