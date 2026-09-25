@@ -41,7 +41,7 @@ Tailwind v4 has no `tailwind.config.js` — `app/globals.css`'s `@custom-variant
 
 ## Auth Guard (`proxy.ts`)
 
-Runs on every request except static assets (see `matcher`). Reads the `jt_authed` cookie:
+Runs on every request except static assets and `/monitoring`, the Sentry tunnel (see `matcher`, ADR-051). Reads the `jt_authed` cookie:
 
 - No cookie + non-public path → redirect to `/login`
 - Cookie present + public path (not `/callback`) → redirect to `/`
@@ -173,9 +173,11 @@ See `frontend/COMPONENTS.md` for per-component reference (`JobForm`, `ResumeUplo
 
 ## Environment Variables
 
-| Variable              | Required | Notes                                                            |
-| --------------------- | -------- | ---------------------------------------------------------------- |
-| `NEXT_PUBLIC_API_URL` | Yes      | Backend origin without the version, e.g. `http://localhost:3001` |
+| Variable                 | Required | Notes                                                                                     |
+| ------------------------ | -------- | ----------------------------------------------------------------------------------------- |
+| `NEXT_PUBLIC_API_URL`    | Yes      | Backend origin without the version, e.g. `http://localhost:3001`                          |
+| `NEXT_PUBLIC_SENTRY_DSN` | No       | Frontend Sentry DSN (ADR-051). Unset means error tracking is off; leave it unset locally  |
+| `SENTRY_AUTH_TOKEN`      | No       | Vercel only, secret. Lets the build upload source maps; without it the build still passes |
 
 ---
 

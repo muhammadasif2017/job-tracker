@@ -1,8 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { captureException } from '@sentry/browser';
 import { logBoundaryError } from './log-error';
+
+vi.mock('@sentry/browser', () => ({ captureException: vi.fn() }));
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.mocked(captureException).mockClear();
 });
 
 describe('logBoundaryError', () => {
@@ -30,5 +34,25 @@ describe('logBoundaryError', () => {
     logBoundaryError(new Error('boom'), 'app');
 
     expect(spy.mock.calls[0][1]).toMatchObject({ digest: undefined });
+  });
+
+  it('reports a client-side error to Sentry with the boundary tag', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = new Error('boom');
+
+    logBoundaryError(error, 'dashboard');
+
+    expect(captureException).toHaveBeenCalledWith(error, {
+      tags: { boundary: 'dashboard' },
+    });
+  });
+
+  it('does not report a server error, which the server already reported', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const error = Object.assign(new Error('boom'), { digest: 'abc123' });
+
+    logBoundaryError(error, 'dashboard');
+
+    expect(captureException).not.toHaveBeenCalled();
   });
 });

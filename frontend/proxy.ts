@@ -35,7 +35,13 @@ export function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-/** Runs the proxy on every route except static assets. */
+/**
+ * Runs the proxy on every route except static assets and `/monitoring`, the
+ * Sentry tunnel (ADR-051). The tunnel must stay reachable signed out: an
+ * error on the login page would otherwise be redirected to `/login` and lost.
+ */
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.svg).*)'],
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico|monitoring(?:/|$)|.*\\.svg).*)',
+  ],
 };
