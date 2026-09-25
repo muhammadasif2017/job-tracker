@@ -7,6 +7,9 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
+    // Room for a worker starved by a loaded full run; see vitest.setup.ts.
+    // The only per-test timeout: CI's `test:cov` uses this value too.
+    testTimeout: 20_000,
     exclude: ['**/node_modules/**', 'e2e/**'],
     coverage: {
       provider: 'v8',

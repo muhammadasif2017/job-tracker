@@ -244,9 +244,7 @@ describe('JobsPage', () => {
       fireEvent.change(screen.getByLabelText('Search jobs'), {
         target: { value: 'engineer' },
       });
-      await waitFor(() => expect(lastGetUrl()).toContain('search=engineer'), {
-        timeout: 1000,
-      });
+      await waitFor(() => expect(lastGetUrl()).toContain('search=engineer'));
     });
 
     it('filters by status', async () => {
