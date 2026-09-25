@@ -42,6 +42,12 @@ Report unexpected errors to Sentry (`@sentry/nestjs` v11, project
   `@Processor`, `@Cron`, `@Interval` and `@OnEvent` handler. That would
   report retried job attempts and each deliberate `DelayedError`, report
   final failures twice, and send cron errors with no `requestId`.
+- **No Express spans.** The SDK's `Express` integration is removed as well
+  (added after release). It opens a tracing span per Express layer, and each
+  span adds a `finish` listener to the response. With tracing off the spans
+  are never sent, and once ADR-052's metrics middleware added a layer, the
+  listeners passed Node's limit of 10 and production logged a
+  `MaxListenersExceededWarning`.
 - **Unhandled rejections are `strict`.** The SDK's default `warn` mode
   installs a listener that stops Node from exiting on an unhandled
   rejection, so a failed boot would leave a process that serves nothing

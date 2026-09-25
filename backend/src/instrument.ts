@@ -17,6 +17,12 @@ import * as Sentry from '@sentry/nestjs';
  * failures twice, and send cron errors with no `requestId`.
  * `CorrelatedWorkerHost` and `runCronScan` report those deliberately instead.
  *
+ * The `Express` integration is removed too. All it does is open a tracing
+ * span per Express layer, and each span adds a `finish` listener to the
+ * response. With tracing off the spans are never sent, and with this app's
+ * dozen middleware layers the listeners passed Node's limit of 10, which
+ * logged a `MaxListenersExceededWarning` in production.
+ *
  * Unhandled rejections use `strict` mode: report, then exit, like Node's own
  * default. The SDK's default `warn` mode would keep a process whose boot
  * failed alive, serving nothing, instead of letting Docker restart it.
@@ -40,6 +46,7 @@ if (process.env.SENTRY_DSN) {
       ...defaults.filter(
         (integration) =>
           integration.name !== 'Nest' &&
+          integration.name !== 'Express' &&
           integration.name !== 'OnUnhandledRejection',
       ),
       Sentry.onUnhandledRejectionIntegration({ mode: 'strict' }),

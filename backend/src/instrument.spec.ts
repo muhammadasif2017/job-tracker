@@ -56,7 +56,7 @@ describe('instrument', () => {
     });
   });
 
-  it('drops the Nest auto-capture and makes unhandled rejections strict', async () => {
+  it('drops the Nest auto-capture and the Express spans, and makes unhandled rejections strict', async () => {
     await loadInstrument({ SENTRY_DSN: DSN });
     const integrations = initOptions().integrations as (
       defaults: Array<{ name: string }>,
@@ -64,6 +64,7 @@ describe('instrument', () => {
 
     const result = integrations([
       { name: 'Nest' },
+      { name: 'Express' },
       { name: 'OnUnhandledRejection' },
       { name: 'Http' },
     ]);
