@@ -47,6 +47,9 @@ function observability(
       { status: null, label: 'Never triggered', count: 27 },
     ],
     strandedPending: 0,
+    circuits: [
+      { name: 'Groq', state: 'closed', retryAfterMs: null, retryAt: null },
+    ],
     ...overrides,
   };
 }
@@ -115,6 +118,73 @@ describe('QueueHealthPanel', () => {
 
     await screen.findByText('Company enrichment');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows a closed circuit as passing calls through', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+
+    const row = (await screen.findByText('Groq')).closest('li');
+    expect(row).toHaveTextContent('Closed');
+    expect(row).toHaveTextContent('Calls pass through.');
+  });
+
+  it('shows an open circuit with the clock time of its trial call, fixed at receipt', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-09-25T10:00:00'));
+    try {
+      vi.mocked(api.get).mockResolvedValue({
+        data: observability({
+          circuits: [
+            {
+              name: 'Groq',
+              state: 'open',
+              retryAfterMs: 12_000,
+              retryAt: null,
+            },
+          ],
+        }),
+      });
+      renderPanel();
+
+      const row = (await screen.findByText('Groq')).closest('li');
+      expect(row).toHaveTextContent('Open');
+      const expected = new Date('2026-09-25T10:00:12').toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      });
+      expect(row).toHaveTextContent(`trial call from ${expected}`);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('tolerates a backend that predates the circuits field', async () => {
+    const legacy: Partial<QueueObservability> = { ...observability() };
+    delete legacy.circuits;
+    vi.mocked(api.get).mockResolvedValue({ data: legacy });
+    renderPanel();
+
+    await screen.findByText('Company enrichment');
+    expect(
+      screen.queryByText('Upstream circuit breakers'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says the next call is the trial once the cool-down has passed', async () => {
+    vi.mocked(api.get).mockResolvedValue({
+      data: observability({
+        circuits: [
+          { name: 'Groq', state: 'open', retryAfterMs: 0, retryAt: null },
+        ],
+      }),
+    });
+    renderPanel();
+
+    expect(
+      await screen.findByText('Cool-down over; the next call is the trial.'),
+    ).toBeInTheDocument();
   });
 
   it('raises a prominent alert when companies are stranded', async () => {

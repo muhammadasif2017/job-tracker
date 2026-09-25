@@ -2,7 +2,13 @@ import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { Logger } from 'nestjs-pino';
 import Groq from 'groq-sdk';
-import { LlmService } from './llm.service.js';
+import {
+  GROQ_FAILURE_THRESHOLD,
+  GROQ_RESET_TIMEOUT_MS,
+  isGroqOutage,
+  LlmService,
+} from './llm.service.js';
+import { CircuitOpenError } from '../../../infrastructure/resilience/circuit-breaker.js';
 
 const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
 const mockCreate = jest.fn();
@@ -465,5 +471,111 @@ describe('LlmService.summarizeEvents', () => {
     await expect(service.summarizeEvents(events, context)).rejects.toThrow(
       'API unavailable',
     );
+  });
+});
+
+describe('LlmService Groq circuit breaker', () => {
+  let service: LlmService;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockCreate.mockReset();
+    mockConfigService.get.mockReturnValue('test-api-key');
+    const module = await Test.createTestingModule({
+      providers: [
+        LlmService,
+        { provide: ConfigService, useValue: mockConfigService },
+        { provide: Logger, useValue: mockLogger },
+      ],
+    }).compile();
+    service = module.get(LlmService);
+  });
+
+  const input = {
+    company: 'Acme',
+    position: 'Engineer',
+    completedStage: 'Phone Screen',
+    completedNotes: 'Went well',
+    nextStage: 'Onsite',
+  };
+  const outage = Object.assign(new Error('Service Unavailable'), {
+    status: 503,
+  });
+
+  afterEach(() => jest.useRealTimers());
+
+  it('fails fast without calling Groq once repeated outages open it', async () => {
+    mockCreate.mockRejectedValue(outage);
+    for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {
+      await expect(service.generateRoundPrep(input)).rejects.toBe(outage);
+    }
+    mockCreate.mockClear();
+
+    await expect(service.generateRoundPrep(input)).rejects.toBeInstanceOf(
+      CircuitOpenError,
+    );
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockLogger.warn).toHaveBeenCalledWith('llm_circuit_opened', {
+      from: 'closed',
+    });
+  });
+
+  it('lets a trial call through after the cool-down and closes on success', async () => {
+    jest.useFakeTimers();
+    mockCreate.mockRejectedValue(outage);
+    for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {
+      await expect(service.generateRoundPrep(input)).rejects.toBe(outage);
+    }
+
+    jest.advanceTimersByTime(GROQ_RESET_TIMEOUT_MS);
+    mockCreate.mockResolvedValue({
+      choices: [{ message: { content: '- Prepare a system design' } }],
+    });
+
+    await expect(service.generateRoundPrep(input)).resolves.toBe(
+      '- Prepare a system design',
+    );
+    expect(service.circuitStatus().state).toBe('closed');
+  });
+
+  it('reports the circuit state for the admin page', async () => {
+    expect(service.circuitStatus()).toMatchObject({
+      name: 'Groq',
+      state: 'closed',
+    });
+    mockCreate.mockRejectedValue(outage);
+    for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {
+      await expect(service.generateRoundPrep(input)).rejects.toBe(outage);
+    }
+
+    expect(service.circuitStatus()).toMatchObject({ state: 'open' });
+  });
+
+  it('is shared by every Groq call, since they hit one upstream', async () => {
+    mockCreate.mockRejectedValue(outage);
+    for (let i = 0; i < GROQ_FAILURE_THRESHOLD; i++) {
+      await expect(service.generateRoundPrep(input)).rejects.toBe(outage);
+    }
+
+    await expect(
+      service.extractJobPosting('Senior Engineer at Acme'),
+    ).rejects.toBeInstanceOf(CircuitOpenError);
+  });
+});
+
+describe('isGroqOutage', () => {
+  it.each([
+    [
+      'a connection failure or timeout (no status)',
+      true,
+      new Error('ECONNRESET'),
+    ],
+    ['a 429 rate limit', true, { status: 429 }],
+    ['a 500', true, { status: 500 }],
+    ['a 503', true, { status: 503 }],
+    ['a 400 such as tool_use_failed', false, { status: 400 }],
+    ['a 401 bad key', false, { status: 401 }],
+  ])('treats %s as outage=%s', (_label, expected, err) => {
+    expect(isGroqOutage(err)).toBe(expected);
   });
 });

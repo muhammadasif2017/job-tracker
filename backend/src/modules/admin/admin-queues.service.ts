@@ -7,6 +7,7 @@ import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
 import {
   CompanyStatusBucketDto,
   QueueObservabilityDto,
@@ -23,6 +24,8 @@ import {
  * Reads both halves of the enrichment pipeline: BullMQ job counts in Redis
  * and the Company.status distribution in Postgres. A row stranded in one is
  * invisible in the other, which is the whole reason this service exists.
+ * Also reports the circuit breaker in front of Groq, which every
+ * enrichment and summary job goes through.
  */
 @Injectable()
 export class AdminQueuesService {
@@ -35,6 +38,7 @@ export class AdminQueuesService {
     @InjectQueue(NOTIFICATIONS_QUEUE)
     private readonly notificationsQueue: Queue,
     private readonly logger: Logger,
+    private readonly llm: LlmService,
   ) {}
 
   /**
@@ -72,6 +76,7 @@ export class AdminQueuesService {
         counts.get(EnrichmentStatus.PENDING) ?? 0,
         queues[0],
       ),
+      circuits: [this.llm.circuitStatus()],
     };
   }
 

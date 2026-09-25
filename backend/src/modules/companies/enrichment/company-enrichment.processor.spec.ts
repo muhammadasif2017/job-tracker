@@ -7,6 +7,8 @@ import {
   SearchUnavailableError,
 } from '../../enrichment/services/search.service.js';
 import { LlmService } from '../../enrichment/services/llm.service.js';
+import { DelayedError } from 'bullmq';
+import type { CircuitStatus } from '../../../infrastructure/resilience/circuit-breaker.js';
 
 // `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
 // be deep-imported from `dist/bull.constants.js`, and the package root does
@@ -27,7 +29,15 @@ const mockSearch = { search: jest.fn() } satisfies Pick<
   SearchService,
   'search'
 >;
-const mockLlm = { extract: jest.fn() } satisfies Pick<LlmService, 'extract'>;
+const CIRCUIT_CLOSED: CircuitStatus = {
+  name: 'Groq',
+  state: 'closed',
+  retryAfterMs: null,
+};
+const mockLlm = {
+  extract: jest.fn(),
+  circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
+} satisfies Pick<LlmService, 'extract' | 'circuitStatus'>;
 const mockLogger = {
   log: jest.fn(),
   warn: jest.fn(),
@@ -78,6 +88,7 @@ describe('CompanyEnrichmentProcessor', () => {
     // No linked jobs unless a test says otherwise, so the ROLES context
     // section is absent by default.
     mockPrisma.job.findMany.mockResolvedValue([]);
+    mockLlm.circuitStatus.mockReturnValue(CIRCUIT_CLOSED);
     processor = new CompanyEnrichmentProcessor(
       mockPrisma as never,
       mockWebFetch as never,
@@ -85,6 +96,55 @@ describe('CompanyEnrichmentProcessor', () => {
       mockLlm as never,
       mockLogger as never,
     );
+  });
+
+  it('defers the job while the Groq circuit is open, spending no search or fetch', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-25T10:00:00Z'));
+    try {
+      mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+      mockLlm.circuitStatus.mockReturnValue({
+        name: 'Groq',
+        state: 'open',
+        retryAfterMs: 20_000,
+      });
+      const moveToDelayed = jest.fn().mockResolvedValue(undefined);
+      const job = { ...bullJob, moveToDelayed } as unknown as Job<{
+        companyId: string;
+      }>;
+
+      await expect(processor.process(job, 'lock-token')).rejects.toBeInstanceOf(
+        DelayedError,
+      );
+
+      expect(moveToDelayed).toHaveBeenCalledWith(
+        Date.parse('2026-09-25T10:00:21Z'),
+        'lock-token',
+      );
+      expect(mockSearch.search).not.toHaveBeenCalled();
+      expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+      expect(mockLlm.extract).not.toHaveBeenCalled();
+      // The row stays PENDING ("Queued"), not PROCESSING or FAILED.
+      expect(mockPrisma.company.update).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('runs normally once the cool-down is over, since the next call is the trial', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue(['culture snippet']);
+    mockWebFetch.fetchPageText.mockResolvedValue('About page text.');
+    mockLlm.extract.mockResolvedValue(extracted);
+    mockLlm.circuitStatus.mockReturnValue({
+      name: 'Groq',
+      state: 'open',
+      retryAfterMs: 0,
+    });
+
+    await processor.process(bullJob);
+
+    expect(mockLlm.extract).toHaveBeenCalled();
   });
 
   it('runs the full pipeline and marks the company COMPLETED on success', async () => {

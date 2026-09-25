@@ -3,6 +3,10 @@ import { BusinessMode } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
 import { Logger } from 'nestjs-pino';
+import {
+  CircuitBreaker,
+  type CircuitStatus,
+} from '../../../infrastructure/resilience/circuit-breaker.js';
 
 /**
  * What one enrichment run yields about a company. Every field is nullable
@@ -158,6 +162,30 @@ function sanitizeJobPosting(raw: Record<string, unknown>): ParsedJobData {
 }
 
 /**
+ * Whether a Groq error means Groq itself is unhealthy, for the circuit
+ * breaker. No HTTP status (a connection failure or a client-side timeout),
+ * a 429 and any 5xx count. Other 4xx do not: Groq answered, and the request
+ * or the generation was at fault — `tool_use_failed` is a 400.
+ */
+export function isGroqOutage(err: unknown): boolean {
+  const status = (err as { status?: unknown } | null)?.status;
+  if (typeof status !== 'number') return true;
+  return status === 429 || status >= 500;
+}
+
+/** Consecutive Groq outages that open the circuit (ADR-048). */
+export const GROQ_FAILURE_THRESHOLD = 3;
+/** How long the Groq circuit stays open before one trial call. */
+export const GROQ_RESET_TIMEOUT_MS = 30_000;
+/**
+ * Breaker-level deadline on the half-open trial. The SDK's 45s timeout does
+ * not cover the whole call: it is cleared once response headers arrive, so a
+ * stalled body, or a long 429 `retry-after` it sleeps through, could hold the
+ * trial, and with it every other Groq call, for minutes.
+ */
+export const GROQ_TRIAL_TIMEOUT_MS = 60_000;
+
+/**
  * Groq's structured-output generation occasionally produces a tool call
  * that fails its own schema validation (400, code `tool_use_failed`) — a
  * generation-time glitch, not a bad request. Duck-typed rather than
@@ -208,6 +236,12 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
 @Injectable()
 export class LlmService {
   private readonly client: Groq;
+  /**
+   * Wraps every Groq call. Without it, a Groq outage cost each caller the
+   * full SDK budget (45s, retried once) before failing. Open, it fails them
+   * at once; every caller already treats a failed call as best-effort.
+   */
+  private readonly breaker: CircuitBreaker;
 
   constructor(
     private readonly config: ConfigService,
@@ -228,6 +262,22 @@ export class LlmService {
       timeout: 45_000,
       maxRetries: 1,
     });
+    this.breaker = new CircuitBreaker({
+      name: 'Groq',
+      failureThreshold: GROQ_FAILURE_THRESHOLD,
+      resetTimeoutMs: GROQ_RESET_TIMEOUT_MS,
+      trialTimeoutMs: GROQ_TRIAL_TIMEOUT_MS,
+      isFailure: isGroqOutage,
+      onStateChange: (from, to) =>
+        to === 'open'
+          ? this.logger.warn('llm_circuit_opened', { from })
+          : this.logger.log('llm_circuit_state', { from, to }),
+    });
+  }
+
+  /** The Groq circuit's current state, for the admin queues page. */
+  circuitStatus(): CircuitStatus {
+    return this.breaker.status();
   }
 
   /**
@@ -241,11 +291,11 @@ export class LlmService {
     model: string,
   ): Promise<T> {
     try {
-      return await call();
+      return await this.breaker.execute(call);
     } catch (err) {
       if (!isToolUseFailedError(err)) throw err;
       this.logger.warn('llm_tool_use_failed_retry', { model });
-      return await call();
+      return await this.breaker.execute(call);
     }
   }
 
@@ -403,22 +453,24 @@ export class LlmService {
     nextStage: string;
   }): Promise<string> {
     try {
-      const response = await this.client.chat.completions.create({
-        model: 'openai/gpt-oss-120b',
-        max_tokens: 512,
-        messages: [
-          {
-            role: 'user',
-            content:
-              `A job applicant for "${input.position}" at "${input.company}" just finished ` +
-              `the "${input.completedStage}" interview round and left these debrief notes:\n\n` +
-              `${input.completedNotes}\n\n` +
-              `Their next round is "${input.nextStage}". Based on the debrief notes, suggest ` +
-              `3-5 concise talking points or questions to prepare for that next round. Plain ` +
-              `text, short bullet points, no preamble.`,
-          },
-        ],
-      });
+      const response = await this.breaker.execute(() =>
+        this.client.chat.completions.create({
+          model: 'openai/gpt-oss-120b',
+          max_tokens: 512,
+          messages: [
+            {
+              role: 'user',
+              content:
+                `A job applicant for "${input.position}" at "${input.company}" just finished ` +
+                `the "${input.completedStage}" interview round and left these debrief notes:\n\n` +
+                `${input.completedNotes}\n\n` +
+                `Their next round is "${input.nextStage}". Based on the debrief notes, suggest ` +
+                `3-5 concise talking points or questions to prepare for that next round. Plain ` +
+                `text, short bullet points, no preamble.`,
+            },
+          ],
+        }),
+      );
 
       const content = response.choices[0]?.message?.content?.trim();
       if (!content) throw new Error('Empty response from Groq');
@@ -458,20 +510,22 @@ export class LlmService {
         })
         .join('\n');
 
-      const response = await this.client.chat.completions.create({
-        model: 'openai/gpt-oss-120b',
-        max_tokens: 128,
-        messages: [
-          {
-            role: 'user',
-            content:
-              `Here is the event timeline for a job application to "${context.company}" for ` +
-              `the "${context.position}" position:\n\n${timeline}\n\n` +
-              `Summarize what happened in ONE short plain-English sentence, suitable for a ` +
-              `dashboard caption. No preamble, no quotes around the sentence.`,
-          },
-        ],
-      });
+      const response = await this.breaker.execute(() =>
+        this.client.chat.completions.create({
+          model: 'openai/gpt-oss-120b',
+          max_tokens: 128,
+          messages: [
+            {
+              role: 'user',
+              content:
+                `Here is the event timeline for a job application to "${context.company}" for ` +
+                `the "${context.position}" position:\n\n${timeline}\n\n` +
+                `Summarize what happened in ONE short plain-English sentence, suitable for a ` +
+                `dashboard caption. No preamble, no quotes around the sentence.`,
+            },
+          ],
+        }),
+      );
 
       const content = response.choices[0]?.message?.content?.trim();
       if (!content) throw new Error('Empty response from Groq');

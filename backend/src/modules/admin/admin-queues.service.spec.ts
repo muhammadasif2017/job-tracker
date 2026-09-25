@@ -7,6 +7,8 @@ import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
 import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js';
+import { LlmService } from '../enrichment/services/llm.service.js';
+import type { CircuitStatus } from '../../infrastructure/resilience/circuit-breaker.js';
 
 const mockPrisma = { company: { groupBy: jest.fn() } };
 const mockEnrichmentQueue = { getJobCounts: jest.fn() };
@@ -24,6 +26,13 @@ function counts(overrides: Record<string, number> = {}) {
     ...overrides,
   };
 }
+
+const GROQ_CLOSED: CircuitStatus = {
+  name: 'Groq',
+  state: 'closed',
+  retryAfterMs: null,
+};
+const mockLlm = { circuitStatus: jest.fn((): CircuitStatus => GROQ_CLOSED) };
 
 describe('AdminQueuesService', () => {
   let service: AdminQueuesService;
@@ -52,9 +61,24 @@ describe('AdminQueuesService', () => {
           useValue: mockNotificationsQueue,
         },
         { provide: Logger, useValue: mockLogger },
+        { provide: LlmService, useValue: mockLlm },
       ],
     }).compile();
     service = module.get(AdminQueuesService);
+  });
+
+  it('reports the Groq circuit breaker alongside the queues', async () => {
+    mockLlm.circuitStatus.mockReturnValueOnce({
+      name: 'Groq',
+      state: 'open',
+      retryAfterMs: 12_000,
+    });
+
+    const result = await service.getObservability();
+
+    expect(result.circuits).toEqual([
+      { name: 'Groq', state: 'open', retryAfterMs: 12_000 },
+    ]);
   });
 
   it('reports all three queues with their counts', async () => {

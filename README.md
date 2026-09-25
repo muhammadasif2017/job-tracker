@@ -21,6 +21,7 @@ A full-stack job application tracker with AI-powered company intelligence. Track
 - **Resume per job** — upload one PDF resume per application (max 8 MB), stored via a pluggable storage driver (local disk or Oracle Cloud Object Storage)
 - **CSV export** — download all applications (or filtered subset) as a spreadsheet
 - **Profile management** — update name, change password, notification preferences, timezone, view connected OAuth accounts, delete account
+- **Resilience** — `Idempotency-Key` on job create (Redis `SET NX`, replay, 409/422), a circuit breaker around the Groq LLM, fail-fast Redis and queue connections during an outage, and a versioned `/v1` API
 - **Security** — helmet HTTP headers, rate limiting, bcrypt password hashing, hashed refresh tokens in DB, scoped PATs
 - **Structured logging** — pino JSON logging (pretty-print in dev, JSON in production)
 - **API docs** — Swagger/OpenAPI at `/api/docs`
