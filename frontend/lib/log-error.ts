@@ -1,13 +1,16 @@
+import { captureException } from '@sentry/browser';
+
 /**
  * Logs an error caught by a Next.js error boundary with enough context to act
  * on.
  *
  * Shared by the three error boundaries (`app/error.tsx`,
- * `app/(dashboard)/error.tsx`, `app/global-error.tsx`). Console-only — there
- * is no remote error sink — so the point is to make what lands in a browser
- * console enough to act on from a screenshot: which boundary caught it, what
- * the user was looking at, and the `digest` that ties a production error back
- * to the server-side stack Next.js logged and stripped from the client bundle.
+ * `app/(dashboard)/error.tsx`, `app/global-error.tsx`). It writes to the
+ * console, so a screenshot is enough to act on (which boundary caught it,
+ * what the user was looking at, and the `digest` that ties a production
+ * error back to the server-side stack Next.js logged and stripped from the
+ * client bundle), and reports to Sentry with the same boundary and digest
+ * (ADR-051). The report is a no-op when no DSN is set.
  */
 export function logBoundaryError(
   error: Error & { digest?: string },
@@ -27,4 +30,8 @@ export function logBoundaryError(
     },
     error,
   );
+  captureException(error, {
+    tags: { boundary },
+    extra: { digest: error.digest },
+  });
 }

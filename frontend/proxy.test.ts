@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { NextRequest } from 'next/server';
-import { proxy } from './proxy';
+import { config, proxy } from './proxy';
 
 function request(path: string, cookies: Record<string, string> = {}) {
   const cookieHeader = Object.entries(cookies)
@@ -76,6 +76,27 @@ describe('proxy', () => {
     it('redirects an unauthenticated request to /login before the admin check ever runs', () => {
       const res = proxy(request('/admin/users'));
       expect(res.headers.get('location')).toBe('https://app.example/login');
+    });
+  });
+
+  describe('matcher', () => {
+    // Next compiles the matcher as a whole-path regex; this mirrors that.
+    const matches = (path: string) =>
+      config.matcher.some((m) => new RegExp(`^${m}$`).test(path));
+
+    it('skips the Sentry tunnel, so signed-out error reports are not redirected', () => {
+      expect(matches('/monitoring')).toBe(false);
+    });
+
+    it('still runs on app routes', () => {
+      expect(matches('/')).toBe(true);
+      expect(matches('/jobs')).toBe(true);
+      expect(matches('/login')).toBe(true);
+    });
+
+    it('skips static assets', () => {
+      expect(matches('/_next/static/chunks/app.js')).toBe(false);
+      expect(matches('/logo.svg')).toBe(false);
     });
   });
 });
