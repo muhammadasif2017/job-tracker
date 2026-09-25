@@ -34,9 +34,20 @@ Report unexpected errors to Sentry (`@sentry/nestjs` v11, project
   `instrument.ts` treats an empty DSN as off and an empty release as none.
   Review caught that the first version rejected `''`, which would have
   stopped production from booting after the merge.
-- **Errors only.** `tracesSampleRate: 0` and no profiling, so no native
-  dependency. Tracing is a later OpenTelemetry step. `SentryModule` is not
-  registered: it only adds the tracing interceptor.
+- **Errors only.** No profiling, so no native dependency. Tracing is a later
+  OpenTelemetry step. `SentryModule` is not registered: it only adds the
+  tracing interceptor. `tracesSampleRate` is left **unset**, not 0: the SDK
+  counts any value as tracing on. At 0 (the first version) it still installed
+  the Prisma, Redis and LLM span integrations and opened an unsent span per
+  Express layer. Each of those added a `finish` listener to the response,
+  and once ADR-052's metrics middleware added a layer, production logged a
+  `MaxListenersExceededWarning`. The `Express` integration itself stays: it
+  reports a 5xx thrown by plain Express middleware, which never reaches the
+  exception filter.
+- **Events are named by route.** Without spans the SDK names an event by its
+  raw path, which carries record IDs. The filter passes the route template
+  (`GET /v1/jobs/:id`, the same `routeLabel` the metrics use) to
+  `reportError`, which sets it as the event's transaction.
 - **Only deliberate captures.** The SDK's default `Nest` integration is
   removed. With tracing off, all it does is auto-capture from every
   `@Processor`, `@Cron`, `@Interval` and `@OnEvent` handler. That would

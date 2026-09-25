@@ -21,7 +21,16 @@ import * as Sentry from '@sentry/nestjs';
  * default. The SDK's default `warn` mode would keep a process whose boot
  * failed alive, serving nothing, instead of letting Docker restart it.
  *
- * Errors only for now: tracing comes later with OpenTelemetry. The SDK's v11
+ * Errors only for now: tracing comes later with OpenTelemetry. That means
+ * leaving `tracesSampleRate` unset, not setting it to 0: the SDK treats any
+ * value, 0 included, as tracing on. At 0 it still installed the Prisma, Redis
+ * and LLM span integrations and opened an unsent span per Express layer, each
+ * adding a `finish` listener to the response. Past ten layers that logged a
+ * `MaxListenersExceededWarning` in production. Unset, no spans are made. The
+ * `Express` integration stays: it still reports a 5xx thrown by plain Express
+ * middleware, which never reaches `GlobalExceptionFilter`.
+ *
+ * The SDK's v11
  * defaults would also send cookies, HTTP headers and request bodies, which
  * here means the refresh-token cookie, Authorization headers and login
  * passwords. All of that is turned off, along with stack-frame variables,
@@ -35,7 +44,6 @@ if (process.env.SENTRY_DSN) {
       process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || 'development',
     // `||`, not `??`: an image built without GIT_SHA has an empty release.
     release: process.env.SENTRY_RELEASE || undefined,
-    tracesSampleRate: 0,
     integrations: (defaults) => [
       ...defaults.filter(
         (integration) =>

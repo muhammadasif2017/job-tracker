@@ -7,6 +7,7 @@ const scope = {
   setTags: jest.fn(),
   setUser: jest.fn(),
   setExtras: jest.fn(),
+  setTransactionName: jest.fn(),
 };
 
 jest.mock('@sentry/nestjs', () => ({
@@ -25,6 +26,7 @@ describe('reportError', () => {
       userId: 'u-1',
       tags: { queue: 'company-target-enrichment' },
       extra: { jobId: '9' },
+      transaction: 'GET /v1/jobs/:id',
     });
 
     expect(scope.setTag).toHaveBeenCalledWith('requestId', 'req-1');
@@ -33,6 +35,7 @@ describe('reportError', () => {
       queue: 'company-target-enrichment',
     });
     expect(scope.setExtras).toHaveBeenCalledWith({ jobId: '9' });
+    expect(scope.setTransactionName).toHaveBeenCalledWith('GET /v1/jobs/:id');
     expect(Sentry.captureException).toHaveBeenCalledWith(err);
   });
 
@@ -47,6 +50,7 @@ describe('reportError', () => {
 
     expect(scope.setUser).not.toHaveBeenCalled();
     expect(scope.setTag).not.toHaveBeenCalled();
+    expect(scope.setTransactionName).not.toHaveBeenCalled();
     expect(Sentry.captureException).toHaveBeenCalled();
   });
 });

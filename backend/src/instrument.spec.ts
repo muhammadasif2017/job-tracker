@@ -45,7 +45,6 @@ describe('instrument', () => {
     await loadInstrument({ SENTRY_DSN: DSN });
 
     expect(initOptions()).toMatchObject({
-      tracesSampleRate: 0,
       dataCollection: {
         userInfo: false,
         cookies: false,
@@ -70,6 +69,23 @@ describe('instrument', () => {
 
     expect(result.map((i) => i.name)).toEqual(['Http', 'OnUnhandledRejection']);
     expect(result[1].options).toEqual({ mode: 'strict' });
+  });
+
+  it('leaves tracesSampleRate unset, since the SDK counts even 0 as tracing on', async () => {
+    await loadInstrument({ SENTRY_DSN: DSN });
+
+    expect(initOptions()).not.toHaveProperty('tracesSampleRate');
+  });
+
+  it('keeps the Express integration, which reports 5xx errors from plain middleware', async () => {
+    await loadInstrument({ SENTRY_DSN: DSN });
+    const integrations = initOptions().integrations as (
+      defaults: Array<{ name: string }>,
+    ) => Array<{ name: string }>;
+
+    expect(integrations([{ name: 'Express' }]).map((i) => i.name)).toContain(
+      'Express',
+    );
   });
 
   it('treats an empty release as none', async () => {
