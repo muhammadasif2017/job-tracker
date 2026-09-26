@@ -31,7 +31,8 @@ Nest's `Logger`, which is why every service moved to it (below).
 - **An allowlist of fields.** `beforeSendLog` passes every line through
   `scrubLogAttributes` (`infrastructure/error-tracking/log-attributes.helper.ts`).
   - It keeps `requestId`, `context`, `jobId`, `companyId`, `roundId`,
-    `userId`, `queue`, `model`, `phase`, `status` and `responseTime`, and
+    `userId`, `queue`, `model`, `phase`, `errorName`, `status` and
+    `responseTime`, and
     only when the value is a string, number or boolean. An object under an
     allowed key could carry anything (see the logging style below).
   - From `req` it keeps only the method and the path without its query
@@ -57,8 +58,16 @@ Nest's `Logger`, which is why every service moved to it (below).
   `err`, which stays on the VM, never into the message.
 - **Messages that are error text are withheld.** Pino uses `err.message` as
   the message of a line logged with an error and no message, which is how
-  Nest's scheduler and exception handler log. `scrubLog` replaces a message
-  that contains the error's text with the error's type.
+  Nest's scheduler and exception handler log. A pino `hooks.logMethod`
+  (`fixedMessageForBareErrors`, set in `AppModule`) gives such a line a fixed
+  message where it is written. As a fallback, `scrubLog` replaces a message
+  that _is_ the error's text (equal to it, or to the part before the causes
+  that the serializer appends) with the error's type.
+- **Never interpolate error text into a message.** A message that merely
+  contains error text, such as `` `Sync failed: ${err.message}` ``, is not
+  withheld: telling it apart from a fixed message that happens to contain a
+  short error string ('Request timeout' and 'timeout') would drop useful
+  messages. Put the error in `err`.
 - **Off without a DSN,** like the rest of `instrument.ts`.
 
 ## Consequences
@@ -72,9 +81,12 @@ Nest's `Logger`, which is why every service moved to it (below).
 - **Outage volume.** `RedisService` logs a Redis outage at error level once,
   when the connection drops, then each reconnect attempt (about one every
   2 s) at debug, which stays on the VM, and "restored" when it is back.
-  Before, every attempt was an error line, about 1,800 an hour. The
-  per-request idempotency warnings and the per-scrape queue metrics warnings
-  still grow with traffic; rate-limit those too if they strain the quota.
+  Before, every attempt was an error line, about 1,800 an hour. An error on
+  a connection that is still up is logged at error and does not start an
+  outage, so it cannot hide the next one. The lines an outage causes per
+  request or per scrape (idempotency, the exception filter's 503, the OAuth
+  code store, queue metrics) are debug during an outage, and warn only when
+  the connection is up.
 - **CPU.** The integration JSON-parses every pino line, info included,
   before filtering by level. For a line of about 1 KB that is microseconds
   per request, which this traffic does not notice.
