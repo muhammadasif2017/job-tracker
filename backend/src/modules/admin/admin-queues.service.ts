@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
@@ -18,6 +18,7 @@ import {
   STATUS_LABELS,
   STATUS_ORDER,
 } from './admin-queues.constants.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Reads both halves of the enrichment pipeline: BullMQ job counts in Redis
@@ -28,7 +29,7 @@ import {
  */
 @Injectable()
 export class AdminQueuesService {
-  private readonly logger = new Logger(AdminQueuesService.name);
+  private readonly logger = appLogger(AdminQueuesService);
 
   constructor(
     private readonly prisma: PrismaService,

@@ -4,13 +4,13 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger } from '@nestjs/common';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { withoutUnversionedAliases } from './config/api-versioning.helper.js';
 import { configureApp } from './config/configure-app.helper.js';
 import { MetricsService } from './infrastructure/metrics/metrics.service.js';
 import { startMetricsServer } from './infrastructure/metrics/metrics-server.helper.js';
+import { appLogger } from './infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Boots the API: the logger, the shared request pipeline (`configureApp`),
@@ -51,7 +51,7 @@ async function bootstrap() {
   // extra port.
   const metricsPort = config.get<number | ''>('METRICS_PORT');
   if (metricsPort) {
-    const logger = new Logger('Bootstrap');
+    const logger = appLogger({ name: 'Bootstrap' });
     const metrics = app.get(MetricsService);
     metrics.collectProcessMetrics();
     startMetricsServer(metricsPort, metrics.registry, (err) =>

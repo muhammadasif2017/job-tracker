@@ -3,7 +3,6 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
@@ -19,6 +18,7 @@ import {
 } from './company-application-stats.helper.js';
 import { companyNameMatch } from './company-name-match.helper.js';
 import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
@@ -39,7 +39,7 @@ const RECENT_HISTORY_JOBS = 3;
  */
 @Injectable()
 export class CompaniesService {
-  private readonly logger = new Logger(CompaniesService.name);
+  private readonly logger = appLogger(CompaniesService);
 
   constructor(
     private prisma: PrismaService,

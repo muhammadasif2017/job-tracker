@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationChannel } from '@prisma/client';
 import { CircuitOpenError } from '../../infrastructure/resilience/circuit-breaker.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
@@ -12,6 +12,7 @@ import {
 } from '../enrichment/services/llm.service.js';
 import { ParseJobDto } from './dto/parse-job.dto.js';
 import { ParsedJobDto } from './dto/parsed-job.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Turns a job posting — a URL, or text the browser extension scraped from
@@ -21,7 +22,7 @@ import { ParsedJobDto } from './dto/parsed-job.dto.js';
  */
 @Injectable()
 export class JobParsingService {
-  private readonly logger = new Logger(JobParsingService.name);
+  private readonly logger = appLogger(JobParsingService);
 
   constructor(
     private webFetch: WebFetchService,

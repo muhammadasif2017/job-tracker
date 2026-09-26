@@ -2,7 +2,6 @@ import { randomBytes, randomUUID } from 'crypto';
 import {
   BadRequestException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
@@ -17,6 +16,7 @@ import {
   PAT_EXPIRY_DAYS,
 } from './tokens.constants.js';
 import { runCronScan } from '../../common/cron-scan.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Personal access tokens: long-lived credentials for clients that cannot
@@ -28,7 +28,7 @@ import { runCronScan } from '../../common/cron-scan.helper.js';
  */
 @Injectable()
 export class TokensService {
-  private readonly logger = new Logger(TokensService.name);
+  private readonly logger = appLogger(TokensService);
 
   constructor(private prisma: PrismaService) {}
 

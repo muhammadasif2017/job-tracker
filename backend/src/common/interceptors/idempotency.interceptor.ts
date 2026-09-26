@@ -4,7 +4,6 @@ import {
   ConflictException,
   ExecutionContext,
   Injectable,
-  Logger,
   NestInterceptor,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -13,6 +12,7 @@ import type { Request, Response } from 'express';
 import { catchError, from, mergeMap, Observable, of, throwError } from 'rxjs';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Request header carrying the client's idempotency key. */
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
@@ -68,7 +68,7 @@ type IdempotencyRecord =
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(IdempotencyInterceptor.name);
+  private readonly logger = appLogger(IdempotencyInterceptor);
 
   constructor(private readonly redis: RedisService) {}
 

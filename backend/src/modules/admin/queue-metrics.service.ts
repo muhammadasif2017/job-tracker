@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { Gauge } from '@prometheus-io/client';
@@ -11,6 +11,7 @@ import { LlmService } from '../enrichment/services/llm.service.js';
 import { COUNTED_STATES } from './admin-queues.constants.js';
 import { readQueueCounts, type QueueCounts } from './queue-counts.helper.js';
 import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Gauge value per circuit state; the help text states the same mapping. */
 const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
@@ -29,7 +30,7 @@ const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
  */
 @Injectable()
 export class QueueMetricsService implements OnModuleInit {
-  private readonly logger = new Logger(QueueMetricsService.name);
+  private readonly logger = appLogger(QueueMetricsService);
 
   private readonly queues: ReadonlyArray<readonly [string, Queue]>;
   /** The counts one scrape is reading, shared by both queue gauges. */

@@ -1,5 +1,5 @@
 import { OnWorkerEvent, Processor } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Job } from 'bullmq';
@@ -10,6 +10,7 @@ import { interviewReminderEmail, digestEmail } from './templates.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
 import { runJobWithRequestId } from '../../common/request-context.helper.js';
 import { CorrelatedWorkerHost } from '../../common/correlated-worker-host.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
@@ -51,7 +52,7 @@ function dedupField(
 export class NotificationsProcessor extends CorrelatedWorkerHost<
   Job<InterviewReminderJobData | DigestJobData>
 > {
-  private readonly logger = new Logger(NotificationsProcessor.name);
+  private readonly logger = appLogger(NotificationsProcessor);
 
   constructor(
     private readonly prisma: PrismaService,

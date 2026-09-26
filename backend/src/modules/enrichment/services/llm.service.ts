@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { BusinessMode } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
@@ -6,6 +6,7 @@ import {
   CircuitBreaker,
   type CircuitStatus,
 } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * What one enrichment run yields about a company. Every field is nullable
@@ -234,7 +235,7 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
  */
 @Injectable()
 export class LlmService {
-  private readonly logger = new Logger(LlmService.name);
+  private readonly logger = appLogger(LlmService);
 
   private readonly client: Groq;
   /**

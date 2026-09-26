@@ -1,11 +1,12 @@
 import { Processor } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import type { Job } from 'bullmq';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
 import { CorrelatedWorkerHost } from '../../common/correlated-worker-host.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Bounds prompt size and cost for a job with a long event history — a
@@ -31,7 +32,7 @@ const MAX_EVENTS_FOR_SUMMARY = 50;
 export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
   Job<{ jobId: string }>
 > {
-  private readonly logger = new Logger(TimelineSummaryProcessor.name);
+  private readonly logger = appLogger(TimelineSummaryProcessor);
 
   constructor(
     private readonly prisma: PrismaService,

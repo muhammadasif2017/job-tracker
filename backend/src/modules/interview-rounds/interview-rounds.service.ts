@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import {
   JobStatus,
@@ -18,6 +17,7 @@ import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
 import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Soft cap, not a real-world limit — a legitimate job search doesn't produce
@@ -40,7 +40,7 @@ const DEFAULT_ROUND_MINUTES = 60;
  */
 @Injectable()
 export class InterviewRoundsService {
-  private readonly logger = new Logger(InterviewRoundsService.name);
+  private readonly logger = appLogger(InterviewRoundsService);
 
   constructor(
     private prisma: PrismaService,

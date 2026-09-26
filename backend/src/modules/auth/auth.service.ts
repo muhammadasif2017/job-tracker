@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
@@ -25,6 +24,7 @@ import {
   PAT_SCOPE,
   DUMMY_TOKEN_HASH,
 } from '../tokens/tokens.constants.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Redis key prefix for one-time OAuth codes. */
 const OAUTH_CODE_PREFIX = 'oauth_code:';
@@ -121,7 +121,7 @@ function isUnfinishedSignup(user: {
  */
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger = appLogger(AuthService);
 
   constructor(
     private prisma: PrismaService,

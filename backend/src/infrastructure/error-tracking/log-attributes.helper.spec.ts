@@ -5,6 +5,7 @@ import {
   scrubLog,
   scrubLogAttributes,
 } from './log-attributes.helper.js';
+import { appLogger } from './app-logger.helper.js';
 
 describe('scrubLogAttributes', () => {
   it('keeps allowlisted fields and the attributes Sentry adds itself', () => {
@@ -92,6 +93,9 @@ describe('scrubLogAttributes', () => {
 });
 
 describe('scrubLog', () => {
+  // A context this app registered, as every service's logger does.
+  const CONTEXT =
+    appLogger({ name: 'ScrubLogSpecService' }) && 'ScrubLogSpecService';
   const err = {
     type: 'PrismaClientValidationError',
     message: 'data: { email: "a@b.com" }',
@@ -101,13 +105,14 @@ describe('scrubLog', () => {
     const sent = scrubLog({
       level: 'error',
       message: err.message,
-      attributes: { err },
+      attributes: { context: CONTEXT, err },
     });
 
-    expect(sent.message).toBe(
+    expect(sent?.message).toBe(
       'PrismaClientValidationError (message on the VM)',
     );
-    expect(sent.attributes).toEqual({
+    expect(sent?.attributes).toEqual({
+      context: CONTEXT,
       'error.type': 'PrismaClientValidationError',
     });
   });
@@ -118,6 +123,7 @@ describe('scrubLog', () => {
       level: 'warn',
       message: 'Failed to send email',
       attributes: {
+        context: CONTEXT,
         err: {
           type: 'Error',
           message: 'Failed to send email: validation_error',
@@ -125,7 +131,7 @@ describe('scrubLog', () => {
       },
     });
 
-    expect(sent.message).toBe('Failed to send email');
+    expect(sent?.message).toBe('Failed to send email');
   });
 
   it('keeps the trace links that attach a line to its span', () => {
@@ -144,30 +150,58 @@ describe('scrubLog', () => {
     const sent = scrubLog({
       level: 'warn',
       message: 'Request timeout while fetching',
-      attributes: { err: { type: 'Error', message: 'timeout' } },
+      attributes: {
+        context: CONTEXT,
+        err: { type: 'Error', message: 'timeout' },
+      },
     });
 
-    expect(sent.message).toBe('Request timeout while fetching');
+    expect(sent?.message).toBe('Request timeout while fetching');
   });
 
   it('keeps a fixed message written by our own code', () => {
     const sent = scrubLog({
       level: 'warn',
       message: 'Redis unavailable',
-      attributes: { err, requestId: 'req-1' },
+      attributes: { context: CONTEXT, err, requestId: 'req-1' },
     });
 
-    expect(sent.message).toBe('Redis unavailable');
-    expect(sent.attributes).toEqual({
+    expect(sent?.message).toBe('Redis unavailable');
+    expect(sent?.attributes).toEqual({
+      context: CONTEXT,
       requestId: 'req-1',
       'error.type': 'PrismaClientValidationError',
     });
   });
 
   it('keeps the message of a line with no error', () => {
-    expect(scrubLog({ level: 'warn', message: 'queue_slow' }).message).toBe(
-      'queue_slow',
-    );
+    expect(
+      scrubLog({
+        level: 'warn',
+        message: 'queue_slow',
+        attributes: { context: CONTEXT },
+      })?.message,
+    ).toBe('queue_slow');
+  });
+
+  it('drops a line from a logger this app did not create, such as Terminus or Nest core', () => {
+    const health = scrubLog({
+      level: 'error',
+      message:
+        'Health Check has failed! {"redis":{"message":"Connection is closed."}}',
+      attributes: { context: 'HealthCheckService' },
+    });
+    // Nest core's Logger.error(err, err.stack) files the stack as the context.
+    const shutdown = scrubLog({
+      level: 'error',
+      message: 'Error logged without a message',
+      attributes: {
+        context: 'Error: quit failed\n    at RedisService.onModuleDestroy',
+      },
+    });
+
+    expect(health).toBeNull();
+    expect(shutdown).toBeNull();
   });
 });
 

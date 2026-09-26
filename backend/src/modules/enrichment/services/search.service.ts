@@ -1,5 +1,6 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Tavily search API endpoint. */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
@@ -47,7 +48,7 @@ interface TavilyResponse {
  */
 @Injectable()
 export class SearchService {
-  private readonly logger = new Logger(SearchService.name);
+  private readonly logger = appLogger(SearchService);
 
   constructor(private readonly config: ConfigService) {}
 

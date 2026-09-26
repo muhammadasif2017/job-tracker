@@ -3,7 +3,6 @@ import {
   Catch,
   ExceptionFilter,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
@@ -13,6 +12,7 @@ import {
 import { requestIdField } from '../request-context.helper.js';
 import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
 import { routeLabel } from '../../infrastructure/metrics/http-metrics.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
@@ -41,7 +41,7 @@ function isReportable(statusCode: number): boolean {
  */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = appLogger(GlobalExceptionFilter);
 
   /** Writes the error response. Never throws, for the reason given in its own catch. */
   catch(exception: any, host: ArgumentsHost) {

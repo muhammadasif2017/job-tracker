@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import * as dns from 'node:dns/promises';
 import ipaddr from 'ipaddr.js';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Fetches a company's own web page and reduces it to plain text for the
@@ -12,7 +13,7 @@ import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
  */
 @Injectable()
 export class WebFetchService {
-  private readonly logger = new Logger(WebFetchService.name);
+  private readonly logger = appLogger(WebFetchService);
 
   /**
    * The SSRF guard. The URL being fetched ultimately comes from

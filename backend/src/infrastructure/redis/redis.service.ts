@@ -1,13 +1,9 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
 import { setRedisOutage } from './redis-errors.helper.js';
+import { appLogger } from '../error-tracking/app-logger.helper.js';
 
 /**
  * Longest boot waits for the first connection before starting anyway. Long
@@ -43,7 +39,7 @@ const CONNECTION_DROP_CODES = new Set([
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
-  private readonly logger = new Logger(RedisService.name);
+  private readonly logger = appLogger(RedisService);
   /** Set once an outage has been logged at error level, until Redis is back. */
   private outageLogged = false;
 

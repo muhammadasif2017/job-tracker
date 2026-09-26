@@ -1,4 +1,5 @@
 import type { LogFn, Logger as PinoLogger } from 'pino';
+import { isAppLogContext } from './app-logger.helper.js';
 
 /**
  * Log fields that may leave the VM for Sentry Logs (ADR-053). An allowlist,
@@ -88,14 +89,16 @@ interface SentryLogLine {
 }
 
 /**
- * The whole `beforeSendLog` step: scrubs the attributes and, when the
- * message is the error's own text, replaces it. Pino uses `err.message` as
- * the message of a line logged with an error and no message, which is how
- * Nest's scheduler and exception handler log. That text can quote user
- * input, so it stays on the VM like the error's message attribute does.
+ * The whole `beforeSendLog` step (ADR-053). Drops the line unless it came
+ * from a logger this app created (`appLogger`): Nest core, the scheduler,
+ * Terminus and pino-http write their own messages, which can carry error
+ * text or a stack, and no allowlist of fields can clean a message. For our
+ * own lines it scrubs the attributes and, as a fallback, replaces a message
+ * that is exactly the error's text.
  */
-export function scrubLog<T extends SentryLogLine>(log: T): T {
+export function scrubLog<T extends SentryLogLine>(log: T): T | null {
   const attributes = log.attributes ?? {};
+  if (!isAppLogContext(attributes.context)) return null;
   const err = asRecord(attributes.err);
   const errType = typeof err?.type === 'string' ? err.type : 'Error';
   const message = isErrorText(log.message, err?.message)

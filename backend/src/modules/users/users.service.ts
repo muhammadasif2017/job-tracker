@@ -4,7 +4,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  Logger,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
@@ -15,6 +14,7 @@ import {
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * The signed-in user acting on their own account: profile, notification
@@ -24,7 +24,7 @@ import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.
  */
 @Injectable()
 export class UsersService {
-  private readonly logger = new Logger(UsersService.name);
+  private readonly logger = appLogger(UsersService);
 
   constructor(
     private prisma: PrismaService,

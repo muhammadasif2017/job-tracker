@@ -1,6 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Everything the app ever sends: one recipient, a subject and an HTML body.
@@ -19,7 +20,7 @@ export interface SendEmailInput {
  */
 @Injectable()
 export class EmailService {
-  private readonly logger = new Logger(EmailService.name);
+  private readonly logger = appLogger(EmailService);
 
   private readonly resend?: Resend;
   private readonly from: string;

@@ -3,7 +3,6 @@ import {
   Injectable,
   NotFoundException,
   UnprocessableEntityException,
-  Logger,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
@@ -12,6 +11,7 @@ import {
   type IStorageService,
 } from '../../infrastructure/storage/storage.service.js';
 import type { ResumeResponseDto } from './dto/resume-response.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Presigned URL lifetime in seconds, used only to compute the `expiresAt`
@@ -27,7 +27,7 @@ const PRESIGNED_URL_TTL = 900;
  */
 @Injectable()
 export class ResumesService {
-  private readonly logger = new Logger(ResumesService.name);
+  private readonly logger = appLogger(ResumesService);
 
   constructor(
     private prisma: PrismaService,

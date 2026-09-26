@@ -411,12 +411,12 @@ A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LL
 
 ## Logging
 
-`nestjs-pino` is wired globally (`app.useLogger` in `main.ts`), so Nest's own `Logger` writes through pino. Services create one as a field, never inject nestjs-pino's `Logger`:
+`nestjs-pino` is wired globally (`app.useLogger` in `main.ts`), so Nest's own `Logger` writes through pino. Classes create one as a field with `appLogger` (`src/infrastructure/error-tracking/app-logger.helper.ts`), never `new Logger(...)` and never an injected nestjs-pino `Logger`. `appLogger` returns Nest's `Logger` and records the class name: only lines from those contexts go to Sentry Logs (ADR-053), so a class that uses `new Logger` directly logs to the VM only.
 
 ```ts
-import { Logger } from '@nestjs/common';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
-private readonly logger = new Logger(JobsService.name);
+private readonly logger = appLogger(JobsService);
 
 this.logger.log({ jobId }, 'job_created');
 this.logger.warn({ jobId, err }, 'timeline_summary_enqueue_failed');

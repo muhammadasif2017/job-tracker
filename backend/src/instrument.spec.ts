@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nestjs';
+import { appLogger } from './infrastructure/error-tracking/app-logger.helper.js';
 
 jest.mock('@sentry/nestjs', () => ({
   init: jest.fn(),
@@ -117,10 +118,19 @@ describe('instrument', () => {
     const sent = beforeSendLog({
       level: 'warn',
       message: 'Email send failed',
-      attributes: { to: 'someone@example.com', requestId: 'req-1' },
+      attributes: {
+        context:
+          appLogger({ name: 'InstrumentSpecService' }) &&
+          'InstrumentSpecService',
+        to: 'someone@example.com',
+        requestId: 'req-1',
+      },
     });
 
-    expect(sent.attributes).toEqual({ requestId: 'req-1' });
+    expect(sent.attributes).toEqual({
+      context: 'InstrumentSpecService',
+      requestId: 'req-1',
+    });
     expect(sent.message).toBe('Email send failed');
   });
 

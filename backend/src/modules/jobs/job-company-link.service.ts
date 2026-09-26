@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { companyNameMatch } from '../companies/company-name-match.helper.js';
 import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Resolves the `Job.companyId` FK from the company label a user typed, and
@@ -15,7 +16,7 @@ import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.
  */
 @Injectable()
 export class JobCompanyLinkService {
-  private readonly logger = new Logger(JobCompanyLinkService.name);
+  private readonly logger = appLogger(JobCompanyLinkService);
 
   constructor(
     private prisma: PrismaService,

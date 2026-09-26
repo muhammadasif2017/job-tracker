@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ConflictException,
   Inject,
-  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
@@ -27,6 +26,7 @@ import {
 } from './job-update-rules.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * `Job.nextInterviewAt` goes stale on its own: `InterviewRoundsService`
@@ -58,7 +58,7 @@ function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
  */
 @Injectable()
 export class JobsService {
-  private readonly logger = new Logger(JobsService.name);
+  private readonly logger = appLogger(JobsService);
 
   constructor(
     private prisma: PrismaService,

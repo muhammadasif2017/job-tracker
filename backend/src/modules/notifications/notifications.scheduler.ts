@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
@@ -16,6 +16,7 @@ import {
   type InterviewReminderJobData,
   type DigestJobData,
 } from './notifications.processor.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** How far ahead of `scheduledAt` a round becomes due for its reminder. */
 const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
@@ -76,7 +77,7 @@ function localDateKey(date: Date, timeZone: string): string {
  */
 @Injectable()
 export class NotificationsScheduler {
-  private readonly logger = new Logger(NotificationsScheduler.name);
+  private readonly logger = appLogger(NotificationsScheduler);
 
   constructor(
     @InjectQueue(NOTIFICATIONS_QUEUE) private readonly queue: Queue,

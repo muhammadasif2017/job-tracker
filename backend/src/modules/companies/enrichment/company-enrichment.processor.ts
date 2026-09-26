@@ -1,5 +1,5 @@
 import { Processor } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { EnrichmentStatus, type Company } from '@prisma/client';
 import { DelayedError, UnrecoverableError, type Job } from 'bullmq';
 import { PrismaService } from '../../../infrastructure/database/prisma.service.js';
@@ -17,6 +17,7 @@ import { CorrelatedWorkerHost } from '../../../common/correlated-worker-host.js'
 import { JOB_BOARD_DOMAINS } from '../../../common/job-board-domains.js';
 import { techFromJobTitles } from '../../../common/tech-tokens.js';
 import { withWorkerConnection } from '../../../infrastructure/redis/redis-connection.helper.js';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Slack added to the circuit's remaining cool-down before a deferred job
@@ -59,7 +60,7 @@ const SEARCH_SECTION_BUDGET = 8_000;
 export class CompanyEnrichmentProcessor extends CorrelatedWorkerHost<
   Job<{ companyId: string }>
 > {
-  private readonly logger = new Logger(CompanyEnrichmentProcessor.name);
+  private readonly logger = appLogger(CompanyEnrichmentProcessor);
 
   constructor(
     private readonly prisma: PrismaService,
