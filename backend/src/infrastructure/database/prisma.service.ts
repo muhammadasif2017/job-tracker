@@ -1,12 +1,13 @@
 import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
+import { DB_POOL_OPTIONS } from './database.constants.js';
 
 /**
  * The app's single `PrismaClient`, wired to Postgres through the pg driver
  * adapter. Prisma 7 has no `url` field in `datasource db {}`, so the
  * connection string is supplied here at runtime rather than in
- * `schema.prisma`.
+ * `schema.prisma`, with the pool settings in `DB_POOL_OPTIONS`.
  */
 @Injectable()
 export class PrismaService
@@ -16,21 +17,20 @@ export class PrismaService
   constructor() {
     const adapter = new PrismaPg({
       connectionString: process.env.DATABASE_URL,
+      ...DB_POOL_OPTIONS,
     });
     super({ adapter });
   }
 
   /**
-   * Connects eagerly at boot and runs one query, so a bad `DATABASE_URL`
-   * fails startup instead of the first request that needs the database.
-   * With the pg driver adapter `$connect()` alone opens no connection: the
-   * first query paid for the pool's first connection (TLS to Neon) and
-   * Prisma's first-query setup. After a deploy that was the first `/health`
-   * probe, which took 5.9s and failed its 5s database ping on a healthy
-   * database. The query moves that cost into boot.
+   * Runs one query at boot. With the pg driver adapter `$connect()` opens
+   * no connection, so this is what makes a bad `DATABASE_URL` fail startup
+   * instead of the first request, and it moves the pool's first connection
+   * and Prisma's first-query setup out of the first request too. The
+   * database was already required to start: the production image runs
+   * `prisma migrate deploy` before the app, and that fails without it.
    */
   async onModuleInit() {
-    await this.$connect();
     await this.$queryRaw`SELECT 1`;
   }
 
