@@ -66,12 +66,14 @@ export function isRedisOutage(): boolean {
 }
 
 /**
- * Logs a failure that Redis may have caused (ADR-053). While an outage is
- * reported, it goes to debug: `RedisService` already logged the outage once
- * at error level, and a line per request or per scrape would flood Sentry
- * Logs. Otherwise it is a warning, which covers what `RedisService` never
- * sees: a command timing out on a live connection, a wrong password, a
- * script error.
+ * Logs a failure that Redis may have caused (ADR-053). It goes to debug only
+ * when an outage is reported *and* the error is a Redis connection failure:
+ * `RedisService` already logged the outage once at error level, and a line
+ * per request or per scrape would flood Sentry Logs. Everything else is a
+ * warning: what `RedisService` never sees (a timeout on a live connection, a
+ * wrong password, a script error), and a different failure in the same try
+ * block, such as the Prisma write `enqueueEnrichment` makes before its
+ * queue add, which must not be hidden just because Redis is also down.
  */
 export function logRedisFailure(
   logger: {
@@ -82,7 +84,7 @@ export function logRedisFailure(
   fields: Record<string, unknown>,
   message: string,
 ) {
-  if (outageReported) {
+  if (outageReported && isRedisConnectionError(err)) {
     logger.debug({ ...fields, err }, message);
   } else {
     logger.warn({ ...fields, err }, message);

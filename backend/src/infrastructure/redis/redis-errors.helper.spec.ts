@@ -84,7 +84,20 @@ describe('logRedisFailure', () => {
     expect(logger.debug).not.toHaveBeenCalled();
   });
 
-  it('logs at debug while RedisService has an outage reported', () => {
+  it('still warns about a failure Redis did not cause, even during an outage', () => {
+    setRedisOutage(true);
+    const dbError = new Error("Can't reach database server");
+
+    logRedisFailure(logger, dbError, {}, 'Company enrichment enqueue failed');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: dbError },
+      'Company enrichment enqueue failed',
+    );
+    expect(logger.debug).not.toHaveBeenCalled();
+  });
+
+  it('logs a Redis connection failure at debug while RedisService has an outage reported', () => {
     setRedisOutage(true);
 
     logRedisFailure(logger, err, {}, 'Enqueue failed');

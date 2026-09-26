@@ -241,7 +241,12 @@ describe('IdempotencyInterceptor', () => {
   it('runs the request without the guarantee when Redis is down', async () => {
     mockClient.status = 'reconnecting';
     setRedisOutage(true);
-    mockClient.set.mockRejectedValue(new Error('ECONNREFUSED'));
+    // What ioredis rejects with while disconnected (fail-fast, ADR-046).
+    mockClient.set.mockRejectedValue(
+      new Error(
+        "Stream isn't writeable and enableOfflineQueue options is false",
+      ),
+    );
     const next = handler();
 
     const result = await lastValueFrom(
