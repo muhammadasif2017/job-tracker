@@ -19,6 +19,7 @@ import {
   STATUS_ORDER,
 } from './admin-queues.constants.js';
 import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /**
  * Reads both halves of the enrichment pipeline: BullMQ job counts in Redis
@@ -111,8 +112,10 @@ export class AdminQueuesService {
     try {
       return { name, available: true, counts: await readQueueCounts(queue) };
     } catch (error) {
-      this.logger.warn(
-        { err: error, queue: name },
+      logRedisFailure(
+        this.logger,
+        error,
+        { queue: name },
         'Queue counts unavailable; returning the database half only',
       );
       return { name, available: false, counts: null };
