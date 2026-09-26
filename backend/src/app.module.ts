@@ -29,6 +29,7 @@ import { ContactsModule } from './modules/contacts/contacts.module.js';
 import { CompaniesModule } from './modules/companies/companies.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { TokensModule } from './modules/tokens/tokens.module.js';
+import { fixedMessageForBareErrors } from './infrastructure/error-tracking/log-attributes.helper.js';
 
 /**
  * Root module. Validates the environment at boot, so a missing required
@@ -57,6 +58,9 @@ import { TokensModule } from './modules/tokens/tokens.module.js';
             ? { target: 'pino-pretty', options: { singleLine: true } }
             : undefined,
         autoLogging: true,
+        // A line logged with only an error gets a fixed message instead of
+        // the error's text (ADR-053).
+        hooks: { logMethod: fixedMessageForBareErrors },
         // No genReqId: requestIdMiddleware runs first and sets req.id, which
         // pino-http reuses as-is (ADR-049). The mixin stamps every log line,
         // in a request or in a job it enqueued, with the correlation ID,

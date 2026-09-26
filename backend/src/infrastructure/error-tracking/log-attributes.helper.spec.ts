@@ -1,4 +1,10 @@
-import { scrubLog, scrubLogAttributes } from './log-attributes.helper.js';
+import pino from 'pino';
+import {
+  ERROR_WITHOUT_MESSAGE,
+  fixedMessageForBareErrors,
+  scrubLog,
+  scrubLogAttributes,
+} from './log-attributes.helper.js';
 
 describe('scrubLogAttributes', () => {
   it('keeps allowlisted fields and the attributes Sentry adds itself', () => {
@@ -150,5 +156,49 @@ describe('scrubLog', () => {
     expect(scrubLog({ level: 'warn', message: 'queue_slow' }).message).toBe(
       'queue_slow',
     );
+  });
+});
+
+describe('fixedMessageForBareErrors', () => {
+  /** A real pino logger with the hook, writing parsed lines to an array. */
+  function logger() {
+    const lines: Array<Record<string, unknown>> = [];
+    const log = pino(
+      { hooks: { logMethod: fixedMessageForBareErrors } },
+      { write: (line: string) => lines.push(JSON.parse(line)) },
+    );
+    return { log, lines };
+  }
+
+  it('gives an error logged on its own a fixed message, not its text', () => {
+    const { log, lines } = logger();
+
+    log.error(new Error('Could not sync a@b.com'));
+
+    expect(lines[0].msg).toBe(ERROR_WITHOUT_MESSAGE);
+    expect(lines[0].err).toMatchObject({ message: 'Could not sync a@b.com' });
+  });
+
+  it('does the same for an object carrying err, as nestjs-pino passes it', () => {
+    const { log, lines } = logger();
+
+    log.error({ context: 'Scheduler', err: new Error('boom') });
+
+    expect(lines[0]).toMatchObject({
+      msg: ERROR_WITHOUT_MESSAGE,
+      context: 'Scheduler',
+    });
+  });
+
+  it('leaves a line with its own message alone', () => {
+    const { log, lines } = logger();
+
+    log.warn({ err: new Error('boom') }, 'Redis unavailable');
+    log.info('plain message');
+
+    expect(lines.map((l) => l.msg)).toEqual([
+      'Redis unavailable',
+      'plain message',
+    ]);
   });
 });

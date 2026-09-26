@@ -1,3 +1,5 @@
+import type { LogFn, Logger as PinoLogger } from 'pino';
+
 /**
  * Log fields that may leave the VM for Sentry Logs (ADR-053). An allowlist,
  * not a denylist: a log line can carry anything a developer passed to it,
@@ -125,4 +127,32 @@ function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null
     ? (value as Record<string, unknown>)
     : undefined;
+}
+
+/** The message given to a line logged with an error and no message. */
+export const ERROR_WITHOUT_MESSAGE = 'Error logged without a message';
+
+/**
+ * Pino `hooks.logMethod` (set in `AppModule`): gives a line logged with only
+ * an error a fixed message. Otherwise pino uses the error's own text as the
+ * message, which is how Nest's scheduler and exception handler log
+ * (`logger.error(err)`), and that text can quote user input. This fixes it
+ * where the line is written; `scrubLog`'s comparison is the fallback. The
+ * error itself is still logged in full under `err` on the VM.
+ */
+export function fixedMessageForBareErrors(
+  this: PinoLogger,
+  args: Parameters<LogFn>,
+  method: LogFn,
+): void {
+  const [first] = args as unknown[];
+  if (args.length === 1 && first instanceof Error) {
+    method.apply(this, [{ err: first }, ERROR_WITHOUT_MESSAGE]);
+    return;
+  }
+  if (args.length === 1 && asRecord(first) && 'err' in (first as object)) {
+    method.apply(this, [first as object, ERROR_WITHOUT_MESSAGE]);
+    return;
+  }
+  method.apply(this, args);
 }
