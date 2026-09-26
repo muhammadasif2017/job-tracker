@@ -24,7 +24,8 @@ const SENT_LOG_FIELDS = new Set([
 
 /**
  * Attributes Sentry itself adds that are kept: the release, environment,
- * SDK and level. Not every `sentry.` key: `sentry.message.parameter.*` holds
+ * SDK, level, and the trace links that attach a line to its span in the
+ * trace view. Not every `sentry.` key: `sentry.message.parameter.*` holds
  * values interpolated into a message template.
  */
 const SENTRY_OWN_PREFIXES = [
@@ -32,6 +33,8 @@ const SENTRY_OWN_PREFIXES = [
   'sentry.environment',
   'sentry.sdk.',
   'sentry.origin',
+  'sentry.trace.',
+  'sentry.replay_id',
   'pino.',
 ];
 
@@ -102,19 +105,16 @@ export function scrubLog<T extends SentryLogLine>(log: T): T {
 }
 
 /**
- * True when a log message is the error's own text, which is what pino fills
- * in for a line logged with an error and no message. The serialized
- * `err.message` appends any causes ("outer: inner") while pino uses the bare
- * "outer", so a message that is the first part of it counts too. A longer,
- * fixed message that merely contains short error text ('Request timeout'
- * and 'timeout') is ours and is kept.
+ * True when a log message is exactly the error's text. A fallback only:
+ * `fixedMessageForBareErrors` already stops pino filling a message in from
+ * the error, including for errors with causes. Exact equality, because
+ * anything looser also swallows fixed messages we wrote ('Failed to send
+ * email' for an error reading 'Failed to send email: ...').
  */
 function isErrorText(message: unknown, errMessage: unknown): boolean {
-  if (typeof message !== 'string' || typeof errMessage !== 'string') {
-    return false;
-  }
-  if (!message || !errMessage) return false;
-  return message === errMessage || errMessage.startsWith(`${message}: `);
+  return (
+    typeof message === 'string' && message !== '' && message === errMessage
+  );
 }
 
 /** True for the value kinds a log attribute may carry out of the VM. */

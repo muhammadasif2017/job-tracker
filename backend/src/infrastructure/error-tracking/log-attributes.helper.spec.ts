@@ -112,20 +112,32 @@ describe('scrubLog', () => {
     });
   });
 
-  it('withholds the error text of an error with a cause', () => {
-    // pino fills in the bare message; the serializer appends the cause.
+  it('keeps a fixed message that the error text merely starts with', () => {
+    // The hook, not this fallback, handles pino-filled messages with causes.
     const sent = scrubLog({
-      level: 'error',
-      message: 'Could not sync a@b.com',
+      level: 'warn',
+      message: 'Failed to send email',
       attributes: {
         err: {
           type: 'Error',
-          message: 'Could not sync a@b.com: connect ECONNREFUSED',
+          message: 'Failed to send email: validation_error',
         },
       },
     });
 
-    expect(sent.message).toBe('Error (message on the VM)');
+    expect(sent.message).toBe('Failed to send email');
+  });
+
+  it('keeps the trace links that attach a line to its span', () => {
+    const kept = scrubLogAttributes({
+      'sentry.trace.parent_span_id': 'abc',
+      'sentry.replay_id': 'r1',
+    });
+
+    expect(kept).toEqual({
+      'sentry.trace.parent_span_id': 'abc',
+      'sentry.replay_id': 'r1',
+    });
   });
 
   it('keeps a fixed message that happens to contain short error text', () => {
