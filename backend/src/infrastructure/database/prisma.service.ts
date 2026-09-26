@@ -21,11 +21,21 @@ export class PrismaService
   }
 
   /**
-   * Connects eagerly at boot so a bad `DATABASE_URL` fails startup instead
-   * of the first request that needs the database.
+   * Runs one query at boot. With the pg driver adapter `$connect()` opens no
+   * connection, so the process's first query paid for its first connection
+   * and Prisma's first-query setup. After a deploy that was the first
+   * `/health` probe: it took 5.9s and failed its 5s database ping on a
+   * healthy database (seen on the VM after #444). How those 5.9s split
+   * between setup and connecting was not measured; the first `/health` after
+   * the next deploy is the check.
+   *
+   * It also makes a bad `DATABASE_URL` fail startup instead of the first
+   * request. The database is required at boot either way: the production
+   * image runs `prisma migrate deploy` before the app. Locally,
+   * `npm run start:dev` now needs Postgres running.
    */
   async onModuleInit() {
-    await this.$connect();
+    await this.$queryRaw`SELECT 1`;
   }
 
   /**
