@@ -1,5 +1,5 @@
 import type { LogFn, Logger as PinoLogger } from 'pino';
-import { isAppLogContext } from './app-logger.helper.js';
+import { isAppLogContext } from './app-log-contexts.helper.js';
 
 /**
  * Log fields that may leave the VM for Sentry Logs (ADR-053). An allowlist,

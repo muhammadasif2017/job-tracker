@@ -1,14 +1,5 @@
 import { Logger } from '@nestjs/common';
-
-/**
- * Contexts of the loggers this app created itself, filled by `appLogger`.
- * Kept on `globalThis` under a registered symbol so that every copy of this
- * module shares one set: `instrument.ts` loads before the app, and Jest's
- * isolated module registries load it again.
- */
-const APP_LOG_CONTEXTS: Set<string> = ((
-  globalThis as Record<symbol, Set<string> | undefined>
-)[Symbol.for('job-tracker.appLogContexts')] ??= new Set<string>());
+import { registerAppLogContext } from './app-log-contexts.helper.js';
 
 /**
  * Creates the logger a class in this app writes with: Nest's `Logger`,
@@ -22,11 +13,6 @@ const APP_LOG_CONTEXTS: Set<string> = ((
  * Use it wherever you would write `new Logger(ClassName.name)`.
  */
 export function appLogger(owner: { name: string }): Logger {
-  APP_LOG_CONTEXTS.add(owner.name);
+  registerAppLogContext(owner.name);
   return new Logger(owner.name);
-}
-
-/** True when a log line's context belongs to a logger `appLogger` created. */
-export function isAppLogContext(context: unknown): boolean {
-  return typeof context === 'string' && APP_LOG_CONTEXTS.has(context);
 }

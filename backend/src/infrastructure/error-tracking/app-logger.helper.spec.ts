@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
-import { appLogger, isAppLogContext } from './app-logger.helper.js';
+import { appLogger } from './app-logger.helper.js';
+import { isAppLogContext } from './app-log-contexts.helper.js';
 
 describe('appLogger', () => {
   it("returns Nest's Logger with the class name as its context", () => {
