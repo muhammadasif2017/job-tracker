@@ -52,17 +52,28 @@ Nest's `Logger`, which is why every service moved to it (below).
   `context` (where an allowlist that passed objects would have sent an email
   address through) and never produced a top-level `jobId` or `err`. An
   object-first call on it, `warn({ jobId }, 'msg')`, loses its message
-  instead, which becomes the context. So every service now uses Nest's
-  `new Logger(ClassName.name)`, which adds the context itself, and every call
-  is `logger.warn({ jobId, err }, 'fixed_message')`. Error text goes in
-  `err`, which stays on the VM, never into the message.
+  instead, which becomes the context. So every class now uses Nest's
+  `Logger`, created with `appLogger(ClassName)`, which adds the context
+  itself, and every call is `logger.warn({ jobId, err }, 'fixed_message')`.
+  Error text goes in `err`, which stays on the VM, never into the message.
+- **Only this app's own lines are sent.** `appLogger` records each class
+  name it creates a logger for, and `scrubLog` drops any line whose context
+  is not one of them. Nest core, `@nestjs/schedule`, Terminus and pino-http
+  write their own messages: Terminus logs `Health Check has failed!` with the
+  raw Redis or database error, and Nest core's `Logger.error(err, err.stack)`
+  on shutdown files the stack as the context. No field allowlist can clean a
+  message, so those lines stay on the VM. Their failures still reach Sentry
+  Issues through `GlobalExceptionFilter` and `runCronScan`. A class that
+  writes `new Logger(...)` directly logs to the VM only.
 - **Messages that are error text are withheld.** Pino uses `err.message` as
   the message of a line logged with an error and no message, which is how
   Nest's scheduler and exception handler log. A pino `hooks.logMethod`
   (`fixedMessageForBareErrors`, set in `AppModule`) gives such a line a fixed
-  message where it is written. As a fallback, `scrubLog` replaces a message
-  that _is_ the error's text (equal to it, or to the part before the causes
-  that the serializer appends) with the error's type.
+  message where it is written, including for errors with causes. As a
+  fallback, `scrubLog` replaces a message exactly equal to the error's text
+  with the error's type. Only exact equality: a looser match would also
+  swallow fixed messages we wrote ('Failed to send email' for an error
+  reading 'Failed to send email: ...').
 - **Never interpolate error text into a message.** A message that merely
   contains error text, such as `` `Sync failed: ${err.message}` ``, is not
   withheld: telling it apart from a fixed message that happens to contain a
@@ -80,20 +91,24 @@ Nest's `Logger`, which is why every service moved to it (below).
   checked the same way.
 - **Outage volume.** `RedisService` logs a Redis outage at error level once,
   when the connection drops, then each reconnect attempt (about one every
-  2 s) at debug, which stays on the VM, and "restored" when it is back.
+  2 s) at debug, which stays on the VM, and "restored" at warn with the
+  outage's duration (`outageMs`) when it is back, so the outage visibly ends
+  in Sentry too. The flag is cleared on shutdown.
   Before, every attempt was an error line, about 1,800 an hour. An error on
   a connection that is still up is logged at error and does not start an
   outage, so it cannot hide the next one, while a socket error that means
   the connection dropped (`ECONNRESET` and the like, which ioredis emits
   before its status changes) does start one.
 - **One rule for lines an outage causes.** `RedisService` shares its outage
-  state, and `logRedisFailure` (`redis-errors.helper.ts`) logs at debug while
-  an outage is reported and warns otherwise. Every place a Redis failure is
-  logged per request, per scrape or per scan uses it: idempotency, the
-  exception filter's 503, the OAuth code store, queue metrics and the
-  best-effort queue enqueues. A failure `RedisService` never sees, such as a
-  command timing out on a live connection or a wrong password, is therefore
-  still a warning.
+  state, and `logRedisFailure` (`redis-errors.helper.ts`) logs at debug only
+  while an outage is reported _and_ the error is a Redis connection failure,
+  and warns otherwise. Every place a Redis failure is logged per request,
+  per page, per scrape or per scan uses it: idempotency, the exception
+  filter's 503, the OAuth code store, both queue-count readers and the
+  best-effort queue enqueues. A failure `RedisService` never sees (a command
+  timing out on a live connection, a wrong password) and a different failure
+  in the same try block (the Prisma write `enqueueEnrichment` makes first)
+  are therefore still warnings.
 - **CPU.** The integration JSON-parses every pino line, info included,
   before filtering by level. For a line of about 1 KB that is microseconds
   per request, which this traffic does not notice.
