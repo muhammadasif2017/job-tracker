@@ -12,6 +12,7 @@ import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { catchError, from, mergeMap, Observable, of, throwError } from 'rxjs';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
+import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /** Request header carrying the client's idempotency key. */
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
@@ -148,8 +149,9 @@ export class IdempotencyInterceptor implements NestInterceptor {
       // rather than racing a second claim; the client's retry will win.
       return stored ? (JSON.parse(stored) as IdempotencyRecord) : pending;
     } catch (err) {
-      this.logger.warn(
-        { err },
+      this.logRedisFailure(
+        err,
+        {},
         'Redis unavailable, running request without idempotency',
       );
       return 'unavailable';
@@ -189,7 +191,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         COMPLETED_TTL_MS,
       );
     } catch (err) {
-      this.logger.warn({ err }, 'Failed to store idempotent response');
+      this.logRedisFailure(err, {}, 'Failed to store idempotent response');
     }
     return body;
   }
@@ -199,10 +201,29 @@ export class IdempotencyInterceptor implements NestInterceptor {
     try {
       await this.redis.client.del(redisKey);
     } catch (err) {
-      this.logger.warn(
-        { err, expiresInMs: PENDING_TTL_MS },
+      this.logRedisFailure(
+        err,
+        { expiresInMs: PENDING_TTL_MS },
         'Failed to release idempotency key',
       );
+    }
+  }
+
+  /**
+   * Logs a failed Redis command. During an outage it is debug, not warn:
+   * `RedisService` already logs the outage once at error level, and this line
+   * would otherwise repeat for every request in Sentry Logs (ADR-053). A
+   * failure on a live connection is still a warning.
+   */
+  private logRedisFailure(
+    err: unknown,
+    fields: Record<string, unknown>,
+    message: string,
+  ) {
+    if (isRedisUnavailable(this.redis.client, err)) {
+      this.logger.debug({ ...fields, err }, message);
+    } else {
+      this.logger.warn({ ...fields, err }, message);
     }
   }
 }

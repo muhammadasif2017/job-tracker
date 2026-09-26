@@ -135,7 +135,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // store) catch it first and never reach here; anything else that lets it
     // escape gets an honest 503 instead of an opaque 500 (ADR-046).
     if (isRedisConnectionError(exception)) {
-      this.logger.warn({ err: exception }, 'Redis unavailable');
+      // Debug: RedisService logs the outage once at error level, and this
+      // would repeat per request in Sentry Logs (ADR-053).
+      this.logger.debug({ err: exception }, 'Redis unavailable');
       return {
         statusCode: HttpStatus.SERVICE_UNAVAILABLE,
         message: 'Service temporarily unavailable, please try again',

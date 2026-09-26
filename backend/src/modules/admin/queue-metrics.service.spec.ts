@@ -110,7 +110,7 @@ describe('QueueMetricsService', () => {
     expect(text).toContain(
       `jobtracker_queue_jobs{queue="${COMPANY_ENRICHMENT_QUEUE}",state="waiting"} 3`,
     );
-    expect(mockLogger.warn).toHaveBeenCalledWith(
+    expect(mockLogger.debug).toHaveBeenCalledWith(
       expect.objectContaining({ queue: JOB_TIMELINE_SUMMARY_QUEUE }),
       'Queue counts unavailable for metrics',
     );

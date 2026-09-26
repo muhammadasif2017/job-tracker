@@ -266,7 +266,9 @@ export class AuthService {
       return await command();
     } catch (err) {
       if (!isRedisUnavailable(this.redis.client, err)) throw err;
-      this.logger.error({ err }, 'OAuth code store unavailable');
+      // Debug: only reached during an outage, which RedisService logs once
+      // at error level; this would repeat per sign-in (ADR-053).
+      this.logger.debug({ err }, 'OAuth code store unavailable');
       throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
     }
   }

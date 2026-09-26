@@ -56,8 +56,9 @@ describe('GlobalExceptionFilter', () => {
       ),
     ],
   ])('maps an unhandled Redis outage (%s) to 503', (_label, exception) => {
-    const warn = jest
-      .spyOn(Logger.prototype, 'warn')
+    // Debug, not warn: RedisService reports the outage once (ADR-053).
+    const debug = jest
+      .spyOn(Logger.prototype, 'debug')
       .mockImplementation(() => undefined);
 
     filter.catch(exception, mockHost as never);
@@ -70,8 +71,8 @@ describe('GlobalExceptionFilter', () => {
         path: '/test-path',
       }),
     );
-    expect(warn).toHaveBeenCalled();
-    warn.mockRestore();
+    expect(debug).toHaveBeenCalledWith({ err: exception }, 'Redis unavailable');
+    debug.mockRestore();
   });
 
   it('keeps a Redis error that is not an outage a 500', () => {

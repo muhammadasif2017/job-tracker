@@ -124,7 +124,9 @@ export class QueueMetricsService implements OnModuleInit {
     try {
       return await readQueueCounts(queue);
     } catch (error) {
-      this.logger.warn(
+      // Debug: the scrape already reports it as `jobtracker_queue_up 0`, and a
+      // warning here would repeat per queue per scrape in Sentry Logs.
+      this.logger.debug(
         { err: error, queue: name },
         'Queue counts unavailable for metrics',
       );
