@@ -86,7 +86,7 @@ describe('RedisService', () => {
 
   it('logs an outage at error level once, then each retry at debug, until Redis is back', () => {
     new RedisService(config);
-    const { error, debug, log } = logger;
+    const { error, debug } = logger;
 
     fake.emit('error', new Error('ECONNREFUSED'));
     fake.emit('error', new Error('ECONNREFUSED'));
@@ -98,7 +98,10 @@ describe('RedisService', () => {
     fake.emit('ready');
     fake.emit('error', new Error('ECONNREFUSED'));
 
-    expect(log).toHaveBeenCalledWith('Redis connection restored');
+    expect(logger.warn).toHaveBeenCalledWith(
+      { outageMs: expect.any(Number) },
+      'Redis connection restored',
+    );
     // A new outage is logged at error level again.
     expect(error).toHaveBeenCalledTimes(2);
   });
@@ -156,11 +159,13 @@ describe('RedisService', () => {
     expect(isRedisOutage()).toBe(false);
   });
 
-  it('closes the connection on shutdown', async () => {
+  it('closes the connection on shutdown, clearing an outage it had reported', async () => {
     const service = new RedisService(config);
+    fake.emit('error', new Error('ECONNREFUSED'));
 
     await service.onModuleDestroy();
 
     expect(fake.quit).toHaveBeenCalled();
+    expect(isRedisOutage()).toBe(false);
   });
 });

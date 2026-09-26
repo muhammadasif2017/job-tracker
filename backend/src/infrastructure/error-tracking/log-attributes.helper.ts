@@ -19,6 +19,7 @@ const SENT_LOG_FIELDS = new Set([
   'model',
   'phase',
   'errorName',
+  'outageMs',
   'status',
   'responseTime',
 ]);

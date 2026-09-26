@@ -2,7 +2,7 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
-import { setRedisOutage } from './redis-errors.helper.js';
+import { isRedisOutage, setRedisOutage } from './redis-errors.helper.js';
 import { appLogger } from '../error-tracking/app-logger.helper.js';
 
 /**
@@ -40,8 +40,12 @@ const CONNECTION_DROP_CODES = new Set([
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
   private readonly logger = appLogger(RedisService);
-  /** Set once an outage has been logged at error level, until Redis is back. */
-  private outageLogged = false;
+  /**
+   * When the current outage was logged, for its duration in the "restored"
+   * line. Whether an outage is on is the shared flag in redis-errors.helper,
+   * the one `logRedisFailure` reads, so there is a single source of truth.
+   */
+  private outageStartedAt = 0;
 
   constructor(config: ConfigService) {
     this.client = new Redis(
@@ -69,19 +73,23 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         this.logger.error({ err }, 'Redis error on a live connection');
         return;
       }
-      if (this.outageLogged) {
+      if (isRedisOutage()) {
         this.logger.debug({ err }, 'Redis connection error (still down)');
         return;
       }
-      this.outageLogged = true;
+      this.outageStartedAt = Date.now();
       setRedisOutage(true);
       this.logger.error({ err }, 'Redis connection error');
     });
     this.client.on('ready', () => {
-      if (!this.outageLogged) return;
-      this.outageLogged = false;
+      if (!isRedisOutage()) return;
       setRedisOutage(false);
-      this.logger.log('Redis connection restored');
+      // Warn, not info, so it reaches Sentry Logs next to the error line and
+      // an outage visibly ends there, with how long it lasted.
+      this.logger.warn(
+        { outageMs: Date.now() - this.outageStartedAt },
+        'Redis connection restored',
+      );
     });
   }
 
@@ -121,6 +129,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * an open socket.
    */
   async onModuleDestroy() {
+    // The outage flag is process-wide: an app closed mid-outage must not
+    // leave it set for the next one in the same process (the e2e suite).
+    setRedisOutage(false);
     await this.client.quit();
   }
 }
