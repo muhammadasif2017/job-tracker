@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { ConfigService } from '@nestjs/config';
 import { REDIS_READY_TIMEOUT_MS, RedisService } from './redis.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 /** The fake ioredis client the mocked constructor hands out, per test. */
 class FakeRedis extends EventEmitter {
@@ -19,7 +20,10 @@ const config = {
 } as unknown as ConfigService;
 
 describe('RedisService', () => {
+  const logger = spyOnLogger();
+
   beforeEach(() => {
+    jest.clearAllMocks();
     fake = new FakeRedis();
     jest.useFakeTimers();
   });
@@ -52,12 +56,7 @@ describe('RedisService', () => {
 
   it('gives up after the timeout so a down Redis does not block boot', async () => {
     const service = new RedisService(config);
-    const warn = jest
-      .spyOn(
-        (service as unknown as { logger: { warn: jest.Mock } }).logger,
-        'warn',
-      )
-      .mockImplementation(() => undefined);
+    const warn = logger.warn;
     const init = service.onModuleInit();
 
     await jest.advanceTimersByTimeAsync(REDIS_READY_TIMEOUT_MS);
@@ -72,13 +71,8 @@ describe('RedisService', () => {
   });
 
   it('logs connection errors instead of letting them crash the process', () => {
-    const service = new RedisService(config);
-    const error = jest
-      .spyOn(
-        (service as unknown as { logger: { error: jest.Mock } }).logger,
-        'error',
-      )
-      .mockImplementation(() => undefined);
+    new RedisService(config);
+    const error = logger.error;
 
     fake.emit('error', new Error('ECONNREFUSED'));
 
@@ -89,19 +83,8 @@ describe('RedisService', () => {
   });
 
   it('logs an outage at error level once, then each retry at debug, until Redis is back', () => {
-    const service = new RedisService(config);
-    const logger = (
-      service as unknown as {
-        logger: { error: jest.Mock; debug: jest.Mock; log: jest.Mock };
-      }
-    ).logger;
-    const error = jest
-      .spyOn(logger, 'error')
-      .mockImplementation(() => undefined);
-    const debug = jest
-      .spyOn(logger, 'debug')
-      .mockImplementation(() => undefined);
-    const log = jest.spyOn(logger, 'log').mockImplementation(() => undefined);
+    new RedisService(config);
+    const { error, debug, log } = logger;
 
     fake.emit('error', new Error('ECONNREFUSED'));
     fake.emit('error', new Error('ECONNREFUSED'));
@@ -119,13 +102,8 @@ describe('RedisService', () => {
   });
 
   it('does not start an outage for an error on a live connection', () => {
-    const service = new RedisService(config);
-    const error = jest
-      .spyOn(
-        (service as unknown as { logger: { error: jest.Mock } }).logger,
-        'error',
-      )
-      .mockImplementation(() => undefined);
+    new RedisService(config);
+    const error = logger.error;
 
     fake.status = 'ready';
     fake.emit('error', new Error('Command queue state error'));
