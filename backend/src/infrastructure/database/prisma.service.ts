@@ -21,11 +21,17 @@ export class PrismaService
   }
 
   /**
-   * Connects eagerly at boot so a bad `DATABASE_URL` fails startup instead
-   * of the first request that needs the database.
+   * Connects eagerly at boot and runs one query, so a bad `DATABASE_URL`
+   * fails startup instead of the first request that needs the database.
+   * With the pg driver adapter `$connect()` alone opens no connection: the
+   * first query paid for the pool's first connection (TLS to Neon) and
+   * Prisma's first-query setup. After a deploy that was the first `/health`
+   * probe, which took 5.9s and failed its 5s database ping on a healthy
+   * database. The query moves that cost into boot.
    */
   async onModuleInit() {
     await this.$connect();
+    await this.$queryRaw`SELECT 1`;
   }
 
   /**
