@@ -411,15 +411,18 @@ A few routes tighten this with `@Throttle(...)`: `POST /jobs/parse` (external LL
 
 ## Logging
 
-`nestjs-pino` is wired globally. Use the injected `Logger` in services if you need explicit log lines:
+`nestjs-pino` is wired globally (`app.useLogger` in `main.ts`), so Nest's own `Logger` writes through pino. Classes create one as a field with `appLogger` (`src/infrastructure/error-tracking/app-logger.helper.ts`), never `new Logger(...)` and never an injected nestjs-pino `Logger`. `appLogger` returns Nest's `Logger` and records the class name: only lines from those contexts go to Sentry Logs (ADR-053), so a class that uses `new Logger` directly logs to the VM only.
 
 ```ts
-import { Logger } from 'nestjs-pino';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
-constructor(private logger: Logger) {}
+private readonly logger = appLogger(JobsService);
 
-this.logger.log('Job created', { jobId });
+this.logger.log({ jobId }, 'job_created');
+this.logger.warn({ jobId, err }, 'timeline_summary_enqueue_failed');
 ```
+
+**Fields first, then a fixed message.** Nest's `Logger` adds the class name as the context itself. The message-first form `log('msg', { jobId })` would file the object under `context`, where no field is searchable. The injected nestjs-pino `Logger` is worse: it treats the last argument as the context, so object-first calls lose their message (ADR-053). Put an error under `err` (pino's serializer only formats that key, and it stays on the VM), never interpolate error text into the message. In specs, use `spyOnLogger()` from `test/spy-on-logger.ts`. **A failure Redis may have caused** (an enqueue, an idempotency or OAuth-code command) goes through `logRedisFailure(this.logger, err, { fields }, 'message')` (`src/infrastructure/redis/redis-errors.helper.ts`), not `logger.warn`: it drops to debug while `RedisService` has an outage reported, so an outage is one error line in Sentry Logs, not one per request.
 
 Fields automatically redacted from logs: `req.headers.authorization`, `req.body.password`, `req.body.currentPassword`, `req.body.newPassword`, `req.body.refreshToken`.
 
@@ -433,6 +436,8 @@ Fields automatically redacted from logs: `req.headers.authorization`, `req.body.
 - **A new cron scan** wraps its body in `runCronScan('<scan>', ...)` (`src/common/cron-scan.helper.ts`), so the scan and its jobs share one ID and a failure reaches Sentry. A job with no ID at all falls back to `job:<queue>:<id>`.
 
 To follow one user action end to end, grep the logs for its ID.
+
+**Sentry Logs (ADR-053).** `warn`, `error` and `fatal` lines also go to Sentry Logs (Explore → Logs, searchable by `requestId`). Only allowlisted fields leave the VM: `scrubLogAttributes` (`src/infrastructure/error-tracking/log-attributes.helper.ts`) keeps `requestId`, `context`, a few IDs, the request method and query-free path, the status code and the error's type, and only string, number or boolean values. The error's message and stack stay on the VM, and `scrubLog` withholds a log message that is just the error's text. To send a new field, add it to `SENT_LOG_FIELDS` deliberately. Never log PII under an allowlisted key.
 
 ---
 

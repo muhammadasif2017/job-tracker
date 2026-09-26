@@ -1,12 +1,12 @@
 import { Processor } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import type { Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from './timeline-summary.constants.js';
 import { CorrelatedWorkerHost } from '../../common/correlated-worker-host.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Bounds prompt size and cost for a job with a long event history — a
@@ -32,10 +32,11 @@ const MAX_EVENTS_FOR_SUMMARY = 50;
 export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
   Job<{ jobId: string }>
 > {
+  private readonly logger = appLogger(TimelineSummaryProcessor);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly llm: LlmService,
-    private readonly logger: Logger,
   ) {
     super();
   }
@@ -53,7 +54,7 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
       select: { id: true, company: true, position: true },
     });
     if (!dbJob) {
-      this.logger.warn('timeline_summary_job_not_found', { jobId });
+      this.logger.warn({ jobId }, 'timeline_summary_job_not_found');
       return;
     }
 
@@ -81,9 +82,12 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
         select: { id: true },
       });
       if (!stillExists) {
-        this.logger.log('timeline_summary_job_deleted_during_processing', {
-          jobId,
-        });
+        this.logger.log(
+          {
+            jobId,
+          },
+          'timeline_summary_job_deleted_during_processing',
+        );
         return;
       }
 
@@ -92,10 +96,13 @@ export class TimelineSummaryProcessor extends CorrelatedWorkerHost<
         data: { timelineSummary: summary, timelineSummaryAt: new Date() },
       });
     } catch (error) {
-      this.logger.warn('timeline_summary_failed', {
-        jobId,
-        error: error instanceof Error ? error.message : String(error),
-      });
+      this.logger.warn(
+        {
+          jobId,
+          err: error,
+        },
+        'timeline_summary_failed',
+      );
       throw error;
     }
   }

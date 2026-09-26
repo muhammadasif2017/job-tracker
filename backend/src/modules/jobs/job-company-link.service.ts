@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { companyNameMatch } from '../companies/company-name-match.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Resolves the `Job.companyId` FK from the company label a user typed, and
@@ -15,10 +16,11 @@ import { companyNameMatch } from '../companies/company-name-match.helper.js';
  */
 @Injectable()
 export class JobCompanyLinkService {
+  private readonly logger = appLogger(JobCompanyLinkService);
+
   constructor(
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -46,7 +48,12 @@ export class JobCompanyLinkService {
       await this.companyEnrichment.enqueueIfStale(companyId);
     } catch (err: unknown) {
       // Best-effort — the job create or update stands.
-      this.logger.warn('Enrichment enqueue failed', { jobId, companyId, err });
+      logRedisFailure(
+        this.logger,
+        err,
+        { jobId, companyId },
+        'Enrichment enqueue failed',
+      );
     }
   }
 

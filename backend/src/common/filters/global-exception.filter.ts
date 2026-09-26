@@ -3,13 +3,16 @@ import {
   Catch,
   ExceptionFilter,
   HttpStatus,
-  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isRedisConnectionError,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { requestIdField } from '../request-context.helper.js';
 import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
 import { routeLabel } from '../../infrastructure/metrics/http-metrics.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Prisma error code for a unique-constraint violation, mapped to 409. */
 const PRISMA_UNIQUE_VIOLATION = 'P2002';
@@ -38,7 +41,7 @@ function isReportable(statusCode: number): boolean {
  */
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
-  private readonly logger = new Logger(GlobalExceptionFilter.name);
+  private readonly logger = appLogger(GlobalExceptionFilter);
 
   /** Writes the error response. Never throws, for the reason given in its own catch. */
   catch(exception: any, host: ArgumentsHost) {
@@ -78,8 +81,8 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       // crash the request with a raw, unhandled Express error instead of
       // the JSON shape every client expects.
       this.logger.error(
+        { err: filterError },
         'Exception filter failed while handling an exception',
-        filterError instanceof Error ? filterError.stack : filterError,
       );
       if (!reportDecided) reportError(exception, correlation);
       return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
@@ -135,7 +138,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // store) catch it first and never reach here; anything else that lets it
     // escape gets an honest 503 instead of an opaque 500 (ADR-046).
     if (isRedisConnectionError(exception)) {
-      this.logger.warn(`Redis unavailable: ${exception.message}`);
+      logRedisFailure(this.logger, exception, {}, 'Redis unavailable');
       return {
         statusCode: HttpStatus.SERVICE_UNAVAILABLE,
         message: 'Service temporarily unavailable, please try again',
@@ -146,7 +149,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Unknown/unexpected error — log the stack so the opaque 500 is debuggable.
-    this.logger.error(exception?.message ?? 'Unknown error', exception?.stack);
+    // Object first, so the message stays fixed: exception text can quote
+    // user input, and fixed messages are what Sentry Logs receives (ADR-053).
+    this.logger.error({ err: exception }, 'Unhandled exception');
 
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

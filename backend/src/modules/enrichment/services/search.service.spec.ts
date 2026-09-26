@@ -1,9 +1,10 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from 'nestjs-pino';
 import { SearchService, SearchUnavailableError } from './search.service.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+// Silences the services' log output; no test asserts on it.
+spyOnLogger();
 
 const tavilyResponse = {
   results: [
@@ -24,7 +25,6 @@ describe('SearchService', () => {
       providers: [
         SearchService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(SearchService);

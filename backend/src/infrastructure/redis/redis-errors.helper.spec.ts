@@ -2,6 +2,9 @@ import {
   isCommandTimeout,
   isRedisConnectionError,
   isRedisUnavailable,
+  logRedisFailure,
+  redisOutageMs,
+  setRedisOutage,
 } from './redis-errors.helper.js';
 
 describe('redis-errors.helper', () => {
@@ -60,5 +63,61 @@ describe('redis-errors.helper', () => {
     ).toBe(false);
     expect(isRedisConnectionError('Command timed out')).toBe(false);
     expect(isRedisConnectionError(undefined)).toBe(false);
+  });
+});
+
+describe('logRedisFailure', () => {
+  const logger = { warn: jest.fn(), log: jest.fn() };
+  const err = new Error('Command timed out');
+
+  afterEach(() => {
+    setRedisOutage(false);
+    jest.clearAllMocks();
+  });
+
+  it('warns when no outage is reported, such as a timeout on a live connection', () => {
+    logRedisFailure(logger, err, { jobId: 'j1' }, 'Enqueue failed');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { jobId: 'j1', err },
+      'Enqueue failed',
+    );
+    expect(logger.log).not.toHaveBeenCalled();
+  });
+
+  it('still warns about a failure Redis did not cause, even during an outage', () => {
+    setRedisOutage(true);
+    const dbError = new Error("Can't reach database server");
+
+    logRedisFailure(logger, dbError, {}, 'Company enrichment enqueue failed');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: dbError },
+      'Company enrichment enqueue failed',
+    );
+    expect(logger.log).not.toHaveBeenCalled();
+  });
+
+  it('logs a Redis connection failure at info while RedisService has an outage reported', () => {
+    setRedisOutage(true);
+
+    logRedisFailure(logger, err, {}, 'Enqueue failed');
+
+    expect(logger.log).toHaveBeenCalledWith({ err }, 'Enqueue failed');
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('redisOutageMs', () => {
+  afterEach(() => setRedisOutage(false));
+
+  it('is 0 when no outage is reported and grows while one is', () => {
+    expect(redisOutageMs()).toBe(0);
+
+    setRedisOutage(true);
+
+    expect(redisOutageMs()).toBeGreaterThanOrEqual(0);
+    setRedisOutage(false);
+    expect(redisOutageMs()).toBe(0);
   });
 });

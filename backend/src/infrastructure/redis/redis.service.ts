@@ -1,12 +1,13 @@
-import {
-  Injectable,
-  Logger,
-  OnModuleDestroy,
-  OnModuleInit,
-} from '@nestjs/common';
+import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
+import {
+  isRedisOutage,
+  redisOutageMs,
+  setRedisOutage,
+} from './redis-errors.helper.js';
+import { appLogger } from '../error-tracking/app-logger.helper.js';
 
 /**
  * Longest boot waits for the first connection before starting anyway. Long
@@ -14,6 +15,18 @@ import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
  * enough that a Redis that is down does not hold up the API.
  */
 export const REDIS_READY_TIMEOUT_MS = 5000;
+
+/**
+ * Socket error codes that mean the connection itself dropped. ioredis emits
+ * them before it changes its status, so they arrive while it still reads
+ * 'ready' and have to be recognised by code.
+ */
+const CONNECTION_DROP_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+]);
 
 /**
  * The app's shared Redis client for request-path state: idempotency keys
@@ -30,7 +43,13 @@ export const REDIS_READY_TIMEOUT_MS = 5000;
 @Injectable()
 export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
-  private readonly logger = new Logger(RedisService.name);
+  private readonly logger = appLogger(RedisService);
+  /**
+   * Set while `onModuleDestroy` closes the client. `quit()` on a client that
+   * is reconnecting emits one more error, which must not report a new
+   * outage into the process-wide flag after this app is gone.
+   */
+  private closing = false;
 
   constructor(config: ConfigService) {
     this.client = new Redis(
@@ -41,9 +60,46 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         commandTimeout: QUEUE_COMMAND_TIMEOUT_MS,
       },
     );
-    this.client.on('error', (err) =>
-      this.logger.error('Redis connection error', err),
-    );
+    // One error line per outage, not per reconnect attempt: ioredis retries
+    // about every 2 s, and each error line also goes to Sentry Logs
+    // (ADR-053). The retries still show at debug level on the VM. An error
+    // on a connection that is still up (ioredis emits a few, such as a
+    // command queue fault) is always logged and does not start an outage:
+    // no 'ready' would follow to end it, and the next real outage would then
+    // be logged at debug only. A socket error that means the connection
+    // dropped does start one, even though ioredis still reads 'ready' then.
+    // The outage state is shared with `logRedisFailure`, so the lines an
+    // outage causes elsewhere drop to info (VM only) for its duration.
+    this.client.on('error', (err: Error & { code?: string }) => {
+      if (this.closing) return;
+      // Redis answered and refused: a wrong password, or a command it
+      // rejects. A misconfiguration, not an outage, so it does not start
+      // one, and the failures it causes elsewhere stay warnings.
+      if (err.name === 'ReplyError') {
+        this.logger.error({ err }, 'Redis rejected the connection');
+        return;
+      }
+      const dropped =
+        err.code !== undefined && CONNECTION_DROP_CODES.has(err.code);
+      if (this.client.status === 'ready' && !dropped) {
+        this.logger.error({ err }, 'Redis error on a live connection');
+        return;
+      }
+      if (isRedisOutage()) {
+        this.logger.debug({ err }, 'Redis connection error (still down)');
+        return;
+      }
+      setRedisOutage(true);
+      this.logger.error({ err }, 'Redis connection error');
+    });
+    this.client.on('ready', () => {
+      if (!isRedisOutage()) return;
+      const outageMs = redisOutageMs();
+      setRedisOutage(false);
+      // Warn, not info, so it reaches Sentry Logs next to the error line and
+      // an outage visibly ends there, with how long it lasted.
+      this.logger.warn({ outageMs }, 'Redis connection restored');
+    });
   }
 
   /**
@@ -71,7 +127,8 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     if (onReady) this.client.off('ready', onReady);
     if (!ready) {
       this.logger.warn(
-        `Redis not ready after ${REDIS_READY_TIMEOUT_MS}ms; starting without it`,
+        { timeoutMs: REDIS_READY_TIMEOUT_MS },
+        'Redis not ready in time; starting without it',
       );
     }
   }
@@ -81,6 +138,12 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
    * an open socket.
    */
   async onModuleDestroy() {
+    // The outage flag is process-wide: an app closed mid-outage must not
+    // leave it set for the next one in the same process (the e2e suite).
+    // Cleared after quit(), which can emit one last error, and that error
+    // is ignored while closing.
+    this.closing = true;
     await this.client.quit();
+    setRedisOutage(false);
   }
 }

@@ -3,10 +3,10 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { ResumesService } from './resumes.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockPrisma = {
   job: { findFirst: jest.fn() },
@@ -24,7 +24,8 @@ const mockStorage = {
   delete: jest.fn(),
 };
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+// Silences the services' log output; no test asserts on it.
+spyOnLogger();
 
 const mockFile = {
   originalname: 'resume.pdf',
@@ -52,7 +53,6 @@ describe('ResumesService', () => {
         ResumesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(ResumesService);

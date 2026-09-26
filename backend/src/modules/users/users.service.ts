@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   STORAGE_SERVICE,
@@ -15,6 +14,7 @@ import {
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * The signed-in user acting on their own account: profile, notification
@@ -24,10 +24,11 @@ import { UpdateNotificationPrefsDto } from './dto/update-notification-prefs.dto.
  */
 @Injectable()
 export class UsersService {
+  private readonly logger = appLogger(UsersService);
+
   constructor(
     private prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -150,10 +151,13 @@ export class UsersService {
     await Promise.all(
       resumes.map(({ storageKey }) =>
         this.storage.delete(storageKey).catch((err: unknown) =>
-          this.logger.warn('Storage delete failed after account deletion', {
-            storageKey,
-            err,
-          }),
+          this.logger.warn(
+            {
+              storageKey,
+              err,
+            },
+            'Storage delete failed after account deletion',
+          ),
         ),
       ),
     );

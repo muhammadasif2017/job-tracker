@@ -59,6 +59,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [050](./050-sentry-error-tracking-backend.md) | Sentry for unexpected 5xx (not 503) and final job failures, tagged with `requestId`; cookies, headers and bodies never collected | Accepted |
 | [051](./051-sentry-error-tracking-frontend.md) | Sentry in the browser (lean `@sentry/browser`, errors only) and on the server; tunnelled through `/monitoring`; no personal data or IP | Accepted |
 | [052](./052-prometheus-metrics-grafana-alloy.md) | Prometheus metrics on a private port (HTTP, queues, circuit, process), scraped by Grafana Alloy and pushed to Grafana Cloud | Accepted |
+| [053](./053-sentry-logs.md) | Warn/error pino lines to Sentry Logs through `pinoIntegration`, cut to an allowlist of fields; never as error events | Accepted |
 
 ## How to read an ADR
 

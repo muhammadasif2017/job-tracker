@@ -15,8 +15,16 @@ import {
 } from './idempotency.interceptor.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { createHash } from 'node:crypto';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
+import { setRedisOutage } from '../../infrastructure/redis/redis-errors.helper.js';
 
-const mockClient = { set: jest.fn(), get: jest.fn(), del: jest.fn() };
+const mockClient = {
+  set: jest.fn(),
+  get: jest.fn(),
+  del: jest.fn(),
+  status: 'ready',
+};
+const logger = spyOnLogger();
 const setHeader = jest.fn();
 
 const BODY = { company: 'Stripe', position: 'Engineer' };
@@ -51,6 +59,7 @@ describe('IdempotencyInterceptor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockClient.status = 'ready';
     interceptor = new IdempotencyInterceptor({
       client: mockClient,
     } as unknown as RedisService);
@@ -230,7 +239,14 @@ describe('IdempotencyInterceptor', () => {
   });
 
   it('runs the request without the guarantee when Redis is down', async () => {
-    mockClient.set.mockRejectedValue(new Error('ECONNREFUSED'));
+    mockClient.status = 'reconnecting';
+    setRedisOutage(true);
+    // What ioredis rejects with while disconnected (fail-fast, ADR-046).
+    mockClient.set.mockRejectedValue(
+      new Error(
+        "Stream isn't writeable and enableOfflineQueue options is false",
+      ),
+    );
     const next = handler();
 
     const result = await lastValueFrom(
@@ -240,6 +256,27 @@ describe('IdempotencyInterceptor', () => {
     expect(result).toEqual({ id: 'job-1' });
     expect(next.handle).toHaveBeenCalled();
     expect(mockClient.set).toHaveBeenCalledTimes(1);
+    setRedisOutage(false);
+    // Info during a reported outage: RedisService already logged it once.
+    expect(logger.log).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Redis unavailable, running request without idempotency',
+    );
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it('warns when a command fails on a live connection', async () => {
+    mockClient.set.mockRejectedValue(new Error('WRONGTYPE'));
+
+    await lastValueFrom(
+      interceptor.intercept(context({ 'idempotency-key': 'key-1' }), handler()),
+    );
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Redis unavailable, running request without idempotency',
+    );
+    expect(logger.log).not.toHaveBeenCalled();
   });
 
   it('returns the response even when storing it fails', async () => {

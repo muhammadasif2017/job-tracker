@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID, timingSafeEqual } from 'crypto';
@@ -14,7 +13,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { runCronScan } from '../../common/cron-scan.helper.js';
-import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isRedisUnavailable,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
 import {
@@ -22,6 +24,7 @@ import {
   PAT_SCOPE,
   DUMMY_TOKEN_HASH,
 } from '../tokens/tokens.constants.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Redis key prefix for one-time OAuth codes. */
 const OAUTH_CODE_PREFIX = 'oauth_code:';
@@ -118,7 +121,7 @@ function isUnfinishedSignup(user: {
  */
 @Injectable()
 export class AuthService {
-  private readonly logger = new Logger(AuthService.name);
+  private readonly logger = appLogger(AuthService);
 
   constructor(
     private prisma: PrismaService,
@@ -266,7 +269,7 @@ export class AuthService {
       return await command();
     } catch (err) {
       if (!isRedisUnavailable(this.redis.client, err)) throw err;
-      this.logger.error('OAuth code store unavailable', err);
+      logRedisFailure(this.logger, err, {}, 'OAuth code store unavailable');
       throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
     }
   }
@@ -314,10 +317,13 @@ export class AuthService {
         data: { revokedAt: new Date() },
       });
     } catch (err) {
-      this.logger.warn('Could not revoke an undelivered OAuth refresh token', {
-        userId: tokens.userId,
-        err,
-      });
+      this.logger.warn(
+        {
+          userId: tokens.userId,
+          err,
+        },
+        'Could not revoke an undelivered OAuth refresh token',
+      );
     }
   }
 
@@ -361,8 +367,8 @@ export class AuthService {
         });
       } catch (err) {
         this.logger.warn(
-          `Could not store the signup timezone for user ${userId}`,
-          err,
+          { err, userId },
+          'Could not store the signup timezone',
         );
       }
     }
@@ -470,9 +476,7 @@ export class AuthService {
     this.prisma.apiToken
       .update({ where: { id }, data: { lastUsedAt: new Date() } })
       .catch((err: Error) =>
-        this.logger.warn(
-          `Failed to update apiToken.lastUsedAt: ${err.message}`,
-        ),
+        this.logger.warn({ err }, 'Failed to update apiToken.lastUsedAt'),
       );
 
     const accessToken = await this.signAccessToken(

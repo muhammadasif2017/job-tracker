@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { EnrichmentStatus } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isTransactionWriteConflict } from '../../infrastructure/database/prisma-errors.js';
 import { CreateCompanyDto } from './dto/create-company.dto.js';
@@ -18,6 +17,8 @@ import {
   getCompanyApplicationStats,
 } from './company-application-stats.helper.js';
 import { companyNameMatch } from './company-name-match.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
@@ -38,10 +39,11 @@ const RECENT_HISTORY_JOBS = 3;
  */
 @Injectable()
 export class CompaniesService {
+  private readonly logger = appLogger(CompaniesService);
+
   constructor(
     private prisma: PrismaService,
     private companyEnrichment: CompanyEnrichmentService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -146,10 +148,12 @@ export class CompaniesService {
     } catch (err: unknown) {
       // Enrichment is best-effort; company creation always succeeds even if
       // the queue is unreachable — same contract as JobsService.create.
-      this.logger.warn('Company enrichment enqueue failed', {
-        companyId: company.id,
+      logRedisFailure(
+        this.logger,
         err,
-      });
+        { companyId: company.id },
+        'Company enrichment enqueue failed',
+      );
       return company;
     }
 

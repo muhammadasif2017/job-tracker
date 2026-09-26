@@ -9,6 +9,7 @@ import {
 import { LlmService } from '../../enrichment/services/llm.service.js';
 import { DelayedError } from 'bullmq';
 import type { CircuitStatus } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
 // `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
 // be deep-imported from `dist/bull.constants.js`, and the package root does
@@ -38,12 +39,7 @@ const mockLlm = {
   extract: jest.fn(),
   circuitStatus: jest.fn((): CircuitStatus => CIRCUIT_CLOSED),
 } satisfies Pick<LlmService, 'extract' | 'circuitStatus'>;
-const mockLogger = {
-  log: jest.fn(),
-  warn: jest.fn(),
-  error: jest.fn(),
-  debug: jest.fn(),
-};
+const mockLogger = spyOnLogger();
 
 const dbCompany = {
   id: 'company-123',
@@ -94,7 +90,6 @@ describe('CompanyEnrichmentProcessor', () => {
       mockWebFetch as never,
       mockSearch as never,
       mockLlm as never,
-      mockLogger as never,
     );
   });
 
@@ -755,8 +750,8 @@ describe('CompanyEnrichmentProcessor', () => {
 
     await expect(processor.process(bullJob)).rejects.toThrow('Search API down');
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'company_enrichment_profile_update_failed',
       expect.objectContaining({ phase: 'mark_failed' }),
+      'company_enrichment_profile_update_failed',
     );
   });
 });

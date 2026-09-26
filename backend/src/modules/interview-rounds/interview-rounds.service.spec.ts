@@ -1,11 +1,11 @@
 import { Test } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { InterviewOutcome, JobStatus, JobEventType } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { InterviewRoundsService } from './interview-rounds.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockLlm = {
   generateRoundPrep: jest.fn(),
@@ -15,7 +15,7 @@ const mockTimelineSummary = {
   enqueue: jest.fn().mockResolvedValue(undefined),
 };
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = spyOnLogger();
 
 const mockPrisma = {
   job: {
@@ -84,7 +84,6 @@ describe('InterviewRoundsService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: LlmService, useValue: mockLlm },
         { provide: TimelineSummaryService, useValue: mockTimelineSummary },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(InterviewRoundsService);
@@ -607,8 +606,8 @@ describe('InterviewRoundsService', () => {
       });
 
       expect(mockLogger.warn).not.toHaveBeenCalledWith(
-        'round_prep_generation_failed',
         expect.anything(),
+        'round_prep_generation_failed',
       );
     });
 
@@ -695,8 +694,8 @@ describe('InterviewRoundsService', () => {
 
       expect(result.id).toBe('round-1');
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'round_prep_generation_failed',
         expect.objectContaining({ jobId: 'job-1' }),
+        'round_prep_generation_failed',
       );
     });
   });
@@ -757,8 +756,8 @@ describe('InterviewRoundsService', () => {
         }),
       });
       expect(mockLogger.warn).toHaveBeenCalledWith(
-        'round_note_invalid_timezone',
         expect.anything(),
+        'round_note_invalid_timezone',
       );
     });
 

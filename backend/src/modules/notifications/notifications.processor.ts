@@ -3,7 +3,6 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Job } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
 import { EmailService } from './email.service.js';
@@ -11,6 +10,7 @@ import { interviewReminderEmail, digestEmail } from './templates.js';
 import { withWorkerConnection } from '../../infrastructure/redis/redis-connection.helper.js';
 import { runJobWithRequestId } from '../../common/request-context.helper.js';
 import { CorrelatedWorkerHost } from '../../common/correlated-worker-host.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** BullMQ queue carrying interview reminders and digest emails. */
 export const NOTIFICATIONS_QUEUE = 'notifications';
@@ -52,11 +52,12 @@ function dedupField(
 export class NotificationsProcessor extends CorrelatedWorkerHost<
   Job<InterviewReminderJobData | DigestJobData>
 > {
+  private readonly logger = appLogger(NotificationsProcessor);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly email: EmailService,
     private readonly config: ConfigService,
-    private readonly logger: Logger,
   ) {
     super();
   }
@@ -100,9 +101,12 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
         where: { id: roundId, reminderSentAt: { not: null } },
         data: { reminderSentAt: null },
       });
-      this.logger.warn('interview_reminder_permanently_failed_reset', {
-        roundId,
-      });
+      this.logger.warn(
+        {
+          roundId,
+        },
+        'interview_reminder_permanently_failed_reset',
+      );
     });
   }
 
@@ -138,7 +142,7 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       },
     });
     if (!round) {
-      this.logger.warn('notification_round_not_found', { roundId });
+      this.logger.warn({ roundId }, 'notification_round_not_found');
       return;
     }
     // Outcome may have changed (e.g. cancelled) between the hourly scan
@@ -166,7 +170,7 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
       frontendUrl: this.frontendUrl(),
     });
     await this.email.send({ to: user.email, subject, html });
-    this.logger.log('interview_reminder_sent', { roundId, userId: user.id });
+    this.logger.log({ roundId, userId: user.id }, 'interview_reminder_sent');
   }
 
   /**
@@ -225,13 +229,16 @@ export class NotificationsProcessor extends CorrelatedWorkerHost<
               data: { [dedupField(item.type as DedupAttentionType)]: now },
             })
             .catch((error) =>
-              this.logger.warn('digest_dedup_stamp_failed', {
-                jobId: item.job.id,
-                error,
-              }),
+              this.logger.warn(
+                {
+                  jobId: item.job.id,
+                  err: error,
+                },
+                'digest_dedup_stamp_failed',
+              ),
             ),
         ),
     );
-    this.logger.log('digest_sent', { userId, itemCount: items.length });
+    this.logger.log({ userId, itemCount: items.length }, 'digest_sent');
   }
 }

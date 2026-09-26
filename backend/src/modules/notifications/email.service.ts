@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
-import { Logger } from 'nestjs-pino';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Everything the app ever sends: one recipient, a subject and an HTML body.
@@ -20,13 +20,12 @@ export interface SendEmailInput {
  */
 @Injectable()
 export class EmailService {
+  private readonly logger = appLogger(EmailService);
+
   private readonly resend?: Resend;
   private readonly from: string;
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly logger: Logger,
-  ) {
+  constructor(private readonly config: ConfigService) {
     const apiKey = this.config.get<string>('RESEND_API_KEY');
     this.resend = apiKey ? new Resend(apiKey) : undefined;
     this.from =
@@ -40,7 +39,7 @@ export class EmailService {
    */
   async send({ to, subject, html }: SendEmailInput): Promise<void> {
     if (!this.resend) {
-      this.logger.warn('email_send_skipped_no_api_key', { to, subject });
+      this.logger.warn({ to, subject }, 'email_send_skipped_no_api_key');
       return;
     }
     // The Resend SDK doesn't throw on an API-level failure — it resolves
@@ -53,7 +52,12 @@ export class EmailService {
       html,
     });
     if (error) {
-      this.logger.warn('email_send_failed', { to, subject, error });
+      // Resend's error is a plain object, so pino would type it 'Object';
+      // its `name` (e.g. 'validation_error') is the useful classification.
+      this.logger.warn(
+        { to, subject, err: error, errorName: error.name },
+        'email_send_failed',
+      );
       throw new Error(`Failed to send email: ${error.message}`);
     }
   }

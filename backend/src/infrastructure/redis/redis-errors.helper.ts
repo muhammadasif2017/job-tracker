@@ -47,3 +47,57 @@ export function isRedisConnectionError(err: unknown): err is Error {
     CONNECTION_FAILURE_MESSAGES.has(err.message)
   );
 }
+
+/**
+ * Whether `RedisService` has reported an outage that has not ended yet.
+ * Process-wide, like Redis itself: every client here talks to the same
+ * server, so an outage seen by one connection is an outage for all.
+ */
+let outageReported = false;
+/** When the reported outage began, kept with the flag so they cannot disagree. */
+let outageStartedAt = 0;
+
+/** Called by `RedisService` when it logs an outage (true) and when Redis is back (false). */
+export function setRedisOutage(active: boolean) {
+  if (active && !outageReported) outageStartedAt = Date.now();
+  outageReported = active;
+}
+
+/** True while an outage `RedisService` logged is still going on. */
+export function isRedisOutage(): boolean {
+  return outageReported;
+}
+
+/** How long the reported outage has lasted, in milliseconds; 0 when none is. */
+export function redisOutageMs(): number {
+  return outageReported ? Date.now() - outageStartedAt : 0;
+}
+
+/**
+ * Logs a failure that Redis may have caused (ADR-053). It goes to info, not
+ * warn, only when an outage is reported *and* the error is a Redis
+ * connection failure: `RedisService` already logged the outage once at error
+ * level, and a line per request or per scrape would flood Sentry Logs, which
+ * only takes warn and above. Info, not debug: production runs at
+ * `LOG_LEVEL=info`, and these lines (which job missed its summary, which
+ * company its enrichment) are what a backfill after the outage needs.
+ * Everything else is a warning: a timeout on a live connection, a script
+ * error, and a different failure in the same try block, such as the Prisma
+ * write `enqueueEnrichment` makes before its queue add, which must not be
+ * hidden just because Redis is also down.
+ */
+export function logRedisFailure(
+  logger: {
+    warn(obj: object, message: string): void;
+    log(obj: object, message: string): void;
+  },
+  err: unknown,
+  fields: Record<string, unknown>,
+  message: string,
+) {
+  if (outageReported && isRedisConnectionError(err)) {
+    logger.log({ ...fields, err }, message);
+  } else {
+    logger.warn({ ...fields, err }, message);
+  }
+}

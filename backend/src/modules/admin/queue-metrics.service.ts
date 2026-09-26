@@ -1,7 +1,6 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { Gauge } from '@prometheus-io/client';
 import type { CircuitState } from '../../infrastructure/resilience/circuit-breaker.js';
 import { MetricsService } from '../../infrastructure/metrics/metrics.service.js';
@@ -11,6 +10,8 @@ import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { COUNTED_STATES } from './admin-queues.constants.js';
 import { readQueueCounts, type QueueCounts } from './queue-counts.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Gauge value per circuit state; the help text states the same mapping. */
 const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
@@ -29,6 +30,8 @@ const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
  */
 @Injectable()
 export class QueueMetricsService implements OnModuleInit {
+  private readonly logger = appLogger(QueueMetricsService);
+
   private readonly queues: ReadonlyArray<readonly [string, Queue]>;
   /** The counts one scrape is reading, shared by both queue gauges. */
   private inFlight: Promise<Map<string, QueueCounts | null>> | null = null;
@@ -39,7 +42,6 @@ export class QueueMetricsService implements OnModuleInit {
     @InjectQueue(JOB_TIMELINE_SUMMARY_QUEUE) timelineSummaryQueue: Queue,
     @InjectQueue(NOTIFICATIONS_QUEUE) notificationsQueue: Queue,
     private readonly llm: LlmService,
-    private readonly logger: Logger,
   ) {
     this.queues = [
       [COMPANY_ENRICHMENT_QUEUE, enrichmentQueue],
@@ -124,8 +126,12 @@ export class QueueMetricsService implements OnModuleInit {
     try {
       return await readQueueCounts(queue);
     } catch (error) {
-      this.logger.warn(
-        { err: error, queue: name },
+      // Info during a reported outage (the scrape shows `jobtracker_queue_up
+      // 0` anyway); a warning otherwise, e.g. a wrong password.
+      logRedisFailure(
+        this.logger,
+        error,
+        { queue: name },
         'Queue counts unavailable for metrics',
       );
       return null;

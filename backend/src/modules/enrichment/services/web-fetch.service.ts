@@ -2,8 +2,8 @@ import { Injectable } from '@nestjs/common';
 import * as cheerio from 'cheerio';
 import * as dns from 'node:dns/promises';
 import ipaddr from 'ipaddr.js';
-import { Logger } from 'nestjs-pino';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Fetches a company's own web page and reduces it to plain text for the
@@ -13,7 +13,7 @@ import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
  */
 @Injectable()
 export class WebFetchService {
-  constructor(private readonly logger: Logger) {}
+  private readonly logger = appLogger(WebFetchService);
 
   /**
    * The SSRF guard. The URL being fetched ultimately comes from
@@ -139,10 +139,13 @@ export class WebFetchService {
         // below, which would otherwise mislabel it during triage.
         const location = res.headers.get('location');
         if (!location) {
-          this.logger.warn('web_fetch_redirect_no_location', {
-            url,
-            status: res.status,
-          });
+          this.logger.warn(
+            {
+              url,
+              status: res.status,
+            },
+            'web_fetch_redirect_no_location',
+          );
           return '';
         }
 
@@ -152,10 +155,13 @@ export class WebFetchService {
           new URL(location, safeUrl).toString(),
         );
         if (!next) {
-          this.logger.warn('web_fetch_unsafe_redirect', {
-            url,
-            status: res.status,
-          });
+          this.logger.warn(
+            {
+              url,
+              status: res.status,
+            },
+            'web_fetch_unsafe_redirect',
+          );
           return '';
         }
 
@@ -164,11 +170,11 @@ export class WebFetchService {
       }
 
       if (this.isRedirect(res.status)) {
-        this.logger.warn('web_fetch_too_many_redirects', { url });
+        this.logger.warn({ url }, 'web_fetch_too_many_redirects');
         return '';
       }
       if (!res.ok) {
-        this.logger.warn('web_fetch_error', { url, status: res.status });
+        this.logger.warn({ url, status: res.status }, 'web_fetch_error');
         return '';
       }
 
@@ -207,10 +213,13 @@ export class WebFetchService {
 
       return text.slice(0, LLM_CONTEXT_BUDGET);
     } catch (err) {
-      this.logger.warn('web_fetch_failed', {
-        url,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          url,
+          err,
+        },
+        'web_fetch_failed',
+      );
       return '';
     }
   }

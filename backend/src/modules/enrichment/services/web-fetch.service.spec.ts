@@ -1,5 +1,4 @@
 import { Test } from '@nestjs/testing';
-import { Logger } from 'nestjs-pino';
 // Node's dns/promises exports are non-configurable, so jest.spyOn can't
 // redefine `lookup` directly — mock the whole module at the factory level
 // instead, which intercepts resolution before either this file or the
@@ -7,9 +6,10 @@ import { Logger } from 'nestjs-pino';
 jest.mock('node:dns/promises', () => ({ lookup: jest.fn() }));
 import * as dns from 'node:dns/promises';
 import { WebFetchService } from './web-fetch.service.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
 const dnsLookup = dns.lookup as jest.Mock;
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = spyOnLogger();
 
 const htmlPage = `
 <html>
@@ -38,7 +38,7 @@ describe('WebFetchService', () => {
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      providers: [WebFetchService, { provide: Logger, useValue: mockLogger }],
+      providers: [WebFetchService],
     }).compile();
     service = module.get(WebFetchService);
     fetchSpy = jest.spyOn(global, 'fetch');
@@ -47,9 +47,7 @@ describe('WebFetchService', () => {
     // reads as "logged at some point in this file" rather than "logged by this
     // test" — and a `.not.toHaveBeenCalledWith` can never pass once any
     // earlier test has logged that event.
-    mockLogger.warn.mockClear();
-    mockLogger.log.mockClear();
-    mockLogger.error.mockClear();
+    Object.values(mockLogger).forEach((spy) => spy.mockClear());
   });
 
   afterEach(() => {
@@ -282,8 +280,8 @@ describe('WebFetchService', () => {
     // Only the first hop was ever fetched — the metadata endpoint was not.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_unsafe_redirect',
       expect.objectContaining({ url: 'https://acme.com' }),
+      'web_fetch_unsafe_redirect',
     );
   });
 
@@ -297,8 +295,8 @@ describe('WebFetchService', () => {
     // Initial request plus MAX_REDIRECTS hops, then it stops.
     expect(fetchSpy).toHaveBeenCalledTimes(4);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_too_many_redirects',
       expect.objectContaining({ url: 'https://acme.com' }),
+      'web_fetch_too_many_redirects',
     );
   });
 
@@ -317,12 +315,12 @@ describe('WebFetchService', () => {
     // burning hops on a redirect it can never resolve.
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'web_fetch_redirect_no_location',
       expect.objectContaining({ url: 'https://acme.com', status: 302 }),
+      'web_fetch_redirect_no_location',
     );
     expect(mockLogger.warn).not.toHaveBeenCalledWith(
-      'web_fetch_too_many_redirects',
       expect.anything(),
+      'web_fetch_too_many_redirects',
     );
   });
 

@@ -1,6 +1,5 @@
 import { Test } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from 'nestjs-pino';
 import Groq from 'groq-sdk';
 import {
   GROQ_FAILURE_THRESHOLD,
@@ -9,8 +8,9 @@ import {
   LlmService,
 } from './llm.service.js';
 import { CircuitOpenError } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { spyOnLogger } from '../../../../test/spy-on-logger.js';
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = spyOnLogger();
 const mockCreate = jest.fn();
 
 jest.mock('groq-sdk', () => ({
@@ -57,7 +57,6 @@ describe('LlmService', () => {
       providers: [
         LlmService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(LlmService);
@@ -254,7 +253,6 @@ describe('LlmService.extractJobPosting', () => {
       providers: [
         LlmService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(LlmService);
@@ -344,7 +342,6 @@ describe('LlmService.generateRoundPrep', () => {
       providers: [
         LlmService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(LlmService);
@@ -427,7 +424,6 @@ describe('LlmService.summarizeEvents', () => {
       providers: [
         LlmService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(LlmService);
@@ -485,7 +481,6 @@ describe('LlmService Groq circuit breaker', () => {
       providers: [
         LlmService,
         { provide: ConfigService, useValue: mockConfigService },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(LlmService);
@@ -515,9 +510,12 @@ describe('LlmService Groq circuit breaker', () => {
       CircuitOpenError,
     );
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(mockLogger.warn).toHaveBeenCalledWith('llm_circuit_opened', {
-      from: 'closed',
-    });
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      {
+        from: 'closed',
+      },
+      'llm_circuit_opened',
+    );
   });
 
   it('lets a trial call through after the cool-down and closes on success', async () => {

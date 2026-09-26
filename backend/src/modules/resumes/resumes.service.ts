@@ -5,13 +5,13 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import {
   STORAGE_SERVICE,
   type IStorageService,
 } from '../../infrastructure/storage/storage.service.js';
 import type { ResumeResponseDto } from './dto/resume-response.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Presigned URL lifetime in seconds, used only to compute the `expiresAt`
@@ -27,10 +27,11 @@ const PRESIGNED_URL_TTL = 900;
  */
 @Injectable()
 export class ResumesService {
+  private readonly logger = appLogger(ResumesService);
+
   constructor(
     private prisma: PrismaService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -109,7 +110,7 @@ export class ResumesService {
         await this.storage
           .delete(oldKey)
           .catch((err: Error) =>
-            this.logger.warn(`Failed to delete old resume key: ${err.message}`),
+            this.logger.warn({ err }, 'Failed to delete old resume key'),
           );
       }
 
@@ -185,10 +186,13 @@ export class ResumesService {
     await this.prisma.resume.delete({ where: { id: resume.id } });
 
     await this.storage.delete(resume.storageKey).catch((err: unknown) =>
-      this.logger.warn('Storage delete failed after resume remove', {
-        storageKey: resume.storageKey,
-        err,
-      }),
+      this.logger.warn(
+        {
+          storageKey: resume.storageKey,
+          err,
+        },
+        'Storage delete failed after resume remove',
+      ),
     );
 
     return { message: 'Resume deleted' };

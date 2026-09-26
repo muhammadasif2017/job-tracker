@@ -1,8 +1,10 @@
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsScheduler } from './notifications.scheduler.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
+import { setRedisOutage } from '../../infrastructure/redis/redis-errors.helper.js';
 
 describe('NotificationsScheduler', () => {
-  const logger = { log: jest.fn(), warn: jest.fn() };
+  const logger = spyOnLogger();
   const queue = { add: jest.fn().mockResolvedValue(undefined) };
 
   // 08:00 UTC on a Monday — matches DIGEST_SEND_HOUR for a UTC user and
@@ -24,11 +26,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -60,11 +58,7 @@ describe('NotificationsScheduler', () => {
           "Stream isn't writeable and enableOfflineQueue options is false",
         ),
       );
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -77,8 +71,8 @@ describe('NotificationsScheduler', () => {
       expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(2);
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
-        'interview_reminder_enqueue_failed',
         expect.objectContaining({ roundId: 'round1', unstamped: true }),
+        'interview_reminder_enqueue_failed',
       );
     });
 
@@ -90,18 +84,34 @@ describe('NotificationsScheduler', () => {
         },
       };
       queue.add.mockRejectedValueOnce(new Error('Command timed out'));
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
       expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(1);
       expect(logger.warn).toHaveBeenCalledWith(
-        'interview_reminder_enqueue_failed',
         expect.objectContaining({ roundId: 'round1', unstamped: false }),
+        'interview_reminder_enqueue_failed',
+      );
+    });
+
+    it('still warns about a timed-out add during a reported outage, since that reminder is never retried', async () => {
+      const prisma = {
+        interviewRound: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'round1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      setRedisOutage(true);
+      queue.add.mockRejectedValueOnce(new Error('Command timed out'));
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
+
+      await scheduler.scanInterviewReminders();
+      setRedisOutage(false);
+
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ roundId: 'round1', unstamped: false }),
+        'interview_reminder_enqueue_failed',
       );
     });
 
@@ -112,11 +122,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn().mockResolvedValue({ count: 0 }),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -130,11 +136,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn(),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -151,11 +153,7 @@ describe('NotificationsScheduler', () => {
           updateMany: jest.fn(),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.scanInterviewReminders();
 
@@ -190,11 +188,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -242,11 +236,7 @@ describe('NotificationsScheduler', () => {
           findMany: jest.fn(() => responses.shift()),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -260,11 +250,7 @@ describe('NotificationsScheduler', () => {
         user: { findMany: jest.fn().mockResolvedValue([]) },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -286,11 +272,7 @@ describe('NotificationsScheduler', () => {
         },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -321,11 +303,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
@@ -350,11 +328,7 @@ describe('NotificationsScheduler', () => {
         },
         job: { findMany: jest.fn() },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -384,11 +358,7 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendWeeklyDigests();
 
@@ -425,17 +395,13 @@ describe('NotificationsScheduler', () => {
             .mockResolvedValueOnce([]),
         },
       };
-      const scheduler = new NotificationsScheduler(
-        queue as any,
-        prisma as any,
-        logger as any,
-      );
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
 
       await scheduler.sendDailyDigests();
 
       expect(logger.warn).toHaveBeenCalledWith(
-        'digest_invalid_timezone',
         expect.objectContaining({ userId: 'bad-user' }),
+        'digest_invalid_timezone',
       );
       expect(queue.add).toHaveBeenCalledTimes(1);
       expect(queue.add).toHaveBeenCalledWith(

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Logger } from 'nestjs-pino';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Tavily search API endpoint. */
 const TAVILY_SEARCH_URL = 'https://api.tavily.com/search';
@@ -48,10 +48,9 @@ interface TavilyResponse {
  */
 @Injectable()
 export class SearchService {
-  constructor(
-    private readonly config: ConfigService,
-    private readonly logger: Logger,
-  ) {}
+  private readonly logger = appLogger(SearchService);
+
+  constructor(private readonly config: ConfigService) {}
 
   /**
    * Runs one search and returns ranked snippets ready to hand to the model.
@@ -85,7 +84,7 @@ export class SearchService {
         signal: AbortSignal.timeout(10_000),
       });
       if (!res.ok) {
-        this.logger.warn('tavily_search_error', { query, status: res.status });
+        this.logger.warn({ query, status: res.status }, 'tavily_search_error');
         // 429/432: Tavily's rate-limit and monthly-quota-exceeded statuses.
         // Worded to match the frontend's RATE_LIMITED classifier regardless
         // of which of the two Tavily actually sends.
@@ -125,10 +124,13 @@ export class SearchService {
       return snippets;
     } catch (err) {
       if (err instanceof SearchUnavailableError) throw err;
-      this.logger.warn('tavily_search_failed', {
-        query,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          query,
+          err,
+        },
+        'tavily_search_failed',
+      );
       return [];
     }
   }

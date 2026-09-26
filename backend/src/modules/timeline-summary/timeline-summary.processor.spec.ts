@@ -1,6 +1,7 @@
 import type { Job } from 'bullmq';
 import { TimelineSummaryProcessor } from './timeline-summary.processor.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 // `@nestjs/bullmq` v12 added an `exports` map, so the constant can no longer
 // be deep-imported from `dist/bull.constants.js`, and the package root does
@@ -15,7 +16,7 @@ const mockLlm = { summarizeEvents: jest.fn() } satisfies Pick<
   LlmService,
   'summarizeEvents'
 >;
-const mockLogger = { log: jest.fn(), warn: jest.fn(), error: jest.fn() };
+const mockLogger = spyOnLogger();
 
 const dbJob = { id: 'job-1', company: 'Acme', position: 'Engineer' };
 const events = [
@@ -55,7 +56,6 @@ describe('TimelineSummaryProcessor', () => {
     processor = new TimelineSummaryProcessor(
       mockPrisma as never,
       mockLlm as never,
-      mockLogger as never,
     );
   });
 
@@ -147,8 +147,8 @@ describe('TimelineSummaryProcessor', () => {
 
     await expect(processor.process(bullJob)).rejects.toThrow('Groq down');
     expect(mockLogger.warn).toHaveBeenCalledWith(
-      'timeline_summary_failed',
       expect.objectContaining({ jobId: 'job-1' }),
+      'timeline_summary_failed',
     );
   });
 });

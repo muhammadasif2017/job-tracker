@@ -8,7 +8,7 @@ import { EnrichmentStatus } from '@prisma/client';
 import { CompaniesService } from './companies.service.js';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from './enrichment/company-enrichment.service.js';
-import { Logger } from 'nestjs-pino';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const mockPrisma = {
   company: {
@@ -33,7 +33,7 @@ const mockCompanyEnrichment = {
   enqueueEnrichment: jest.fn(),
 } satisfies Pick<CompanyEnrichmentService, 'enqueueEnrichment'>;
 
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+const mockLogger = spyOnLogger();
 
 describe('CompaniesService', () => {
   let service: CompaniesService;
@@ -48,7 +48,6 @@ describe('CompaniesService', () => {
         CompaniesService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(CompaniesService);

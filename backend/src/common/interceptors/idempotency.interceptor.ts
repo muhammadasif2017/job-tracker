@@ -4,7 +4,6 @@ import {
   ConflictException,
   ExecutionContext,
   Injectable,
-  Logger,
   NestInterceptor,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -12,6 +11,8 @@ import { createHash } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { catchError, from, mergeMap, Observable, of, throwError } from 'rxjs';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** Request header carrying the client's idempotency key. */
 export const IDEMPOTENCY_KEY_HEADER = 'idempotency-key';
@@ -67,7 +68,7 @@ type IdempotencyRecord =
  */
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
-  private readonly logger = new Logger(IdempotencyInterceptor.name);
+  private readonly logger = appLogger(IdempotencyInterceptor);
 
   constructor(private readonly redis: RedisService) {}
 
@@ -148,8 +149,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
       // rather than racing a second claim; the client's retry will win.
       return stored ? (JSON.parse(stored) as IdempotencyRecord) : pending;
     } catch (err) {
-      this.logger.warn(
-        `Redis unavailable, running request without idempotency: ${String(err)}`,
+      logRedisFailure(
+        this.logger,
+        err,
+        {},
+        'Redis unavailable, running request without idempotency',
       );
       return 'unavailable';
     }
@@ -188,7 +192,12 @@ export class IdempotencyInterceptor implements NestInterceptor {
         COMPLETED_TTL_MS,
       );
     } catch (err) {
-      this.logger.warn(`Failed to store idempotent response: ${String(err)}`);
+      logRedisFailure(
+        this.logger,
+        err,
+        {},
+        'Failed to store idempotent response',
+      );
     }
     return body;
   }
@@ -198,8 +207,11 @@ export class IdempotencyInterceptor implements NestInterceptor {
     try {
       await this.redis.client.del(redisKey);
     } catch (err) {
-      this.logger.warn(
-        `Failed to release idempotency key; it expires in ${PENDING_TTL_MS}ms: ${String(err)}`,
+      logRedisFailure(
+        this.logger,
+        err,
+        { expiresInMs: PENDING_TTL_MS },
+        'Failed to release idempotency key',
       );
     }
   }

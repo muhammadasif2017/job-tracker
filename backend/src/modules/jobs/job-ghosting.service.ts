@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { JobStatus, JobEventType } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { buildGhostSuggestionWhere } from './ghost-suggestions.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * The ghost-suggestion actions: bulk "mark all ghosted" and the per-job
@@ -16,10 +16,11 @@ import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.hel
  */
 @Injectable()
 export class JobGhostingService {
+  private readonly logger = appLogger(JobGhostingService);
+
   constructor(
     private prisma: PrismaService,
     private timelineSummary: TimelineSummaryService,
-    private logger: Logger,
   ) {}
 
   /**

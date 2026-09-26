@@ -1,6 +1,6 @@
 import { ConfigService } from '@nestjs/config';
-import { Logger } from 'nestjs-pino';
 import { EmailService } from './email.service.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 const sendMock = jest.fn().mockResolvedValue({ data: { id: 'x' } });
 
@@ -11,7 +11,7 @@ jest.mock('resend', () => ({
 }));
 
 describe('EmailService', () => {
-  const logger = { warn: jest.fn(), log: jest.fn() } as unknown as Logger;
+  const logger = spyOnLogger();
 
   afterEach(() => jest.clearAllMocks());
 
@@ -19,7 +19,7 @@ describe('EmailService', () => {
     const configService = {
       get: (key: string) => config[key],
     } as unknown as ConfigService;
-    return new EmailService(configService, logger);
+    return new EmailService(configService);
   }
 
   it('skips sending and logs a warning when RESEND_API_KEY is not set', async () => {
@@ -28,8 +28,8 @@ describe('EmailService', () => {
 
     expect(sendMock).not.toHaveBeenCalled();
     expect(logger.warn).toHaveBeenCalledWith(
-      'email_send_skipped_no_api_key',
       expect.objectContaining({ to: 'a@b.com' }),
+      'email_send_skipped_no_api_key',
     );
   });
 
@@ -73,8 +73,8 @@ describe('EmailService', () => {
     ).rejects.toThrow('invalid from address');
 
     expect(logger.warn).toHaveBeenCalledWith(
-      'email_send_failed',
       expect.objectContaining({ to: 'a@b.com' }),
+      'email_send_failed',
     );
   });
 });

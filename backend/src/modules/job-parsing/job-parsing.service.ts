@@ -1,6 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ApplicationChannel } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { CircuitOpenError } from '../../infrastructure/resilience/circuit-breaker.js';
 import { WebFetchService } from '../enrichment/services/web-fetch.service.js';
 import {
@@ -13,6 +12,7 @@ import {
 } from '../enrichment/services/llm.service.js';
 import { ParseJobDto } from './dto/parse-job.dto.js';
 import { ParsedJobDto } from './dto/parsed-job.dto.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * Turns a job posting — a URL, or text the browser extension scraped from
@@ -22,11 +22,12 @@ import { ParsedJobDto } from './dto/parsed-job.dto.js';
  */
 @Injectable()
 export class JobParsingService {
+  private readonly logger = appLogger(JobParsingService);
+
   constructor(
     private webFetch: WebFetchService,
     private search: SearchService,
     private llm: LlmService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -75,9 +76,12 @@ export class JobParsingService {
         failed: false,
       };
     } catch (err: unknown) {
-      this.logger.warn('parse_job_posting_failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          err,
+        },
+        'parse_job_posting_failed',
+      );
       return { failed: true, circuitOpen: err instanceof CircuitOpenError };
     }
   }
@@ -142,10 +146,13 @@ export class JobParsingService {
         snippets = (await this.search.search(dto.url)) ?? [];
       } catch (err: unknown) {
         if (!(err instanceof SearchUnavailableError)) throw err;
-        this.logger.warn('parse_job_search_unavailable', {
-          url: dto.url,
-          error: err.message,
-        });
+        this.logger.warn(
+          {
+            url: dto.url,
+            err,
+          },
+          'parse_job_search_unavailable',
+        );
         snippets = [];
       }
       const searchContent = snippets.filter(Boolean).join('\n\n');
@@ -155,9 +162,12 @@ export class JobParsingService {
       if (parsed) {
         applicationChannel = this.guessSourceFromUrl(dto.url);
       } else if (searchContent) {
-        this.logger.warn('parse_job_posting_fallback_failed', {
-          url: dto.url,
-        });
+        this.logger.warn(
+          {
+            url: dto.url,
+          },
+          'parse_job_posting_fallback_failed',
+        );
       }
     }
 

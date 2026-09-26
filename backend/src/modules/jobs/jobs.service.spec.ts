@@ -9,7 +9,6 @@ import {
   JobType,
   Prisma,
 } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { JobsService } from './jobs.service.js';
 import { JobCompanyLinkService } from './job-company-link.service.js';
 import { JobGhostingService } from './job-ghosting.service.js';
@@ -18,6 +17,7 @@ import { CompanyEnrichmentService } from '../companies/enrichment/company-enrich
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { STORAGE_SERVICE } from '../../infrastructure/storage/storage.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
+import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 // The stored `appliedAt` every ownership mock below reports. `findOwned`
 // selects it so `update` can tell a date the user actually edited from the
@@ -66,7 +66,8 @@ const mockStorage = {
   getPresignedUrl: jest.fn(),
   delete: jest.fn(),
 };
-const mockLogger = { warn: jest.fn(), log: jest.fn(), error: jest.fn() };
+// Silences the services' log output; no test asserts on it.
+spyOnLogger();
 
 describe('JobsService', () => {
   let service: JobsService;
@@ -87,7 +88,6 @@ describe('JobsService', () => {
         { provide: CompanyEnrichmentService, useValue: mockCompanyEnrichment },
         { provide: TimelineSummaryService, useValue: mockTimelineSummary },
         { provide: STORAGE_SERVICE, useValue: mockStorage },
-        { provide: Logger, useValue: mockLogger },
       ],
     }).compile();
     service = module.get(JobsService);

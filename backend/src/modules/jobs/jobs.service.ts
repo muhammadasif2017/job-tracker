@@ -4,7 +4,6 @@ import {
   ConflictException,
   Inject,
 } from '@nestjs/common';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
@@ -27,6 +26,7 @@ import {
 } from './job-update-rules.helper.js';
 import { bestEffortEnqueueTimelineSummary } from './timeline-summary-enqueue.helper.js';
 import { deriveInterviewRoundStatus } from '../interview-rounds/interview-round-status.helper.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * `Job.nextInterviewAt` goes stale on its own: `InterviewRoundsService`
@@ -58,13 +58,14 @@ function withUpcomingInterview<T extends { nextInterviewAt: Date | null }>(
  */
 @Injectable()
 export class JobsService {
+  private readonly logger = appLogger(JobsService);
+
   constructor(
     private prisma: PrismaService,
     private timelineSummary: TimelineSummaryService,
     private companyLink: JobCompanyLinkService,
     private ghosting: JobGhostingService,
     @Inject(STORAGE_SERVICE) private storage: IStorageService,
-    private logger: Logger,
   ) {}
 
   /**
@@ -454,10 +455,13 @@ export class JobsService {
 
     if (resume) {
       await this.storage.delete(resume.storageKey).catch((err: unknown) =>
-        this.logger.warn('Storage delete failed after job remove', {
-          storageKey: resume.storageKey,
-          err,
-        }),
+        this.logger.warn(
+          {
+            storageKey: resume.storageKey,
+            err,
+          },
+          'Storage delete failed after job remove',
+        ),
       );
     }
 

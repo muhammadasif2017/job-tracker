@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { BusinessMode } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 import Groq from 'groq-sdk';
-import { Logger } from 'nestjs-pino';
 import {
   CircuitBreaker,
   type CircuitStatus,
 } from '../../../infrastructure/resilience/circuit-breaker.js';
+import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
  * What one enrichment run yields about a company. Every field is nullable
@@ -235,6 +235,8 @@ function sanitize(raw: Record<string, unknown>): CompanyData {
  */
 @Injectable()
 export class LlmService {
+  private readonly logger = appLogger(LlmService);
+
   private readonly client: Groq;
   /**
    * Wraps every Groq call. Without it, a Groq outage cost each caller the
@@ -243,10 +245,7 @@ export class LlmService {
    */
   private readonly breaker: CircuitBreaker;
 
-  constructor(
-    private readonly config: ConfigService,
-    private readonly logger: Logger,
-  ) {
+  constructor(private readonly config: ConfigService) {
     this.client = new Groq({
       apiKey: this.config.get('GROQ_API_KEY') ?? 'placeholder',
       // Hard upper bound on each call so a hung request can't keep a BullMQ
@@ -270,8 +269,8 @@ export class LlmService {
       isFailure: isGroqOutage,
       onStateChange: (from, to) =>
         to === 'open'
-          ? this.logger.warn('llm_circuit_opened', { from })
-          : this.logger.log('llm_circuit_state', { from, to }),
+          ? this.logger.warn({ from }, 'llm_circuit_opened')
+          : this.logger.log({ from, to }, 'llm_circuit_state'),
     });
   }
 
@@ -294,7 +293,7 @@ export class LlmService {
       return await this.breaker.execute(call);
     } catch (err) {
       if (!isToolUseFailedError(err)) throw err;
-      this.logger.warn('llm_tool_use_failed_retry', { model });
+      this.logger.warn({ model }, 'llm_tool_use_failed_retry');
       return await this.breaker.execute(call);
     }
   }
@@ -384,10 +383,13 @@ export class LlmService {
       >;
       return sanitize(raw);
     } catch (err) {
-      this.logger.warn('llm_extract_failed', {
-        company: companyName,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: companyName,
+          err,
+        },
+        'llm_extract_failed',
+      );
       throw err;
     }
   }
@@ -429,9 +431,12 @@ export class LlmService {
       >;
       return sanitizeJobPosting(raw);
     } catch (err) {
-      this.logger.warn('llm_extract_job_posting_failed', {
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          err,
+        },
+        'llm_extract_job_posting_failed',
+      );
       throw err;
     }
   }
@@ -476,10 +481,13 @@ export class LlmService {
       if (!content) throw new Error('Empty response from Groq');
       return content;
     } catch (err) {
-      this.logger.warn('llm_generate_round_prep_failed', {
-        company: input.company,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: input.company,
+          err,
+        },
+        'llm_generate_round_prep_failed',
+      );
       throw err;
     }
   }
@@ -531,10 +539,13 @@ export class LlmService {
       if (!content) throw new Error('Empty response from Groq');
       return content;
     } catch (err) {
-      this.logger.warn('llm_summarize_events_failed', {
-        company: context.company,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      this.logger.warn(
+        {
+          company: context.company,
+          err,
+        },
+        'llm_summarize_events_failed',
+      );
       throw err;
     }
   }

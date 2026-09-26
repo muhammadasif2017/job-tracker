@@ -3,9 +3,11 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isCommandTimeout,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { withRequestId } from '../../common/request-context.helper.js';
 import { runCronScan } from '../../common/cron-scan.helper.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
@@ -14,6 +16,7 @@ import {
   type InterviewReminderJobData,
   type DigestJobData,
 } from './notifications.processor.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
 
 /** How far ahead of `scheduledAt` a round becomes due for its reminder. */
 const REMINDER_LEAD_MS = 24 * 60 * 60 * 1000;
@@ -74,10 +77,11 @@ function localDateKey(date: Date, timeZone: string): string {
  */
 @Injectable()
 export class NotificationsScheduler {
+  private readonly logger = appLogger(NotificationsScheduler);
+
   constructor(
     @InjectQueue(NOTIFICATIONS_QUEUE) private readonly queue: Queue,
     private readonly prisma: PrismaService,
-    private readonly logger: Logger,
   ) {}
 
   /**
@@ -138,14 +142,26 @@ export class NotificationsScheduler {
             data: { reminderSentAt: null },
           });
         }
-        this.logger.warn('interview_reminder_enqueue_failed', {
-          roundId: id,
-          unstamped: refused,
-          err,
-        });
+        if (refused) {
+          // Un-stamped: the next scan retries it, so an outage need not
+          // surface this per round (ADR-053).
+          logRedisFailure(
+            this.logger,
+            err,
+            { roundId: id, unstamped: true },
+            'interview_reminder_enqueue_failed',
+          );
+        } else {
+          // Stamp kept: this reminder is never retried, so it is always a
+          // warning, even during an outage, to leave a record of the round.
+          this.logger.warn(
+            { roundId: id, unstamped: false, err },
+            'interview_reminder_enqueue_failed',
+          );
+        }
         return;
       }
-      this.logger.log('interview_reminder_enqueued', { roundId: id });
+      this.logger.log({ roundId: id }, 'interview_reminder_enqueued');
     }
   }
 
@@ -195,11 +211,14 @@ export class NotificationsScheduler {
         // normal ops path here) would otherwise throw out of the `for`
         // loop entirely, silently skipping the digest for every other user
         // this tick. Contain the blast radius to just this one user.
-        this.logger.warn('digest_invalid_timezone', {
-          userId,
-          timezone,
-          error,
-        });
+        this.logger.warn(
+          {
+            userId,
+            timezone,
+            err: error,
+          },
+          'digest_invalid_timezone',
+        );
         continue;
       }
 
@@ -216,7 +235,7 @@ export class NotificationsScheduler {
         ...JOB_OPTIONS,
         jobId: `digest-${frequency}-${userId}-${dateKey}`,
       });
-      this.logger.log('digest_enqueued', { userId, itemCount: items.length });
+      this.logger.log({ userId, itemCount: items.length }, 'digest_enqueued');
     }
   }
 }

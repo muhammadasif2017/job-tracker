@@ -1,5 +1,6 @@
-import { Logger } from 'nestjs-pino';
+import { Logger } from '@nestjs/common';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /**
  * Timeline-summary regeneration is best-effort — a queue or model hiccup
@@ -17,6 +18,6 @@ export async function bestEffortEnqueueTimelineSummary(
   try {
     await timelineSummary.enqueue(jobId);
   } catch (err: unknown) {
-    logger.warn('Timeline summary enqueue failed', { jobId, err });
+    logRedisFailure(logger, err, { jobId }, 'Timeline summary enqueue failed');
   }
 }

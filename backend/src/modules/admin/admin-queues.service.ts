@@ -2,7 +2,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { EnrichmentStatus } from '@prisma/client';
 import type { Queue } from 'bullmq';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { COMPANY_ENRICHMENT_QUEUE } from '../companies/enrichment/company-enrichment.constants.js';
 import { JOB_TIMELINE_SUMMARY_QUEUE } from '../timeline-summary/timeline-summary.constants.js';
@@ -19,6 +18,8 @@ import {
   STATUS_LABELS,
   STATUS_ORDER,
 } from './admin-queues.constants.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /**
  * Reads both halves of the enrichment pipeline: BullMQ job counts in Redis
@@ -29,6 +30,8 @@ import {
  */
 @Injectable()
 export class AdminQueuesService {
+  private readonly logger = appLogger(AdminQueuesService);
+
   constructor(
     private readonly prisma: PrismaService,
     @InjectQueue(COMPANY_ENRICHMENT_QUEUE)
@@ -37,7 +40,6 @@ export class AdminQueuesService {
     private readonly timelineSummaryQueue: Queue,
     @InjectQueue(NOTIFICATIONS_QUEUE)
     private readonly notificationsQueue: Queue,
-    private readonly logger: Logger,
     private readonly llm: LlmService,
   ) {}
 
@@ -110,8 +112,10 @@ export class AdminQueuesService {
     try {
       return { name, available: true, counts: await readQueueCounts(queue) };
     } catch (error) {
-      this.logger.warn(
-        { err: error, queue: name },
+      logRedisFailure(
+        this.logger,
+        error,
+        { queue: name },
         'Queue counts unavailable; returning the database half only',
       );
       return { name, available: false, counts: null };

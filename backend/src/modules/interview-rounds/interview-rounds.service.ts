@@ -9,7 +9,6 @@ import {
   InterviewOutcome,
   Prisma,
 } from '@prisma/client';
-import { Logger } from 'nestjs-pino';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { TimelineSummaryService } from '../timeline-summary/timeline-summary.service.js';
@@ -17,6 +16,8 @@ import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
+import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
+import { bestEffortEnqueueTimelineSummary } from '../jobs/timeline-summary-enqueue.helper.js';
 
 /**
  * Soft cap, not a real-world limit — a legitimate job search doesn't produce
@@ -39,23 +40,24 @@ const DEFAULT_ROUND_MINUTES = 60;
  */
 @Injectable()
 export class InterviewRoundsService {
+  private readonly logger = appLogger(InterviewRoundsService);
+
   constructor(
     private prisma: PrismaService,
     private llm: LlmService,
     private timelineSummary: TimelineSummaryService,
-    private logger: Logger,
   ) {}
 
   /**
-   * Best-effort, mirrors `JobsService.enqueueTimelineSummary` — a queue/LLM
+   * Best-effort, through the same helper as `JobsService` — a queue/LLM
    * hiccup must never fail the round mutation that triggered it.
    */
-  private async enqueueTimelineSummary(jobId: string): Promise<void> {
-    try {
-      await this.timelineSummary.enqueue(jobId);
-    } catch (err: unknown) {
-      this.logger.warn('Timeline summary enqueue failed', { jobId, err });
-    }
+  private enqueueTimelineSummary(jobId: string): Promise<void> {
+    return bestEffortEnqueueTimelineSummary(
+      this.timelineSummary,
+      this.logger,
+      jobId,
+    );
   }
 
   /**
@@ -110,10 +112,13 @@ export class InterviewRoundsService {
     if (invalidStoredZone) {
       // A malformed timezone (hand-edited via Prisma Studio) must not fail the
       // round creation - the note falls back to UTC, and this surfaces the row.
-      this.logger.warn('round_note_invalid_timezone', {
-        userId,
-        timezone: invalidStoredZone,
-      });
+      this.logger.warn(
+        {
+          userId,
+          timezone: invalidStoredZone,
+        },
+        'round_note_invalid_timezone',
+      );
     }
     const when = scheduledAt.toLocaleString('en-US', {
       year: 'numeric',
@@ -328,7 +333,7 @@ export class InterviewRoundsService {
       try {
         await this.maybeGenerateNextRoundPrep(jobId, result);
       } catch (err: unknown) {
-        this.logger.warn('round_prep_generation_failed', { jobId, err });
+        this.logger.warn({ jobId, err }, 'round_prep_generation_failed');
       }
     }
 
