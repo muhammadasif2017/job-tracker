@@ -1,6 +1,7 @@
 import { DigestFrequency } from '@prisma/client';
 import { NotificationsScheduler } from './notifications.scheduler.js';
 import { spyOnLogger } from '../../../test/spy-on-logger.js';
+import { setRedisOutage } from '../../infrastructure/redis/redis-errors.helper.js';
 
 describe('NotificationsScheduler', () => {
   const logger = spyOnLogger();
@@ -88,6 +89,26 @@ describe('NotificationsScheduler', () => {
       await scheduler.scanInterviewReminders();
 
       expect(prisma.interviewRound.updateMany).toHaveBeenCalledTimes(1);
+      expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({ roundId: 'round1', unstamped: false }),
+        'interview_reminder_enqueue_failed',
+      );
+    });
+
+    it('still warns about a timed-out add during a reported outage, since that reminder is never retried', async () => {
+      const prisma = {
+        interviewRound: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'round1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      setRedisOutage(true);
+      queue.add.mockRejectedValueOnce(new Error('Command timed out'));
+      const scheduler = new NotificationsScheduler(queue as any, prisma as any);
+
+      await scheduler.scanInterviewReminders();
+      setRedisOutage(false);
+
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({ roundId: 'round1', unstamped: false }),
         'interview_reminder_enqueue_failed',

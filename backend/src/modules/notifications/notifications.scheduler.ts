@@ -142,12 +142,23 @@ export class NotificationsScheduler {
             data: { reminderSentAt: null },
           });
         }
-        logRedisFailure(
-          this.logger,
-          err,
-          { roundId: id, unstamped: refused },
-          'interview_reminder_enqueue_failed',
-        );
+        if (refused) {
+          // Un-stamped: the next scan retries it, so an outage need not
+          // surface this per round (ADR-053).
+          logRedisFailure(
+            this.logger,
+            err,
+            { roundId: id, unstamped: true },
+            'interview_reminder_enqueue_failed',
+          );
+        } else {
+          // Stamp kept: this reminder is never retried, so it is always a
+          // warning, even during an outage, to leave a record of the round.
+          this.logger.warn(
+            { roundId: id, unstamped: false, err },
+            'interview_reminder_enqueue_failed',
+          );
+        }
         return;
       }
       this.logger.log({ roundId: id }, 'interview_reminder_enqueued');
