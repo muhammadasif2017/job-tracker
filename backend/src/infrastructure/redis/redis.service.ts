@@ -7,6 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
+import { setRedisOutage } from './redis-errors.helper.js';
 
 /**
  * Longest boot waits for the first connection before starting anyway. Long
@@ -14,6 +15,18 @@ import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
  * enough that a Redis that is down does not hold up the API.
  */
 export const REDIS_READY_TIMEOUT_MS = 5000;
+
+/**
+ * Socket error codes that mean the connection itself dropped. ioredis emits
+ * them before it changes its status, so they arrive while it still reads
+ * 'ready' and have to be recognised by code.
+ */
+const CONNECTION_DROP_CODES = new Set([
+  'ECONNRESET',
+  'EPIPE',
+  'ETIMEDOUT',
+  'ECONNREFUSED',
+]);
 
 /**
  * The app's shared Redis client for request-path state: idempotency keys
@@ -49,9 +62,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     // on a connection that is still up (ioredis emits a few, such as a
     // command queue fault) is always logged and does not start an outage:
     // no 'ready' would follow to end it, and the next real outage would then
-    // be logged at debug only.
-    this.client.on('error', (err) => {
-      if (this.client.status === 'ready') {
+    // be logged at debug only. A socket error that means the connection
+    // dropped does start one, even though ioredis still reads 'ready' then.
+    // The outage state is shared with `logRedisFailure`, so the lines an
+    // outage causes elsewhere drop to debug for its duration.
+    this.client.on('error', (err: Error & { code?: string }) => {
+      const dropped =
+        err.code !== undefined && CONNECTION_DROP_CODES.has(err.code);
+      if (this.client.status === 'ready' && !dropped) {
         this.logger.error({ err }, 'Redis error on a live connection');
         return;
       }
@@ -60,11 +78,13 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         return;
       }
       this.outageLogged = true;
+      setRedisOutage(true);
       this.logger.error({ err }, 'Redis connection error');
     });
     this.client.on('ready', () => {
       if (!this.outageLogged) return;
       this.outageLogged = false;
+      setRedisOutage(false);
       this.logger.log('Redis connection restored');
     });
   }

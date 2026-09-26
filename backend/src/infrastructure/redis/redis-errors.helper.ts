@@ -47,3 +47,44 @@ export function isRedisConnectionError(err: unknown): err is Error {
     CONNECTION_FAILURE_MESSAGES.has(err.message)
   );
 }
+
+/**
+ * Whether `RedisService` has reported an outage that has not ended yet.
+ * Process-wide, like Redis itself: every client here talks to the same
+ * server, so an outage seen by one connection is an outage for all.
+ */
+let outageReported = false;
+
+/** Called by `RedisService` when it logs an outage (true) and when Redis is back (false). */
+export function setRedisOutage(active: boolean) {
+  outageReported = active;
+}
+
+/** True while an outage `RedisService` logged is still going on. */
+export function isRedisOutage(): boolean {
+  return outageReported;
+}
+
+/**
+ * Logs a failure that Redis may have caused (ADR-053). While an outage is
+ * reported, it goes to debug: `RedisService` already logged the outage once
+ * at error level, and a line per request or per scrape would flood Sentry
+ * Logs. Otherwise it is a warning, which covers what `RedisService` never
+ * sees: a command timing out on a live connection, a wrong password, a
+ * script error.
+ */
+export function logRedisFailure(
+  logger: {
+    warn(obj: object, message: string): void;
+    debug(obj: object, message: string): void;
+  },
+  err: unknown,
+  fields: Record<string, unknown>,
+  message: string,
+) {
+  if (outageReported) {
+    logger.debug({ ...fields, err }, message);
+  } else {
+    logger.warn({ ...fields, err }, message);
+  }
+}

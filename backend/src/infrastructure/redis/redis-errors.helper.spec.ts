@@ -2,6 +2,8 @@ import {
   isCommandTimeout,
   isRedisConnectionError,
   isRedisUnavailable,
+  logRedisFailure,
+  setRedisOutage,
 } from './redis-errors.helper.js';
 
 describe('redis-errors.helper', () => {
@@ -60,5 +62,34 @@ describe('redis-errors.helper', () => {
     ).toBe(false);
     expect(isRedisConnectionError('Command timed out')).toBe(false);
     expect(isRedisConnectionError(undefined)).toBe(false);
+  });
+});
+
+describe('logRedisFailure', () => {
+  const logger = { warn: jest.fn(), debug: jest.fn() };
+  const err = new Error('Command timed out');
+
+  afterEach(() => {
+    setRedisOutage(false);
+    jest.clearAllMocks();
+  });
+
+  it('warns when no outage is reported, such as a timeout on a live connection', () => {
+    logRedisFailure(logger, err, { jobId: 'j1' }, 'Enqueue failed');
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      { jobId: 'j1', err },
+      'Enqueue failed',
+    );
+    expect(logger.debug).not.toHaveBeenCalled();
+  });
+
+  it('logs at debug while RedisService has an outage reported', () => {
+    setRedisOutage(true);
+
+    logRedisFailure(logger, err, {}, 'Enqueue failed');
+
+    expect(logger.debug).toHaveBeenCalledWith({ err }, 'Enqueue failed');
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 });

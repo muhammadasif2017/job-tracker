@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { ConfigService } from '@nestjs/config';
 import { REDIS_READY_TIMEOUT_MS, RedisService } from './redis.service.js';
+import { isRedisOutage, setRedisOutage } from './redis-errors.helper.js';
 import { spyOnLogger } from '../../../test/spy-on-logger.js';
 
 /** The fake ioredis client the mocked constructor hands out, per test. */
@@ -24,6 +25,7 @@ describe('RedisService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    setRedisOutage(false);
     fake = new FakeRedis();
     jest.useFakeTimers();
   });
@@ -122,6 +124,36 @@ describe('RedisService', () => {
       { err: expect.any(Error) },
       'Redis connection error',
     );
+  });
+
+  it('treats a connection reset as the start of an outage, though ioredis still reads ready', () => {
+    new RedisService(config);
+
+    fake.status = 'ready';
+    fake.emit(
+      'error',
+      Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+    );
+    fake.status = 'reconnecting';
+    fake.emit('error', new Error('ECONNREFUSED'));
+
+    // One error line for the outage, then debug; not a "live connection" line.
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: expect.any(Error) },
+      'Redis connection error',
+    );
+    expect(logger.debug).toHaveBeenCalledTimes(1);
+  });
+
+  it('shares the outage state with logRedisFailure until Redis is back', () => {
+    new RedisService(config);
+
+    fake.emit('error', new Error('ECONNREFUSED'));
+    expect(isRedisOutage()).toBe(true);
+
+    fake.emit('ready');
+    expect(isRedisOutage()).toBe(false);
   });
 
   it('closes the connection on shutdown', async () => {
