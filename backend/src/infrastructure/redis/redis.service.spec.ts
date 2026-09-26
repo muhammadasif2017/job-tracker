@@ -118,6 +118,34 @@ describe('RedisService', () => {
     expect(error).toHaveBeenCalledTimes(2);
   });
 
+  it('does not start an outage for an error on a live connection', () => {
+    const service = new RedisService(config);
+    const error = jest
+      .spyOn(
+        (service as unknown as { logger: { error: jest.Mock } }).logger,
+        'error',
+      )
+      .mockImplementation(() => undefined);
+
+    fake.status = 'ready';
+    fake.emit('error', new Error('Command queue state error'));
+    fake.status = 'reconnecting';
+    fake.emit('error', new Error('ECONNREFUSED'));
+
+    // Both at error level: the first did not mark an outage, so the real
+    // one that follows is not demoted to debug.
+    expect(error).toHaveBeenNthCalledWith(
+      1,
+      { err: expect.any(Error) },
+      'Redis error on a live connection',
+    );
+    expect(error).toHaveBeenNthCalledWith(
+      2,
+      { err: expect.any(Error) },
+      'Redis connection error',
+    );
+  });
+
   it('closes the connection on shutdown', async () => {
     const service = new RedisService(config);
 

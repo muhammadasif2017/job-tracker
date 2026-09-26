@@ -45,8 +45,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     );
     // One error line per outage, not per reconnect attempt: ioredis retries
     // about every 2 s, and each error line also goes to Sentry Logs
-    // (ADR-053). The retries still show at debug level on the VM.
+    // (ADR-053). The retries still show at debug level on the VM. An error
+    // on a connection that is still up (ioredis emits a few, such as a
+    // command queue fault) is always logged and does not start an outage:
+    // no 'ready' would follow to end it, and the next real outage would then
+    // be logged at debug only.
     this.client.on('error', (err) => {
+      if (this.client.status === 'ready') {
+        this.logger.error({ err }, 'Redis error on a live connection');
+        return;
+      }
       if (this.outageLogged) {
         this.logger.debug({ err }, 'Redis connection error (still down)');
         return;
