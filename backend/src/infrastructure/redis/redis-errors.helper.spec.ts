@@ -3,6 +3,7 @@ import {
   isRedisConnectionError,
   isRedisUnavailable,
   logRedisFailure,
+  redisOutageMs,
   setRedisOutage,
 } from './redis-errors.helper.js';
 
@@ -104,5 +105,19 @@ describe('logRedisFailure', () => {
 
     expect(logger.log).toHaveBeenCalledWith({ err }, 'Enqueue failed');
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+});
+
+describe('redisOutageMs', () => {
+  afterEach(() => setRedisOutage(false));
+
+  it('is 0 when no outage is reported and grows while one is', () => {
+    expect(redisOutageMs()).toBe(0);
+
+    setRedisOutage(true);
+
+    expect(redisOutageMs()).toBeGreaterThanOrEqual(0);
+    setRedisOutage(false);
+    expect(redisOutageMs()).toBe(0);
   });
 });

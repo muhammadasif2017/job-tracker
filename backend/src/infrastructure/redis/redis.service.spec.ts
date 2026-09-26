@@ -159,6 +159,35 @@ describe('RedisService', () => {
     expect(isRedisOutage()).toBe(false);
   });
 
+  it('treats a refused login as a misconfiguration, not an outage', () => {
+    new RedisService(config);
+    const refused = Object.assign(new Error('WRONGPASS invalid password'), {
+      name: 'ReplyError',
+    });
+
+    fake.status = 'connect';
+    fake.emit('error', refused);
+
+    expect(logger.error).toHaveBeenCalledWith(
+      { err: refused },
+      'Redis rejected the connection',
+    );
+    expect(isRedisOutage()).toBe(false);
+  });
+
+  it('ignores an error emitted while closing, so shutdown leaves no outage behind', async () => {
+    const service = new RedisService(config);
+    fake.quit.mockImplementationOnce(() => {
+      fake.emit('error', new Error('ECONNREFUSED'));
+      return Promise.resolve('OK');
+    });
+
+    await service.onModuleDestroy();
+
+    expect(isRedisOutage()).toBe(false);
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
   it('closes the connection on shutdown, clearing an outage it had reported', async () => {
     const service = new RedisService(config);
     fake.emit('error', new Error('ECONNREFUSED'));

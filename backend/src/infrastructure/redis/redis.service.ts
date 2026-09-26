@@ -2,7 +2,11 @@ import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 import { QUEUE_COMMAND_TIMEOUT_MS } from './redis-connection.helper.js';
-import { isRedisOutage, setRedisOutage } from './redis-errors.helper.js';
+import {
+  isRedisOutage,
+  redisOutageMs,
+  setRedisOutage,
+} from './redis-errors.helper.js';
 import { appLogger } from '../error-tracking/app-logger.helper.js';
 
 /**
@@ -41,11 +45,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   readonly client: Redis;
   private readonly logger = appLogger(RedisService);
   /**
-   * When the current outage was logged, for its duration in the "restored"
-   * line. Whether an outage is on is the shared flag in redis-errors.helper,
-   * the one `logRedisFailure` reads, so there is a single source of truth.
+   * Set while `onModuleDestroy` closes the client. `quit()` on a client that
+   * is reconnecting emits one more error, which must not report a new
+   * outage into the process-wide flag after this app is gone.
    */
-  private outageStartedAt = 0;
+  private closing = false;
 
   constructor(config: ConfigService) {
     this.client = new Redis(
@@ -67,6 +71,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     // The outage state is shared with `logRedisFailure`, so the lines an
     // outage causes elsewhere drop to info (VM only) for its duration.
     this.client.on('error', (err: Error & { code?: string }) => {
+      if (this.closing) return;
+      // Redis answered and refused: a wrong password, or a command it
+      // rejects. A misconfiguration, not an outage, so it does not start
+      // one, and the failures it causes elsewhere stay warnings.
+      if (err.name === 'ReplyError') {
+        this.logger.error({ err }, 'Redis rejected the connection');
+        return;
+      }
       const dropped =
         err.code !== undefined && CONNECTION_DROP_CODES.has(err.code);
       if (this.client.status === 'ready' && !dropped) {
@@ -77,19 +89,16 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         this.logger.debug({ err }, 'Redis connection error (still down)');
         return;
       }
-      this.outageStartedAt = Date.now();
       setRedisOutage(true);
       this.logger.error({ err }, 'Redis connection error');
     });
     this.client.on('ready', () => {
       if (!isRedisOutage()) return;
+      const outageMs = redisOutageMs();
       setRedisOutage(false);
       // Warn, not info, so it reaches Sentry Logs next to the error line and
       // an outage visibly ends there, with how long it lasted.
-      this.logger.warn(
-        { outageMs: Date.now() - this.outageStartedAt },
-        'Redis connection restored',
-      );
+      this.logger.warn({ outageMs }, 'Redis connection restored');
     });
   }
 
@@ -131,7 +140,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
   async onModuleDestroy() {
     // The outage flag is process-wide: an app closed mid-outage must not
     // leave it set for the next one in the same process (the e2e suite).
-    setRedisOutage(false);
+    // Cleared after quit(), which can emit one last error, and that error
+    // is ignored while closing.
+    this.closing = true;
     await this.client.quit();
+    setRedisOutage(false);
   }
 }

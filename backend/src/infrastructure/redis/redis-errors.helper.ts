@@ -54,15 +54,23 @@ export function isRedisConnectionError(err: unknown): err is Error {
  * server, so an outage seen by one connection is an outage for all.
  */
 let outageReported = false;
+/** When the reported outage began, kept with the flag so they cannot disagree. */
+let outageStartedAt = 0;
 
 /** Called by `RedisService` when it logs an outage (true) and when Redis is back (false). */
 export function setRedisOutage(active: boolean) {
+  if (active && !outageReported) outageStartedAt = Date.now();
   outageReported = active;
 }
 
 /** True while an outage `RedisService` logged is still going on. */
 export function isRedisOutage(): boolean {
   return outageReported;
+}
+
+/** How long the reported outage has lasted, in milliseconds; 0 when none is. */
+export function redisOutageMs(): number {
+  return outageReported ? Date.now() - outageStartedAt : 0;
 }
 
 /**
