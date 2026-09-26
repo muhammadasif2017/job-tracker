@@ -190,6 +190,23 @@ describe('fixedMessageForBareErrors', () => {
     });
   });
 
+  it('also fires when nestjs-pino passes an undefined message after the object', () => {
+    // What Nest's Logger.error(err) with a context becomes (the scheduler,
+    // the exception handler).
+    const method = jest.fn();
+
+    fixedMessageForBareErrors.call(
+      {},
+      [{ context: 'Scheduler', err: new Error('boom') }, undefined] as never,
+      method,
+    );
+
+    expect(method).toHaveBeenCalledWith(
+      { context: 'Scheduler', err: expect.any(Error) },
+      ERROR_WITHOUT_MESSAGE,
+    );
+  });
+
   it('leaves a line with its own message alone', () => {
     const { log, lines } = logger();
 

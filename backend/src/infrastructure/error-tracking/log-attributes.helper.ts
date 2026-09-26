@@ -145,12 +145,18 @@ export function fixedMessageForBareErrors(
   args: Parameters<LogFn>,
   method: LogFn,
 ): void {
-  const [first] = args as unknown[];
-  if (args.length === 1 && first instanceof Error) {
+  // Nest's `Logger.error(err)` pads its arguments, so nestjs-pino calls
+  // `pino.error({ context, err }, undefined)`: trailing undefineds do not
+  // count as a message.
+  const given = (args as unknown[]).filter(
+    (arg, i) => i === 0 || arg !== undefined,
+  );
+  const [first] = given;
+  if (given.length === 1 && first instanceof Error) {
     method.apply(this, [{ err: first }, ERROR_WITHOUT_MESSAGE]);
     return;
   }
-  if (args.length === 1 && asRecord(first) && 'err' in (first as object)) {
+  if (given.length === 1 && asRecord(first) && 'err' in (first as object)) {
     method.apply(this, [first as object, ERROR_WITHOUT_MESSAGE]);
     return;
   }
