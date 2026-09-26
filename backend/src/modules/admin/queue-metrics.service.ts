@@ -126,7 +126,7 @@ export class QueueMetricsService implements OnModuleInit {
     try {
       return await readQueueCounts(queue);
     } catch (error) {
-      // Debug during a reported outage (the scrape shows `jobtracker_queue_up
+      // Info during a reported outage (the scrape shows `jobtracker_queue_up
       // 0` anyway); a warning otherwise, e.g. a wrong password.
       logRedisFailure(
         this.logger,

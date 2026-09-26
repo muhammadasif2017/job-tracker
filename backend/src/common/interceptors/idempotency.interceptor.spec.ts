@@ -257,8 +257,8 @@ describe('IdempotencyInterceptor', () => {
     expect(next.handle).toHaveBeenCalled();
     expect(mockClient.set).toHaveBeenCalledTimes(1);
     setRedisOutage(false);
-    // Debug during a reported outage: RedisService already logged it once.
-    expect(logger.debug).toHaveBeenCalledWith(
+    // Info during a reported outage: RedisService already logged it once.
+    expect(logger.log).toHaveBeenCalledWith(
       { err: expect.any(Error) },
       'Redis unavailable, running request without idempotency',
     );
@@ -276,7 +276,7 @@ describe('IdempotencyInterceptor', () => {
       { err: expect.any(Error) },
       'Redis unavailable, running request without idempotency',
     );
-    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
   });
 
   it('returns the response even when storing it fails', async () => {

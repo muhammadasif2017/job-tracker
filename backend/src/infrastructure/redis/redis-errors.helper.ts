@@ -66,26 +66,29 @@ export function isRedisOutage(): boolean {
 }
 
 /**
- * Logs a failure that Redis may have caused (ADR-053). It goes to debug only
- * when an outage is reported *and* the error is a Redis connection failure:
- * `RedisService` already logged the outage once at error level, and a line
- * per request or per scrape would flood Sentry Logs. Everything else is a
- * warning: what `RedisService` never sees (a timeout on a live connection, a
- * wrong password, a script error), and a different failure in the same try
- * block, such as the Prisma write `enqueueEnrichment` makes before its
- * queue add, which must not be hidden just because Redis is also down.
+ * Logs a failure that Redis may have caused (ADR-053). It goes to info, not
+ * warn, only when an outage is reported *and* the error is a Redis
+ * connection failure: `RedisService` already logged the outage once at error
+ * level, and a line per request or per scrape would flood Sentry Logs, which
+ * only takes warn and above. Info, not debug: production runs at
+ * `LOG_LEVEL=info`, and these lines (which job missed its summary, which
+ * company its enrichment) are what a backfill after the outage needs.
+ * Everything else is a warning: a timeout on a live connection, a script
+ * error, and a different failure in the same try block, such as the Prisma
+ * write `enqueueEnrichment` makes before its queue add, which must not be
+ * hidden just because Redis is also down.
  */
 export function logRedisFailure(
   logger: {
     warn(obj: object, message: string): void;
-    debug(obj: object, message: string): void;
+    log(obj: object, message: string): void;
   },
   err: unknown,
   fields: Record<string, unknown>,
   message: string,
 ) {
   if (outageReported && isRedisConnectionError(err)) {
-    logger.debug({ ...fields, err }, message);
+    logger.log({ ...fields, err }, message);
   } else {
     logger.warn({ ...fields, err }, message);
   }

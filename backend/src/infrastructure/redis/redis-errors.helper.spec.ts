@@ -66,7 +66,7 @@ describe('redis-errors.helper', () => {
 });
 
 describe('logRedisFailure', () => {
-  const logger = { warn: jest.fn(), debug: jest.fn() };
+  const logger = { warn: jest.fn(), log: jest.fn() };
   const err = new Error('Command timed out');
 
   afterEach(() => {
@@ -81,7 +81,7 @@ describe('logRedisFailure', () => {
       { jobId: 'j1', err },
       'Enqueue failed',
     );
-    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
   });
 
   it('still warns about a failure Redis did not cause, even during an outage', () => {
@@ -94,15 +94,15 @@ describe('logRedisFailure', () => {
       { err: dbError },
       'Company enrichment enqueue failed',
     );
-    expect(logger.debug).not.toHaveBeenCalled();
+    expect(logger.log).not.toHaveBeenCalled();
   });
 
-  it('logs a Redis connection failure at debug while RedisService has an outage reported', () => {
+  it('logs a Redis connection failure at info while RedisService has an outage reported', () => {
     setRedisOutage(true);
 
     logRedisFailure(logger, err, {}, 'Enqueue failed');
 
-    expect(logger.debug).toHaveBeenCalledWith({ err }, 'Enqueue failed');
+    expect(logger.log).toHaveBeenCalledWith({ err }, 'Enqueue failed');
     expect(logger.warn).not.toHaveBeenCalled();
   });
 });

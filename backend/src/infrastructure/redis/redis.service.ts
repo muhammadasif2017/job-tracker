@@ -65,7 +65,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     // be logged at debug only. A socket error that means the connection
     // dropped does start one, even though ioredis still reads 'ready' then.
     // The outage state is shared with `logRedisFailure`, so the lines an
-    // outage causes elsewhere drop to debug for its duration.
+    // outage causes elsewhere drop to info (VM only) for its duration.
     this.client.on('error', (err: Error & { code?: string }) => {
       const dropped =
         err.code !== undefined && CONNECTION_DROP_CODES.has(err.code);
