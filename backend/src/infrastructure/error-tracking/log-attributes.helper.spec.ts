@@ -47,10 +47,10 @@ describe('scrubLogAttributes', () => {
       res: { statusCode: 500, headers: { 'set-cookie': 'x' } },
     });
 
+    // No `res` mapping: only pino-http's lines carry it, and those are dropped.
     expect(kept).toEqual({
       'http.request.method': 'GET',
       'url.path': '/v1/jobs',
-      'http.response.status_code': 500,
     });
   });
 

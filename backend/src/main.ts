@@ -4,7 +4,7 @@ import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { Logger as PinoLogger } from 'nestjs-pino';
+import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module.js';
 import { withoutUnversionedAliases } from './config/api-versioning.helper.js';
 import { configureApp } from './config/configure-app.helper.js';
@@ -21,7 +21,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
-  app.useLogger(app.get(PinoLogger));
+  app.useLogger(app.get(Logger));
 
   const config = app.get(ConfigService);
   configureApp(app);
