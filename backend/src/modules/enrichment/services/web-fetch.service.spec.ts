@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 // Node's dns/promises exports are non-configurable, so jest.spyOn can't
 // redefine `lookup` directly — mock the whole module at the factory level
@@ -39,7 +38,7 @@ describe('WebFetchService', () => {
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      providers: [WebFetchService, { provide: Logger, useValue: mockLogger }],
+      providers: [WebFetchService],
     }).compile();
     service = module.get(WebFetchService);
     fetchSpy = jest.spyOn(global, 'fetch');
@@ -48,9 +47,7 @@ describe('WebFetchService', () => {
     // reads as "logged at some point in this file" rather than "logged by this
     // test" — and a `.not.toHaveBeenCalledWith` can never pass once any
     // earlier test has logged that event.
-    mockLogger.warn.mockClear();
-    mockLogger.log.mockClear();
-    mockLogger.error.mockClear();
+    Object.values(mockLogger).forEach((spy) => spy.mockClear());
   });
 
   afterEach(() => {
