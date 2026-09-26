@@ -1,6 +1,5 @@
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaService } from './prisma.service.js';
-import { DB_POOL_OPTIONS } from './database.constants.js';
 
 jest.mock('@prisma/adapter-pg', () => ({
   PrismaPg: jest.fn().mockImplementation(() => ({
@@ -9,28 +8,31 @@ jest.mock('@prisma/adapter-pg', () => ({
   })),
 }));
 
-// A unit test cannot show that a connection is still warm when `/health`
-// runs, or how long a Neon resume takes. It pins the wiring: the pool gets
-// the settings that keep connections and bound connect time, and boot runs
-// a query. Timing was checked on the VM after deploy.
+// A unit test cannot show how long the first query takes or that /health is
+// fast after a deploy; that is checked on the VM. This pins the wiring: the
+// adapter gets DATABASE_URL, and boot runs exactly one lightweight query.
 describe('PrismaService', () => {
+  const savedUrl = process.env.DATABASE_URL;
+
   beforeEach(() => {
     jest.clearAllMocks();
+    process.env.DATABASE_URL = 'postgresql://localhost:5432/job_tracker';
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
+    process.env.DATABASE_URL = savedUrl;
   });
 
-  it('gives the pool a connect timeout and keeps idle connections open', () => {
+  it('builds the pg adapter from DATABASE_URL', () => {
     new PrismaService();
 
-    expect(PrismaPg).toHaveBeenCalledWith(
-      expect.objectContaining(DB_POOL_OPTIONS),
-    );
+    expect(PrismaPg).toHaveBeenCalledWith({
+      connectionString: 'postgresql://localhost:5432/job_tracker',
+    });
   });
 
-  it('runs one query at boot, so the first request does not open the first connection', async () => {
+  it('runs SELECT 1 at boot, so the first request does not pay for the first query', async () => {
     const service = new PrismaService();
     const query = jest
       .spyOn(service, '$queryRaw')
@@ -39,6 +41,9 @@ describe('PrismaService', () => {
     await service.onModuleInit();
 
     expect(query).toHaveBeenCalledTimes(1);
+    // A tagged template: the first argument holds the literal SQL parts.
+    const [strings] = query.mock.calls[0] as unknown as [TemplateStringsArray];
+    expect(strings.join('')).toBe('SELECT 1');
   });
 
   it('fails boot when the database cannot answer', async () => {
