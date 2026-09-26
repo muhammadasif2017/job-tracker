@@ -16,8 +16,8 @@ import { CreateInterviewRoundDto } from './dto/create-interview-round.dto.js';
 import { UpdateInterviewRoundDto } from './dto/update-interview-round.dto.js';
 import { deriveInterviewRoundStatus } from './interview-round-status.helper.js';
 import { findUserTimeZone } from '../../common/user-timezone.js';
-import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 import { appLogger } from '../../infrastructure/error-tracking/app-logger.helper.js';
+import { bestEffortEnqueueTimelineSummary } from '../jobs/timeline-summary-enqueue.helper.js';
 
 /**
  * Soft cap, not a real-world limit — a legitimate job search doesn't produce
@@ -49,20 +49,15 @@ export class InterviewRoundsService {
   ) {}
 
   /**
-   * Best-effort, mirrors `JobsService.enqueueTimelineSummary` — a queue/LLM
+   * Best-effort, through the same helper as `JobsService` — a queue/LLM
    * hiccup must never fail the round mutation that triggered it.
    */
-  private async enqueueTimelineSummary(jobId: string): Promise<void> {
-    try {
-      await this.timelineSummary.enqueue(jobId);
-    } catch (err: unknown) {
-      logRedisFailure(
-        this.logger,
-        err,
-        { jobId },
-        'Timeline summary enqueue failed',
-      );
-    }
+  private enqueueTimelineSummary(jobId: string): Promise<void> {
+    return bestEffortEnqueueTimelineSummary(
+      this.timelineSummary,
+      this.logger,
+      jobId,
+    );
   }
 
   /**
