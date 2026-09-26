@@ -10,6 +10,7 @@ import { NOTIFICATIONS_QUEUE } from '../notifications/notifications.processor.js
 import { LlmService } from '../enrichment/services/llm.service.js';
 import { COUNTED_STATES } from './admin-queues.constants.js';
 import { readQueueCounts, type QueueCounts } from './queue-counts.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /** Gauge value per circuit state; the help text states the same mapping. */
 const CIRCUIT_STATE_VALUE: Record<CircuitState, number> = {
@@ -124,10 +125,12 @@ export class QueueMetricsService implements OnModuleInit {
     try {
       return await readQueueCounts(queue);
     } catch (error) {
-      // Debug: the scrape already reports it as `jobtracker_queue_up 0`, and a
-      // warning here would repeat per queue per scrape in Sentry Logs.
-      this.logger.debug(
-        { err: error, queue: name },
+      // Debug during a reported outage (the scrape shows `jobtracker_queue_up
+      // 0` anyway); a warning otherwise, e.g. a wrong password.
+      logRedisFailure(
+        this.logger,
+        error,
+        { queue: name },
         'Queue counts unavailable for metrics',
       );
       return null;

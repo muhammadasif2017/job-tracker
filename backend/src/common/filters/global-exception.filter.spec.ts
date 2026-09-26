@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter.js';
 import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
+import { setRedisOutage } from '../../infrastructure/redis/redis-errors.helper.js';
 
 jest.mock(
   '../../infrastructure/error-tracking/error-tracking.helper.js',
@@ -56,12 +57,14 @@ describe('GlobalExceptionFilter', () => {
       ),
     ],
   ])('maps an unhandled Redis outage (%s) to 503', (_label, exception) => {
-    // Debug, not warn: RedisService reports the outage once (ADR-053).
+    // Debug during a reported outage: RedisService logged it once (ADR-053).
+    setRedisOutage(true);
     const debug = jest
       .spyOn(Logger.prototype, 'debug')
       .mockImplementation(() => undefined);
 
     filter.catch(exception, mockHost as never);
+    setRedisOutage(false);
 
     expect(mockResponse.status).toHaveBeenCalledWith(503);
     expect(mockResponse.json).toHaveBeenCalledWith(
@@ -73,6 +76,19 @@ describe('GlobalExceptionFilter', () => {
     );
     expect(debug).toHaveBeenCalledWith({ err: exception }, 'Redis unavailable');
     debug.mockRestore();
+  });
+
+  it('warns about a Redis 503 when no outage is reported, such as a timeout on a live connection', () => {
+    const warn = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    const exception = new Error('Command timed out');
+
+    filter.catch(exception, mockHost as never);
+
+    expect(mockResponse.status).toHaveBeenCalledWith(503);
+    expect(warn).toHaveBeenCalledWith({ err: exception }, 'Redis unavailable');
+    warn.mockRestore();
   });
 
   it('keeps a Redis error that is not an outage a 500', () => {

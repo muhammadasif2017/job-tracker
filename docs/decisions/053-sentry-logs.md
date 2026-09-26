@@ -83,10 +83,17 @@ Nest's `Logger`, which is why every service moved to it (below).
   2 s) at debug, which stays on the VM, and "restored" when it is back.
   Before, every attempt was an error line, about 1,800 an hour. An error on
   a connection that is still up is logged at error and does not start an
-  outage, so it cannot hide the next one. The lines an outage causes per
-  request or per scrape (idempotency, the exception filter's 503, the OAuth
-  code store, queue metrics) are debug during an outage, and warn only when
-  the connection is up.
+  outage, so it cannot hide the next one, while a socket error that means
+  the connection dropped (`ECONNRESET` and the like, which ioredis emits
+  before its status changes) does start one.
+- **One rule for lines an outage causes.** `RedisService` shares its outage
+  state, and `logRedisFailure` (`redis-errors.helper.ts`) logs at debug while
+  an outage is reported and warns otherwise. Every place a Redis failure is
+  logged per request, per scrape or per scan uses it: idempotency, the
+  exception filter's 503, the OAuth code store, queue metrics and the
+  best-effort queue enqueues. A failure `RedisService` never sees, such as a
+  command timing out on a live connection or a wrong password, is therefore
+  still a warning.
 - **CPU.** The integration JSON-parses every pino line, info included,
   before filtering by level. For a line of about 1 KB that is microseconds
   per request, which this traffic does not notice.

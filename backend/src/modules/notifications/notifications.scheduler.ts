@@ -4,7 +4,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { DigestFrequency, InterviewOutcome } from '@prisma/client';
 import type { Queue } from 'bullmq';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
-import { isCommandTimeout } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isCommandTimeout,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { withRequestId } from '../../common/request-context.helper.js';
 import { runCronScan } from '../../common/cron-scan.helper.js';
 import { getAttentionItems } from '../jobs/attention.helper.js';
@@ -138,12 +141,10 @@ export class NotificationsScheduler {
             data: { reminderSentAt: null },
           });
         }
-        this.logger.warn(
-          {
-            roundId: id,
-            unstamped: refused,
-            err,
-          },
+        logRedisFailure(
+          this.logger,
+          err,
+          { roundId: id, unstamped: refused },
           'interview_reminder_enqueue_failed',
         );
         return;

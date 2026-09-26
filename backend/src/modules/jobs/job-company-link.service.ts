@@ -3,6 +3,7 @@ import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { companyNameMatch } from '../companies/company-name-match.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /**
  * Resolves the `Job.companyId` FK from the company label a user typed, and
@@ -46,7 +47,12 @@ export class JobCompanyLinkService {
       await this.companyEnrichment.enqueueIfStale(companyId);
     } catch (err: unknown) {
       // Best-effort — the job create or update stands.
-      this.logger.warn({ jobId, companyId, err }, 'Enrichment enqueue failed');
+      logRedisFailure(
+        this.logger,
+        err,
+        { jobId, companyId },
+        'Enrichment enqueue failed',
+      );
     }
   }
 

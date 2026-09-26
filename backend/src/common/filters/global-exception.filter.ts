@@ -6,7 +6,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
-import { isRedisConnectionError } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isRedisConnectionError,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { requestIdField } from '../request-context.helper.js';
 import { reportError } from '../../infrastructure/error-tracking/error-tracking.helper.js';
 import { routeLabel } from '../../infrastructure/metrics/http-metrics.helper.js';
@@ -135,9 +138,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     // store) catch it first and never reach here; anything else that lets it
     // escape gets an honest 503 instead of an opaque 500 (ADR-046).
     if (isRedisConnectionError(exception)) {
-      // Debug: RedisService logs the outage once at error level, and this
-      // would repeat per request in Sentry Logs (ADR-053).
-      this.logger.debug({ err: exception }, 'Redis unavailable');
+      logRedisFailure(this.logger, exception, {}, 'Redis unavailable');
       return {
         statusCode: HttpStatus.SERVICE_UNAVAILABLE,
         message: 'Service temporarily unavailable, please try again',

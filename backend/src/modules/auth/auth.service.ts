@@ -14,7 +14,10 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { runCronScan } from '../../common/cron-scan.helper.js';
-import { isRedisUnavailable } from '../../infrastructure/redis/redis-errors.helper.js';
+import {
+  isRedisUnavailable,
+  logRedisFailure,
+} from '../../infrastructure/redis/redis-errors.helper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { safeTimeZone } from '../../common/timezone.helper.js';
 import {
@@ -266,9 +269,7 @@ export class AuthService {
       return await command();
     } catch (err) {
       if (!isRedisUnavailable(this.redis.client, err)) throw err;
-      // Debug: only reached during an outage, which RedisService logs once
-      // at error level; this would repeat per sign-in (ADR-053).
-      this.logger.debug({ err }, 'OAuth code store unavailable');
+      logRedisFailure(this.logger, err, {}, 'OAuth code store unavailable');
       throw new ServiceUnavailableException(OAUTH_UNAVAILABLE_MESSAGE);
     }
   }

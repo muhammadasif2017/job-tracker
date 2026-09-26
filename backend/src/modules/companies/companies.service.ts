@@ -18,6 +18,7 @@ import {
   getCompanyApplicationStats,
 } from './company-application-stats.helper.js';
 import { companyNameMatch } from './company-name-match.helper.js';
+import { logRedisFailure } from '../../infrastructure/redis/redis-errors.helper.js';
 
 /**
  * Bounds findDuplicateSuggestions' O(n^2) pairwise scan (see
@@ -147,11 +148,10 @@ export class CompaniesService {
     } catch (err: unknown) {
       // Enrichment is best-effort; company creation always succeeds even if
       // the queue is unreachable — same contract as JobsService.create.
-      this.logger.warn(
-        {
-          companyId: company.id,
-          err,
-        },
+      logRedisFailure(
+        this.logger,
+        err,
+        { companyId: company.id },
         'Company enrichment enqueue failed',
       );
       return company;

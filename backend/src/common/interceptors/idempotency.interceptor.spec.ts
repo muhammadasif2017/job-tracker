@@ -16,6 +16,7 @@ import {
 import { RedisService } from '../../infrastructure/redis/redis.service.js';
 import { createHash } from 'node:crypto';
 import { spyOnLogger } from '../../../test/spy-on-logger.js';
+import { setRedisOutage } from '../../infrastructure/redis/redis-errors.helper.js';
 
 const mockClient = {
   set: jest.fn(),
@@ -239,6 +240,7 @@ describe('IdempotencyInterceptor', () => {
 
   it('runs the request without the guarantee when Redis is down', async () => {
     mockClient.status = 'reconnecting';
+    setRedisOutage(true);
     mockClient.set.mockRejectedValue(new Error('ECONNREFUSED'));
     const next = handler();
 
@@ -249,7 +251,8 @@ describe('IdempotencyInterceptor', () => {
     expect(result).toEqual({ id: 'job-1' });
     expect(next.handle).toHaveBeenCalled();
     expect(mockClient.set).toHaveBeenCalledTimes(1);
-    // Debug during an outage: RedisService already reports it once.
+    setRedisOutage(false);
+    // Debug during a reported outage: RedisService already logged it once.
     expect(logger.debug).toHaveBeenCalledWith(
       { err: expect.any(Error) },
       'Redis unavailable, running request without idempotency',
