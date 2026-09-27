@@ -127,7 +127,12 @@ export function CompanyList({
                     )}
                 </td>
                 <td className="px-4 py-3">
-                  <CityBadge city={company.city} />
+                  {/* OTHER is the "no city picked" default, not a place. */}
+                  {company.city === 'OTHER' ? (
+                    <span className="text-muted">—</span>
+                  ) : (
+                    <CityBadge city={company.city} />
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <PriorityBadge priority={company.priority} />

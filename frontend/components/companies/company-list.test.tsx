@@ -75,6 +75,18 @@ describe('CompanyList', () => {
     expect(screen.getByText('No target companies yet')).toBeInTheDocument();
   });
 
+  it('shows a set city as a badge and the OTHER default as a dash', () => {
+    renderList({
+      companies: [
+        company,
+        { ...company, id: 'c-other', name: 'Nowhere Co', city: 'OTHER' },
+      ],
+    });
+    expect(screen.getByText('Lahore')).toBeInTheDocument();
+    expect(screen.queryByText('Other')).not.toBeInTheDocument();
+    expect(screen.getByText('—')).toBeInTheDocument();
+  });
+
   it("shows the company's application count and reply rate", () => {
     renderList({
       companies: [

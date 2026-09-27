@@ -40,6 +40,25 @@ export function formatCivilDate(date: string | Date) {
 }
 
 /**
+ * Rewrites ISO dates (`2026-09-27`) inside free text as `Sep 27, 2026`. The
+ * LLM timeline summaries quote dates in ISO form, which reads like a database
+ * dump next to every other date in the app. The model sometimes joins the
+ * parts with a non-breaking or other Unicode hyphen, so those count too.
+ * Strings that are not a real calendar date are left alone.
+ */
+export function humanizeIsoDates(text: string) {
+  return text.replace(
+    /\b(\d{4})[-‐-–](\d{2})[-‐-–](\d{2})\b/g,
+    (match, y, m, d) => {
+      const date = new Date(Date.UTC(+y, +m - 1, +d));
+      return date.getUTCMonth() === +m - 1 && date.getUTCDate() === +d
+        ? formatCivilDate(date)
+        : match;
+    },
+  );
+}
+
+/**
  * The value a <input type="date"> wants for a civil date: its own encoding,
  * which is the first 10 characters. Kept next to the formatter so the two
  * can't drift on which getters they read.

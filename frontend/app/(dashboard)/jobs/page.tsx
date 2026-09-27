@@ -164,7 +164,7 @@ export default function JobsPage() {
           <input
             aria-label="Search jobs"
             className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            placeholder="Search company, position, location or notes…"
+            placeholder="Search jobs…"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
