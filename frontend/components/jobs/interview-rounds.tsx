@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { CalendarPlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { formatDateTime } from '../../lib/utils';
+import { cn, formatDateTime } from '../../lib/utils';
 import api from '../../lib/api';
 import { filenameFromDisposition, saveBlob } from '../../lib/download';
 import {
@@ -313,9 +313,15 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                       </p>
                     )}
                     {DERIVED_STATUS_LABELS[round.derivedStatus] && (
-                      <span
-                        className={`mt-1 inline-block rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide ${DERIVED_STATUS_COLORS[round.derivedStatus]}`}
-                      >
+                      <span className="mt-1 inline-flex items-center gap-1.5 rounded-sm border border-line/70 bg-paper-raised px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-ink">
+                        <span
+                          aria-hidden="true"
+                          data-testid="round-status-dot"
+                          className={cn(
+                            'h-1.5 w-1.5 shrink-0 rounded-full',
+                            DERIVED_STATUS_COLORS[round.derivedStatus],
+                          )}
+                        />
                         {DERIVED_STATUS_LABELS[round.derivedStatus]}
                       </span>
                     )}
