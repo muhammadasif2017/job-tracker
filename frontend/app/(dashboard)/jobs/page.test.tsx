@@ -149,6 +149,23 @@ describe('JobsPage', () => {
         container.querySelectorAll('.animate-pulse').length,
       ).toBeGreaterThan(0);
     });
+
+    it('gives skeleton rows the same columns and mobile hiding as the header', () => {
+      vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+      renderPage();
+      const header = screen.getAllByRole('columnheader');
+      const row = screen
+        .getByText('Loading jobs')
+        .closest('tbody')!
+        .querySelectorAll('tr')[1];
+      const cells = row.querySelectorAll('td');
+      expect(cells).toHaveLength(header.length);
+      cells.forEach((cell, i) =>
+        expect(cell.classList.contains('hidden')).toBe(
+          header[i].classList.contains('hidden'),
+        ),
+      );
+    });
   });
 
   describe('ghost badge', () => {
