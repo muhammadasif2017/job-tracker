@@ -36,6 +36,7 @@ export function StatusChart({ stats }: { stats: JobStats }) {
             outerRadius={85}
             paddingAngle={3}
             dataKey="value"
+            isAnimationActive={false}
           >
             {data.map((entry) => (
               <Cell key={entry.name} className={entry.className} />

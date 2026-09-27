@@ -55,7 +55,7 @@ function RangeBarChart({
           tick={{ fontSize: 12 }}
         />
         <Tooltip formatter={(v) => [valueFormatter(Number(v)), valueLabel]} />
-        <Bar dataKey="value" radius={4}>
+        <Bar dataKey="value" radius={4} isAnimationActive={false}>
           {data.map((entry) => (
             <Cell key={entry.name} className={entry.className} />
           ))}
