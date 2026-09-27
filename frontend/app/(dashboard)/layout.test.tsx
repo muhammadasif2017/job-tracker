@@ -14,6 +14,10 @@ vi.mock('../../components/layout/theme-toggle', () => ({
   ThemeToggle: () => <div data-testid="theme-toggle" />,
 }));
 
+vi.mock('../../components/layout/command-palette', () => ({
+  CommandPalette: () => <div data-testid="command-palette" />,
+}));
+
 function renderLayout() {
   return render(
     <DashboardLayout>
@@ -26,6 +30,13 @@ describe('DashboardLayout', () => {
   it('renders children inside main', () => {
     renderLayout();
     expect(screen.getByText('page content')).toBeInTheDocument();
+  });
+
+  it('puts the search palette in the header beside the theme toggle', () => {
+    renderLayout();
+    const header = screen.getByRole('banner');
+    expect(header).toContainElement(screen.getByTestId('command-palette'));
+    expect(header).toContainElement(screen.getByTestId('theme-toggle'));
   });
 
   it('renders the sidebar closed by default', () => {
