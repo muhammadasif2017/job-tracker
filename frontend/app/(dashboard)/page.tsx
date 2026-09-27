@@ -103,6 +103,12 @@ export default function DashboardPage() {
 
       {recent?.data.length === 0 && <WelcomeCard />}
 
+      {/* What to act on comes before how the search is going. */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <AttentionCard />
+        <GhostSuggestionsCard />
+      </div>
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-6">
         <StatsCard
           label="Applications Sent"
@@ -142,11 +148,6 @@ export default function DashboardPage() {
           icon={<Ghost className="h-4 w-4" />}
           loading={statsLoading}
         />
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <AttentionCard />
-        <GhostSuggestionsCard />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

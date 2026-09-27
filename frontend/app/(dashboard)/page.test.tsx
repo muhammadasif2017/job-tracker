@@ -189,6 +189,18 @@ describe('DashboardPage', () => {
     );
   });
 
+  it('puts Needs Attention ahead of the headline stats', async () => {
+    mockApiRoutes();
+    renderPage();
+
+    const attention = await screen.findByText('Needs Attention');
+    const stats = screen.getByText('Applications Sent');
+    expect(
+      attention.compareDocumentPosition(stats) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('leaves the add-a-job prompt to the welcome card when there is no recent activity', async () => {
     mockApiRoutes({ recent: makeRecent([]) });
     renderPage();
