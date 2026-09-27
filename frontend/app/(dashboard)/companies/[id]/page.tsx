@@ -99,12 +99,6 @@ export default function CompanyDetailPage() {
               </div>
             </div>
 
-            {company.productDescription && (
-              <p className="text-sm text-muted break-words">
-                {company.productDescription}
-              </p>
-            )}
-
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               {company.location && (
                 <div>
