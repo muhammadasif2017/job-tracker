@@ -31,10 +31,10 @@ Nest's `Logger`, which is why every service moved to it (below).
 - **An allowlist of fields.** `beforeSendLog` passes every line through
   `scrubLogAttributes` (`infrastructure/error-tracking/log-attributes.helper.ts`).
   - It keeps `requestId`, `context`, `jobId`, `companyId`, `roundId`,
-    `userId`, `queue`, `model`, `phase`, `errorName`, `status` and
-    `responseTime`, and
-    only when the value is a string, number or boolean. An object under an
-    allowed key could carry anything (see the logging style below).
+    `userId`, `queue`, `model`, `phase`, `errorName`, `outageMs` and
+    `status`, and only when the value is a string, number or boolean. An
+    object under an allowed key could carry anything (see the logging style
+    below).
   - From `req` it keeps only the method and the path without its query
     string, which is where search terms live. From `res` it keeps the status
     code, and from `err` only its type.

@@ -21,7 +21,6 @@ const SENT_LOG_FIELDS = new Set([
   'errorName',
   'outageMs',
   'status',
-  'responseTime',
 ]);
 
 /**
@@ -47,7 +46,9 @@ const SENTRY_OWN_PREFIXES = [
  *   object under an allowed key could carry anything: nestjs-pino files the
  *   last extra argument of `logger.warn('msg', { to })` under `context`.
  * - From `req` it keeps the method and the path without the query string,
- *   where search terms live; from `res` the status code.
+ *   where search terms live; from `res` only the numeric status code. Today
+ *   only pino-http's lines carry `res`, and `scrubLog` drops those, but the
+ *   extraction is kept so this function stays safe on its own.
  * - From `err` only the type. Its message and stack can quote user input,
  *   and the error events in Sentry Issues already carry them.
  * - Headers, cookies, bodies and every other field are dropped.
