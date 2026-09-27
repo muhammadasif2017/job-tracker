@@ -4,10 +4,11 @@ import { useState } from 'react';
 import { Menu } from 'lucide-react';
 import { Sidebar } from '../../components/layout/sidebar';
 import { ThemeToggle } from '../../components/layout/theme-toggle';
+import { CommandPalette } from '../../components/layout/command-palette';
 
 /**
- * Signed-in app shell: sidebar (a drawer on mobile), header with the theme
- * toggle, and the scrolling page area.
+ * Signed-in app shell: sidebar (a drawer on mobile), header with search and
+ * the theme toggle, and the scrolling page area.
  */
 export default function DashboardLayout({
   children,
@@ -29,7 +30,10 @@ export default function DashboardLayout({
           >
             <Menu className="h-5 w-5" />
           </button>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <CommandPalette />
+            <ThemeToggle />
+          </div>
         </header>
         <main className="flex-1 overflow-y-auto bg-surface p-6">
           {children}

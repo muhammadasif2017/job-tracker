@@ -46,6 +46,10 @@
 
 - Logout: calls `POST /auth/logout` (fire-and-forget), then calls `logout()` from Zustand, then redirects to `/login`. The API call is wrapped in try/catch so a network error doesn't block the client-side logout.
 
+### `CommandPalette`
+
+`components/layout/command-palette.tsx`, mounted in the dashboard header. Ctrl/⌘+K (or the Search button) opens a Radix dialog that filters the four pages by the typed text and searches jobs through `useJobsQuery` — the same `['jobs', filters]` cache the list uses, so no new query key. The body mounts only while open, so nothing is fetched until the palette is used. Arrow keys move the selection (wrapping), Enter or a click navigates.
+
 ### `providers.tsx`
 
 - `QueryClient` is created inside `useState` so it's stable across re-renders and not recreated on every render.
