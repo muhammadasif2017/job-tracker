@@ -178,7 +178,7 @@ export default function JobDetailPage() {
               </div>
               <div>
                 <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
-                  Applied
+                  {job.status === 'WISHLIST' ? 'Saved' : 'Applied'}
                 </p>
                 <p className="text-ink">{formatCivilDate(job.appliedAt)}</p>
               </div>
