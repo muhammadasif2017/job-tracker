@@ -71,6 +71,12 @@ describe('humanizeIsoDates', () => {
     );
   });
 
+  it('also rewrites dates joined with non-breaking hyphens', () => {
+    expect(humanizeIsoDates('Interviewing since 2026‑09‑27.')).toBe(
+      `Interviewing since ${formatCivilDate('2026-09-27T00:00:00Z')}.`,
+    );
+  });
+
   it('leaves text with no ISO date unchanged', () => {
     expect(humanizeIsoDates('Moved to interviewing on Sep 7')).toBe(
       'Moved to interviewing on Sep 7',
