@@ -260,7 +260,7 @@ export default function JobsPage() {
                     role="columnheader"
                     key={h}
                     className={cn(
-                      'px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide',
+                      'px-4 py-3 text-left text-xs font-medium text-muted',
                       colClass,
                     )}
                   >

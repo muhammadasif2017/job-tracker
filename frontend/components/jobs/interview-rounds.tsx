@@ -211,9 +211,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
   return (
     <div className="rounded-md border border-line bg-paper p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Interview Rounds
-        </h2>
+        <h2 className="text-sm font-semibold text-ink">Interview Rounds</h2>
         {!adding && (
           <Button
             type="button"
@@ -475,7 +473,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
                   <div className="flex flex-col gap-2 rounded-md border border-line p-3">
                     <label
                       htmlFor={`debrief-${round.id}`}
-                      className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                      className="text-xs font-medium text-muted"
                     >
                       Debrief notes for {round.stage}
                     </label>
@@ -511,7 +509,7 @@ export function InterviewRounds({ jobId, rounds }: InterviewRoundsProps) {
 
                 {round.prepSuggestions && (
                   <div className="rounded-md border border-accent/30 bg-accent/5 p-3">
-                    <p className="mb-1 font-mono text-[11px] font-semibold uppercase tracking-wide text-accent">
+                    <p className="mb-1 text-sm font-semibold text-accent">
                       Suggested prep for this round
                     </p>
                     <p className="whitespace-pre-line text-sm text-ink">

@@ -40,9 +40,7 @@ function Timeline({ events }: { events: JobEvent[] }) {
 
   return (
     <div className="rounded-md border border-line bg-paper p-6 space-y-4">
-      <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-        Timeline
-      </h2>
+      <h2 className="text-sm font-semibold text-ink">Timeline</h2>
       <ol className="space-y-0">
         {events.map((event, i) => (
           <li key={event.id} className="flex gap-3">
@@ -157,7 +155,7 @@ export default function JobDetailPage() {
               <div>
                 <label
                   htmlFor="job-detail-status"
-                  className="block font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1"
+                  className="block text-xs text-muted mb-1 font-medium"
                 >
                   Status
                 </label>
@@ -177,14 +175,14 @@ export default function JobDetailPage() {
                 </select>
               </div>
               <div>
-                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                <p className="text-xs text-muted mb-1 font-medium">
                   {job.status === 'WISHLIST' ? 'Saved' : 'Applied'}
                 </p>
                 <p className="text-ink">{formatCivilDate(job.appliedAt)}</p>
               </div>
               {job.nextInterviewAt && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Next Interview
                   </p>
                   <p className="inline-flex items-center gap-1.5 text-accent-2 font-medium">
@@ -195,7 +193,7 @@ export default function JobDetailPage() {
               )}
               {job.location && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Location
                   </p>
                   <p className="break-words text-ink">{job.location}</p>
@@ -203,7 +201,7 @@ export default function JobDetailPage() {
               )}
               {job.discoverySource && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Discovery Source
                   </p>
                   <SourceBadge kind="discovery" source={job.discoverySource} />
@@ -211,7 +209,7 @@ export default function JobDetailPage() {
               )}
               {job.applicationChannel && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Application Channel
                   </p>
                   <SourceBadge kind="channel" source={job.applicationChannel} />
@@ -219,7 +217,7 @@ export default function JobDetailPage() {
               )}
               {job.url && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Job Posting
                   </p>
                   <a
@@ -236,9 +234,7 @@ export default function JobDetailPage() {
 
             {job.notes && (
               <div>
-                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-2">
-                  Notes
-                </p>
+                <p className="text-xs text-muted mb-2 font-medium">Notes</p>
                 <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">
                   <LinkifiedText text={job.notes} />
                 </p>

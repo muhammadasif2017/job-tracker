@@ -383,7 +383,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-status"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Status
             </label>
@@ -402,7 +402,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-type"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Job Type
             </label>
@@ -432,7 +432,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-discovery-source"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Discovery Source
             </label>
@@ -452,7 +452,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="job-application-channel"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Application Channel
             </label>
@@ -479,10 +479,7 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
         />
         <Input label="Applied Date" type="date" {...register('appliedAt')} />
         <div className="flex flex-col gap-1">
-          <label
-            htmlFor="job-notes"
-            className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
-          >
+          <label htmlFor="job-notes" className="text-xs font-medium text-muted">
             Notes
           </label>
           <textarea

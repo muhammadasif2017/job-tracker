@@ -144,7 +144,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                 className="relative z-10 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-surface"
                 style={{ background: STATUS_DOT_VARS[col] }}
               />
-              <span className="font-mono text-xs font-medium uppercase tracking-wide text-ink">
+              <span className="text-xs font-medium text-ink">
                 {STATUS_LABELS[col]}
               </span>
               <span className="ml-auto rounded-sm border border-line bg-paper px-1.5 py-0.5 font-mono text-[11px] text-muted">

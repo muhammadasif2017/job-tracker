@@ -174,7 +174,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-city"
-                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                className="text-xs font-medium text-muted"
               >
                 City
               </label>
@@ -198,7 +198,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-priority"
-                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                className="text-xs font-medium text-muted"
               >
                 Priority
               </label>
@@ -217,7 +217,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="flex flex-col gap-1">
               <label
                 htmlFor="company-business-mode"
-                className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                className="text-xs font-medium text-muted"
               >
                 Business Mode
               </label>
@@ -260,7 +260,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
             <div className="rounded-md border border-line p-3">
               <div className="mb-3 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-medium uppercase tracking-wide text-muted">
+                  <span className="text-xs font-medium text-muted">
                     AI Research
                   </span>
                   <EnrichmentStatusBadge status={company!.status} />
@@ -288,7 +288,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   htmlFor="company-tech-stack"
-                  className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                  className="text-xs font-medium text-muted"
                 >
                   Tech Stack (comma-separated)
                 </label>
@@ -302,7 +302,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               <div className="mt-4 flex flex-col gap-1">
                 <label
                   htmlFor="company-culture"
-                  className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+                  className="text-xs font-medium text-muted"
                 >
                   Culture Summary
                 </label>
@@ -319,7 +319,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="company-notes"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Your notes
             </label>

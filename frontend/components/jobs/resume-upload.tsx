@@ -126,9 +126,7 @@ export function ResumeUpload({ jobId, initialResume }: ResumeUploadProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="font-mono text-xs font-medium uppercase tracking-wide text-muted">
-        Resume
-      </label>
+      <label className="text-xs font-medium text-muted">Resume</label>
 
       {resume ? (
         <div className="flex flex-col gap-2 rounded-md border border-line bg-paper-raised px-3 py-2 sm:flex-row sm:items-center">

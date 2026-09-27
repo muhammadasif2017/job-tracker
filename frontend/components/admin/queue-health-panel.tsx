@@ -38,9 +38,7 @@ function QueueCard({ queue }: { queue: QueueSnapshot }) {
         <dl className="mt-3 grid grid-cols-5 gap-2 text-center">
           {COUNT_ROWS.map(({ key, label }) => (
             <div key={key}>
-              <dt className="font-mono text-[11px] uppercase tracking-wide text-muted-2">
-                {label}
-              </dt>
+              <dt className="text-xs text-muted font-medium">{label}</dt>
               <dd
                 className={cn(
                   'mt-0.5 text-base font-semibold tabular-nums text-ink',
@@ -224,7 +222,7 @@ export function QueueHealthPanel() {
               <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
                 {data.companyStatuses.map((bucket) => (
                   <div key={bucket.status ?? 'never-triggered'}>
-                    <dt className="font-mono text-[11px] uppercase tracking-wide text-muted-2">
+                    <dt className="text-xs text-muted font-medium">
                       {bucket.label}
                     </dt>
                     <dd className="mt-0.5 text-base font-semibold tabular-nums text-ink">

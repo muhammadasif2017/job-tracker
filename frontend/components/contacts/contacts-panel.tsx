@@ -164,7 +164,7 @@ export function ContactsPanel({
       >
         <Heading
           className={cn(
-            'font-mono text-[11px] uppercase tracking-wide text-muted',
+            'text-xs text-muted font-medium',
             nested ? 'font-medium' : 'font-semibold',
           )}
         >

@@ -61,7 +61,7 @@ export default function LoginPage() {
 
         <div className="flex items-center gap-3">
           <div className="h-px flex-1 bg-line" />
-          <span className="font-mono text-[11px] uppercase tracking-wide text-muted-2">
+          <span className="text-xs text-muted font-medium">
             or continue with email
           </span>
           <div className="h-px flex-1 bg-line" />

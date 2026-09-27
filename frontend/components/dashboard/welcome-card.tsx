@@ -49,7 +49,7 @@ export function WelcomeCard() {
               href={href}
               className="group flex h-full flex-col rounded-md border border-line bg-paper p-4 transition-colors hover:border-accent"
             >
-              <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-wide text-accent-ink">
+              <span className="flex items-center gap-2 text-xs text-accent-ink font-medium">
                 <Icon className="h-3.5 w-3.5" aria-hidden="true" />
                 Step {i + 1}
               </span>

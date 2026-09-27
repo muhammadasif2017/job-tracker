@@ -34,7 +34,7 @@ export function TimezoneField({
     <div className="flex flex-col gap-1">
       <label
         htmlFor="notification-timezone"
-        className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+        className="text-xs font-medium text-muted"
       >
         Timezone
       </label>

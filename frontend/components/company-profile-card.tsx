@@ -138,25 +138,19 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
     <>
       <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
         <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-            Industry
-          </p>
+          <p className="text-xs text-muted mb-1 font-medium">Industry</p>
           <p className="break-words">
             <FieldValue value={profile.industry} />
           </p>
         </div>
         <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-            Size
-          </p>
+          <p className="text-xs text-muted mb-1 font-medium">Size</p>
           <p className="break-words">
             <FieldValue value={profile.companySize} />
           </p>
         </div>
         <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-            Business Mode
-          </p>
+          <p className="text-xs text-muted mb-1 font-medium">Business Mode</p>
           <p className="break-words">
             <FieldValue
               value={
@@ -171,9 +165,7 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
 
       {profile.techStack?.length > 0 && (
         <div>
-          <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-2">
-            Tech Stack
-          </p>
+          <p className="text-xs text-muted mb-2 font-medium">Tech Stack</p>
           <div className="flex flex-wrap gap-1.5">
             {[...new Set(profile.techStack)].map((tech) => (
               <span
@@ -188,18 +180,14 @@ function ProfileFields({ profile }: { profile: EnrichmentFieldsSource }) {
       )}
 
       <div>
-        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          What They Build
-        </p>
+        <p className="text-xs text-muted mb-1 font-medium">What They Build</p>
         <p className="text-sm text-muted break-words">
           <FieldValue value={profile.productDescription} />
         </p>
       </div>
 
       <div>
-        <p className="font-mono text-xs text-muted-2 uppercase tracking-wide mb-1">
-          Culture
-        </p>
+        <p className="text-xs text-muted mb-1 font-medium">Culture</p>
         <p className="text-sm text-muted break-words">
           <FieldValue value={profile.cultureSummary} />
         </p>
@@ -263,9 +251,7 @@ export function CompanyProfileCard({
     return (
       <div className="rounded-md border border-line bg-paper p-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
-            Company Profile
-          </h2>
+          <h2 className="font-semibold text-sm text-ink">Company Profile</h2>
           <span
             role="status"
             aria-live="polite"
@@ -293,9 +279,7 @@ export function CompanyProfileCard({
     return (
       <div className="rounded-md border border-line bg-paper p-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
-            Company Profile
-          </h2>
+          <h2 className="font-semibold text-sm text-ink">Company Profile</h2>
           <Button
             variant="secondary"
             size="sm"
@@ -316,9 +300,7 @@ export function CompanyProfileCard({
     return (
       <div className="rounded-md border border-line bg-paper p-6 space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
-            Company Profile
-          </h2>
+          <h2 className="font-semibold text-sm text-ink">Company Profile</h2>
           <Button
             variant="secondary"
             size="sm"
@@ -337,9 +319,7 @@ export function CompanyProfileCard({
   return (
     <div className="rounded-md border border-line bg-paper p-6 space-y-5">
       <div className="flex items-center justify-between">
-        <h2 className="font-mono font-semibold text-[11px] uppercase tracking-wide text-muted">
-          Company Profile
-        </h2>
+        <h2 className="font-semibold text-sm text-ink">Company Profile</h2>
         {inFlight ? (
           <span className="text-xs text-muted-2 animate-pulse">
             {profile.status === 'PROCESSING' ? 'Refreshing…' : 'Queued…'}

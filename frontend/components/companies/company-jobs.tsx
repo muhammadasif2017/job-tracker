@@ -19,7 +19,7 @@ interface CompanyJobsProps {
 export function CompanyJobs({ jobs }: CompanyJobsProps) {
   return (
     <div className="rounded-md border border-line p-3">
-      <h3 className="mb-3 font-mono text-[11px] font-medium uppercase tracking-wide text-muted">
+      <h3 className="mb-3 text-sm font-semibold text-ink">
         Jobs at this company
       </h3>
 

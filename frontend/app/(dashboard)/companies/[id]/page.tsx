@@ -102,7 +102,7 @@ export default function CompanyDetailPage() {
             <div className="grid gap-4 sm:grid-cols-2 text-sm">
               {company.location && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     Office Location
                   </p>
                   <p className="break-words text-ink">{company.location}</p>
@@ -110,9 +110,7 @@ export default function CompanyDetailPage() {
               )}
               {company.websiteUrl && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
-                    Website
-                  </p>
+                  <p className="text-xs text-muted mb-1 font-medium">Website</p>
                   <a
                     href={company.websiteUrl}
                     target="_blank"
@@ -125,7 +123,7 @@ export default function CompanyDetailPage() {
               )}
               {company.linkedinUrl && (
                 <div>
-                  <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-1">
+                  <p className="text-xs text-muted mb-1 font-medium">
                     LinkedIn
                   </p>
                   <a
@@ -142,7 +140,7 @@ export default function CompanyDetailPage() {
 
             {company.personalNotes && (
               <div>
-                <p className="font-mono text-[11px] text-muted-2 uppercase tracking-wide mb-2">
+                <p className="text-xs text-muted mb-2 font-medium">
                   Your Notes
                 </p>
                 <p className="whitespace-pre-wrap break-words rounded-md bg-paper-raised p-3 text-sm text-ink">

@@ -142,7 +142,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 font-mono text-[13px] font-medium uppercase tracking-wide transition-colors',
+                  'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 text-sm font-medium transition-colors',
                   active
                     ? 'bg-accent-soft text-accent-ink'
                     : 'text-muted hover:bg-paper-raised hover:text-ink',
@@ -182,7 +182,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 font-mono text-[13px] uppercase tracking-wide text-muted transition-colors hover:bg-paper-raised hover:text-ink"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-paper-raised hover:text-ink"
           >
             <IconSignOut className="h-4 w-4" />
             Sign out
