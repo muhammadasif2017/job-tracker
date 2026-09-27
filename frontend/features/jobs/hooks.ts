@@ -7,6 +7,7 @@ import {
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import { filenameFromDisposition, saveBlob } from '../../lib/download';
+import { todayInputValue } from '../../lib/utils';
 import type {
   Job,
   JobEvent,
@@ -250,7 +251,21 @@ export function useKanbanPatchStatusMutation(filters: JobsFilterValues) {
         old
           ? {
               ...old,
-              data: old.data.map((j) => (j.id === id ? { ...j, status } : j)),
+              data: old.data.map((j) =>
+                j.id === id
+                  ? {
+                      ...j,
+                      status,
+                      // Mirrors the backend re-stamp on leaving WISHLIST, so
+                      // the card doesn't show its saved date as the applied
+                      // one until the refetch lands.
+                      ...(j.status === 'WISHLIST' &&
+                        status !== 'WISHLIST' && {
+                          appliedAt: `${todayInputValue()}T00:00:00.000Z`,
+                        }),
+                    }
+                  : j,
+              ),
             }
           : old,
       );

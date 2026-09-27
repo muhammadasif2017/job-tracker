@@ -193,6 +193,16 @@ describe('CompanyDetailPage', () => {
   });
 
   describe('detail rendering', () => {
+    it('leaves the product description to CompanyProfileCard rather than repeating it in the header', async () => {
+      mockCompany(makeCompany({ productDescription: 'Payments for the web' }));
+      renderPage();
+      expect(await screen.findByText('Acme')).toBeInTheDocument();
+      // The card is mocked above, so any match here would be the header copy.
+      expect(
+        screen.queryByText('Payments for the web'),
+      ).not.toBeInTheDocument();
+    });
+
     it('renders name, badges, and identity fields', async () => {
       mockCompany(
         makeCompany({

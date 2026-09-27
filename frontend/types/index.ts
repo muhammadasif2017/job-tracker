@@ -489,17 +489,19 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   GHOSTED: 'Ghosted',
 };
 
-/** Badge classes for each job status, light and dark. */
+/**
+ * Dot color class for each job status badge. Resolves to the same --status-*
+ * tokens as the board and the dashboard chart, so a status reads as one color
+ * everywhere. The label stays `text-ink`: the tokens pass 3:1 as a dot but
+ * fall under 4.5:1 as small text on a tint of themselves.
+ */
 export const STATUS_COLORS: Record<JobStatus, string> = {
-  WISHLIST: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  APPLIED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  INTERVIEWING:
-    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  OFFER:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  REJECTED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  GHOSTED:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  WISHLIST: 'bg-status-wishlist',
+  APPLIED: 'bg-status-applied',
+  INTERVIEWING: 'bg-status-interviewing',
+  OFFER: 'bg-status-offer',
+  REJECTED: 'bg-status-rejected',
+  GHOSTED: 'bg-status-ghosted',
 };
 
 /**
@@ -517,21 +519,26 @@ export const DERIVED_STATUS_LABELS: Partial<
   POSSIBLY_GHOSTED: 'Possibly ghosted',
 };
 
-/** Badge classes for the derived round statuses that get a badge. */
+/**
+ * Dot color class for the derived round statuses that get a badge, drawn like
+ * a job `StatusBadge` (neutral chip, colored dot) from the job status each one
+ * reads as: an upcoming round is interviewing, a round with no reply yet is
+ * waiting like an application, a silent one is ghosting.
+ */
 export const DERIVED_STATUS_COLORS: Partial<
   Record<InterviewRoundDerivedStatus, string>
 > = {
-  SCHEDULED:
-    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  AWAITING_RESPONSE:
-    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  POSSIBLY_GHOSTED:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  SCHEDULED: 'bg-status-interviewing',
+  AWAITING_RESPONSE: 'bg-status-applied',
+  POSSIBLY_GHOSTED: 'bg-status-ghosted',
 };
 
-// Two shapes for the same six status colors, because the consumers need
-// different things. Both resolve to the --status-* tokens in globals.css, so
-// they follow the theme; the old raw-hex map did not — it held the dark-mode
+// Three shapes for the same six status colors, because the consumers need
+// different things: a background class (STATUS_COLORS, for the badge dot), a
+// var() for inline styles (STATUS_DOT_VARS, for the board's column dot and
+// card border, and the chart legend) and a fill class (STATUS_FILL_CLASSES,
+// for SVG). All resolve to the --status-* tokens in globals.css, so they
+// follow the theme; the old raw-hex map did not — it held the dark-mode
 // values and rendered them unchanged in light mode, where several fell below
 // the 3:1 bar for a non-text UI element.
 

@@ -181,6 +181,7 @@ export function KanbanBoard({ onEdit, filters }: KanbanBoardProps) {
                           </div>
                           <div className="mt-2 flex items-center justify-between">
                             <span className="font-mono text-[11px] text-muted-2">
+                              {job.status === 'WISHLIST' && 'Saved '}
                               {formatCivilDate(job.appliedAt)}
                             </span>
                             <div className="flex gap-1">
