@@ -109,6 +109,13 @@ describe('InterviewRounds', () => {
       expect(screen.getByText('Awaiting response')).toBeInTheDocument();
     });
 
+    it('colors the badge dot with the job status token it reads as', () => {
+      renderRounds([{ ...round, derivedStatus: 'POSSIBLY_GHOSTED' }]);
+      expect(screen.getByTestId('round-status-dot')).toHaveClass(
+        'bg-status-ghosted',
+      );
+    });
+
     it('shows "Possibly ghosted" once a week has passed with no outcome', () => {
       renderRounds([{ ...round, derivedStatus: 'POSSIBLY_GHOSTED' }]);
       expect(screen.getByText('Possibly ghosted')).toBeInTheDocument();

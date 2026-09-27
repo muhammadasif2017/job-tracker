@@ -7,6 +7,13 @@ describe('StatusBadge', () => {
     render(<StatusBadge status="INTERVIEWING" />);
     expect(screen.getByText('Interviewing')).toBeInTheDocument();
   });
+
+  it('colors the dot with the same status token the board and chart use', () => {
+    render(<StatusBadge status="INTERVIEWING" />);
+    expect(screen.getByTestId('status-dot')).toHaveClass(
+      'bg-status-interviewing',
+    );
+  });
 });
 
 describe('PriorityBadge', () => {
