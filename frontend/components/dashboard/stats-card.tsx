@@ -26,7 +26,7 @@ export function StatsCard({
   return (
     <div
       className={cn(
-        'relative overflow-hidden rounded-md border border-line bg-paper p-5',
+        'relative overflow-hidden rounded-md border border-line bg-paper p-4 sm:p-5',
         className,
       )}
     >

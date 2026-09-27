@@ -149,6 +149,23 @@ describe('JobsPage', () => {
         container.querySelectorAll('.animate-pulse').length,
       ).toBeGreaterThan(0);
     });
+
+    it('gives skeleton rows the same columns and mobile hiding as the header', () => {
+      vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+      renderPage();
+      const header = screen.getAllByRole('columnheader');
+      const row = screen
+        .getByText('Loading jobs')
+        .closest('tbody')!
+        .querySelectorAll('tr')[1];
+      const cells = row.querySelectorAll('td');
+      expect(cells).toHaveLength(header.length);
+      cells.forEach((cell, i) =>
+        expect(cell.classList.contains('hidden')).toBe(
+          header[i].classList.contains('hidden'),
+        ),
+      );
+    });
   });
 
   describe('ghost badge', () => {
@@ -204,6 +221,27 @@ describe('JobsPage', () => {
   });
 
   describe('list rendering', () => {
+    it('drops job type, channel and location below md but keeps status and actions', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      expect(await screen.findByText('Acme')).toBeInTheDocument();
+      for (const h of ['Job Type', 'Channel', 'Location']) {
+        expect(screen.getByRole('columnheader', { name: h })).toHaveClass(
+          'hidden',
+          'md:table-cell',
+        );
+      }
+      for (const h of ['Company', 'Position', 'Status', 'Applied']) {
+        expect(screen.getByRole('columnheader', { name: h })).not.toHaveClass(
+          'hidden',
+        );
+      }
+      const row = screen
+        .getByRole('link', { name: 'Senior Engineer' })
+        .closest('tr')!;
+      expect(within(row).getByText('Austin, TX')).toHaveClass('hidden');
+    });
+
     it('labels a wishlist row date as saved, not applied', async () => {
       vi.mocked(api.get).mockResolvedValue({
         data: page({ data: [{ ...jobs[0], status: 'WISHLIST' }] }),

@@ -26,7 +26,7 @@ import { JobForm } from '../../../components/jobs/job-form';
 import { QuickAdd } from '../../../components/jobs/quick-add';
 import { KanbanBoard } from '../../../components/jobs/kanban-board';
 import { GhostBadge } from '../../../components/jobs/ghost-badge';
-import { formatCivilDate } from '../../../lib/utils';
+import { cn, formatCivilDate } from '../../../lib/utils';
 import {
   JOB_STATUSES,
   STATUS_LABELS,
@@ -39,6 +39,25 @@ import {
   useExportJobsMutation,
   type JobsFilterValues,
 } from '../../../features/jobs/hooks';
+
+/** Hides a jobs-table column below the md breakpoint. */
+const MD_ONLY = 'hidden md:table-cell';
+
+/**
+ * Jobs-table columns and their responsive class. Job type, channel and
+ * location drop below md so a phone keeps the row's identity, status and
+ * actions on screen; the header and the loading skeleton both read this.
+ */
+const COLUMNS = [
+  ['Company', ''],
+  ['Position', ''],
+  ['Status', ''],
+  ['Job Type', MD_ONLY],
+  ['Channel', MD_ONLY],
+  ['Applied', ''],
+  ['Location', MD_ONLY],
+  ['', ''],
+] as const;
 
 /**
  * Jobs page (`/jobs`): filtered list or kanban board, with add, Quick Add,
@@ -100,7 +119,7 @@ export default function JobsPage() {
               : `${data?.meta.total ?? 0} ${data?.meta.total === 1 ? 'job' : 'jobs'} tracked`}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2 whitespace-nowrap">
           <Button
             variant="secondary"
             onClick={() => exportMutation.mutate(filters)}
@@ -211,19 +230,13 @@ export default function JobsPage() {
           <table className="w-full text-sm">
             <thead className="border-b border-line bg-paper-raised">
               <tr>
-                {[
-                  'Company',
-                  'Position',
-                  'Status',
-                  'Job Type',
-                  'Channel',
-                  'Applied',
-                  'Location',
-                  '',
-                ].map((h) => (
+                {COLUMNS.map(([h, hide]) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide"
+                    className={cn(
+                      'px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide',
+                      hide,
+                    )}
                   >
                     {h}
                   </th>
@@ -240,8 +253,8 @@ export default function JobsPage() {
                   </tr>
                   {[...Array(5)].map((_, i) => (
                     <tr key={i}>
-                      {[...Array(9)].map((_, j) => (
-                        <td key={j} className="px-4 py-3">
+                      {COLUMNS.map(([h, hide]) => (
+                        <td key={h} className={cn('px-4 py-3', hide)}>
                           <Skeleton className="h-4 w-full" />
                         </td>
                       ))}
@@ -297,10 +310,10 @@ export default function JobsPage() {
                         <GhostBadge jobId={job.id} company={job.company} />
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={cn('px-4 py-3', MD_ONLY)}>
                       <JobTypeBadge jobType={job.jobType} />
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={cn('px-4 py-3', MD_ONLY)}>
                       {job.applicationChannel ? (
                         <SourceBadge
                           kind="channel"
@@ -316,7 +329,7 @@ export default function JobsPage() {
                       {job.status === 'WISHLIST' && 'Saved '}
                       {formatCivilDate(job.appliedAt)}
                     </td>
-                    <td className="px-4 py-3 text-muted">
+                    <td className={cn('px-4 py-3 text-muted', MD_ONLY)}>
                       {job.location ?? '—'}
                     </td>
                     <td className="px-4 py-3">
