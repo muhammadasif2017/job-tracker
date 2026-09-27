@@ -189,7 +189,7 @@ describe('DashboardPage', () => {
     );
   });
 
-  it('shows the empty state with a link to add a job when there is no recent activity', async () => {
+  it('leaves the add-a-job prompt to the welcome card when there is no recent activity', async () => {
     mockApiRoutes({ recent: makeRecent([]) });
     renderPage();
 
@@ -197,8 +197,8 @@ describe('DashboardPage', () => {
       expect(screen.getByText('No jobs tracked yet.')).toBeInTheDocument(),
     );
     expect(
-      screen.getByRole('link', { name: /add your first application/i }),
-    ).toHaveAttribute('href', '/jobs');
+      screen.getAllByRole('link', { name: /first/i }).map((l) => l.textContent),
+    ).toEqual([expect.stringMatching(/track your first job/i)]);
   });
 
   it('shows the first-run welcome only while the account has no jobs', async () => {
