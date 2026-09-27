@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { KanbanBoard } from './kanban-board';
+import { formatCivilDate, todayInputValue } from '../../lib/utils';
 import {
   KANBAN_PAGE_SIZE,
   KANBAN_STATUSES,
@@ -304,6 +305,16 @@ describe('KanbanBoard', () => {
     expect(screen.queryByText('GhostedCo')).not.toBeInTheDocument();
   });
 
+  it('labels a wishlist card date as saved, not applied', async () => {
+    renderBoard([
+      makeJob({ id: 'j-wish', company: 'WishCo', status: 'WISHLIST' }),
+      makeJob({ id: 'j-app', company: 'AppliedCo', status: 'APPLIED' }),
+    ]);
+    const date = formatCivilDate('2026-06-01T00:00:00Z');
+    expect(await screen.findByText(`Saved ${date}`)).toBeInTheDocument();
+    expect(screen.getByText(date)).toBeInTheDocument();
+  });
+
   it('shows the count badge per column', async () => {
     const jobs = [
       makeJob({ id: 'j-1', status: 'APPLIED' }),
@@ -387,6 +398,67 @@ describe('KanbanBoard', () => {
       await waitFor(() => {
         const keys = invalidateSpy.mock.calls.map((c) => c[0]?.queryKey);
         expect(keys).toContainEqual(['jobs']);
+      });
+    });
+
+    it('re-stamps the applied date optimistically when a card leaves WISHLIST', async () => {
+      const job = makeJob({
+        id: 'j-wish',
+        company: 'WishCo',
+        status: 'WISHLIST',
+        appliedAt: '2026-01-01T00:00:00Z',
+      });
+      const { qc } = renderBoard([job]);
+      await waitFor(() =>
+        expect(screen.getByText('WishCo')).toBeInTheDocument(),
+      );
+      vi.mocked(api.patch).mockReturnValue(
+        new Promise(() => {}) as ReturnType<typeof api.patch>,
+      );
+
+      capturedOnDragEnd!({
+        destination: { droppableId: 'APPLIED', index: 0 },
+        source: { droppableId: 'WISHLIST', index: 0 },
+        draggableId: 'j-wish',
+        reason: 'DROP',
+        mode: 'FLUID',
+        combine: null,
+      } as unknown as DropResult);
+
+      await waitFor(() => {
+        const cached = qc
+          .getQueryData<PaginatedJobs>(JOBS_KEY)
+          ?.data.find((j) => j.id === 'j-wish');
+        expect(cached?.status).toBe('APPLIED');
+        expect(cached?.appliedAt).toBe(`${todayInputValue()}T00:00:00.000Z`);
+      });
+    });
+
+    it('keeps the applied date when a card moves between non-wishlist columns', async () => {
+      const job = makeJob({ id: 'j-keep', company: 'KeepCo' });
+      const { qc } = renderBoard([job]);
+      await waitFor(() =>
+        expect(screen.getByText('KeepCo')).toBeInTheDocument(),
+      );
+      vi.mocked(api.patch).mockReturnValue(
+        new Promise(() => {}) as ReturnType<typeof api.patch>,
+      );
+
+      capturedOnDragEnd!({
+        destination: { droppableId: 'INTERVIEWING', index: 0 },
+        source: { droppableId: 'APPLIED', index: 0 },
+        draggableId: 'j-keep',
+        reason: 'DROP',
+        mode: 'FLUID',
+        combine: null,
+      } as unknown as DropResult);
+
+      await waitFor(() => {
+        const cached = qc
+          .getQueryData<PaginatedJobs>(JOBS_KEY)
+          ?.data.find((j) => j.id === 'j-keep');
+        expect(cached?.status).toBe('INTERVIEWING');
+        expect(cached?.appliedAt).toBe('2026-06-01T00:00:00Z');
       });
     });
 
