@@ -247,11 +247,17 @@ export default function JobsPage() {
         <KanbanBoard onEdit={openEdit} filters={filters} />
       ) : (
         <div className="rounded-md border border-line bg-paper overflow-x-auto">
-          <table className="w-full text-sm max-sm:block">
-            <thead className="border-b border-line bg-paper-raised max-sm:hidden">
-              <tr>
+          {/* Explicit roles: the display:block below sm would otherwise drop the
+              table semantics in Chrome and Safari. */}
+          <table role="table" className="w-full text-sm max-sm:block">
+            <thead
+              role="rowgroup"
+              className="border-b border-line bg-paper-raised max-sm:hidden"
+            >
+              <tr role="row">
                 {COLUMNS.map(([h, colClass]) => (
                   <th
+                    role="columnheader"
                     key={h}
                     className={cn(
                       'px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide',
@@ -264,20 +270,21 @@ export default function JobsPage() {
               </tr>
             </thead>
             <tbody
+              role="rowgroup"
               className="divide-y divide-line max-sm:block"
               aria-busy={isLoading}
             >
               {isLoading ? (
                 <>
-                  <tr>
+                  <tr role="row">
                     <td colSpan={8} className="sr-only" role="status">
                       Loading jobs
                     </td>
                   </tr>
                   {[...Array(5)].map((_, i) => (
-                    <tr key={i} className={ROW_CARD}>
+                    <tr role="row" key={i} className={ROW_CARD}>
                       {COLUMNS.map(([h]) => (
-                        <td key={h} className={cellClass(h)}>
+                        <td role="cell" key={h} className={cellClass(h)}>
                           <Skeleton className="h-4 w-full" />
                         </td>
                       ))}
@@ -285,8 +292,8 @@ export default function JobsPage() {
                   ))}
                 </>
               ) : isError && !data ? (
-                <tr>
-                  <td colSpan={8} className="py-16 text-center">
+                <tr role="row">
+                  <td role="cell" colSpan={8} className="py-16 text-center">
                     <p className="text-base font-medium text-danger">
                       Failed to load jobs
                     </p>
@@ -304,8 +311,12 @@ export default function JobsPage() {
                   </td>
                 </tr>
               ) : data?.data.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-16 text-center text-muted-2">
+                <tr role="row">
+                  <td
+                    role="cell"
+                    colSpan={8}
+                    className="py-16 text-center text-muted-2"
+                  >
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">
                       Add your first application to get started.
@@ -315,16 +326,20 @@ export default function JobsPage() {
               ) : (
                 data?.data.map((job) => (
                   <tr
+                    role="row"
                     key={job.id}
                     className={cn(
                       'transition-colors hover:bg-paper-raised',
                       ROW_CARD,
                     )}
                   >
-                    <td className={cellClass('Company', 'text-muted')}>
+                    <td
+                      role="cell"
+                      className={cellClass('Company', 'text-muted')}
+                    >
                       {job.company}
                     </td>
-                    <td className={cellClass('Position')}>
+                    <td role="cell" className={cellClass('Position')}>
                       <Link
                         href={`/jobs/${job.id}`}
                         className="font-medium text-ink hover:text-accent"
@@ -332,16 +347,16 @@ export default function JobsPage() {
                         {job.position}
                       </Link>
                     </td>
-                    <td className={cellClass('Status')}>
+                    <td role="cell" className={cellClass('Status')}>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={job.status} />
                         <GhostBadge jobId={job.id} company={job.company} />
                       </div>
                     </td>
-                    <td className={cellClass('Job Type')}>
+                    <td role="cell" className={cellClass('Job Type')}>
                       <JobTypeBadge jobType={job.jobType} />
                     </td>
-                    <td className={cellClass('Channel')}>
+                    <td role="cell" className={cellClass('Channel')}>
                       {job.applicationChannel ? (
                         <SourceBadge
                           kind="channel"
@@ -352,6 +367,7 @@ export default function JobsPage() {
                       )}
                     </td>
                     <td
+                      role="cell"
                       className={cellClass(
                         'Applied',
                         'text-muted whitespace-nowrap',
@@ -362,10 +378,13 @@ export default function JobsPage() {
                       {job.status === 'WISHLIST' && 'Saved '}
                       {formatCivilDate(job.appliedAt)}
                     </td>
-                    <td className={cellClass('Location', 'text-muted')}>
+                    <td
+                      role="cell"
+                      className={cellClass('Location', 'text-muted')}
+                    >
                       {job.location ?? '—'}
                     </td>
-                    <td className={cellClass('')}>
+                    <td role="cell" className={cellClass('')}>
                       <div className="flex items-center gap-1 justify-end">
                         {job.url && (
                           <a
