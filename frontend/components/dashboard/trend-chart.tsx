@@ -56,6 +56,7 @@ export function TrendChart({ data }: { data: TrendStats }) {
             name="New applications"
             className="fill-accent-2"
             radius={4}
+            isAnimationActive={false}
           />
           <Line
             yAxisId="cumulative"
@@ -65,6 +66,7 @@ export function TrendChart({ data }: { data: TrendStats }) {
             className="stroke-accent"
             strokeWidth={2}
             dot={false}
+            isAnimationActive={false}
           />
         </ComposedChart>
       </ResponsiveContainer>
