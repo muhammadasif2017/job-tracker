@@ -469,10 +469,16 @@ describe('JobForm', () => {
           { headers: { 'Idempotency-Key': expect.any(String) } },
         ),
       );
-      expect(vi.mocked(api.get)).toHaveBeenLastCalledWith(
+      // Typing the new name also fires the debounced company-suggestions GET,
+      // which can land after the history check under load — so pick the last
+      // history call rather than the last GET of any kind.
+      const historyCalls = vi
+        .mocked(api.get)
+        .mock.calls.filter(([url]) => url === '/companies/application-history');
+      expect(historyCalls.at(-1)).toEqual([
         '/companies/application-history',
         { params: { name: 'Globex' } },
-      );
+      ]);
     });
 
     it('saves straight away for a company with no jobs', async () => {

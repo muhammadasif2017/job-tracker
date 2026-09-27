@@ -189,7 +189,19 @@ describe('DashboardPage', () => {
     );
   });
 
-  it('shows the empty state with a link to add a job when there is no recent activity', async () => {
+  it('puts Needs Attention ahead of the headline stats', async () => {
+    mockApiRoutes();
+    renderPage();
+
+    const attention = await screen.findByText('Needs Attention');
+    const stats = screen.getByText('Applications Sent');
+    expect(
+      attention.compareDocumentPosition(stats) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('leaves the add-a-job prompt to the welcome card when there is no recent activity', async () => {
     mockApiRoutes({ recent: makeRecent([]) });
     renderPage();
 
@@ -197,8 +209,25 @@ describe('DashboardPage', () => {
       expect(screen.getByText('No jobs tracked yet.')).toBeInTheDocument(),
     );
     expect(
-      screen.getByRole('link', { name: /add your first application/i }),
-    ).toHaveAttribute('href', '/jobs');
+      screen.getAllByRole('link', { name: /first/i }).map((l) => l.textContent),
+    ).toEqual([expect.stringMatching(/track your first job/i)]);
+  });
+
+  it('shows the first-run welcome only while the account has no jobs', async () => {
+    mockApiRoutes({ recent: makeRecent([]) });
+    renderPage();
+    expect(
+      await screen.findByRole('heading', { name: /set up your search/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the first-run welcome once a job exists', async () => {
+    mockApiRoutes({ recent: makeRecent([makeJob()]) });
+    renderPage();
+    expect(await screen.findByText('Acme Corp')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /set up your search/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('lists recent jobs with company, position, status, and applied date', async () => {
