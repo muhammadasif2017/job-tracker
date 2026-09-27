@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { GhostSuggestionsCard } from '../../components/dashboard/ghost-suggestions-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
+import { WelcomeCard } from '../../components/dashboard/welcome-card';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
@@ -100,6 +101,8 @@ export default function DashboardPage() {
         </div>
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
+
+      {recent?.data.length === 0 && <WelcomeCard />}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <StatsCard

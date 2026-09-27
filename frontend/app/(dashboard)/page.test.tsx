@@ -201,6 +201,23 @@ describe('DashboardPage', () => {
     ).toHaveAttribute('href', '/jobs');
   });
 
+  it('shows the first-run welcome only while the account has no jobs', async () => {
+    mockApiRoutes({ recent: makeRecent([]) });
+    renderPage();
+    expect(
+      await screen.findByRole('heading', { name: /set up your search/i }),
+    ).toBeInTheDocument();
+  });
+
+  it('hides the first-run welcome once a job exists', async () => {
+    mockApiRoutes({ recent: makeRecent([makeJob()]) });
+    renderPage();
+    expect(await screen.findByText('Acme Corp')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /set up your search/i }),
+    ).not.toBeInTheDocument();
+  });
+
   it('lists recent jobs with company, position, status, and applied date', async () => {
     mockApiRoutes({
       recent: makeRecent([
