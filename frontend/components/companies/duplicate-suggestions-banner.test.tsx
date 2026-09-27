@@ -85,4 +85,33 @@ describe('DuplicateSuggestionsBanner', () => {
     expect(screen.queryByText(/systems limited/i)).not.toBeInTheDocument();
     expect(onReview).not.toHaveBeenCalled();
   });
+
+  it('shows three pairs until the rest are asked for', async () => {
+    const pairs = Array.from({ length: 5 }, (_, i) => ({
+      ...suggestion,
+      companyA: { ...companyA, id: `a${i}`, name: `Alpha ${i}` },
+      companyB: { ...companyB, id: `b${i}`, name: `Beta ${i}` },
+    }));
+    vi.mocked(api.get).mockResolvedValue({ data: pairs });
+    renderBanner();
+
+    await screen.findByText('Alpha 0');
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 5' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(5);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show fewer' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  });
+
+  it('shows no toggle for three pairs or fewer', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: [suggestion] });
+    renderBanner();
+
+    await screen.findByText(/systems limited/i);
+    expect(
+      screen.queryByRole('button', { name: /show all/i }),
+    ).not.toBeInTheDocument();
+  });
 });

@@ -6,6 +6,9 @@ import { Button } from '../ui/button';
 import { useDuplicateSuggestionsQuery } from '../../features/companies/hooks';
 import type { Company, DuplicateSuggestion } from '../../types';
 
+/** Pairs shown before "Show all", so a long list does not bury the table. */
+const COLLAPSED_LIMIT = 3;
+
 /** Props for `DuplicateSuggestionsBanner`. */
 interface Props {
   // Opens MergeCompanyDialog with `canonical` as the surviving company and
@@ -24,6 +27,7 @@ interface Props {
 export function DuplicateSuggestionsBanner({ onReview }: Props) {
   const { data: suggestions } = useDuplicateSuggestionsQuery();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
 
   const pairKey = (s: DuplicateSuggestion) =>
     [s.companyA.id, s.companyB.id].sort().join(':');
@@ -31,6 +35,8 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
   const visible = (suggestions ?? []).filter((s) => !dismissed.has(pairKey(s)));
 
   if (visible.length === 0) return null;
+
+  const shown = expanded ? visible : visible.slice(0, COLLAPSED_LIMIT);
 
   return (
     <div
@@ -42,7 +48,7 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
         Possible duplicate {visible.length === 1 ? 'company' : 'companies'}
       </p>
       <ul className="space-y-1.5">
-        {visible.map((s) => {
+        {shown.map((s) => {
           const key = pairKey(s);
           return (
             <li
@@ -76,6 +82,15 @@ export function DuplicateSuggestionsBanner({ onReview }: Props) {
           );
         })}
       </ul>
+      {visible.length > COLLAPSED_LIMIT && (
+        <button
+          className="text-sm font-medium text-warning hover:underline"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((e) => !e)}
+        >
+          {expanded ? 'Show fewer' : `Show all ${visible.length}`}
+        </button>
+      )}
     </div>
   );
 }
