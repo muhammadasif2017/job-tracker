@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { KanbanBoard } from './kanban-board';
+import { formatCivilDate } from '../../lib/utils';
 import {
   KANBAN_PAGE_SIZE,
   KANBAN_STATUSES,
@@ -302,6 +303,16 @@ describe('KanbanBoard', () => {
     expect(screen.getByText('OfferCo')).toBeInTheDocument();
     expect(screen.queryByText('RejectedCo')).not.toBeInTheDocument();
     expect(screen.queryByText('GhostedCo')).not.toBeInTheDocument();
+  });
+
+  it('labels a wishlist card date as saved, not applied', async () => {
+    renderBoard([
+      makeJob({ id: 'j-wish', company: 'WishCo', status: 'WISHLIST' }),
+      makeJob({ id: 'j-app', company: 'AppliedCo', status: 'APPLIED' }),
+    ]);
+    const date = formatCivilDate('2026-06-01T00:00:00Z');
+    expect(await screen.findByText(`Saved ${date}`)).toBeInTheDocument();
+    expect(screen.getByText(date)).toBeInTheDocument();
   });
 
   it('shows the count badge per column', async () => {

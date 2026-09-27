@@ -204,6 +204,20 @@ describe('JobsPage', () => {
   });
 
   describe('list rendering', () => {
+    it('labels a wishlist row date as saved, not applied', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({ data: [{ ...jobs[0], status: 'WISHLIST' }] }),
+      });
+      renderPage();
+      const posLink = await screen.findByRole('link', {
+        name: 'Senior Engineer',
+      });
+      const row = within(posLink.closest('tr')!);
+      expect(
+        row.getByText(`Saved ${formatCivilDate('2026-06-01T00:00:00Z')}`),
+      ).toBeInTheDocument();
+    });
+
     it('renders job rows with company, position link, badges, date, and location', async () => {
       vi.mocked(api.get).mockResolvedValue({ data: page() });
       renderPage();
