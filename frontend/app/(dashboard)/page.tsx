@@ -18,7 +18,7 @@ import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
-import { formatCivilDate } from '../../lib/utils';
+import { formatCivilDate, humanizeIsoDates } from '../../lib/utils';
 import type { DashboardRange } from '../../types';
 import {
   useStatsQuery,
@@ -137,7 +137,7 @@ export default function DashboardPage() {
         <StatsCard
           label="Response Rate"
           value={stats ? `${stats.responseRate}%` : '—'}
-          sub="Interviewing + offers + rejected"
+          sub="Heard back at all"
           icon={<BarChart2 className="h-4 w-4" />}
           loading={statsLoading}
         />
@@ -197,7 +197,7 @@ export default function DashboardPage() {
                     </p>
                     {job.timelineSummary && (
                       <p className="truncate text-xs text-muted-2">
-                        {job.timelineSummary}
+                        {humanizeIsoDates(job.timelineSummary)}
                       </p>
                     )}
                   </div>

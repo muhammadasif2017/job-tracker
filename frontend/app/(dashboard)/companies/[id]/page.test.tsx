@@ -203,6 +203,14 @@ describe('CompanyDetailPage', () => {
       ).not.toBeInTheDocument();
     });
 
+    it('leaves the city badge off while the city is the OTHER default', async () => {
+      mockCompany(makeCompany({ city: 'OTHER' }));
+      renderPage();
+      expect(await screen.findByText('Acme')).toBeInTheDocument();
+      expect(screen.queryByText('Other')).not.toBeInTheDocument();
+      expect(screen.getByText('High')).toBeInTheDocument();
+    });
+
     it('renders name, badges, and identity fields', async () => {
       mockCompany(
         makeCompany({

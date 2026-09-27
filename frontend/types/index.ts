@@ -393,12 +393,14 @@ export const PRIORITY_LABELS: Record<Priority, string> = {
   HIGH: 'High',
 };
 
-/** Badge classes for each priority, light and dark. */
+/**
+ * Dot color class for each company priority badge. The chip itself is the
+ * neutral one every badge shares; only the dot carries the priority.
+ */
 export const PRIORITY_COLORS: Record<Priority, string> = {
-  LOW: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  MEDIUM:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  HIGH: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  LOW: 'bg-muted-2',
+  MEDIUM: 'bg-warning',
+  HIGH: 'bg-danger',
 };
 
 /** Display label for each discovery source. */
@@ -415,25 +417,6 @@ export const DISCOVERY_SOURCE_LABELS: Record<DiscoverySource, string> = {
   OTHER: 'Other',
 };
 
-/** Badge classes for each discovery source, light and dark. */
-export const DISCOVERY_SOURCE_COLORS: Record<DiscoverySource, string> = {
-  LINKEDIN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  LINKEDIN_JOBS:
-    'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-  GOOGLE_SEARCH:
-    'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
-  INDEED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  ROZEE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
-  CAREER_EMAIL:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  JOBLEADS:
-    'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-  TARAKI:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-};
-
 /** Display label for each application channel. */
 export const APPLICATION_CHANNEL_LABELS: Record<ApplicationChannel, string> = {
   COMPANY_WEBSITE: 'Company Website',
@@ -447,36 +430,11 @@ export const APPLICATION_CHANNEL_LABELS: Record<ApplicationChannel, string> = {
   OTHER: 'Other',
 };
 
-/** Badge classes for each application channel, light and dark. */
-export const APPLICATION_CHANNEL_COLORS: Record<ApplicationChannel, string> = {
-  COMPANY_WEBSITE:
-    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  ATS: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  LINKEDIN: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  INDEED: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  ROZEE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300',
-  REFERRAL: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
-  CAREER_EMAIL:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  TARAKI:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-};
-
 /** Display label for each job type. */
 export const JOB_TYPE_LABELS: Record<JobType, string> = {
   ONSITE: 'Onsite',
   HYBRID: 'Hybrid',
   REMOTE: 'Remote',
-};
-
-/** Badge classes for each job type, light and dark. */
-export const JOB_TYPE_COLORS: Record<JobType, string> = {
-  ONSITE: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  HYBRID:
-    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  REMOTE:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
 };
 
 /** Display label for each job status. */
@@ -595,16 +553,6 @@ export const CITY_LABELS: Record<CompanyCity, string> = {
   OTHER: 'Other',
 };
 
-/** Badge classes for each city, light and dark. */
-export const CITY_COLORS: Record<CompanyCity, string> = {
-  LAHORE: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  ISLAMABAD:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  KARACHI:
-    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  OTHER: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-};
-
 /** Every company business mode. */
 export const BUSINESS_MODES = ['PRODUCT', 'SERVICES', 'HYBRID'] as const;
 
@@ -616,15 +564,6 @@ export const BUSINESS_MODE_LABELS: Record<BusinessMode, string> = {
   PRODUCT: 'Product',
   SERVICES: 'Services',
   HYBRID: 'Hybrid',
-};
-
-/** Badge classes for each business mode, light and dark. */
-export const BUSINESS_MODE_COLORS: Record<BusinessMode, string> = {
-  PRODUCT:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  SERVICES: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-  HYBRID:
-    'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
 };
 
 /**

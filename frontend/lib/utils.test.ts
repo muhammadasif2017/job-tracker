@@ -4,6 +4,7 @@ import {
   formatCivilDate,
   formatDate,
   formatRelative,
+  humanizeIsoDates,
   toDateInputValue,
   todayInputValue,
 } from './utils';
@@ -58,5 +59,27 @@ describe('formatRelative', () => {
   it('describes a past date relative to now', () => {
     const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
     expect(formatRelative(twoDaysAgo)).toBe('2 days ago');
+  });
+});
+
+describe('humanizeIsoDates', () => {
+  it('rewrites ISO dates inside text in the app date format', () => {
+    expect(
+      humanizeIsoDates('Applied on 2026-09-27, rejected 2026-10-02.'),
+    ).toBe(
+      `Applied on ${formatCivilDate('2026-09-27T00:00:00Z')}, rejected ${formatCivilDate('2026-10-02T00:00:00Z')}.`,
+    );
+  });
+
+  it('leaves text with no ISO date unchanged', () => {
+    expect(humanizeIsoDates('Moved to interviewing on Sep 7')).toBe(
+      'Moved to interviewing on Sep 7',
+    );
+  });
+
+  it('leaves impossible dates and longer digit runs alone', () => {
+    expect(humanizeIsoDates('ref 2026-13-45 and 12026-09-270')).toBe(
+      'ref 2026-13-45 and 12026-09-270',
+    );
   });
 });

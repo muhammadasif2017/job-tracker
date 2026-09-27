@@ -270,6 +270,18 @@ describe('DashboardPage', () => {
     );
   });
 
+  it('shows ISO dates in a summary in the app date format', async () => {
+    mockApiRoutes({
+      recent: makeRecent([
+        makeJob({ timelineSummary: 'Rejected on 2026-09-27.' }),
+      ]),
+    });
+    renderPage();
+    expect(
+      await screen.findByText('Rejected on Sep 27, 2026.'),
+    ).toBeInTheDocument();
+  });
+
   it('omits the timeline summary caption when not yet generated', async () => {
     mockApiRoutes({
       recent: makeRecent([

@@ -73,7 +73,10 @@ export default function CompanyDetailPage() {
                   {company.name}
                 </h1>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <CityBadge city={company.city} />
+                  {/* OTHER is the "no city picked" default, not a place. */}
+                  {company.city !== 'OTHER' && (
+                    <CityBadge city={company.city} />
+                  )}
                   <PriorityBadge priority={company.priority} />
                   {company.businessMode && (
                     <BusinessModeBadge businessMode={company.businessMode} />

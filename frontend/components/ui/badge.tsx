@@ -1,19 +1,14 @@
 import { cn } from '../../lib/utils';
 import {
   Priority,
-  JOB_TYPE_COLORS,
   JOB_TYPE_LABELS,
   PRIORITY_COLORS,
   PRIORITY_LABELS,
-  DISCOVERY_SOURCE_COLORS,
   DISCOVERY_SOURCE_LABELS,
-  APPLICATION_CHANNEL_COLORS,
   APPLICATION_CHANNEL_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
-  CITY_COLORS,
   CITY_LABELS,
-  BUSINESS_MODE_COLORS,
   BUSINESS_MODE_LABELS,
   type ApplicationChannel,
   type DiscoverySource,
@@ -23,6 +18,40 @@ import {
   type BusinessMode,
   type EnrichmentStatus,
 } from '../../types';
+
+/** Props for `Chip`. */
+interface ChipProps {
+  /** Background class for a leading dot; no dot when omitted. */
+  dot?: string;
+  className?: string;
+  children: React.ReactNode;
+}
+
+/**
+ * The one chip every badge draws: neutral fill, ink label, and an optional
+ * colored dot for enums whose value carries meaning (status, priority,
+ * research state). Keeping color to the dot is what lets a row of badges read
+ * as one system instead of a wall of tints.
+ */
+function Chip({ dot, className, children }: ChipProps) {
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-sm border border-line/70 bg-paper-raised px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-ink',
+        className,
+      )}
+    >
+      {dot && (
+        <span
+          aria-hidden="true"
+          data-testid="badge-dot"
+          className={cn('h-1.5 w-1.5 shrink-0 rounded-full', dot)}
+        />
+      )}
+      {children}
+    </span>
+  );
+}
 
 /** Props for `StatusBadge`. */
 interface BadgeProps {
@@ -42,56 +71,27 @@ interface JobTypeBadgeProps {
   className?: string;
 }
 
-/** Colored label for a job status. */
+/** Label for a job status, with a dot in the status token color. */
 export function StatusBadge({ status, className }: BadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-sm border border-line/70 bg-paper-raised px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-ink',
-        className,
-      )}
-    >
-      <span
-        aria-hidden="true"
-        data-testid="status-dot"
-        className={cn(
-          'h-1.5 w-1.5 shrink-0 rounded-full',
-          STATUS_COLORS[status],
-        )}
-      />
+    <Chip dot={STATUS_COLORS[status]} className={className}>
       {STATUS_LABELS[status]}
-    </span>
+    </Chip>
   );
 }
 
-/** Colored label for a company priority. */
+/** Label for a company priority, with a dot for how pressing it is. */
 export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        PRIORITY_COLORS[priority],
-        className,
-      )}
-    >
+    <Chip dot={PRIORITY_COLORS[priority]} className={className}>
       {PRIORITY_LABELS[priority]}
-    </span>
+    </Chip>
   );
 }
 
-/** Colored label for a job type. */
+/** Label for a job type. */
 export function JobTypeBadge({ jobType, className }: JobTypeBadgeProps) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        JOB_TYPE_COLORS[jobType],
-        className,
-      )}
-    >
-      {JOB_TYPE_LABELS[jobType]}
-    </span>
-  );
+  return <Chip className={className}>{JOB_TYPE_LABELS[jobType]}</Chip>;
 }
 
 /** Props for `SourceBadge`: a discovery source or an application channel. */
@@ -99,26 +99,16 @@ type SourceBadgeProps =
   | { kind: 'discovery'; source: DiscoverySource; className?: string }
   | { kind: 'channel'; source: ApplicationChannel; className?: string };
 
-/** Colored label for where a job was found or how it was applied to. */
+/** Label for where a job was found or how it was applied to. */
 export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
-  const colors =
-    kind === 'discovery' ? DISCOVERY_SOURCE_COLORS : APPLICATION_CHANNEL_COLORS;
   const labels =
     kind === 'discovery' ? DISCOVERY_SOURCE_LABELS : APPLICATION_CHANNEL_LABELS;
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        colors[source as keyof typeof colors],
-        className,
-      )}
-    >
-      {labels[source as keyof typeof labels]}
-    </span>
+    <Chip className={className}>{labels[source as keyof typeof labels]}</Chip>
   );
 }
 
-/** Colored label for a company's city. */
+/** Label for a company's city. */
 export function CityBadge({
   city,
   className,
@@ -126,20 +116,10 @@ export function CityBadge({
   city: CompanyCity;
   className?: string;
 }) {
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        CITY_COLORS[city],
-        className,
-      )}
-    >
-      {CITY_LABELS[city]}
-    </span>
-  );
+  return <Chip className={className}>{CITY_LABELS[city]}</Chip>;
 }
 
-/** Colored label for a company's business mode. */
+/** Label for a company's business mode. */
 export function BusinessModeBadge({
   businessMode,
   className,
@@ -148,15 +128,7 @@ export function BusinessModeBadge({
   className?: string;
 }) {
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        BUSINESS_MODE_COLORS[businessMode],
-        className,
-      )}
-    >
-      {BUSINESS_MODE_LABELS[businessMode]}
-    </span>
+    <Chip className={className}>{BUSINESS_MODE_LABELS[businessMode]}</Chip>
   );
 }
 
@@ -168,17 +140,15 @@ const ENRICHMENT_STATUS_LABELS: Record<EnrichmentStatus, string> = {
   FAILED: 'Research failed',
 };
 
-/** Badge classes for each enrichment status, light and dark. */
+/** Dot color class for each enrichment status. */
 const ENRICHMENT_STATUS_COLORS: Record<EnrichmentStatus, string> = {
-  PENDING: 'bg-paper-raised text-muted',
-  PROCESSING:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-  COMPLETED:
-    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-  FAILED: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
+  PENDING: 'bg-muted-2',
+  PROCESSING: 'bg-warning',
+  COMPLETED: 'bg-success',
+  FAILED: 'bg-danger',
 };
 
-/** Colored label for an enrichment status; `null` reads "Not researched". */
+/** Label for an enrichment status; `null` reads "Not researched". */
 export function EnrichmentStatusBadge({
   status,
   className,
@@ -187,27 +157,11 @@ export function EnrichmentStatusBadge({
   className?: string;
 }) {
   if (!status) {
-    return (
-      <span
-        className={cn(
-          'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-          'bg-paper-raised text-muted-2',
-          className,
-        )}
-      >
-        Not researched
-      </span>
-    );
+    return <Chip className={cn('text-muted', className)}>Not researched</Chip>;
   }
   return (
-    <span
-      className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        ENRICHMENT_STATUS_COLORS[status],
-        className,
-      )}
-    >
+    <Chip dot={ENRICHMENT_STATUS_COLORS[status]} className={className}>
       {ENRICHMENT_STATUS_LABELS[status]}
-    </span>
+    </Chip>
   );
 }
