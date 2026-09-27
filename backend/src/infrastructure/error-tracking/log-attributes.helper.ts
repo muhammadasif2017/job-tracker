@@ -45,10 +45,10 @@ const SENTRY_OWN_PREFIXES = [
  * - An allowlisted field passes only as a string, number or boolean. An
  *   object under an allowed key could carry anything: nestjs-pino files the
  *   last extra argument of `logger.warn('msg', { to })` under `context`.
- * - From `req` (the request bindings on lines logged inside a request) it
- *   keeps the method and the path without the query string, where search
- *   terms live. There is no `res` mapping: only pino-http's own lines carry
- *   `res`, and `scrubLog` drops those as not coming from this app.
+ * - From `req` it keeps the method and the path without the query string,
+ *   where search terms live; from `res` only the numeric status code. Today
+ *   only pino-http's lines carry `res`, and `scrubLog` drops those, but the
+ *   extraction is kept so this function stays safe on its own.
  * - From `err` only the type. Its message and stack can quote user input,
  *   and the error events in Sentry Issues already carry them.
  * - Headers, cookies, bodies and every other field are dropped.
@@ -71,6 +71,11 @@ export function scrubLogAttributes(
   }
   if (typeof req?.url === 'string') {
     kept['url.path'] = req.url.split('?')[0];
+  }
+
+  const res = asRecord(attributes.res);
+  if (typeof res?.statusCode === 'number') {
+    kept['http.response.status_code'] = res.statusCode;
   }
 
   const err = asRecord(attributes.err);
