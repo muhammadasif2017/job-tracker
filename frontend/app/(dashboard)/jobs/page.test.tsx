@@ -242,6 +242,35 @@ describe('JobsPage', () => {
       expect(within(row).getByText('Austin, TX')).toHaveClass('hidden');
     });
 
+    it('lays each row out as a card below sm, with the header hidden', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      const row = (
+        await screen.findByRole('link', { name: 'Senior Engineer' })
+      ).closest('tr')!;
+      expect(row).toHaveClass('max-sm:grid');
+      expect(
+        within(row).getByRole('button', { name: 'Edit Acme' }).closest('td'),
+      ).toHaveClass('max-sm:[grid-area:act]');
+      expect(screen.getAllByRole('rowgroup')[0]).toHaveClass('max-sm:hidden');
+    });
+
+    it('states the table roles explicitly, since the card layout sets display:block', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      const row = (
+        await screen.findByRole('link', { name: 'Senior Engineer' })
+      ).closest('tr')!;
+      expect(screen.getByRole('table')).toHaveAttribute('role', 'table');
+      expect(row).toHaveAttribute('role', 'row');
+      row
+        .querySelectorAll('td')
+        .forEach((td) => expect(td).toHaveAttribute('role', 'cell'));
+      screen
+        .getAllByRole('columnheader')
+        .forEach((th) => expect(th).toHaveAttribute('role', 'columnheader'));
+    });
+
     it('labels a wishlist row date as saved, not applied', async () => {
       vi.mocked(api.get).mockResolvedValue({
         data: page({ data: [{ ...jobs[0], status: 'WISHLIST' }] }),
