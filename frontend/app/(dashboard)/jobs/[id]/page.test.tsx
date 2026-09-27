@@ -185,6 +185,15 @@ describe('JobDetailPage', () => {
   });
 
   describe('detail rendering', () => {
+    it('labels a wishlist job date as saved, not applied', async () => {
+      mockJobAndEvents({ ...job, status: 'WISHLIST' });
+      renderPage();
+      expect(await screen.findByText('Saved')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Applied', { selector: 'p' }),
+      ).not.toBeInTheDocument();
+    });
+
     it('renders company, position, status, applied date, and next interview', async () => {
       mockJobAndEvents(job);
       renderPage();

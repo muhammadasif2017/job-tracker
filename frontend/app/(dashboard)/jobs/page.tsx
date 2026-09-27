@@ -324,6 +324,9 @@ export default function JobsPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted whitespace-nowrap">
+                      {/* A wishlist job has not been applied to: its date is
+                          when it was saved, re-stamped once it leaves WISHLIST. */}
+                      {job.status === 'WISHLIST' && 'Saved '}
                       {formatCivilDate(job.appliedAt)}
                     </td>
                     <td className={cn('px-4 py-3 text-muted', MD_ONLY)}>
