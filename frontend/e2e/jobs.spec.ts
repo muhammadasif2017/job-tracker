@@ -62,6 +62,7 @@ test.describe('Create job', () => {
     await dialog
       .getByLabel('Status', { exact: true })
       .selectOption('INTERVIEWING');
+    await dialog.getByLabel('Job Type').selectOption('REMOTE');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     // After creating, the dialog stays open on a "Job Added" step to let the

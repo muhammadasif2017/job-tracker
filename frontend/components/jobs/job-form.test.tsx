@@ -66,11 +66,44 @@ async function fillRequired() {
   fireEvent.change(screen.getByLabelText(/position/i), {
     target: { value: 'Senior Engineer' },
   });
+  fireEvent.change(screen.getByLabelText(/job type/i), {
+    target: { value: 'REMOTE' },
+  });
 }
 
 describe('JobForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe('job type', () => {
+    it('starts a new job with no job type chosen', () => {
+      renderForm();
+      expect(screen.getByLabelText(/job type/i)).toHaveValue('');
+    });
+
+    it('blocks saving until a job type is picked', async () => {
+      renderForm();
+      fireEvent.change(screen.getByLabelText(/company/i), {
+        target: { value: 'Acme' },
+      });
+      fireEvent.change(screen.getByLabelText(/position/i), {
+        target: { value: 'Senior Engineer' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add job/i }));
+
+      expect(await screen.findByText('Pick a job type')).toBeInTheDocument();
+      expect(screen.getByLabelText(/job type/i)).toHaveAttribute(
+        'aria-invalid',
+        'true',
+      );
+      expect(vi.mocked(api.post)).not.toHaveBeenCalled();
+    });
+
+    it("keeps an existing job's type when editing", () => {
+      renderForm({ job });
+      expect(screen.getByLabelText(/job type/i)).toHaveValue(job.jobType);
+    });
   });
 
   describe('create mode', () => {
@@ -605,6 +638,9 @@ describe('JobForm', () => {
       });
       fireEvent.change(screen.getByLabelText(/position/i), {
         target: { value: 'Engineer' },
+      });
+      fireEvent.change(screen.getByLabelText(/job type/i), {
+        target: { value: 'ONSITE' },
       });
       fireEvent.click(screen.getByRole('button', { name: /add job/i }));
 

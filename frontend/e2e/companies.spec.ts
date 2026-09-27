@@ -672,6 +672,7 @@ test.describe('Job creation matches an existing target company', () => {
     // Case-insensitive exact match against the saved company name.
     await dialog.getByPlaceholder('Google').fill('match corp');
     await dialog.getByPlaceholder('Senior Engineer').fill('SWE');
+    await dialog.getByLabel('Job Type').selectOption('REMOTE');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     await expect(
@@ -700,6 +701,7 @@ test.describe('Job creation matches an existing target company', () => {
     const dialog = page.getByRole('dialog');
     await dialog.getByPlaceholder('Google').fill('Totally Unmatched Inc');
     await dialog.getByPlaceholder('Senior Engineer').fill('SWE');
+    await dialog.getByLabel('Job Type').selectOption('REMOTE');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     await expect(
@@ -749,6 +751,7 @@ test.describe('Company reply history', () => {
     // Case-insensitive match against the company's saved name.
     await dialog.getByPlaceholder('Google').fill('history corp');
     await dialog.getByPlaceholder('Senior Engineer').fill('Second Application');
+    await dialog.getByLabel('Job Type').selectOption('REMOTE');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     const confirm = dialog.getByRole('alertdialog');

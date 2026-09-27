@@ -44,6 +44,7 @@ test.describe('Add Job modal on a short viewport', () => {
     // auto-scrolls the target into view, so a successful click proves that.
     await dialog.getByPlaceholder('Google').fill('Short Viewport Co');
     await dialog.getByPlaceholder('Senior Engineer').fill('Tester');
+    await dialog.getByLabel('Job Type').selectOption('REMOTE');
     await dialog.getByRole('button', { name: 'Add job' }).click();
 
     await expect(

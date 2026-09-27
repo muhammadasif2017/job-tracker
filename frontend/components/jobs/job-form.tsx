@@ -28,7 +28,7 @@ import {
   type CompanyApplicationHistory,
 } from '../../types';
 import api, { getErrorMessage } from '../../lib/api';
-import { toDateInputValue, todayInputValue } from '../../lib/utils';
+import { cn, toDateInputValue, todayInputValue } from '../../lib/utils';
 import {
   fetchCompanyApplicationHistory,
   useCompanySuggestionsQuery,
@@ -48,7 +48,8 @@ const schema = z.object({
     .or(z.literal(''))
     .optional(),
   status: z.enum(JOB_STATUSES),
-  jobType: z.enum(JOB_TYPES),
+  // No default: onsite was being recorded for remote roles nobody set it on.
+  jobType: z.enum(JOB_TYPES, { message: 'Pick a job type' }),
   discoverySource: z.enum(DISCOVERY_SOURCES).or(z.literal('')).optional(),
   applicationChannel: z.enum(APPLICATION_CHANNELS).or(z.literal('')).optional(),
   appliedAt: z.string().optional(),
@@ -126,7 +127,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
     resolver: zodResolver(schema),
     defaultValues: {
       status: 'APPLIED',
-      jobType: 'ONSITE',
       // The viewer's today. `toISOString()` here would prefill UTC's today —
       // yesterday, for anyone east of UTC before their local morning.
       appliedAt: todayInputValue(),
@@ -177,7 +177,6 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
             }
           : {
               status: 'APPLIED',
-              jobType: 'ONSITE',
               appliedAt: todayInputValue(),
               ...initialValues,
             },
@@ -409,15 +408,26 @@ export function JobForm({ open, onClose, job, initialValues }: JobFormProps) {
             </label>
             <select
               id="job-type"
-              className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
+              aria-invalid={!!errors.jobType}
+              aria-describedby={errors.jobType ? 'job-type-error' : undefined}
+              className={cn(
+                'h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink',
+                errors.jobType && 'border-danger',
+              )}
               {...register('jobType')}
             >
+              <option value="">Select…</option>
               {JOB_TYPES.map((t) => (
                 <option key={t} value={t}>
                   {JOB_TYPE_LABELS[t]}
                 </option>
               ))}
             </select>
+            {errors.jobType && (
+              <p id="job-type-error" className="text-xs text-danger">
+                {errors.jobType.message}
+              </p>
+            )}
           </div>
           <div className="flex flex-col gap-1">
             <label
