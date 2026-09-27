@@ -10,6 +10,7 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
 vi.mock('../../lib/api', () => ({ default: { get: vi.fn() } }));
 
 import api from '../../lib/api';
+import { useAuthStore } from '../../store/auth.store';
 
 function makeJob(overrides: Partial<Job>): Job {
   return {
@@ -56,6 +57,43 @@ describe('CommandPalette', () => {
         makeJob({ id: 'j-2', company: 'Vercel', status: 'APPLIED' }),
       ]),
     });
+  });
+
+  it('offers the Admin page to admins only', async () => {
+    renderPalette();
+    await openWithShortcut();
+    await screen.findByRole('option', { name: /Stripe/ });
+    expect(
+      screen.queryByRole('option', { name: /Admin/ }),
+    ).not.toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+
+    useAuthStore.setState({
+      user: { id: 'u-1', email: 'a@x.dev', name: 'Ada', role: 'ADMIN' },
+    });
+    await openWithShortcut();
+    expect(
+      await screen.findByRole('option', { name: /Admin/ }),
+    ).toBeInTheDocument();
+    useAuthStore.setState({ user: null });
+  });
+
+  it('labels the shortcut Ctrl off a Mac', () => {
+    renderPalette();
+    expect(screen.getByRole('button', { name: /search/i })).toHaveTextContent(
+      'Ctrl K',
+    );
+  });
+
+  it('labels the shortcut ⌘ on a Mac', () => {
+    const platform = vi
+      .spyOn(navigator, 'platform', 'get')
+      .mockReturnValue('MacIntel');
+    renderPalette();
+    expect(screen.getByRole('button', { name: /search/i })).toHaveTextContent(
+      '⌘ K',
+    );
+    platform.mockRestore();
   });
 
   it('does not search jobs until it is opened', () => {

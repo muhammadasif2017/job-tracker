@@ -1,30 +1,34 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import { useRouter } from 'next/navigation';
 import * as Dialog from '@radix-ui/react-dialog';
-import {
-  BarChart2,
-  Briefcase,
-  Building2,
-  CornerDownLeft,
-  Search,
-  User,
-  type LucideIcon,
-} from 'lucide-react';
+import { Briefcase, CornerDownLeft, Search } from 'lucide-react';
 import { StatusBadge } from '../ui/badge';
+import { navItemsFor } from './sidebar';
+import { useAuthStore } from '../../store/auth.store';
 import { useJobsQuery } from '../../features/jobs/hooks';
 import { cn } from '../../lib/utils';
 import { useDebounce } from '../../lib/use-debounce';
 import type { JobStatus } from '../../types';
 
-/** The app's pages, always offered and filtered by the typed text. */
-const PAGES: { label: string; href: string; icon: LucideIcon }[] = [
-  { label: 'Dashboard', href: '/', icon: BarChart2 },
-  { label: 'Jobs', href: '/jobs', icon: Briefcase },
-  { label: 'Companies', href: '/companies', icon: Building2 },
-  { label: 'Profile', href: '/profile', icon: User },
-];
+/** Never changes after load, so there is nothing to subscribe to. */
+function subscribeNever() {
+  return () => {};
+}
+
+/**
+ * The shortcut's modifier as the viewer's keyboard labels it. The server
+ * snapshot is 'Ctrl' so the first render matches the HTML; a Mac swaps in ⌘
+ * after hydration without a mismatch.
+ */
+function useModifierLabel(): string {
+  return useSyncExternalStore(
+    subscribeNever,
+    () => (/Mac|iPhone|iPad/.test(navigator.platform) ? '⌘' : 'Ctrl'),
+    () => 'Ctrl',
+  );
+}
 
 /** One row in the palette: a page or a job. */
 interface PaletteItem {
@@ -32,7 +36,7 @@ interface PaletteItem {
   href: string;
   label: string;
   hint?: string;
-  icon?: LucideIcon;
+  icon?: React.ComponentType<{ className?: string }>;
   status?: JobStatus;
 }
 
@@ -42,6 +46,7 @@ interface PaletteItem {
  */
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const modifier = useModifierLabel();
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -69,7 +74,7 @@ export function CommandPalette() {
         <Search className="h-3.5 w-3.5" aria-hidden="true" />
         <span>Search</span>
         <kbd className="hidden rounded-sm border border-line bg-paper px-1.5 font-mono text-[10px] sm:inline">
-          Ctrl K
+          {modifier} K
         </kbd>
       </button>
       <Dialog.Root open={open} onOpenChange={setOpen}>
@@ -96,6 +101,7 @@ interface PaletteBodyProps {
 /** Search box and keyboard-driven result list inside the palette. */
 function PaletteBody({ onNavigate }: PaletteBodyProps) {
   const router = useRouter();
+  const isAdmin = useAuthStore((s) => s.user?.role === 'ADMIN');
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const search = useDebounce(query.trim(), 200);
@@ -112,11 +118,15 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
   const pending = search !== query.trim();
   const needle = search.toLowerCase();
   const items: PaletteItem[] = [
-    ...PAGES.filter((p) => p.label.toLowerCase().includes(needle)).map((p) => ({
-      id: `page-${p.href}`,
-      ...p,
-      hint: 'Page',
-    })),
+    ...navItemsFor(isAdmin)
+      .filter((p) => p.label.toLowerCase().includes(needle))
+      .map((p) => ({
+        id: `page-${p.href}`,
+        href: p.href,
+        label: p.label,
+        icon: p.icon,
+        hint: 'Page',
+      })),
     ...(data?.data ?? []).map((job) => ({
       id: `job-${job.id}`,
       href: `/jobs/${job.id}`,

@@ -48,7 +48,7 @@
 
 ### `CommandPalette`
 
-`components/layout/command-palette.tsx`, mounted in the dashboard header. Ctrl/⌘+K (or the Search button) opens a Radix dialog that filters the four pages by the typed text and searches jobs through `useJobsQuery` — the same `['jobs', filters]` cache the list uses, so no new query key. The body mounts only while open, so nothing is fetched until the palette is used. Pages and jobs both filter on the debounced text, and Enter is ignored while a newer search is pending, so it never opens a result from the previous search. Arrow keys move the selection (wrapping), Enter or a click navigates. The shortcut does nothing while another dialog is open, so it cannot navigate away from a half-filled form.
+`components/layout/command-palette.tsx`, mounted in the dashboard header. Ctrl/⌘+K (or the Search button) opens a Radix dialog that filters the sidebar's pages (`navItemsFor`, so Admin shows for admins) by the typed text and searches jobs through `useJobsQuery` — the same `['jobs', filters]` cache the list uses, so no new query key. The body mounts only while open, so nothing is fetched until the palette is used. Pages and jobs both filter on the debounced text, and Enter is ignored while a newer search is pending, so it never opens a result from the previous search. Arrow keys move the selection (wrapping), Enter or a click navigates. The shortcut does nothing while another dialog is open, so it cannot navigate away from a half-filled form.
 
 ### `providers.tsx`
 

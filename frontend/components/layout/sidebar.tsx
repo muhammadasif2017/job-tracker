@@ -24,7 +24,7 @@ import {
  * straight to its first tab (/admin/users) but stays active on /admin/queues
  * too. Defaults to `href` everywhere else.
  */
-interface NavItem {
+export interface NavItem {
   href: string;
   label: string;
   icon: typeof IconDashboard;
@@ -32,12 +32,31 @@ interface NavItem {
 }
 
 /** Links every signed-in user sees; admins also get an Admin link. */
-const nav: NavItem[] = [
+const NAV_ITEMS: NavItem[] = [
   { href: '/', label: 'Dashboard', icon: IconDashboard },
   { href: '/jobs', label: 'Jobs', icon: IconJobs },
   { href: '/companies', label: 'Companies', icon: IconCompanies },
   { href: '/profile', label: 'Profile', icon: IconProfile },
 ];
+
+/**
+ * The app's pages for a user, admin link included when they are one. The
+ * sidebar and the command palette both read this, so a page added here shows
+ * up in both.
+ */
+export function navItemsFor(isAdmin: boolean): NavItem[] {
+  return isAdmin
+    ? [
+        ...NAV_ITEMS,
+        {
+          href: '/admin/users',
+          label: 'Admin',
+          icon: IconAdmin,
+          match: '/admin',
+        },
+      ]
+    : NAV_ITEMS;
+}
 
 /** Props for `Sidebar`. `isOpen` and `onClose` drive the mobile drawer. */
 interface SidebarProps {
@@ -53,17 +72,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === 'ADMIN';
-  const navItems = isAdmin
-    ? [
-        ...nav,
-        {
-          href: '/admin/users',
-          label: 'Admin',
-          icon: IconAdmin,
-          match: '/admin',
-        },
-      ]
-    : nav;
+  const navItems = navItemsFor(isAdmin);
 
   // A panel you have to remember to open only half-solves "no way to check" —
   // this badge is what makes a stranded company find the admin rather than the
