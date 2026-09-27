@@ -117,3 +117,32 @@ test.describe('Resume upload on a narrow viewport', () => {
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
   });
 });
+
+// ── Jobs list on a phone ─────────────────────────────────────────────────────
+
+test.describe('Jobs list on a phone', () => {
+  test('each row fits the screen with its actions reachable, no sideways scroll', async ({
+    page,
+  }) => {
+    const job = await createTestJob(user.accessToken, {
+      company: 'Phone Card Co',
+      position: 'A Rather Long Senior Platform Engineer Title',
+    });
+    await page.setViewportSize({ width: 375, height: 800 });
+    await injectAuth(page, user);
+    await page.goto('/jobs');
+
+    const edit = page.getByRole('button', { name: 'Edit Phone Card Co' });
+    await expect(edit).toBeInViewport();
+    await expect(page.getByText('Phone Card Co')).toBeInViewport();
+
+    const scrolls = await page
+      .locator('table')
+      .evaluate(
+        (t) => t.parentElement!.scrollWidth > t.parentElement!.clientWidth,
+      );
+    expect(scrolls).toBe(false);
+
+    await deleteTestJob(user.accessToken, job.id);
+  });
+});
