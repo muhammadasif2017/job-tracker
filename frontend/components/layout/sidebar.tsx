@@ -182,7 +182,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
           </div>
           <button
             onClick={handleLogout}
-            className="flex w-full items-center gap-3 rounded-md px-3 py-2 font-mono text-[13px] uppercase tracking-wide text-muted transition-colors hover:bg-paper-raised hover:text-ink"
+            className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-paper-raised hover:text-ink"
           >
             <IconSignOut className="h-4 w-4" />
             Sign out
