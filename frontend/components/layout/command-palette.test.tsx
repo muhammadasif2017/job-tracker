@@ -86,12 +86,45 @@ describe('CommandPalette', () => {
     ).toBeInTheDocument();
 
     fireEvent.change(input, { target: { value: 'comp' } });
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('option', { name: /Dashboard/ }),
+      ).not.toBeInTheDocument(),
+    );
     expect(
       screen.getByRole('option', { name: /Companies/ }),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByRole('option', { name: /Dashboard/ }),
-    ).not.toBeInTheDocument();
+  });
+
+  it('ignores Enter while a newer search is still pending', async () => {
+    renderPalette();
+    const input = await openWithShortcut();
+    await screen.findByRole('option', { name: /Stripe/ });
+    fireEvent.change(input, { target: { value: 'acme' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('does not open over another dialog', () => {
+    renderPalette();
+    const other = document.createElement('div');
+    other.setAttribute('role', 'dialog');
+    document.body.appendChild(other);
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true });
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    other.remove();
+  });
+
+  it('ignores keydown events that carry no key, as autofill sends', () => {
+    renderPalette();
+    // A plain Event, not a KeyboardEvent, so `key` is undefined. jsdom turns
+    // a listener that throws into a window `error` event, not a rethrow.
+    const errors = vi.fn();
+    window.addEventListener('error', errors);
+    const e = Object.assign(new Event('keydown'), { ctrlKey: true });
+    window.dispatchEvent(e);
+    window.removeEventListener('error', errors);
+    expect(errors).not.toHaveBeenCalled();
   });
 
   it('sends the typed text to the jobs search', async () => {

@@ -45,10 +45,15 @@ export function CommandPalette() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault();
-        setOpen((o) => !o);
-      }
+      // Autofill fires keydown events with no `key`.
+      if (!(e.metaKey || e.ctrlKey) || e.key?.toLowerCase() !== 'k') return;
+      e.preventDefault();
+      setOpen((o) => {
+        // Never open over another dialog: navigating away would drop
+        // whatever is half-typed in it.
+        if (!o && document.querySelector('[role="dialog"]')) return o;
+        return !o;
+      });
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -75,9 +80,7 @@ export function CommandPalette() {
             className="fixed left-1/2 top-[12vh] z-50 w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 overflow-hidden rounded-lg border border-line bg-paper shadow-2xl"
           >
             <Dialog.Title className="sr-only">Search</Dialog.Title>
-            {/* Mounted only while open, so the job search runs only then and
-                the typed text starts empty on every open. */}
-            {open && <PaletteBody onNavigate={() => setOpen(false)} />}
+            <PaletteBody onNavigate={() => setOpen(false)} />
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
@@ -104,7 +107,10 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
     dateTo: '',
   });
 
-  const needle = query.trim().toLowerCase();
+  // Pages and jobs both follow the debounced text, so the list is always one
+  // search's results; Enter waits while a newer search is still pending.
+  const pending = search !== query.trim();
+  const needle = search.toLowerCase();
   const items: PaletteItem[] = [
     ...PAGES.filter((p) => p.label.toLowerCase().includes(needle)).map((p) => ({
       id: `page-${p.href}`,
@@ -135,7 +141,7 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
       setActive((current - 1 + items.length) % Math.max(items.length, 1));
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      go(items[current]);
+      if (!pending) go(items[current]);
     }
   };
 
@@ -171,7 +177,7 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
         aria-label="Results"
         className="max-h-[50vh] overflow-y-auto p-2"
       >
-        {items.length === 0 && !isFetching && (
+        {items.length === 0 && !isFetching && !pending && (
           <li className="px-3 py-6 text-center text-sm text-muted-2">
             Nothing matches “{query.trim()}”.
           </li>
