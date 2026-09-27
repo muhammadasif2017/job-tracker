@@ -204,6 +204,27 @@ describe('JobsPage', () => {
   });
 
   describe('list rendering', () => {
+    it('drops job type, channel and location below md but keeps status and actions', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      expect(await screen.findByText('Acme')).toBeInTheDocument();
+      for (const h of ['Job Type', 'Channel', 'Location']) {
+        expect(screen.getByRole('columnheader', { name: h })).toHaveClass(
+          'hidden',
+          'md:table-cell',
+        );
+      }
+      for (const h of ['Company', 'Position', 'Status', 'Applied']) {
+        expect(screen.getByRole('columnheader', { name: h })).not.toHaveClass(
+          'hidden',
+        );
+      }
+      const row = screen
+        .getByRole('link', { name: 'Senior Engineer' })
+        .closest('tr')!;
+      expect(within(row).getByText('Austin, TX')).toHaveClass('hidden');
+    });
+
     it('renders job rows with company, position link, badges, date, and location', async () => {
       vi.mocked(api.get).mockResolvedValue({ data: page() });
       renderPage();
