@@ -31,9 +31,7 @@ export function StatsCard({
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-wide text-muted">
-          {label}
-        </p>
+        <p className="text-xs font-medium text-muted">{label}</p>
         <div className="text-muted-2">{icon}</div>
       </div>
       {loading ? (
@@ -41,7 +39,7 @@ export function StatsCard({
           <Skeleton className="mt-3 h-8 w-20" />
         </LoadingStatus>
       ) : (
-        <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink">
+        <p className="mt-3 font-display text-3xl font-semibold tracking-tight text-ink sm:text-4xl">
           {value}
         </p>
       )}

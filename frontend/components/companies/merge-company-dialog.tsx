@@ -231,7 +231,7 @@ export function MergeCompanyDialog({
                   key={field.key}
                   className="rounded-md border border-line p-3"
                 >
-                  <legend className="px-1 font-mono text-xs font-medium uppercase tracking-wide text-muted">
+                  <legend className="px-1 text-xs font-medium text-muted">
                     {field.label}
                   </legend>
                   <div className="space-y-1.5">

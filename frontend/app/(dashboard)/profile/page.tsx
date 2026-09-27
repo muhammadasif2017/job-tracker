@@ -170,9 +170,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Personal Info
-        </h2>
+        <h2 className="text-sm font-semibold text-ink">Personal Info</h2>
         <div className="flex items-center gap-4">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent-soft font-mono text-lg font-bold text-accent-ink">
             {user?.name?.charAt(0).toUpperCase()}
@@ -199,9 +197,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-          Email Notifications
-        </h2>
+        <h2 className="text-sm font-semibold text-ink">Email Notifications</h2>
         <form
           onSubmit={notificationsForm.handleSubmit((d) =>
             updateNotifications.mutate(d),
@@ -220,7 +216,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-1">
             <label
               htmlFor="digest-frequency"
-              className="font-mono text-xs font-medium uppercase tracking-wide text-muted"
+              className="text-xs font-medium text-muted"
             >
               Email digest
             </label>
@@ -260,9 +256,7 @@ export default function ProfilePage() {
 
       {user?.connectedProviders && user.connectedProviders.length > 0 && (
         <div className="rounded-md border border-line bg-paper p-5 space-y-3">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Connected Accounts
-          </h2>
+          <h2 className="text-sm font-semibold text-ink">Connected Accounts</h2>
           {['github'].map((provider) => {
             const connected = user.connectedProviders!.includes(provider);
             return (
@@ -284,9 +278,7 @@ export default function ProfilePage() {
 
       {hasPassword && (
         <div className="rounded-md border border-line bg-paper p-5 space-y-4">
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Change Password
-          </h2>
+          <h2 className="text-sm font-semibold text-ink">Change Password</h2>
           <form
             onSubmit={passwordForm.handleSubmit((d) =>
               changePassword.mutate(d),
@@ -321,7 +313,7 @@ export default function ProfilePage() {
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+            <h2 className="text-sm font-semibold text-ink">
               Personal access tokens
             </h2>
             <p className="text-sm text-muted">
@@ -375,9 +367,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="rounded-md border border-danger/40 bg-paper p-5 space-y-3">
-        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-danger">
-          Danger Zone
-        </h2>
+        <h2 className="text-sm font-semibold text-danger">Danger Zone</h2>
         <p className="text-sm text-muted">
           This will permanently delete your account and all job data.
         </p>

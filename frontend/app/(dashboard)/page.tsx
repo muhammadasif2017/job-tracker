@@ -161,7 +161,7 @@ export default function DashboardPage() {
         </ChartCard>
 
         <div className="rounded-md border border-line bg-paper p-5">
-          <h2 className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
+          <h2 className="mb-4 text-sm font-semibold text-ink">
             Recent Activity
           </h2>
           {recentLoading ? (

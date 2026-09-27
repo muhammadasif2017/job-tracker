@@ -176,9 +176,7 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
           className="h-12 flex-1 bg-transparent text-sm text-ink outline-none placeholder:text-muted-2"
         />
         {isFetching && (
-          <span className="font-mono text-[10px] uppercase tracking-wide text-muted-2">
-            Searching
-          </span>
+          <span className="text-xs text-muted font-medium">Searching</span>
         )}
       </div>
       <ul
@@ -212,7 +210,7 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
               {item.status ? (
                 <StatusBadge status={item.status} />
               ) : (
-                <span className="font-mono text-[10px] uppercase tracking-wide text-muted-2">
+                <span className="text-xs text-muted font-medium">
                   {item.hint}
                 </span>
               )}

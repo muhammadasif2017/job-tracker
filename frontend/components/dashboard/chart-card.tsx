@@ -21,9 +21,7 @@ export function ChartCard({
 }) {
   return (
     <div className="rounded-md border border-line bg-paper p-5">
-      <h2 className="mb-4 font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-        {title}
-      </h2>
+      <h2 className="mb-4 text-sm font-semibold text-ink">{title}</h2>
       {loading ? (
         <LoadingStatus label="Loading chart">
           <Skeleton className={skeletonClassName} />

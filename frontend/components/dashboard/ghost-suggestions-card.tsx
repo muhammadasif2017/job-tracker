@@ -40,9 +40,7 @@ export function GhostSuggestionsCard() {
     <div className="rounded-md border border-line bg-paper p-5">
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-wide text-muted">
-            Looks Ghosted
-          </h2>
+          <h2 className="text-sm font-semibold text-ink">Looks Ghosted</h2>
           <p className="mt-1 text-xs text-muted-2">No activity for 14+ days</p>
         </div>
         {count > 0 && (

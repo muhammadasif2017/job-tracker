@@ -17,7 +17,7 @@ export function CompanyApplicationStatsStrip({
 }) {
   return (
     <div className="rounded-md border border-line p-3">
-      <h3 className="mb-3 font-mono text-[11px] font-medium uppercase tracking-wide text-muted">
+      <h3 className="mb-3 text-sm font-semibold text-ink">
         Application history
       </h3>
 

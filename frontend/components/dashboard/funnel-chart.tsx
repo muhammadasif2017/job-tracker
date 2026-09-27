@@ -197,14 +197,12 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
 
       <div className="grid gap-4 text-sm sm:grid-cols-3">
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
-            Dropoff
-          </p>
+          <p className="mb-1 text-xs text-muted font-medium">Dropoff</p>
           <MiniBarChart data={dropoffData} valueLabel="Count" />
         </div>
 
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+          <p className="mb-1 text-xs text-muted font-medium">
             Avg. time in stage
           </p>
           {avgTimeData.length === 0 ? (
@@ -219,9 +217,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
         </div>
 
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
-            Time to reply
-          </p>
+          <p className="mb-1 text-xs text-muted font-medium">Time to reply</p>
           <ReplyTiming timing={data.replyTiming} />
         </div>
       </div>
@@ -230,7 +226,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
           glance: how you applied vs. where you found the job. */}
       <div className="grid gap-4 text-sm sm:grid-cols-2">
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+          <p className="mb-1 text-xs text-muted font-medium">
             Response rate by application channel
           </p>
           {responseRateData.length === 0 ? (
@@ -245,7 +241,7 @@ export function FunnelChart({ data }: { data: FunnelStats }) {
         </div>
 
         <div>
-          <p className="mb-1 font-mono text-[11px] uppercase tracking-wide text-muted">
+          <p className="mb-1 text-xs text-muted font-medium">
             Response rate by discovery source
           </p>
           {discoveryRateData.length === 0 ? (

@@ -142,7 +142,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                 onClick={onClose}
                 aria-current={active ? 'page' : undefined}
                 className={cn(
-                  'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 font-mono text-[13px] font-medium uppercase tracking-wide transition-colors',
+                  'relative flex items-center gap-3 rounded-md py-2 pl-3.5 pr-3 text-sm font-medium transition-colors',
                   active
                     ? 'bg-accent-soft text-accent-ink'
                     : 'text-muted hover:bg-paper-raised hover:text-ink',
