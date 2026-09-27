@@ -44,20 +44,40 @@ import {
 const MD_ONLY = 'hidden md:table-cell';
 
 /**
- * Jobs-table columns and their responsive class. Job type, channel and
- * location drop below md so a phone keeps the row's identity, status and
- * actions on screen; the header and the loading skeleton both read this.
+ * Jobs-table columns and each one's responsive class. Job type, channel and
+ * location drop below md. Below sm each row becomes a card (see `ROW_CARD`)
+ * and the rest take a named grid area in it. The header, the skeleton and the
+ * data rows all read this, so they cannot drift apart.
  */
 const COLUMNS = [
-  ['Company', ''],
-  ['Position', ''],
-  ['Status', ''],
+  ['Company', 'max-sm:[grid-area:co] max-sm:text-xs'],
+  ['Position', 'max-sm:[grid-area:pos]'],
+  ['Status', 'max-sm:[grid-area:st]'],
   ['Job Type', MD_ONLY],
   ['Channel', MD_ONLY],
-  ['Applied', ''],
+  ['Applied', 'max-sm:[grid-area:ap] max-sm:self-center max-sm:text-xs'],
   ['Location', MD_ONLY],
-  ['', ''],
+  ['', 'max-sm:[grid-area:act]'],
 ] as const;
+
+/** Header of a jobs-table column. */
+type ColumnName = (typeof COLUMNS)[number][0];
+
+/** Base padding plus the column's responsive class for one table cell. */
+function cellClass(column: ColumnName, extra?: string) {
+  return cn(
+    'px-4 py-3 max-sm:p-0',
+    COLUMNS.find(([h]) => h === column)![1],
+    extra,
+  );
+}
+
+/**
+ * Below sm a row is a card: position and actions on top, company under it,
+ * then status and the date. No horizontal scroll to reach the actions.
+ */
+const ROW_CARD =
+  "max-sm:grid max-sm:grid-cols-[auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'pos_pos_act'_'co_co_act'_'st_ap_ap']";
 
 /**
  * Jobs page (`/jobs`): filtered list or kanban board, with add, Quick Add,
@@ -227,15 +247,15 @@ export default function JobsPage() {
         <KanbanBoard onEdit={openEdit} filters={filters} />
       ) : (
         <div className="rounded-md border border-line bg-paper overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="border-b border-line bg-paper-raised">
+          <table className="w-full text-sm max-sm:block">
+            <thead className="border-b border-line bg-paper-raised max-sm:hidden">
               <tr>
-                {COLUMNS.map(([h, hide]) => (
+                {COLUMNS.map(([h, colClass]) => (
                   <th
                     key={h}
                     className={cn(
                       'px-4 py-3 text-left font-mono text-[11px] font-medium text-muted uppercase tracking-wide',
-                      hide,
+                      colClass,
                     )}
                   >
                     {h}
@@ -243,7 +263,10 @@ export default function JobsPage() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-line" aria-busy={isLoading}>
+            <tbody
+              className="divide-y divide-line max-sm:block"
+              aria-busy={isLoading}
+            >
               {isLoading ? (
                 <>
                   <tr>
@@ -252,9 +275,9 @@ export default function JobsPage() {
                     </td>
                   </tr>
                   {[...Array(5)].map((_, i) => (
-                    <tr key={i}>
-                      {COLUMNS.map(([h, hide]) => (
-                        <td key={h} className={cn('px-4 py-3', hide)}>
+                    <tr key={i} className={ROW_CARD}>
+                      {COLUMNS.map(([h]) => (
+                        <td key={h} className={cellClass(h)}>
                           <Skeleton className="h-4 w-full" />
                         </td>
                       ))}
@@ -293,10 +316,15 @@ export default function JobsPage() {
                 data?.data.map((job) => (
                   <tr
                     key={job.id}
-                    className="transition-colors hover:bg-paper-raised"
+                    className={cn(
+                      'transition-colors hover:bg-paper-raised',
+                      ROW_CARD,
+                    )}
                   >
-                    <td className="px-4 py-3 text-muted">{job.company}</td>
-                    <td className="px-4 py-3">
+                    <td className={cellClass('Company', 'text-muted')}>
+                      {job.company}
+                    </td>
+                    <td className={cellClass('Position')}>
                       <Link
                         href={`/jobs/${job.id}`}
                         className="font-medium text-ink hover:text-accent"
@@ -304,16 +332,16 @@ export default function JobsPage() {
                         {job.position}
                       </Link>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={cellClass('Status')}>
                       <div className="flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={job.status} />
                         <GhostBadge jobId={job.id} company={job.company} />
                       </div>
                     </td>
-                    <td className={cn('px-4 py-3', MD_ONLY)}>
+                    <td className={cellClass('Job Type')}>
                       <JobTypeBadge jobType={job.jobType} />
                     </td>
-                    <td className={cn('px-4 py-3', MD_ONLY)}>
+                    <td className={cellClass('Channel')}>
                       {job.applicationChannel ? (
                         <SourceBadge
                           kind="channel"
@@ -323,16 +351,21 @@ export default function JobsPage() {
                         <span className="text-muted">—</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-muted whitespace-nowrap">
+                    <td
+                      className={cellClass(
+                        'Applied',
+                        'text-muted whitespace-nowrap',
+                      )}
+                    >
                       {/* A wishlist job has not been applied to: its date is
                           when it was saved, re-stamped once it leaves WISHLIST. */}
                       {job.status === 'WISHLIST' && 'Saved '}
                       {formatCivilDate(job.appliedAt)}
                     </td>
-                    <td className={cn('px-4 py-3 text-muted', MD_ONLY)}>
+                    <td className={cellClass('Location', 'text-muted')}>
                       {job.location ?? '—'}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className={cellClass('')}>
                       <div className="flex items-center gap-1 justify-end">
                         {job.url && (
                           <a

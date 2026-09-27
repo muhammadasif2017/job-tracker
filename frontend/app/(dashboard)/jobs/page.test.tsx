@@ -242,6 +242,19 @@ describe('JobsPage', () => {
       expect(within(row).getByText('Austin, TX')).toHaveClass('hidden');
     });
 
+    it('lays each row out as a card below sm, with the header hidden', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      const row = (
+        await screen.findByRole('link', { name: 'Senior Engineer' })
+      ).closest('tr')!;
+      expect(row).toHaveClass('max-sm:grid');
+      expect(
+        within(row).getByRole('button', { name: 'Edit Acme' }).closest('td'),
+      ).toHaveClass('max-sm:[grid-area:act]');
+      expect(screen.getAllByRole('rowgroup')[0]).toHaveClass('max-sm:hidden');
+    });
+
     it('labels a wishlist row date as saved, not applied', async () => {
       vi.mocked(api.get).mockResolvedValue({
         data: page({ data: [{ ...jobs[0], status: 'WISHLIST' }] }),
