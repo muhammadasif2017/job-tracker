@@ -47,11 +47,18 @@ export function StatusBadge({ status, className }: BadgeProps) {
   return (
     <span
       className={cn(
-        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-        STATUS_COLORS[status],
+        'inline-flex items-center gap-1.5 rounded-sm border border-line/70 bg-paper-raised px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide text-ink',
         className,
       )}
     >
+      <span
+        aria-hidden="true"
+        data-testid="status-dot"
+        className={cn(
+          'h-1.5 w-1.5 shrink-0 rounded-full',
+          STATUS_COLORS[status],
+        )}
+      />
       {STATUS_LABELS[status]}
     </span>
   );
