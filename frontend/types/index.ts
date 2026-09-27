@@ -519,21 +519,26 @@ export const DERIVED_STATUS_LABELS: Partial<
   POSSIBLY_GHOSTED: 'Possibly ghosted',
 };
 
-/** Badge classes for the derived round statuses that get a badge. */
+/**
+ * Dot color class for the derived round statuses that get a badge, drawn like
+ * a job `StatusBadge` (neutral chip, colored dot) from the job status each one
+ * reads as: an upcoming round is interviewing, a round with no reply yet is
+ * waiting like an application, a silent one is ghosting.
+ */
 export const DERIVED_STATUS_COLORS: Partial<
   Record<InterviewRoundDerivedStatus, string>
 > = {
-  SCHEDULED:
-    'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  AWAITING_RESPONSE:
-    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  POSSIBLY_GHOSTED:
-    'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+  SCHEDULED: 'bg-status-interviewing',
+  AWAITING_RESPONSE: 'bg-status-applied',
+  POSSIBLY_GHOSTED: 'bg-status-ghosted',
 };
 
-// Two shapes for the same six status colors, because the consumers need
-// different things. Both resolve to the --status-* tokens in globals.css, so
-// they follow the theme; the old raw-hex map did not — it held the dark-mode
+// Three shapes for the same six status colors, because the consumers need
+// different things: a background class (STATUS_COLORS, for the badge dot), a
+// var() for inline styles (STATUS_DOT_VARS, for the board's column dot and
+// card border, and the chart legend) and a fill class (STATUS_FILL_CLASSES,
+// for SVG). All resolve to the --status-* tokens in globals.css, so they
+// follow the theme; the old raw-hex map did not — it held the dark-mode
 // values and rendered them unchanged in light mode, where several fell below
 // the 3:1 bar for a non-text UI element.
 
