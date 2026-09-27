@@ -95,7 +95,7 @@ describe('QuickAdd', () => {
 
   it('swaps to the job form pre-filled from the parsed result on success', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { company: 'Acme', position: 'Senior Engineer' },
+      data: { company: 'Acme', position: 'Senior Engineer', jobType: 'REMOTE' },
     });
     renderQuickAdd();
     fireEvent.change(
@@ -112,7 +112,7 @@ describe('QuickAdd', () => {
 
   it('shows the company history confirm when saving the parsed job', async () => {
     vi.mocked(api.post).mockResolvedValue({
-      data: { company: 'Acme', position: 'Senior Engineer' },
+      data: { company: 'Acme', position: 'Senior Engineer', jobType: 'REMOTE' },
     });
     vi.mocked(api.get).mockResolvedValue({
       data: {
