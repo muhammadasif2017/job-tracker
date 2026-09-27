@@ -10,10 +10,10 @@ import {
   CalendarDays,
   Ghost,
 } from 'lucide-react';
-import Link from 'next/link';
 import { AttentionCard } from '../../components/dashboard/attention-card';
 import { GhostSuggestionsCard } from '../../components/dashboard/ghost-suggestions-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
+import { WelcomeCard } from '../../components/dashboard/welcome-card';
 import { ChartCard } from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
@@ -101,6 +101,8 @@ export default function DashboardPage() {
         <DateRangeSelect value={range} onChange={setRange} />
       </div>
 
+      {recent?.data.length === 0 && <WelcomeCard />}
+
       <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-6">
         <StatsCard
           label="Applications Sent"
@@ -173,14 +175,10 @@ export default function DashboardPage() {
           ) : recentError && !recent ? (
             <p className="text-sm text-danger">Failed to load recent jobs.</p>
           ) : recent?.data.length === 0 ? (
+            // No link here: WelcomeCard, shown whenever this list is empty,
+            // already leads with adding the first job.
             <div className="flex flex-col items-center py-8 text-center">
               <p className="text-sm text-muted-2">No jobs tracked yet.</p>
-              <Link
-                href="/jobs"
-                className="mt-2 text-sm font-medium text-accent hover:underline"
-              >
-                Add your first application →
-              </Link>
             </div>
           ) : (
             <ul className="space-y-3">
