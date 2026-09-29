@@ -35,4 +35,13 @@ describe('TimezoneField', () => {
     );
     expect(onUseBrowserTimezone).toHaveBeenCalledWith(browserTz);
   });
+
+  it('keeps the use-my-timezone link inline with the hint text', () => {
+    render(<Harness onUseBrowserTimezone={vi.fn()} />);
+    const link = screen.getByRole('button', { name: /use my timezone/i });
+    expect(link.parentElement).toHaveTextContent(
+      /^Used to time interview reminder and digest emails\. Use my timezone/,
+    );
+    expect(link.parentElement!.tagName).toBe('P');
+  });
 });

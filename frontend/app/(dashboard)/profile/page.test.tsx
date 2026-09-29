@@ -99,6 +99,30 @@ describe('ProfilePage', () => {
     });
   });
 
+  describe('card layout', () => {
+    it('titles the tokens card in the same Title Case as the other cards', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: profile });
+      renderPage();
+      expect(
+        await screen.findByRole('heading', { name: 'Personal Access Tokens' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('heading', { name: 'Personal Info' }),
+      ).toBeInTheDocument();
+    });
+
+    it('draws Generate token as a secondary button, keeping filled buttons for saves', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: profile });
+      renderPage();
+      expect(
+        await screen.findByRole('button', { name: 'Generate token' }),
+      ).toHaveClass('bg-paper-raised');
+      expect(
+        screen.getByRole('button', { name: /save changes/i }),
+      ).not.toHaveClass('bg-paper-raised');
+    });
+  });
+
   describe('personal info', () => {
     it('renders the fetched profile and enables the name field', async () => {
       vi.mocked(api.get).mockResolvedValue({ data: profile });
