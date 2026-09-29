@@ -6,12 +6,58 @@ import { Search, Trash2 } from 'lucide-react';
 import { Button } from '../../../../components/ui/button';
 import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
+import { RoleBadge } from '../../../../components/ui/badge';
 import { formatDateTime, cn } from '../../../../lib/utils';
 import type { AdminUser } from '../../../../types';
 import {
   useAdminUsersQuery,
   useDeleteAdminUserMutation,
 } from '../../../../features/admin/hooks';
+
+/**
+ * Users-table columns and each one's responsive class. Below sm each row
+ * becomes a card (see `ROW_CARD`) and every column takes a named grid area in
+ * it. The header, the skeleton and the data rows all read this, so they cannot
+ * drift apart — the same shape as the jobs list (#471).
+ */
+const COLUMNS = [
+  ['Name', 'max-sm:[grid-area:nm] max-sm:min-w-0'],
+  ['Email', 'max-sm:[grid-area:em] max-sm:min-w-0 max-sm:text-xs'],
+  ['Role', 'max-sm:[grid-area:rl]'],
+  ['Jobs', 'max-sm:[grid-area:jb] max-sm:self-center max-sm:text-xs'],
+  ['Joined', 'max-sm:[grid-area:jn] max-sm:self-center max-sm:text-xs'],
+  ['', 'max-sm:[grid-area:act]'],
+] as const;
+
+/** Header of a users-table column. */
+type ColumnName = (typeof COLUMNS)[number][0];
+
+/** Base padding plus the column's responsive class for one table cell. */
+function cellClass(column: ColumnName, extra?: string) {
+  return cn(
+    'px-4 py-3 max-sm:p-0',
+    COLUMNS.find(([h]) => h === column)![1],
+    extra,
+  );
+}
+
+/**
+ * Below sm a row is a card: name and delete on top, email under it, then
+ * role, job count and join date. No horizontal scroll to reach delete.
+ */
+const ROW_CARD =
+  "max-sm:grid max-sm:grid-cols-[auto_auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'nm_nm_nm_act'_'em_em_em_act'_'rl_jb_jn_jn']";
+
+/**
+ * The header's count line. Under a search `meta.total` counts the matches,
+ * not the install, so it says so.
+ */
+function userCount(total: number, searching: boolean) {
+  const noun = total === 1 ? 'user' : 'users';
+  return searching
+    ? `${total} matching ${noun}`
+    : `${total} registered ${noun}`;
+}
 
 /**
  * Admin users page (`/admin/users`): searchable, paginated user list with
@@ -39,10 +85,12 @@ export default function AdminUsersPage() {
         <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
           Admin — Users
         </h1>
-        <p className="text-sm text-muted">
+        {/* Nothing until the count is known: a "0 registered users" flash
+            while loading reads as an empty install. */}
+        <p className="min-h-5 text-sm text-muted">
           {isError && !data
             ? 'Failed to load'
-            : `${data?.meta.total ?? 0} registered users`}
+            : data && userCount(data.meta.total, !!debouncedSearch)}
         </p>
       </div>
 
@@ -61,11 +109,17 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line bg-paper-raised">
-            <tr>
-              {['Name', 'Email', 'Role', 'Jobs', 'Joined', ''].map((h) => (
+        {/* Explicit roles: the display:block below sm would otherwise drop the
+            table semantics in Chrome and Safari. */}
+        <table role="table" className="w-full text-sm max-sm:block">
+          <thead
+            role="rowgroup"
+            className="border-b border-line bg-paper-raised max-sm:hidden"
+          >
+            <tr role="row">
+              {COLUMNS.map(([h]) => (
                 <th
+                  role="columnheader"
                   key={h}
                   className="px-4 py-3 text-left text-xs font-medium text-muted"
                 >
@@ -74,27 +128,39 @@ export default function AdminUsersPage() {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-line" aria-busy={isLoading}>
+          <tbody
+            role="rowgroup"
+            className="divide-y divide-line max-sm:block"
+            aria-busy={isLoading}
+          >
             {isLoading ? (
               <>
-                <tr>
+                <tr role="row">
                   <td colSpan={6} className="sr-only" role="status">
                     Loading users
                   </td>
                 </tr>
                 {[...Array(5)].map((_, i) => (
-                  <tr key={i}>
-                    {[...Array(6)].map((_, j) => (
-                      <td key={j} className="px-4 py-3">
-                        <Skeleton className="h-4 w-full" />
+                  <tr role="row" key={i} className={ROW_CARD}>
+                    {COLUMNS.map(([h]) => (
+                      <td role="cell" key={h} className={cellClass(h)}>
+                        {/* The card's auto tracks size to content, and a
+                            skeleton bar has none: give it a floor. */}
+                        <Skeleton className="h-4 w-full max-sm:min-w-12" />
                       </td>
                     ))}
                   </tr>
                 ))}
               </>
             ) : isError && !data ? (
-              <tr>
-                <td colSpan={6} className="py-16 text-center">
+              // Block below sm, like the cards: a lone table-row inside the
+              // block tbody shrinks to its content and loses the centering.
+              <tr role="row" className="max-sm:block">
+                <td
+                  role="cell"
+                  colSpan={6}
+                  className="py-16 text-center max-sm:block"
+                >
                   <p className="text-base font-medium text-danger">
                     Failed to load users
                   </p>
@@ -112,36 +178,66 @@ export default function AdminUsersPage() {
                 </td>
               </tr>
             ) : data?.data.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="py-16 text-center text-muted-2">
+              <tr role="row" className="max-sm:block">
+                <td
+                  role="cell"
+                  colSpan={6}
+                  className="py-16 text-center text-muted-2 max-sm:block"
+                >
                   <p className="text-base font-medium">No users found</p>
                 </td>
               </tr>
             ) : (
               data?.data.map((u) => (
                 <tr
+                  role="row"
                   key={u.id}
-                  className="transition-colors hover:bg-paper-raised"
+                  className={cn(
+                    'transition-colors hover:bg-paper-raised',
+                    ROW_CARD,
+                  )}
                 >
-                  <td className="px-4 py-3 font-medium text-ink">{u.name}</td>
-                  <td className="px-4 py-3 text-muted">{u.email}</td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        'inline-flex items-center rounded-sm border border-line/70 px-2 py-0.5 font-mono text-[11px] font-medium uppercase tracking-wide',
-                        u.role === 'ADMIN'
-                          ? 'bg-accent-soft text-accent-ink'
-                          : 'bg-paper-raised text-muted',
-                      )}
-                    >
-                      {u.role}
+                  <td
+                    role="cell"
+                    className={cellClass(
+                      'Name',
+                      'font-medium text-ink [overflow-wrap:anywhere]',
+                    )}
+                  >
+                    {u.name}
+                  </td>
+                  {/* An email has no spaces to wrap at; without anywhere-wrap
+                      a long one pushes the card past a phone's width. */}
+                  <td
+                    role="cell"
+                    className={cellClass(
+                      'Email',
+                      'text-muted [overflow-wrap:anywhere]',
+                    )}
+                  >
+                    {u.email}
+                  </td>
+                  <td role="cell" className={cellClass('Role')}>
+                    <RoleBadge role={u.role} />
+                  </td>
+                  <td role="cell" className={cellClass('Jobs', 'text-muted')}>
+                    <span>{u.jobCount}</span>
+                    {/* The card hides the header, so a bare count needs its
+                        unit. */}
+                    <span className="sm:hidden">
+                      {u.jobCount === 1 ? ' job' : ' jobs'}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-muted">{u.jobCount}</td>
-                  <td className="px-4 py-3 text-muted whitespace-nowrap">
+                  <td
+                    role="cell"
+                    className={cellClass(
+                      'Joined',
+                      'text-muted whitespace-nowrap',
+                    )}
+                  >
                     {formatDateTime(u.createdAt)}
                   </td>
-                  <td className="px-4 py-3">
+                  <td role="cell" className={cellClass('')}>
                     <div className="flex items-center justify-end">
                       <button
                         onClick={() => setDeleteTarget(u)}

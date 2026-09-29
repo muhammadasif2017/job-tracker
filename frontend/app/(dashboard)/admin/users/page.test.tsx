@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AdminUsersPage from './page';
 import { formatDateTime } from '../../../../lib/utils';
@@ -90,6 +96,12 @@ describe('AdminUsersPage', () => {
         container.querySelectorAll('.animate-pulse').length,
       ).toBeGreaterThan(0);
     });
+
+    it('shows no user count until the count is known', () => {
+      vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+      renderPage();
+      expect(screen.queryByText(/registered user/)).not.toBeInTheDocument();
+    });
   });
 
   describe('empty state', () => {
@@ -122,14 +134,84 @@ describe('AdminUsersPage', () => {
       renderPage();
       expect(await screen.findByText('Jane Doe')).toBeInTheDocument();
       expect(screen.getByText('jane@example.com')).toBeInTheDocument();
-      expect(screen.getByText('ADMIN')).toBeInTheDocument();
+      expect(screen.getByText('Admin')).toBeInTheDocument();
       expect(screen.getByText('12')).toBeInTheDocument();
       expect(
         screen.getByText(formatDateTime('2026-06-01T00:00:00Z')),
       ).toBeInTheDocument();
       expect(screen.getByText('Bob Smith')).toBeInTheDocument();
-      expect(screen.getByText('USER')).toBeInTheDocument();
+      expect(screen.getByText('User')).toBeInTheDocument();
       expect(screen.getByText('2 registered users')).toBeInTheDocument();
+    });
+
+    it('counts a single user in the singular', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({
+          data: [users[0]],
+          meta: { total: 1, page: 1, limit: 10, totalPages: 1 },
+        }),
+      });
+      renderPage();
+      expect(await screen.findByText('1 registered user')).toBeInTheDocument();
+    });
+
+    it('counts matches, not the install, while a search is active', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      await screen.findByText('2 registered users');
+      fireEvent.change(screen.getByLabelText('Search users'), {
+        target: { value: 'jane' },
+      });
+      expect(await screen.findByText('2 matching users')).toBeInTheDocument();
+    });
+
+    it('keeps the empty-state row a block below sm, so its text stays centered', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({
+          data: [],
+          meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+        }),
+      });
+      renderPage();
+      const cell = (await screen.findByText('No users found')).closest('td')!;
+      expect(cell).toHaveClass('max-sm:block');
+      expect(cell.closest('tr')).toHaveClass('max-sm:block');
+    });
+
+    it('lets a long name wrap inside the card instead of widening it', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      expect(await screen.findByText('Jane Doe')).toHaveClass(
+        'max-sm:min-w-0',
+        '[overflow-wrap:anywhere]',
+      );
+    });
+
+    it('lays each row out as a card below sm, with the header hidden', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      const row = (await screen.findByText('Jane Doe')).closest('tr')!;
+      expect(row).toHaveClass('max-sm:grid');
+      expect(
+        within(row)
+          .getByRole('button', { name: 'Delete jane@example.com' })
+          .closest('td'),
+      ).toHaveClass('max-sm:[grid-area:act]');
+      expect(within(row).getByText('jane@example.com')).toHaveClass(
+        '[overflow-wrap:anywhere]',
+      );
+      expect(screen.getAllByRole('rowgroup')[0]).toHaveClass('max-sm:hidden');
+    });
+
+    it('states the table roles explicitly, since the card layout sets display:block', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      const row = (await screen.findByText('Jane Doe')).closest('tr')!;
+      expect(screen.getByRole('table')).toHaveAttribute('role', 'table');
+      expect(row).toHaveAttribute('role', 'row');
+      row
+        .querySelectorAll('td')
+        .forEach((td) => expect(td).toHaveAttribute('role', 'cell'));
     });
   });
 

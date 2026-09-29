@@ -7,7 +7,16 @@ import {
   SourceBadge,
   EnrichmentStatusBadge,
   CircuitStateBadge,
+  RoleBadge,
 } from './badge';
+
+describe('RoleBadge', () => {
+  it('renders the role label on the shared neutral chip, with no dot', () => {
+    render(<RoleBadge role="ADMIN" />);
+    expect(screen.getByText('Admin')).toHaveClass('bg-paper-raised');
+    expect(screen.queryByTestId('badge-dot')).not.toBeInTheDocument();
+  });
+});
 
 describe('CircuitStateBadge', () => {
   it('marks an open circuit with a danger dot', () => {
