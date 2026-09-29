@@ -86,10 +86,22 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-          Admin — Users
-        </h1>
+      {/* The section title is the layout's; the count sits beside the search
+          it describes. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
+          <input
+            aria-label="Search users"
+            className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+            placeholder="Search name or email…"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+          />
+        </div>
         {/* Nothing until the count is known: a "0 registered users" flash
             while loading reads as an empty install. */}
         <p className="min-h-5 text-sm text-muted">
@@ -97,20 +109,6 @@ export default function AdminUsersPage() {
             ? 'Failed to load'
             : data && userCount(data.meta.total, !!debouncedSearch)}
         </p>
-      </div>
-
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
-        <input
-          aria-label="Search users"
-          className="h-9 w-full rounded-md border border-line bg-paper pl-9 pr-3 text-sm text-ink placeholder:text-muted-2 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-          placeholder="Search name or email…"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-        />
       </div>
 
       <div className="rounded-md border border-line bg-paper overflow-x-auto">

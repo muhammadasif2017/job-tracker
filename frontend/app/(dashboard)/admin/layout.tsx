@@ -19,7 +19,9 @@ const TABS = [
 ];
 
 /**
- * Admin section shell: page tabs above the active admin page. Non-admins never
+ * Admin section shell: the section title, then page tabs above the active
+ * admin page. The title lives here, once, so the pages under it do not each
+ * repeat "Admin —" beside a tab that already names them. Non-admins never
  * reach it; `proxy.ts` redirects them.
  */
 export default function AdminLayout({
@@ -31,6 +33,15 @@ export default function AdminLayout({
 
   return (
     <div className="space-y-5">
+      <div>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
+          Admin
+        </h1>
+        <p className="text-sm text-muted">
+          Who is on this install, and whether background work is moving
+        </p>
+      </div>
+
       <nav aria-label="Admin sections" className="border-b border-line">
         <ul className="-mb-px flex gap-1">
           {TABS.map(({ href, label }) => {
