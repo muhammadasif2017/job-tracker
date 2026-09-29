@@ -320,10 +320,11 @@ export default function ProfilePage() {
               Used by the browser extension to import job postings.
             </p>
           </div>
-          {/* Secondary: it opens a dialog rather than saving the card, and
-              the page keeps the filled buttons for the save actions. */}
+          {/* Filled only while there are no tokens: that is the step the
+              extension popup sends people here for. Once one exists it steps
+              back to secondary and leaves the filled buttons to the saves. */}
           <Button
-            variant="secondary"
+            variant={tokens?.length ? 'secondary' : 'primary'}
             size="sm"
             className="self-start whitespace-nowrap sm:self-auto sm:shrink-0"
             onClick={() => setTokenModalOpen(true)}
@@ -425,7 +426,7 @@ export default function ProfilePage() {
       <Modal
         open={tokenModalOpen}
         onClose={closeTokenModal}
-        title={createdToken ? 'Token created' : 'Generate access token'}
+        title={createdToken ? 'Token Created' : 'Generate Access Token'}
         description={
           createdToken
             ? "Copy this now — it won't be shown again."

@@ -191,13 +191,13 @@ test.describe('Profile page', () => {
 
     const modal = page.getByRole('dialog');
     await expect(
-      modal.getByRole('heading', { name: 'Generate access token' }),
+      modal.getByRole('heading', { name: 'Generate Access Token' }),
     ).toBeVisible();
     await modal.getByLabel('Name').fill('E2E extension token');
     await modal.getByRole('button', { name: 'Generate' }).click();
 
     await expect(
-      modal.getByRole('heading', { name: 'Token created' }),
+      modal.getByRole('heading', { name: 'Token Created' }),
     ).toBeVisible();
     const tokenCode = modal.locator('code');
     await expect(tokenCode).toContainText(/^jt_pat_/);
@@ -237,7 +237,7 @@ test.describe('Profile page', () => {
     await expect(modal.getByText('Required')).toBeVisible();
     // Still on the name form, not the one-time reveal - nothing was created.
     await expect(
-      modal.getByRole('heading', { name: 'Generate access token' }),
+      modal.getByRole('heading', { name: 'Generate Access Token' }),
     ).toBeVisible();
   });
 

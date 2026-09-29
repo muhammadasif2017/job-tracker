@@ -111,15 +111,39 @@ describe('ProfilePage', () => {
       ).toBeInTheDocument();
     });
 
-    it('draws Generate token as a secondary button, keeping filled buttons for saves', async () => {
-      vi.mocked(api.get).mockResolvedValue({ data: profile });
+    it('fills Generate token while there are no tokens, the step the extension sends people here for', async () => {
+      vi.mocked(api.get).mockImplementation((url: string) =>
+        Promise.resolve({ data: url === '/tokens' ? [] : profile }),
+      );
       renderPage();
+      expect(await screen.findByText('No tokens yet.')).toBeInTheDocument();
       expect(
-        await screen.findByRole('button', { name: 'Generate token' }),
-      ).toHaveClass('bg-paper-raised');
-      expect(
-        screen.getByRole('button', { name: /save changes/i }),
+        screen.getByRole('button', { name: 'Generate token' }),
       ).not.toHaveClass('bg-paper-raised');
+    });
+
+    it('steps Generate token back to secondary once a token exists', async () => {
+      vi.mocked(api.get).mockImplementation((url: string) =>
+        Promise.resolve({
+          data:
+            url === '/tokens'
+              ? [
+                  {
+                    id: 't-1',
+                    name: 'Laptop',
+                    createdAt: '2026-09-01T00:00:00Z',
+                    lastUsedAt: null,
+                    expiresAt: '2026-12-01T00:00:00Z',
+                  },
+                ]
+              : profile,
+        }),
+      );
+      renderPage();
+      expect(await screen.findByText('Laptop')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Generate token' }),
+      ).toHaveClass('bg-paper-raised');
     });
   });
 
