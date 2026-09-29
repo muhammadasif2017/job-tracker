@@ -204,6 +204,36 @@ describe('JobsPage', () => {
       renderPage();
       expect(await screen.findByText('No jobs found')).toBeInTheDocument();
     });
+
+    it('keeps the empty-state row a block below sm, so its text stays centered', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({
+          data: [],
+          meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+        }),
+      });
+      renderPage();
+      const row = (await screen.findByText('No jobs found')).closest('tr')!;
+      expect(row).toHaveClass('max-sm:block');
+      expect(row).toHaveClass('max-sm:*:block');
+    });
+
+    it('keeps the error row a block below sm, and floors the skeleton bars in the card', async () => {
+      vi.mocked(api.get).mockRejectedValue(new Error('network down'));
+      renderPage();
+      const row = (await screen.findByText('Failed to load jobs')).closest(
+        'tr',
+      )!;
+      expect(row).toHaveClass('max-sm:block', 'max-sm:*:block');
+    });
+
+    it('gives each loading skeleton bar a minimum width inside the phone card', () => {
+      vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+      renderPage();
+      const bars = document.body.querySelectorAll('tbody .animate-pulse');
+      expect(bars.length).toBeGreaterThan(0);
+      bars.forEach((bar) => expect(bar).toHaveClass('max-sm:min-w-12'));
+    });
   });
 
   describe('error state', () => {
