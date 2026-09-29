@@ -1,4 +1,9 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useQuery,
+  useMutation,
+  useQueryClient,
+} from '@tanstack/react-query';
 import { toast } from 'sonner';
 import api, { getErrorMessage } from '../../lib/api';
 import type {
@@ -13,7 +18,10 @@ export interface AdminUsersFilters {
   search: string;
 }
 
-/** One page of the admin user list. */
+/**
+ * One page of the admin user list. Keeps the previous page on screen while the
+ * next one loads, so the count and the pager do not blank out between clicks.
+ */
 export function useAdminUsersQuery(filters: AdminUsersFilters) {
   const params = new URLSearchParams({
     page: String(filters.page),
@@ -24,6 +32,7 @@ export function useAdminUsersQuery(filters: AdminUsersFilters) {
   return useQuery<PaginatedAdminUsers>({
     queryKey: ['admin-users', filters],
     queryFn: () => api.get(`/admin/users?${params}`).then((r) => r.data),
+    placeholderData: keepPreviousData,
   });
 }
 

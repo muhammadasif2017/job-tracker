@@ -6,7 +6,16 @@ import {
   JobTypeBadge,
   SourceBadge,
   EnrichmentStatusBadge,
+  RoleBadge,
 } from './badge';
+
+describe('RoleBadge', () => {
+  it('renders the role label on the shared neutral chip, with no dot', () => {
+    render(<RoleBadge role="ADMIN" />);
+    expect(screen.getByText('Admin')).toHaveClass('bg-paper-raised');
+    expect(screen.queryByTestId('badge-dot')).not.toBeInTheDocument();
+  });
+});
 
 describe('StatusBadge', () => {
   it('renders the human-readable label for a status', () => {
