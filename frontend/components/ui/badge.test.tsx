@@ -6,7 +6,22 @@ import {
   JobTypeBadge,
   SourceBadge,
   EnrichmentStatusBadge,
+  CircuitStateBadge,
 } from './badge';
+
+describe('CircuitStateBadge', () => {
+  it('marks an open circuit with a danger dot', () => {
+    render(<CircuitStateBadge state="open" />);
+    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-dot')).toHaveClass('bg-danger');
+  });
+
+  it('marks a half-open circuit with a warning dot', () => {
+    render(<CircuitStateBadge state="half-open" />);
+    expect(screen.getByText('Half-open')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-dot')).toHaveClass('bg-warning');
+  });
+});
 
 describe('StatusBadge', () => {
   it('renders the human-readable label for a status', () => {

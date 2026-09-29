@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { QueueHealthPanel } from './queue-health-panel';
 import type { QueueObservability, QueueSnapshot } from '../../types';
@@ -129,6 +135,39 @@ describe('QueueHealthPanel', () => {
     expect(row).toHaveTextContent('Calls pass through.');
   });
 
+  it('draws the circuit state on the shared chip, with a success dot when closed', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+
+    const row = (await screen.findByText('Groq')).closest('li')!;
+    expect(within(row).getByText('Closed')).toHaveClass('bg-paper-raised');
+    expect(within(row).getByTestId('badge-dot')).toHaveClass('bg-success');
+  });
+
+  it('keeps the mono queue name whole, dropping it to its own line when narrow', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+
+    const name = await screen.findByText('company-target-enrichment');
+    expect(name).toHaveClass('truncate', 'max-w-full');
+    expect(name).toHaveAttribute('title', 'company-target-enrichment');
+    expect(name.parentElement).toHaveClass('flex-wrap');
+  });
+
+  it('sizes the queue and database count grids on their card, three then five across', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+
+    const grids = [
+      (await screen.findByText('Company enrichment')).parentElement!
+        .parentElement,
+      screen.getByText('Company enrichment status (database)').parentElement,
+    ].map((card) => card!.querySelector('dl'));
+    grids.forEach((dl) =>
+      expect(dl).toHaveClass('grid-cols-3', '@[19rem]:grid-cols-5'),
+    );
+  });
+
   it('shows an open circuit with the clock time of its trial call, fixed at receipt', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-09-25T10:00:00'));
@@ -155,6 +194,9 @@ describe('QueueHealthPanel', () => {
         second: '2-digit',
       });
       expect(row).toHaveTextContent(`trial call from ${expected}`);
+      expect(within(row!).getByText(/trial call from/)).toHaveClass(
+        'text-danger',
+      );
     } finally {
       vi.useRealTimers();
     }
