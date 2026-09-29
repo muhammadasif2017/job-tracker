@@ -19,4 +19,17 @@ describe('makeCellClass', () => {
   it('looks up the unnamed actions column like any other', () => {
     expect(cellClass('')).toBe('px-4 py-3 max-sm:p-0 max-sm:[grid-area:act]');
   });
+
+  it('throws on a column it does not know, instead of dropping its grid area', () => {
+    const loose = makeCellClass(
+      COLUMNS as readonly (readonly [string, string])[],
+    );
+    expect(() => loose('Emial')).toThrow('Unknown column "Emial"');
+  });
+
+  it('returns the column merged class alone when no extras are given', () => {
+    expect(cellClass('Name')).toBe(
+      'px-4 py-3 max-sm:p-0 max-sm:[grid-area:nm]',
+    );
+  });
 });

@@ -9,9 +9,12 @@ import { Skeleton } from '../../../../components/ui/skeleton';
 import { RoleBadge } from '../../../../components/ui/badge';
 import { formatDateTime, cn } from '../../../../lib/utils';
 import {
+  CARD_BODY,
   CARD_FULL_ROW,
+  CARD_HEAD,
   CARD_ROW,
   CARD_SKELETON,
+  CARD_TABLE,
   makeCellClass,
 } from '../../../../lib/responsive-table';
 import type { AdminUser } from '../../../../types';
@@ -35,7 +38,10 @@ const COLUMNS = [
   ['', 'max-sm:[grid-area:act]'],
 ] as const;
 
-/** Class for one users-table cell. */
+/**
+ * A users-table cell's class: padding that drops away inside the phone card,
+ * then the column's grid area or breakpoint.
+ */
 const cellClass = makeCellClass(COLUMNS);
 
 /**
@@ -108,19 +114,20 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper overflow-x-auto">
-        {/* Explicit roles: the display:block below sm would otherwise drop the
-            table semantics in Chrome and Safari. */}
-        <table role="table" className="w-full text-sm max-sm:block">
+        <table role="table" className={cn('w-full text-sm', CARD_TABLE)}>
           <thead
             role="rowgroup"
-            className="border-b border-line bg-paper-raised max-sm:hidden"
+            className={cn('border-b border-line bg-paper-raised', CARD_HEAD)}
           >
             <tr role="row">
-              {COLUMNS.map(([h]) => (
+              {COLUMNS.map(([h, colClass]) => (
                 <th
                   role="columnheader"
                   key={h}
-                  className="px-4 py-3 text-left text-xs font-medium text-muted"
+                  className={cn(
+                    'px-4 py-3 text-left text-xs font-medium text-muted',
+                    colClass,
+                  )}
                 >
                   {h}
                 </th>
@@ -129,7 +136,7 @@ export default function AdminUsersPage() {
           </thead>
           <tbody
             role="rowgroup"
-            className="divide-y divide-line max-sm:block"
+            className={cn('divide-y divide-line', CARD_BODY)}
             aria-busy={isLoading}
           >
             {isLoading ? (
@@ -151,11 +158,7 @@ export default function AdminUsersPage() {
               </>
             ) : isError && !data ? (
               <tr role="row" className={CARD_FULL_ROW}>
-                <td
-                  role="cell"
-                  colSpan={6}
-                  className={cn('py-16 text-center', CARD_FULL_ROW)}
-                >
+                <td role="cell" colSpan={6} className="py-16 text-center">
                   <p className="text-base font-medium text-danger">
                     Failed to load users
                   </p>
@@ -177,10 +180,7 @@ export default function AdminUsersPage() {
                 <td
                   role="cell"
                   colSpan={6}
-                  className={cn(
-                    'py-16 text-center text-muted-2',
-                    CARD_FULL_ROW,
-                  )}
+                  className="py-16 text-center text-muted-2"
                 >
                   <p className="text-base font-medium">No users found</p>
                 </td>
