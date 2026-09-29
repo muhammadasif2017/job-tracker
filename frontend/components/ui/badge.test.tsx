@@ -6,6 +6,7 @@ import {
   JobTypeBadge,
   SourceBadge,
   EnrichmentStatusBadge,
+  CircuitStateBadge,
   RoleBadge,
 } from './badge';
 
@@ -14,6 +15,20 @@ describe('RoleBadge', () => {
     render(<RoleBadge role="ADMIN" />);
     expect(screen.getByText('Admin')).toHaveClass('bg-paper-raised');
     expect(screen.queryByTestId('badge-dot')).not.toBeInTheDocument();
+  });
+});
+
+describe('CircuitStateBadge', () => {
+  it('marks an open circuit with a danger dot', () => {
+    render(<CircuitStateBadge state="open" />);
+    expect(screen.getByText('Open')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-dot')).toHaveClass('bg-danger');
+  });
+
+  it('marks a half-open circuit with a warning dot', () => {
+    render(<CircuitStateBadge state="half-open" />);
+    expect(screen.getByText('Half-open')).toBeInTheDocument();
+    expect(screen.getByTestId('badge-dot')).toHaveClass('bg-warning');
   });
 });
 
