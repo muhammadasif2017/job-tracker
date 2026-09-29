@@ -115,23 +115,23 @@ dark-mode row involving a tint is an approximation, not a measurement of the ren
 ### 2.2 Remaining raw-palette usage
 
 Warning and success states now use `--warning` / `--warning-soft` and `--success` /
-`--success-soft`. Raw Tailwind palette colors survive in two places, both deliberate:
+`--success-soft`. No raw Tailwind palette colors remain in `frontend/**/*.{ts,tsx}`.
 
-- **`frontend/types/index.ts`** — the categorical badge maps: `STATUS_COLORS`,
-  `PRIORITY_COLORS`, `JOB_TYPE_COLORS`, `DISCOVERY_SOURCE_COLORS`,
-  `APPLICATION_CHANNEL_COLORS`, `DERIVED_STATUS_COLORS`, `CITY_COLORS`,
-  `BUSINESS_MODE_COLORS`. Thirteen distinct hues, more than any semantic token set should
-  provide — the whole point is that these values are *not* semantic.
-- **`badge.tsx`** — imports those maps and adds `ENRICHMENT_STATUS_COLORS`. That one map is
-  semantic (queued / researching / done / failed) and could use `--warning` / `--success` /
-  `--danger`, but it renders alongside the categorical badges and shares their visual
-  language; converting it alone would split badge rendering across two color systems.
+**Superseded by ADR-054 (#462, #473).** This section used to keep thirteen raw
+`bg-<hue>-100 text-<hue>-700` badge tints on purpose, as categorical, non-semantic colors
+that all passed AA. Badges now draw one neutral `Chip` (`bg-paper-raised`, `text-ink`,
+`border-line/70`) in `badge.tsx`. Color appears only as an `aria-hidden` dot, for enums whose
+value carries meaning, and the dot uses token classes:
 
-**Measured, so this is a decision and not an unknown:** every `bg-<hue>-100 text-<hue>-700`
-pair in those maps passes AA in light mode (lowest 4.51, amber) and every
-`dark:bg-<hue>-900/40 dark:text-<hue>-300` pair passes in dark (lowest 7.82, indigo, with
-the alpha composited over `--paper`). There is no contrast reason to convert them, and
-converting would mean ~52 token declarations that only restate Tailwind.
+- `STATUS_COLORS` and `DERIVED_STATUS_COLORS` (`frontend/types/index.ts`): `bg-status-*`, the
+  same tokens as the board and charts.
+- `PRIORITY_COLORS` (`frontend/types/index.ts`): `bg-muted-2` / `bg-warning` / `bg-danger`.
+- `ENRICHMENT_STATUS_COLORS` (`badge.tsx`): `bg-muted-2` / `bg-warning` / `bg-success` /
+  `bg-danger`.
+
+Job type, discovery source, application channel, city and business mode have no color map.
+The label always carries the value, so a dot is never the only signal. That is also why a
+`bg-muted-2` dot (2.63:1 on `paper`) is acceptable here.
 
 Audited across `bg-`, `text-`, `border-`, `ring-`, `from-`, `to-` prefixes and bare hex
 literals over `frontend/**/*.{ts,tsx}` — note `.ts` as well as `.tsx`, which is where the
@@ -271,7 +271,7 @@ Primitives in `frontend/components/ui/` — reuse these before writing anything 
 |---|---|
 | `Button` | Variants `primary`, `secondary`, `ghost`, `danger`, `outline`; sizes `sm` (h-8), `md` (h-9), `lg` (h-10). Ships `focus-visible:ring-2 ring-offset-2 ring-offset-surface` and a `loading` spinner. |
 | `Input` | Paired with a visible label; autofill is neutralized in `globals.css`. |
-| `Badge` | Status/priority/type/source/channel/city/business-mode variants, all label+color mapped from `types/`. |
+| `Badge` | Status/priority/type/source/channel/city/business-mode/enrichment variants, all drawn by one neutral `Chip` with labels from `types/`. Status, priority and enrichment add a token-colored dot (ADR-054). |
 | `Modal` | Radix dialog wrapper. |
 | `Skeleton` | Loading placeholder — reserve the real element's dimensions. |
 | `Spinner` | In-place async indicator. |
@@ -377,6 +377,8 @@ changed and why.
    pairs at 7.82:1 (indigo). All pass AA. Converting them would add ~52 token declarations
    that only restate Tailwind, for no accessibility gain. The maps live in
    `frontend/types/index.ts`, not `badge.tsx` — the doc previously named the wrong file.
+   *Later superseded:* ADR-054 removed the tints for a neutral chip with token dots, for
+   visual noise rather than contrast (§2.2).
 3. ~~**No `--success` token** — `--accent-2` claimed the success role but the emerald in use
    was a different green.~~ **Fixed:** added `--success` / `--success-soft` (`#047857` /
    `#ecfdf5`, dark `#34d399` / `rgba(52,211,153,.12)`), matching the green already in use
