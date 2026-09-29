@@ -207,10 +207,11 @@ component, each with a one-line doc comment.
 
 ### Constants
 
-`SCREAMING_SNAKE_CASE`, module scope. Enum-adjacent display data comes in
-matched pairs named after the enum: `STATUS_LABELS` / `STATUS_COLORS`,
-`JOB_TYPE_LABELS` / `JOB_TYPE_COLORS`, `PRIORITY_LABELS` / `PRIORITY_COLORS`.
-Add both halves or neither, in `frontend/types/index.ts`.
+`SCREAMING_SNAKE_CASE`, module scope. Enum-adjacent display data is named
+after the enum, in `frontend/types/index.ts`: every enum gets a `_LABELS` map
+(`STATUS_LABELS`, `JOB_TYPE_LABELS`). A `_COLORS` map (`STATUS_COLORS`,
+`PRIORITY_COLORS`) exists only when the value carries meaning, and holds token
+`bg-*` classes for the badge dot, never raw palette pairs (ADR-054).
 
 Backend thresholds are named constants in `.constants.ts` or the helper that
 uses them, never inline numbers: `GHOST_AFTER_DAYS`, `MAX_GHOST_SUGGESTIONS`,
