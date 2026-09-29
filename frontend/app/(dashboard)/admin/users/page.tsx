@@ -8,6 +8,15 @@ import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { RoleBadge } from '../../../../components/ui/badge';
 import { formatDateTime, cn } from '../../../../lib/utils';
+import {
+  CARD_BODY,
+  CARD_FULL_ROW,
+  CARD_HEAD,
+  CARD_ROW,
+  CARD_SKELETON,
+  CARD_TABLE,
+  makeCellClass,
+} from '../../../../lib/responsive-table';
 import type { AdminUser } from '../../../../types';
 import {
   useAdminUsersQuery,
@@ -29,24 +38,20 @@ const COLUMNS = [
   ['', 'max-sm:[grid-area:act]'],
 ] as const;
 
-/** Header of a users-table column. */
-type ColumnName = (typeof COLUMNS)[number][0];
-
-/** Base padding plus the column's responsive class for one table cell. */
-function cellClass(column: ColumnName, extra?: string) {
-  return cn(
-    'px-4 py-3 max-sm:p-0',
-    COLUMNS.find(([h]) => h === column)![1],
-    extra,
-  );
-}
+/**
+ * A users-table cell's class: padding that drops away inside the phone card,
+ * then the column's grid area or breakpoint.
+ */
+const cellClass = makeCellClass(COLUMNS);
 
 /**
  * Below sm a row is a card: name and delete on top, email under it, then
  * role, job count and join date. No horizontal scroll to reach delete.
  */
-const ROW_CARD =
-  "max-sm:grid max-sm:grid-cols-[auto_auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'nm_nm_nm_act'_'em_em_em_act'_'rl_jb_jn_jn']";
+const ROW_CARD = cn(
+  CARD_ROW,
+  "max-sm:grid-cols-[auto_auto_1fr_auto] max-sm:[grid-template-areas:'nm_nm_nm_act'_'em_em_em_act'_'rl_jb_jn_jn']",
+);
 
 /**
  * The header's count line. Under a search `meta.total` counts the matches,
@@ -109,19 +114,20 @@ export default function AdminUsersPage() {
       </div>
 
       <div className="rounded-md border border-line bg-paper overflow-x-auto">
-        {/* Explicit roles: the display:block below sm would otherwise drop the
-            table semantics in Chrome and Safari. */}
-        <table role="table" className="w-full text-sm max-sm:block">
+        <table role="table" className={cn('w-full text-sm', CARD_TABLE)}>
           <thead
             role="rowgroup"
-            className="border-b border-line bg-paper-raised max-sm:hidden"
+            className={cn('border-b border-line bg-paper-raised', CARD_HEAD)}
           >
             <tr role="row">
-              {COLUMNS.map(([h]) => (
+              {COLUMNS.map(([h, colClass]) => (
                 <th
                   role="columnheader"
                   key={h}
-                  className="px-4 py-3 text-left text-xs font-medium text-muted"
+                  className={cn(
+                    'px-4 py-3 text-left text-xs font-medium text-muted',
+                    colClass,
+                  )}
                 >
                   {h}
                 </th>
@@ -130,7 +136,7 @@ export default function AdminUsersPage() {
           </thead>
           <tbody
             role="rowgroup"
-            className="divide-y divide-line max-sm:block"
+            className={cn('divide-y divide-line', CARD_BODY)}
             aria-busy={isLoading}
           >
             {isLoading ? (
@@ -144,23 +150,15 @@ export default function AdminUsersPage() {
                   <tr role="row" key={i} className={ROW_CARD}>
                     {COLUMNS.map(([h]) => (
                       <td role="cell" key={h} className={cellClass(h)}>
-                        {/* The card's auto tracks size to content, and a
-                            skeleton bar has none: give it a floor. */}
-                        <Skeleton className="h-4 w-full max-sm:min-w-12" />
+                        <Skeleton className={cn('h-4 w-full', CARD_SKELETON)} />
                       </td>
                     ))}
                   </tr>
                 ))}
               </>
             ) : isError && !data ? (
-              // Block below sm, like the cards: a lone table-row inside the
-              // block tbody shrinks to its content and loses the centering.
-              <tr role="row" className="max-sm:block">
-                <td
-                  role="cell"
-                  colSpan={6}
-                  className="py-16 text-center max-sm:block"
-                >
+              <tr role="row" className={CARD_FULL_ROW}>
+                <td role="cell" colSpan={6} className="py-16 text-center">
                   <p className="text-base font-medium text-danger">
                     Failed to load users
                   </p>
@@ -178,11 +176,11 @@ export default function AdminUsersPage() {
                 </td>
               </tr>
             ) : data?.data.length === 0 ? (
-              <tr role="row" className="max-sm:block">
+              <tr role="row" className={CARD_FULL_ROW}>
                 <td
                   role="cell"
                   colSpan={6}
-                  className="py-16 text-center text-muted-2 max-sm:block"
+                  className="py-16 text-center text-muted-2"
                 >
                   <p className="text-base font-medium">No users found</p>
                 </td>

@@ -173,9 +173,9 @@ describe('AdminUsersPage', () => {
         }),
       });
       renderPage();
-      const cell = (await screen.findByText('No users found')).closest('td')!;
-      expect(cell).toHaveClass('max-sm:block');
-      expect(cell.closest('tr')).toHaveClass('max-sm:block');
+      const row = (await screen.findByText('No users found')).closest('tr')!;
+      expect(row).toHaveClass('max-sm:block');
+      expect(row).toHaveClass('max-sm:*:block');
     });
 
     it('lets a long name wrap inside the card instead of widening it', async () => {

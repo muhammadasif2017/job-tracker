@@ -28,6 +28,15 @@ import { KanbanBoard } from '../../../components/jobs/kanban-board';
 import { GhostBadge } from '../../../components/jobs/ghost-badge';
 import { cn, formatCivilDate } from '../../../lib/utils';
 import {
+  CARD_BODY,
+  CARD_FULL_ROW,
+  CARD_HEAD,
+  CARD_ROW,
+  CARD_SKELETON,
+  CARD_TABLE,
+  makeCellClass,
+} from '../../../lib/responsive-table';
+import {
   JOB_STATUSES,
   STATUS_LABELS,
   type Job,
@@ -60,24 +69,20 @@ const COLUMNS = [
   ['', 'max-sm:[grid-area:act]'],
 ] as const;
 
-/** Header of a jobs-table column. */
-type ColumnName = (typeof COLUMNS)[number][0];
-
-/** Base padding plus the column's responsive class for one table cell. */
-function cellClass(column: ColumnName, extra?: string) {
-  return cn(
-    'px-4 py-3 max-sm:p-0',
-    COLUMNS.find(([h]) => h === column)![1],
-    extra,
-  );
-}
+/**
+ * A jobs-table cell's class: padding that drops away inside the phone card,
+ * then the column's grid area or breakpoint.
+ */
+const cellClass = makeCellClass(COLUMNS);
 
 /**
  * Below sm a row is a card: position and actions on top, company under it,
  * then status and the date. No horizontal scroll to reach the actions.
  */
-const ROW_CARD =
-  "max-sm:grid max-sm:grid-cols-[auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'pos_pos_act'_'co_co_act'_'st_ap_ap']";
+const ROW_CARD = cn(
+  CARD_ROW,
+  "max-sm:grid-cols-[auto_1fr_auto] max-sm:[grid-template-areas:'pos_pos_act'_'co_co_act'_'st_ap_ap']",
+);
 
 /**
  * Jobs page (`/jobs`): filtered list or kanban board, with add, Quick Add,
@@ -247,12 +252,10 @@ export default function JobsPage() {
         <KanbanBoard onEdit={openEdit} filters={filters} />
       ) : (
         <div className="rounded-md border border-line bg-paper overflow-x-auto">
-          {/* Explicit roles: the display:block below sm would otherwise drop the
-              table semantics in Chrome and Safari. */}
-          <table role="table" className="w-full text-sm max-sm:block">
+          <table role="table" className={cn('w-full text-sm', CARD_TABLE)}>
             <thead
               role="rowgroup"
-              className="border-b border-line bg-paper-raised max-sm:hidden"
+              className={cn('border-b border-line bg-paper-raised', CARD_HEAD)}
             >
               <tr role="row">
                 {COLUMNS.map(([h, colClass]) => (
@@ -271,7 +274,7 @@ export default function JobsPage() {
             </thead>
             <tbody
               role="rowgroup"
-              className="divide-y divide-line max-sm:block"
+              className={cn('divide-y divide-line', CARD_BODY)}
               aria-busy={isLoading}
             >
               {isLoading ? (
@@ -285,14 +288,16 @@ export default function JobsPage() {
                     <tr role="row" key={i} className={ROW_CARD}>
                       {COLUMNS.map(([h]) => (
                         <td role="cell" key={h} className={cellClass(h)}>
-                          <Skeleton className="h-4 w-full" />
+                          <Skeleton
+                            className={cn('h-4 w-full', CARD_SKELETON)}
+                          />
                         </td>
                       ))}
                     </tr>
                   ))}
                 </>
               ) : isError && !data ? (
-                <tr role="row">
+                <tr role="row" className={CARD_FULL_ROW}>
                   <td role="cell" colSpan={8} className="py-16 text-center">
                     <p className="text-base font-medium text-danger">
                       Failed to load jobs
@@ -311,7 +316,7 @@ export default function JobsPage() {
                   </td>
                 </tr>
               ) : data?.data.length === 0 ? (
-                <tr role="row">
+                <tr role="row" className={CARD_FULL_ROW}>
                   <td
                     role="cell"
                     colSpan={8}
