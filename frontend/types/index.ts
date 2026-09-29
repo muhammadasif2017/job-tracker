@@ -209,6 +209,12 @@ export interface Job {
 /** Account role; ADMIN unlocks the admin pages. */
 export type Role = 'USER' | 'ADMIN';
 
+/** Display label for each account role. */
+export const ROLE_LABELS: Record<Role, string> = {
+  USER: 'User',
+  ADMIN: 'Admin',
+};
+
 /** Every digest email frequency. */
 export const DIGEST_FREQUENCIES = ['OFF', 'DAILY', 'WEEKLY'] as const;
 

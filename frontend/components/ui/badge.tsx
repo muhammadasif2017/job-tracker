@@ -10,6 +10,7 @@ import {
   STATUS_LABELS,
   CITY_LABELS,
   BUSINESS_MODE_LABELS,
+  ROLE_LABELS,
   type ApplicationChannel,
   type DiscoverySource,
   type JobStatus,
@@ -17,6 +18,7 @@ import {
   type CompanyCity,
   type BusinessMode,
   type EnrichmentStatus,
+  type Role,
 } from '../../types';
 
 /** Props for `Chip`. */
@@ -130,6 +132,21 @@ export function BusinessModeBadge({
   return (
     <Chip className={className}>{BUSINESS_MODE_LABELS[businessMode]}</Chip>
   );
+}
+
+/**
+ * Label for an account role. No dot and no tint: ADR-054 keeps color for
+ * values that are states (status, priority, research), and a role is not one.
+ * The admin users page used to tint ADMIN with its own hand-rolled chip.
+ */
+export function RoleBadge({
+  role,
+  className,
+}: {
+  role: Role;
+  className?: string;
+}) {
+  return <Chip className={className}>{ROLE_LABELS[role]}</Chip>;
 }
 
 /** Display label for each enrichment status. */
