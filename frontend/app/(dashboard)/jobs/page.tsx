@@ -28,6 +28,12 @@ import { KanbanBoard } from '../../../components/jobs/kanban-board';
 import { GhostBadge } from '../../../components/jobs/ghost-badge';
 import { cn, formatCivilDate } from '../../../lib/utils';
 import {
+  CARD_FULL_ROW,
+  CARD_ROW,
+  CARD_SKELETON,
+  makeCellClass,
+} from '../../../lib/responsive-table';
+import {
   JOB_STATUSES,
   STATUS_LABELS,
   type Job,
@@ -60,24 +66,17 @@ const COLUMNS = [
   ['', 'max-sm:[grid-area:act]'],
 ] as const;
 
-/** Header of a jobs-table column. */
-type ColumnName = (typeof COLUMNS)[number][0];
-
-/** Base padding plus the column's responsive class for one table cell. */
-function cellClass(column: ColumnName, extra?: string) {
-  return cn(
-    'px-4 py-3 max-sm:p-0',
-    COLUMNS.find(([h]) => h === column)![1],
-    extra,
-  );
-}
+/** Class for one jobs-table cell. */
+const cellClass = makeCellClass(COLUMNS);
 
 /**
  * Below sm a row is a card: position and actions on top, company under it,
  * then status and the date. No horizontal scroll to reach the actions.
  */
-const ROW_CARD =
-  "max-sm:grid max-sm:grid-cols-[auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'pos_pos_act'_'co_co_act'_'st_ap_ap']";
+const ROW_CARD = cn(
+  CARD_ROW,
+  "max-sm:grid-cols-[auto_1fr_auto] max-sm:[grid-template-areas:'pos_pos_act'_'co_co_act'_'st_ap_ap']",
+);
 
 /**
  * Jobs page (`/jobs`): filtered list or kanban board, with add, Quick Add,
@@ -285,15 +284,21 @@ export default function JobsPage() {
                     <tr role="row" key={i} className={ROW_CARD}>
                       {COLUMNS.map(([h]) => (
                         <td role="cell" key={h} className={cellClass(h)}>
-                          <Skeleton className="h-4 w-full" />
+                          <Skeleton
+                            className={cn('h-4 w-full', CARD_SKELETON)}
+                          />
                         </td>
                       ))}
                     </tr>
                   ))}
                 </>
               ) : isError && !data ? (
-                <tr role="row">
-                  <td role="cell" colSpan={8} className="py-16 text-center">
+                <tr role="row" className={CARD_FULL_ROW}>
+                  <td
+                    role="cell"
+                    colSpan={8}
+                    className={cn('py-16 text-center', CARD_FULL_ROW)}
+                  >
                     <p className="text-base font-medium text-danger">
                       Failed to load jobs
                     </p>
@@ -311,11 +316,14 @@ export default function JobsPage() {
                   </td>
                 </tr>
               ) : data?.data.length === 0 ? (
-                <tr role="row">
+                <tr role="row" className={CARD_FULL_ROW}>
                   <td
                     role="cell"
                     colSpan={8}
-                    className="py-16 text-center text-muted-2"
+                    className={cn(
+                      'py-16 text-center text-muted-2',
+                      CARD_FULL_ROW,
+                    )}
                   >
                     <p className="text-base font-medium">No jobs found</p>
                     <p className="mt-1 text-sm">

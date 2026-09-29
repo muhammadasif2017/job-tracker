@@ -8,6 +8,12 @@ import { Modal } from '../../../../components/ui/modal';
 import { Skeleton } from '../../../../components/ui/skeleton';
 import { RoleBadge } from '../../../../components/ui/badge';
 import { formatDateTime, cn } from '../../../../lib/utils';
+import {
+  CARD_FULL_ROW,
+  CARD_ROW,
+  CARD_SKELETON,
+  makeCellClass,
+} from '../../../../lib/responsive-table';
 import type { AdminUser } from '../../../../types';
 import {
   useAdminUsersQuery,
@@ -29,24 +35,17 @@ const COLUMNS = [
   ['', 'max-sm:[grid-area:act]'],
 ] as const;
 
-/** Header of a users-table column. */
-type ColumnName = (typeof COLUMNS)[number][0];
-
-/** Base padding plus the column's responsive class for one table cell. */
-function cellClass(column: ColumnName, extra?: string) {
-  return cn(
-    'px-4 py-3 max-sm:p-0',
-    COLUMNS.find(([h]) => h === column)![1],
-    extra,
-  );
-}
+/** Class for one users-table cell. */
+const cellClass = makeCellClass(COLUMNS);
 
 /**
  * Below sm a row is a card: name and delete on top, email under it, then
  * role, job count and join date. No horizontal scroll to reach delete.
  */
-const ROW_CARD =
-  "max-sm:grid max-sm:grid-cols-[auto_auto_1fr_auto] max-sm:gap-x-3 max-sm:gap-y-1 max-sm:px-4 max-sm:py-3 max-sm:[grid-template-areas:'nm_nm_nm_act'_'em_em_em_act'_'rl_jb_jn_jn']";
+const ROW_CARD = cn(
+  CARD_ROW,
+  "max-sm:grid-cols-[auto_auto_1fr_auto] max-sm:[grid-template-areas:'nm_nm_nm_act'_'em_em_em_act'_'rl_jb_jn_jn']",
+);
 
 /**
  * The header's count line. Under a search `meta.total` counts the matches,
@@ -144,22 +143,18 @@ export default function AdminUsersPage() {
                   <tr role="row" key={i} className={ROW_CARD}>
                     {COLUMNS.map(([h]) => (
                       <td role="cell" key={h} className={cellClass(h)}>
-                        {/* The card's auto tracks size to content, and a
-                            skeleton bar has none: give it a floor. */}
-                        <Skeleton className="h-4 w-full max-sm:min-w-12" />
+                        <Skeleton className={cn('h-4 w-full', CARD_SKELETON)} />
                       </td>
                     ))}
                   </tr>
                 ))}
               </>
             ) : isError && !data ? (
-              // Block below sm, like the cards: a lone table-row inside the
-              // block tbody shrinks to its content and loses the centering.
-              <tr role="row" className="max-sm:block">
+              <tr role="row" className={CARD_FULL_ROW}>
                 <td
                   role="cell"
                   colSpan={6}
-                  className="py-16 text-center max-sm:block"
+                  className={cn('py-16 text-center', CARD_FULL_ROW)}
                 >
                   <p className="text-base font-medium text-danger">
                     Failed to load users
@@ -178,11 +173,14 @@ export default function AdminUsersPage() {
                 </td>
               </tr>
             ) : data?.data.length === 0 ? (
-              <tr role="row" className="max-sm:block">
+              <tr role="row" className={CARD_FULL_ROW}>
                 <td
                   role="cell"
                   colSpan={6}
-                  className="py-16 text-center text-muted-2 max-sm:block"
+                  className={cn(
+                    'py-16 text-center text-muted-2',
+                    CARD_FULL_ROW,
+                  )}
                 >
                   <p className="text-base font-medium">No users found</p>
                 </td>

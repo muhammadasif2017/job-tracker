@@ -204,6 +204,19 @@ describe('JobsPage', () => {
       renderPage();
       expect(await screen.findByText('No jobs found')).toBeInTheDocument();
     });
+
+    it('keeps the empty-state row a block below sm, so its text stays centered', async () => {
+      vi.mocked(api.get).mockResolvedValue({
+        data: page({
+          data: [],
+          meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+        }),
+      });
+      renderPage();
+      const cell = (await screen.findByText('No jobs found')).closest('td')!;
+      expect(cell).toHaveClass('max-sm:block');
+      expect(cell.closest('tr')).toHaveClass('max-sm:block');
+    });
   });
 
   describe('error state', () => {
