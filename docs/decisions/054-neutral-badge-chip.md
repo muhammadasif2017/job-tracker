@@ -43,7 +43,8 @@ optional leading dot, and only for enums whose value carries meaning:
 | `StatusBadge` | `STATUS_COLORS`, the `--status-*` tokens the board and charts use |
 | `PriorityBadge` | `PRIORITY_COLORS`: low `muted-2`, medium `warning`, high `danger` |
 | `EnrichmentStatusBadge` | `ENRICHMENT_STATUS_COLORS`: pending `muted-2`, processing `warning`, completed `success`, failed `danger` |
-| Job type, source, channel, city, business mode | None, label only |
+| `CircuitStateBadge` | `CIRCUIT_STATE_COLORS`: closed `success`, half-open `warning`, open `danger` |
+| Job type, source, channel, city, business mode, role | None, label only |
 
 The dot is `aria-hidden` and the label always carries the value, so the dot
 is a scanning aid, never the only signal.

@@ -2,6 +2,7 @@
 
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { Button } from '../ui/button';
+import { CircuitStateBadge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '../../lib/utils';
 import { useAdminQueuesQuery } from '../../features/admin/hooks';
@@ -23,33 +24,71 @@ const COUNT_ROWS = [
   { key: 'completed', label: 'Completed' },
 ] as const;
 
+/** One labelled figure in a `CountGrid`. */
+interface Count {
+  key: string;
+  label: string;
+  value: number;
+  /** Draw the figure in the danger color. */
+  danger?: boolean;
+}
+
+/**
+ * A row of labelled counts, shared by the queue cards and the database card
+ * so the two read alike. Three to a line until the card is 19rem wide, then
+ * five: sized on the card, not the viewport, because a queue card is narrow
+ * both on a phone and in the three-up desktop grid. Capped at max-w-lg so
+ * the full-width database card does not spread five figures edge to edge.
+ */
+function CountGrid({ counts }: { counts: Count[] }) {
+  return (
+    <dl className="mt-3 grid max-w-lg grid-cols-3 gap-x-2 gap-y-3 text-center @[19rem]:grid-cols-5">
+      {counts.map(({ key, label, value, danger }) => (
+        <div key={key}>
+          <dt className="text-xs text-muted font-medium">{label}</dt>
+          <dd
+            className={cn(
+              'mt-0.5 text-base font-semibold tabular-nums text-ink',
+              danger && 'text-danger',
+            )}
+          >
+            {value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 /** One queue's job counts, or a warning when Redis did not answer. */
 function QueueCard({ queue }: { queue: QueueSnapshot }) {
   const counts = queue.counts;
   return (
-    <div className="rounded-md border border-line bg-paper p-4">
-      <div className="flex items-baseline justify-between gap-2">
+    <div className="@container rounded-md border border-line bg-paper p-4">
+      {/* Wraps rather than squeezing: the mono queue name drops to its own
+          line whole instead of breaking at its hyphens. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <h3 className="text-sm font-medium text-ink">
           {QUEUE_LABELS[queue.name] ?? queue.name}
         </h3>
-        <span className="font-mono text-[11px] text-muted-2">{queue.name}</span>
+        {/* max-w-full + truncate: a name wider than the card itself (an
+            unlabelled future queue) clips instead of spilling past the border. */}
+        <span
+          title={queue.name}
+          className="max-w-full truncate font-mono text-[11px] text-muted-2"
+        >
+          {queue.name}
+        </span>
       </div>
       {counts ? (
-        <dl className="mt-3 grid grid-cols-5 gap-2 text-center">
-          {COUNT_ROWS.map(({ key, label }) => (
-            <div key={key}>
-              <dt className="text-xs text-muted font-medium">{label}</dt>
-              <dd
-                className={cn(
-                  'mt-0.5 text-base font-semibold tabular-nums text-ink',
-                  key === 'failed' && counts[key] > 0 && 'text-danger',
-                )}
-              >
-                {counts[key]}
-              </dd>
-            </div>
-          ))}
-        </dl>
+        <CountGrid
+          counts={COUNT_ROWS.map(({ key, label }) => ({
+            key,
+            label,
+            value: counts[key],
+            danger: key === 'failed' && counts[key] > 0,
+          }))}
+        />
       ) : (
         <p className="mt-3 text-sm text-warning">
           Queue unreachable — Redis is not answering. Database figures below are
@@ -60,14 +99,11 @@ function QueueCard({ queue }: { queue: QueueSnapshot }) {
   );
 }
 
-/** Label and colour for each breaker state. */
-const CIRCUIT_STATE: Record<
-  CircuitStatus['state'],
-  { label: string; className: string }
-> = {
-  closed: { label: 'Closed', className: 'text-ink' },
-  'half-open': { label: 'Half-open', className: 'text-warning' },
-  open: { label: 'Open', className: 'text-danger' },
+/** Text color for each breaker state's detail sentence. */
+const CIRCUIT_DETAIL_TONE: Record<CircuitStatus['state'], string> = {
+  closed: 'text-muted',
+  'half-open': 'text-warning',
+  open: 'text-danger',
 };
 
 /**
@@ -192,45 +228,38 @@ export function QueueHealthPanel() {
                   Upstream circuit breakers
                 </h3>
                 <ul className="mt-3 space-y-2">
-                  {data.circuits.map((circuit) => {
-                    const state = CIRCUIT_STATE[circuit.state];
-                    return (
-                      <li
-                        key={circuit.name}
-                        className="flex flex-wrap items-baseline gap-x-3 text-sm"
-                      >
-                        <span className="font-medium text-ink">
-                          {circuit.name}
-                        </span>
-                        <span className={cn('font-semibold', state.className)}>
-                          {state.label}
-                        </span>
-                        <span className="text-muted">
-                          {circuitDetail(circuit)}
-                        </span>
-                      </li>
-                    );
-                  })}
+                  {data.circuits.map((circuit) => (
+                    <li
+                      key={circuit.name}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
+                    >
+                      <span className="font-medium text-ink">
+                        {circuit.name}
+                      </span>
+                      <CircuitStateBadge state={circuit.state} />
+                      {/* The chip's dot alone is too quiet for the one row
+                          whose job is to alert: a tripped breaker also
+                          colors its sentence. */}
+                      <span className={CIRCUIT_DETAIL_TONE[circuit.state]}>
+                        {circuitDetail(circuit)}
+                      </span>
+                    </li>
+                  ))}
                 </ul>
               </div>
             )}
 
-            <div className="rounded-md border border-line bg-paper p-4">
+            <div className="@container rounded-md border border-line bg-paper p-4">
               <h3 className="text-sm font-medium text-ink">
                 Company enrichment status (database)
               </h3>
-              <dl className="mt-3 flex flex-wrap gap-x-8 gap-y-3">
-                {data.companyStatuses.map((bucket) => (
-                  <div key={bucket.status ?? 'never-triggered'}>
-                    <dt className="text-xs text-muted font-medium">
-                      {bucket.label}
-                    </dt>
-                    <dd className="mt-0.5 text-base font-semibold tabular-nums text-ink">
-                      {bucket.count}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
+              <CountGrid
+                counts={data.companyStatuses.map((bucket) => ({
+                  key: bucket.status ?? 'never-triggered',
+                  label: bucket.label,
+                  value: bucket.count,
+                }))}
+              />
               <p className="mt-3 text-xs text-muted-2">
                 “Never triggered” is the resting state for imported companies —
                 the CSV importer does not enqueue enrichment. It is not an

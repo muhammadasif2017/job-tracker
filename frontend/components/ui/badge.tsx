@@ -18,6 +18,7 @@ import {
   type CompanyCity,
   type BusinessMode,
   type EnrichmentStatus,
+  type CircuitStatus,
   type Role,
 } from '../../types';
 
@@ -179,6 +180,38 @@ export function EnrichmentStatusBadge({
   return (
     <Chip dot={ENRICHMENT_STATUS_COLORS[status]} className={className}>
       {ENRICHMENT_STATUS_LABELS[status]}
+    </Chip>
+  );
+}
+
+/** Display label for each circuit-breaker state. */
+const CIRCUIT_STATE_LABELS: Record<CircuitStatus['state'], string> = {
+  closed: 'Closed',
+  'half-open': 'Half-open',
+  open: 'Open',
+};
+
+/** Dot color class for each circuit-breaker state. */
+const CIRCUIT_STATE_COLORS: Record<CircuitStatus['state'], string> = {
+  closed: 'bg-success',
+  'half-open': 'bg-warning',
+  open: 'bg-danger',
+};
+
+/**
+ * Label for a circuit breaker's state, with a dot for how healthy it is. A
+ * state, so it carries color (ADR-054).
+ */
+export function CircuitStateBadge({
+  state,
+  className,
+}: {
+  state: CircuitStatus['state'];
+  className?: string;
+}) {
+  return (
+    <Chip dot={CIRCUIT_STATE_COLORS[state]} className={className}>
+      {CIRCUIT_STATE_LABELS[state]}
     </Chip>
   );
 }
