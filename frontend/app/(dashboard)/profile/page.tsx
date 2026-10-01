@@ -222,7 +222,7 @@ export default function ProfilePage() {
             </label>
             <select
               id="digest-frequency"
-              className="h-9 w-full max-w-[200px] rounded-md border border-line bg-paper px-3 text-sm text-ink"
+              className="h-9 w-full max-w-xs rounded-md border border-line bg-paper px-3 text-sm text-ink"
               {...notificationsForm.register('digestFrequency')}
             >
               {DIGEST_FREQUENCIES.map((f) => (
@@ -314,13 +314,17 @@ export default function ProfilePage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-sm font-semibold text-ink">
-              Personal access tokens
+              Personal Access Tokens
             </h2>
             <p className="text-sm text-muted">
               Used by the browser extension to import job postings.
             </p>
           </div>
+          {/* Filled only while there are no tokens: that is the step the
+              extension popup sends people here for. Once one exists it steps
+              back to secondary and leaves the filled buttons to the saves. */}
           <Button
+            variant={tokens?.length ? 'secondary' : 'primary'}
             size="sm"
             className="self-start whitespace-nowrap sm:self-auto sm:shrink-0"
             onClick={() => setTokenModalOpen(true)}
@@ -422,7 +426,7 @@ export default function ProfilePage() {
       <Modal
         open={tokenModalOpen}
         onClose={closeTokenModal}
-        title={createdToken ? 'Token created' : 'Generate access token'}
+        title={createdToken ? 'Token Created' : 'Generate Access Token'}
         description={
           createdToken
             ? "Copy this now — it won't be shown again."

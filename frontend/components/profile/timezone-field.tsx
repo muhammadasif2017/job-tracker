@@ -49,18 +49,19 @@ export function TimezoneField({
           </option>
         ))}
       </select>
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-muted">
-          Used to time interview reminder and digest emails.
-        </p>
+      {/* Hint and link in one paragraph: as two flex children they split
+          into side-by-side columns on a phone. text-left because a button
+          centres its text, which shows once a long zone name wraps it. */}
+      <p className="text-xs text-muted">
+        Used to time interview reminder and digest emails.{' '}
         <button
           type="button"
-          className="text-xs text-accent hover:underline"
+          className="text-left text-accent hover:underline"
           onClick={() => onUseBrowserTimezone(BROWSER_TIMEZONE)}
         >
           Use my timezone ({BROWSER_TIMEZONE})
         </button>
-      </div>
+      </p>
     </div>
   );
 }
