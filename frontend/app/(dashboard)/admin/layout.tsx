@@ -38,7 +38,7 @@ export default function AdminLayout({
           Admin
         </h1>
         <p className="text-sm text-muted">
-          Who is on this install, and whether background work is moving
+          Accounts and background jobs on this install
         </p>
       </div>
 

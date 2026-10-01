@@ -280,6 +280,19 @@ describe('AdminUsersPage', () => {
     });
   });
 
+  describe('headings', () => {
+    it('leaves the h1 to the layout and names the tab with its own h2', async () => {
+      vi.mocked(api.get).mockResolvedValue({ data: page() });
+      renderPage();
+      expect(
+        await screen.findByRole('heading', { level: 2, name: 'Users' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { level: 1 }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   // The queue panel moved to /admin/queues — this page must not fetch it, or
   // every users-page view pays for a queue read it does not display.
   describe('queue health panel', () => {

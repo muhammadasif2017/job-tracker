@@ -86,9 +86,13 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-5">
-      {/* The section title is the layout's; the count sits beside the search
-          it describes. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      {/* The section title is the layout's h1. This h2 gives the tab the
+          same heading outline as Queues ("Queue health") without repeating
+          the tab label on screen. */}
+      <h2 className="sr-only">Users</h2>
+
+      {/* The count sits beside the search it describes. */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="relative w-full max-w-sm">
           <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-2" />
           <input

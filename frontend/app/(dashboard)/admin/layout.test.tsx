@@ -24,7 +24,7 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('AdminLayout', () => {
-  it('titles the section once, above the tabs', () => {
+  it('titles the section above the tabs', () => {
     pathname = '/admin/users';
     render(
       <AdminLayout>
