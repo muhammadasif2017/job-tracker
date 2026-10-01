@@ -11,7 +11,7 @@ it unpacked for personal use.
 
 ## Connect
 
-1. In the Job Tracker web app, go to Profile → Personal access tokens →
+1. In the Job Tracker web app, go to Profile → Personal Access Tokens →
    Generate token. Copy the raw token (shown once).
 2. Open the extension popup, enter your backend URL (e.g.
    `http://localhost:3001` for local dev) and paste the token, then Connect.
