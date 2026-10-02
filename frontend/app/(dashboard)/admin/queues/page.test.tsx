@@ -15,10 +15,8 @@ describe('AdminQueuesPage', () => {
     expect(screen.getByTestId('queue-health-panel')).toBeInTheDocument();
   });
 
-  it('titles the page', () => {
+  it('adds no page heading of its own, leaving the title to the layout', () => {
     render(<AdminQueuesPage />);
-    expect(
-      screen.getByRole('heading', { name: 'Admin — Queues' }),
-    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
   });
 });

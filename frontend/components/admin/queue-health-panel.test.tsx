@@ -90,6 +90,15 @@ describe('QueueHealthPanel', () => {
     );
   });
 
+  it('heads the queues tab with an h2, under the admin layout h1', async () => {
+    vi.mocked(api.get).mockResolvedValue({ data: observability() });
+    renderPanel();
+    expect(
+      await screen.findByRole('heading', { level: 2, name: 'Queue health' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+  });
+
   it('fetches the observability endpoint', async () => {
     vi.mocked(api.get).mockResolvedValue({ data: observability() });
     renderPanel();

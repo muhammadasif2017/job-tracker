@@ -4,21 +4,9 @@ import { QueueHealthPanel } from '../../../../components/admin/queue-health-pane
 
 /**
  * Admin queues page (`/admin/queues`): background job depth and enrichment
- * status.
+ * status. No heading of its own: the layout titles the section, and the
+ * panel's "Queue health" heading and description already say what this is.
  */
 export default function AdminQueuesPage() {
-  return (
-    <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-          Admin — Queues
-        </h1>
-        <p className="text-sm text-muted">
-          Background job depth and enrichment status
-        </p>
-      </div>
-
-      <QueueHealthPanel />
-    </div>
-  );
+  return <QueueHealthPanel />;
 }

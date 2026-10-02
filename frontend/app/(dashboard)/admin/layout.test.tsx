@@ -24,6 +24,21 @@ vi.mock('next/navigation', () => ({
 }));
 
 describe('AdminLayout', () => {
+  it('titles the section above the tabs', () => {
+    pathname = '/admin/users';
+    render(
+      <AdminLayout>
+        <p>content</p>
+      </AdminLayout>,
+    );
+    const title = screen.getByRole('heading', { level: 1, name: 'Admin' });
+    expect(
+      title.compareDocumentPosition(
+        screen.getByRole('navigation', { name: 'Admin sections' }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it('links to both admin sections', () => {
     pathname = '/admin/users';
     render(
