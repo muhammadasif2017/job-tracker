@@ -3,8 +3,7 @@ import { ButtonHTMLAttributes, forwardRef } from 'react';
 
 /** Classes for each button variant. */
 const variants = {
-  primary:
-    'bg-accent text-accent-fg hover:brightness-110 focus-visible:ring-accent',
+  primary: 'bg-accent text-accent-fg hover:brightness-110',
   secondary: 'bg-paper-raised text-ink border border-line hover:border-muted-2',
   ghost: 'text-muted hover:bg-paper-raised hover:text-ink',
   danger: 'bg-danger text-white hover:brightness-110 focus-visible:ring-danger',
@@ -49,7 +48,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       disabled={disabled || loading}
       className={cn(
         'inline-flex items-center justify-center gap-2 rounded-md font-medium tracking-tight transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
+        // Accent ring for every variant; danger swaps in its own color.
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],
         sizes[size],
