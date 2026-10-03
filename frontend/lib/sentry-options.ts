@@ -37,17 +37,24 @@ export function tunnelFor(dsn: string): string | undefined {
   return `${SENTRY_TUNNEL_ROUTE}?o=${saas[1]}&p=${projectId}${region}`;
 }
 
+/** The URL fields each breadcrumb category records (ADR-051, ADR-055). */
+const URL_KEYS: Record<string, string[]> = {
+  navigation: ['from', 'to'],
+  xhr: ['url'],
+  fetch: ['url'],
+};
+
 /**
- * Drops the query string from navigation breadcrumbs. They record full URLs,
- * such as `/callback?code=...` with the one-time OAuth code, and
+ * Drops the query string from navigation and request breadcrumbs. They record
+ * full URLs, such as `/callback?code=...` with the one-time OAuth code or
+ * `/jobs?search=...` with what the user searched for, and
  * `dataCollection.urlQueryParams` does not cover breadcrumbs.
  */
-export function withoutNavigationQuery(breadcrumb: Breadcrumb): Breadcrumb {
-  if (breadcrumb.category !== 'navigation' || !breadcrumb.data) {
-    return breadcrumb;
-  }
+export function withoutUrlQuery(breadcrumb: Breadcrumb): Breadcrumb {
+  const keys = breadcrumb.category && URL_KEYS[breadcrumb.category];
+  if (!keys || !breadcrumb.data) return breadcrumb;
   const data = { ...breadcrumb.data };
-  for (const key of ['from', 'to']) {
+  for (const key of keys) {
     if (typeof data[key] === 'string') data[key] = data[key].split('?')[0];
   }
   return { ...breadcrumb, data };
