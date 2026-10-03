@@ -42,7 +42,7 @@
     "@prometheus-io/client": "^0.16.1",
     "@sentry/nestjs": "^11.0.0",
     "bcrypt": "^6.0.0",
-    "bullmq": "^6.3.4",
+    "bullmq": "^6.3.10",
     "cheerio": "^1.2.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
