@@ -38,4 +38,18 @@ describe('Button', () => {
       'submit',
     );
   });
+
+  it('draws the accent focus ring on neutral variants', () => {
+    render(<Button variant="secondary">Cancel</Button>);
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveClass(
+      'focus-visible:ring-accent',
+    );
+  });
+
+  it('keeps the danger focus ring on the danger variant', () => {
+    render(<Button variant="danger">Delete</Button>);
+    const btn = screen.getByRole('button', { name: 'Delete' });
+    expect(btn).toHaveClass('focus-visible:ring-danger');
+    expect(btn).not.toHaveClass('focus-visible:ring-accent');
+  });
 });
