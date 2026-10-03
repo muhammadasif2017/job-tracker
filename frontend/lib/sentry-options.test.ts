@@ -4,7 +4,7 @@ import {
   sharedSentryOptions,
   tunnelFor,
   withoutIpAddress,
-  withoutNavigationQuery,
+  withoutUrlQuery,
 } from './sentry-options';
 
 describe('tunnelFor', () => {
@@ -26,9 +26,9 @@ describe('tunnelFor', () => {
   });
 });
 
-describe('withoutNavigationQuery', () => {
+describe('withoutUrlQuery', () => {
   it('drops the query from both ends of a navigation', () => {
-    const crumb = withoutNavigationQuery({
+    const crumb = withoutUrlQuery({
       category: 'navigation',
       data: { from: '/callback?code=secret', to: '/jobs?q=acme' },
     });
@@ -36,10 +36,32 @@ describe('withoutNavigationQuery', () => {
     expect(crumb.data).toEqual({ from: '/callback', to: '/jobs' });
   });
 
+  it('drops the query from API request URLs', () => {
+    const xhr = withoutUrlQuery({
+      category: 'xhr',
+      data: {
+        method: 'GET',
+        url: 'https://api.example.com/v1/jobs?search=acme&page=2',
+        status_code: 200,
+      },
+    });
+    const fetch = withoutUrlQuery({
+      category: 'fetch',
+      data: { method: 'GET', url: '/jobs/abc?_rsc=1' },
+    });
+
+    expect(xhr.data).toEqual({
+      method: 'GET',
+      url: 'https://api.example.com/v1/jobs',
+      status_code: 200,
+    });
+    expect(fetch.data?.url).toBe('/jobs/abc');
+  });
+
   it('leaves other breadcrumbs untouched', () => {
     const crumb = { category: 'ui.click', message: 'button' };
 
-    expect(withoutNavigationQuery(crumb)).toBe(crumb);
+    expect(withoutUrlQuery(crumb)).toBe(crumb);
   });
 });
 
