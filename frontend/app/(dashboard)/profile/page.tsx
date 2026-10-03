@@ -27,6 +27,7 @@ import {
   type ApiToken,
   type CreatedApiToken,
 } from '../../../features/tokens/hooks';
+import { PageHeader } from '../../../components/layout/page-header';
 
 /**
  * Timezone select, rendered in the browser only.
@@ -162,12 +163,7 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-lg space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-          Profile
-        </h1>
-        <p className="text-sm text-muted">Manage your account</p>
-      </div>
+      <PageHeader title="Profile" subtitle="Manage your account" />
 
       <div className="rounded-md border border-line bg-paper p-5 space-y-4">
         <h2 className="text-sm font-semibold text-ink">Personal Info</h2>
