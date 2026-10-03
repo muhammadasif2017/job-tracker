@@ -64,6 +64,36 @@ test.describe('Interview rounds', () => {
     await expect(page.getByText(/2:00 PM . 45 min/)).toBeVisible();
   });
 
+  test('shows a second round right after the first one passed', async ({
+    page,
+  }) => {
+    await goToJob(page, job);
+
+    await page.getByRole('button', { name: 'Add Round' }).click();
+    await page.getByLabel('Stage').fill('Phone Screen');
+    await page.getByLabel('Date & time').fill(futureDateTime(7));
+    await page.getByLabel('Length (minutes)').fill('45');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Interview round added')).toBeVisible();
+
+    const firstRow = page.locator('li', { hasText: 'Phone Screen' });
+    await firstRow.getByRole('combobox').selectOption('Passed');
+    await expect(page.getByText('Outcome updated')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add Round' }).click();
+    await page.getByLabel('Stage').fill('Technical Interview');
+    await page.getByLabel('Date & time').fill(futureDateTime(14));
+    await page.getByLabel('Length (minutes)').fill('60');
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    // No reload: the new round has to come from the create mutation's
+    // refetch of the job, the same way the Timeline entry does.
+    await expect(page.getByText('Interview round added')).toBeVisible();
+    await expect(
+      page.getByText('Technical Interview', { exact: true }),
+    ).toBeVisible();
+  });
+
   test('records the scheduled time in the Timeline entry', async ({ page }) => {
     await goToJob(page, job);
 
