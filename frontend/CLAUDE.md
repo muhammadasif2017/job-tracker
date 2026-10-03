@@ -14,7 +14,7 @@ npm run test:e2e   # Playwright e2e (requires both dev servers running)
 
 **Turbopack cache corruption** — if pages enter an endless reload loop and the dev log shows `FATAL: ... Turbopack error` / `Next.js package not found`, the `.next` cache is corrupt (seen after disk I/O errors). Recovery: stop the dev server, verify nothing still listens on :3000 (a zombie node process serving the broken build will keep the loop alive, and a new server will silently start on :3002 where CORS/auth break), delete `.next`, restart.
 
-**`next dev` rewrites `AGENTS.md`** — every start re-adds its `nextjs-agent-rules` block to `frontend/AGENTS.md`. That shows up as an unrelated diff; revert it (`git checkout -- frontend/AGENTS.md`) rather than committing it with other work.
+**`next dev` rewrites `AGENTS.md`** — every start re-writes its `nextjs-agent-rules` block in `frontend/AGENTS.md` from the installed Next.js version. A diff there means the block changed upstream; commit it in its own commit rather than reverting it, since a revert only comes back on the next start.
 
 ---
 
