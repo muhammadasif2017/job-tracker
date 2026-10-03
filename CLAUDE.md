@@ -10,19 +10,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Never commit `.env` files or secrets — `.gitignore` covers `.env*`, but double-check diffs before pushing.
 - **Merging a migration to `main` migrates production automatically — there is no second approval gate.** `backend/Dockerfile.prod`'s CMD is `prisma migrate deploy && node dist/main`, so the deploy workflow's `docker compose up -d` restarts the container and the migration runs on startup. A destructive migration (`DROP COLUMN`, `DROP TABLE`) therefore takes effect on the prod Neon DB the moment the PR merges. Confirm the data loss with the user _before_ merging, not before writing the migration — and note a green GitHub deploy run only proves the container started, so verify with `prisma migrate status` inside it afterwards.
-- Ask before running `prisma migrate dev` against the shared dev DB or changing `schema.prisma` — e2e tests (`test:e2e`, `e2e-nightly.yml`) run against a live database and a bad migration affects everyone using it. See `backend/CLAUDE.md` ("Prisma 7 Quirks") for the post-migration `prisma generate` step.
+- Ask before running `prisma migrate dev` against the dev DB or changing `schema.prisma` — the local e2e suite (`test:e2e`) runs against that same Docker Postgres (`docker-compose.dev.yml`), and a bad migration there has to be rolled back by hand. See `backend/CLAUDE.md` ("Prisma 7 Quirks") for the post-migration `prisma generate` step.
 - Don't skip lint/type-check/tests before committing — both `backend` and `frontend` are gated by CI (`.github/workflows/deploy.yml`, `frontend-ci.yml`) on every PR and push to `main`.
 - Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
-- Default to a lighter review pass (token budget is limited) — see "Personal preferences". Reserve a full deep adversarial `/code-review` for high-stakes changes (payments, auth, migrations) or when asked.
+- Run `/code-review high` on every code PR before pushing or merging, and triage the findings with the user — see "Personal preferences".
 - Optional fields on a PATCH/update DTO must be typed `T | null`, not just `T | undefined`, and the frontend must send an explicit `null` (not `undefined`) to clear a field the user emptied out. `JSON.stringify` drops `undefined` keys entirely, and Prisma treats an omitted key as "leave the column alone" — only an explicit `null` clears it. See ADR-022 (`contacts.service.ts` / `contacts.tsx`) for the bug this caused and the fix.
 
 ## Personal preferences
 
 - Commit messages: short single-line, no body unless why isn't obvious. Never mention Claude/Claude Code/Anthropic, no `Co-Authored-By` trailer.
 - Solo user of this app right now — `EMAIL_FROM=onboarding@resend.dev` is fine, don't suggest custom domain/DNS verification unless multi-user comes up.
-- User has limited tokens — okay with a lighter review pass by default. Still flag SDK error contracts (e.g. Resend returns `{error}` instead of throwing) and cross-module shared-field writes if spotted, but don't force a full `/code-review` pass unless asked or the change is high-stakes (payments, auth, migrations).
+- Review depth: `/code-review high` on every code PR (docs-only changes excepted). Watch especially for SDK error contracts (e.g. Resend returns `{error}` instead of throwing), cross-module shared-field writes, and deploy order.
 - PRs touching `frontend/**` or `backend/**` run Playwright e2e as a merge-blocking check (`e2e-pr.yml`, ADR-025) — factor into CI-wait expectations.
 
 ## Patterns
