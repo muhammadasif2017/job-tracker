@@ -15,14 +15,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Before considering frontend work done, run `npm run build` (not just `tsc --noEmit` or `npm run lint`) — Next.js's production type-check during `next build` catches library prop-type mismatches (e.g. recharts `Tooltip formatter`) that a standalone `tsc --noEmit` run misses.
 - Never add a new dependency without checking bundle size (frontend) or necessity (backend) first.
 - Match existing style over personal preference — see `git-workflow-and-versioning` guidance: commits are atomic, `Add X` / `Fix Y` / `Wrap Z` style titles, no body unless the why isn't obvious.
-- Run `/code-review high` on every code PR before pushing or merging, and triage the findings with the user — see "Personal preferences".
+- Run `/code-review` on every code PR before pushing or merging, at a level matched to the work, and triage the findings with the user — see "Personal preferences".
 - Optional fields on a PATCH/update DTO must be typed `T | null`, not just `T | undefined`, and the frontend must send an explicit `null` (not `undefined`) to clear a field the user emptied out. `JSON.stringify` drops `undefined` keys entirely, and Prisma treats an omitted key as "leave the column alone" — only an explicit `null` clears it. See ADR-022 (`contacts.service.ts` / `contacts.tsx`) for the bug this caused and the fix.
 
 ## Personal preferences
 
 - Commit messages: short single-line, no body unless why isn't obvious. Never mention Claude/Claude Code/Anthropic, no `Co-Authored-By` trailer.
 - Solo user of this app right now — `EMAIL_FROM=onboarding@resend.dev` is fine, don't suggest custom domain/DNS verification unless multi-user comes up.
-- Review depth: `/code-review high` on every code PR (docs-only changes excepted). Watch especially for SDK error contracts (e.g. Resend returns `{error}` instead of throwing), cross-module shared-field writes, and deploy order.
+- Review depth scales with the work: `low` or `medium` for small changes (bug fixes, UI polish, config tweaks, dependency bumps), `high` for features and for auth, payments or migrations; `max` only when asked. Docs-only and CI-config-only PRs skip review. State the chosen level so it can be overridden. Watch especially for SDK error contracts (e.g. Resend returns `{error}` instead of throwing), cross-module shared-field writes, and deploy order.
 - PRs touching `frontend/**` or `backend/**` run Playwright e2e as a merge-blocking check (`e2e-pr.yml`, ADR-025) — factor into CI-wait expectations.
 
 ## Patterns
