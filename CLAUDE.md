@@ -23,11 +23,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Commit messages: short single-line, no body unless why isn't obvious. Never mention Claude/Claude Code/Anthropic, no `Co-Authored-By` trailer.
 - Solo user of this app right now — `EMAIL_FROM=onboarding@resend.dev` is fine, don't suggest custom domain/DNS verification unless multi-user comes up.
 - User has limited tokens — okay with a lighter review pass by default. Still flag SDK error contracts (e.g. Resend returns `{error}` instead of throwing) and cross-module shared-field writes if spotted, but don't force a full `/code-review` pass unless asked or the change is high-stakes (payments, auth, migrations).
-- PRs touching `frontend/**` or `backend/**` now run Playwright e2e as a merge-blocking check (`e2e-pr.yml`, since ADR-025), not just nightly — factor into CI-wait expectations.
+- PRs touching `frontend/**` or `backend/**` run Playwright e2e as a merge-blocking check (`e2e-pr.yml`, ADR-025) — factor into CI-wait expectations.
 
 ## Patterns
 
 - **Backend feature module:** `backend/src/modules/jobs/` — controller + service + `dto/` folder, one DTO file per shape. `backend/src/modules/contacts/` is a smaller, more recent example of the same shape. Copy this structure for new modules.
 - **Child-of-job module ownership:** modules whose records belong to a `Job` (e.g. `contacts`, `interview-rounds`) scope every access through an owner check on the parent — `ensureJobOwned(userId, jobId)` in `interview-rounds`, `ensureOwner(userId, ref)` in `contacts` (whose parent is a job or a company) — rather than adding a `userId` column to the child model. See ADR-015 and ADR-022.
 - **Frontend form (RHF + Zod):** `frontend/components/jobs/job-form.tsx` — inline Zod schema, handles both create and edit paths in one component.
-- **Frontend feature hooks:** `frontend/features/jobs/hooks.ts` — TanStack Query `useQuery`/`useMutation` hooks with the `['jobs', filters]` key convention described above, kept out of the route page. `features/profile/`, `features/admin/`, `features/dashboard/` follow the same shape. Route pages (e.g. `app/(dashboard)/jobs/page.tsx`) call these hooks and hold only local UI state.
+- **Frontend feature hooks:** `frontend/features/jobs/hooks.ts` — TanStack Query `useQuery`/`useMutation` hooks with the `['jobs', filters]` key convention (see `frontend/CLAUDE.md` → Data Fetching Conventions), kept out of the route page. `features/profile/`, `features/admin/`, `features/dashboard/` follow the same shape. Route pages (e.g. `app/(dashboard)/jobs/page.tsx`) call these hooks and hold only local UI state.
