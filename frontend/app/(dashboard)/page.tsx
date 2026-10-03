@@ -26,6 +26,7 @@ import {
   useTrendQuery,
   useRecentJobsQuery,
 } from '../../features/dashboard/hooks';
+import { PageHeader } from '../../components/layout/page-header';
 
 /**
  * Status donut chart, loaded on the client only.
@@ -91,15 +92,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-            Dashboard
-          </h1>
-          <p className="text-sm text-muted">Your job search at a glance</p>
-        </div>
-        <DateRangeSelect value={range} onChange={setRange} />
-      </div>
+      <PageHeader
+        title="Dashboard"
+        subtitle="Your job search at a glance"
+        actions={<DateRangeSelect value={range} onChange={setRange} />}
+      />
 
       {recent?.data.length === 0 && <WelcomeCard />}
 

@@ -23,6 +23,7 @@ import {
   useCompaniesQuery,
   useDeleteCompanyMutation,
 } from '../../../features/companies/hooks';
+import { PageHeader } from '../../../components/layout/page-header';
 
 /**
  * Companies page (`/companies`): filtered list with add, edit, delete, merge,
@@ -66,26 +67,24 @@ export default function CompaniesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-            Target Companies
-          </h1>
-          <p className="text-sm text-muted">
-            {isError && !data
-              ? 'Failed to load'
-              : `${data?.meta.total ?? 0} companies saved`}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setImportOpen(true)}>
-            <Upload className="h-4 w-4" /> Import CSV
-          </Button>
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" /> Add Company
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Target Companies"
+        subtitle={
+          isError && !data
+            ? 'Failed to load'
+            : `${data?.meta.total ?? 0} companies saved`
+        }
+        actions={
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={() => setImportOpen(true)}>
+              <Upload className="h-4 w-4" /> Import CSV
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> Add Company
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48">
