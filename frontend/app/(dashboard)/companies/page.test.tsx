@@ -16,11 +16,13 @@ vi.mock('../../../lib/api', () => ({
 // The dialogs and the duplicate banner run their own queries; stubbing them
 // keeps `lastGetUrl` reading the companies list request and nothing else.
 vi.mock('../../../components/companies/company-form', () => ({
-  CompanyForm: () => null,
+  CompanyForm: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="company-form" /> : null,
 }));
 
 vi.mock('../../../components/companies/csv-import-dialog', () => ({
-  CsvImportDialog: () => null,
+  CsvImportDialog: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="csv-import" /> : null,
 }));
 
 vi.mock('../../../components/companies/merge-company-dialog', () => ({
@@ -82,6 +84,14 @@ describe('CompaniesPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(api.get).mockResolvedValue({ data: page() });
+  });
+
+  it('opens the add form and the CSV import from the header', async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Add Company/ }));
+    expect(screen.getByTestId('company-form')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Import CSV/ }));
+    expect(screen.getByTestId('csv-import')).toBeInTheDocument();
   });
 
   it('lists the companies returned by the query', async () => {
