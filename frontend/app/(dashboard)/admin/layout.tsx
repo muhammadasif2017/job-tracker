@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '../../../lib/utils';
+import { PageHeader } from '../../../components/layout/page-header';
 
 /**
  * The admin section's tabs.
@@ -33,14 +34,10 @@ export default function AdminLayout({
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-          Admin
-        </h1>
-        <p className="text-sm text-muted">
-          Accounts and background jobs on this install
-        </p>
-      </div>
+      <PageHeader
+        title="Admin"
+        subtitle="Accounts and background jobs on this install"
+      />
 
       <nav aria-label="Admin sections" className="border-b border-line">
         <ul className="-mb-px flex gap-1">

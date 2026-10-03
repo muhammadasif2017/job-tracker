@@ -48,6 +48,7 @@ import {
   useExportJobsMutation,
   type JobsFilterValues,
 } from '../../../features/jobs/hooks';
+import { PageHeader } from '../../../components/layout/page-header';
 
 /** Hides a jobs-table column below the md breakpoint. */
 const MD_ONLY = 'hidden md:table-cell';
@@ -133,35 +134,33 @@ export default function JobsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-ink">
-            Jobs
-          </h1>
-          <p className="text-sm text-muted">
-            {isError && !data
-              ? 'Failed to load'
-              : `${data?.meta.total ?? 0} ${data?.meta.total === 1 ? 'job' : 'jobs'} tracked`}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 whitespace-nowrap">
-          <Button
-            variant="secondary"
-            onClick={() => exportMutation.mutate(filters)}
-            // A second click while the first request is in flight downloads
-            // the same file twice.
-            disabled={exportMutation.isPending}
-          >
-            <Download className="h-4 w-4" /> Export CSV
-          </Button>
-          <Button variant="secondary" onClick={() => setQuickAddOpen(true)}>
-            <Sparkles className="h-4 w-4" /> Quick Add
-          </Button>
-          <Button onClick={() => setFormOpen(true)}>
-            <Plus className="h-4 w-4" /> Add Job
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Jobs"
+        subtitle={
+          isError && !data
+            ? 'Failed to load'
+            : `${data?.meta.total ?? 0} ${data?.meta.total === 1 ? 'job' : 'jobs'} tracked`
+        }
+        actions={
+          <div className="flex flex-wrap gap-2 whitespace-nowrap">
+            <Button
+              variant="secondary"
+              onClick={() => exportMutation.mutate(filters)}
+              // A second click while the first request is in flight downloads
+              // the same file twice.
+              disabled={exportMutation.isPending}
+            >
+              <Download className="h-4 w-4" /> Export CSV
+            </Button>
+            <Button variant="secondary" onClick={() => setQuickAddOpen(true)}>
+              <Sparkles className="h-4 w-4" /> Quick Add
+            </Button>
+            <Button onClick={() => setFormOpen(true)}>
+              <Plus className="h-4 w-4" /> Add Job
+            </Button>
+          </div>
+        }
+      />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-48">
