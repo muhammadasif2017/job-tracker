@@ -122,7 +122,9 @@ test.describe('Admin pages', () => {
     await page.getByRole('link', { name: 'Queues' }).click();
 
     await expect(page).toHaveURL(/\/admin\/queues$/);
-    await expect(page.getByText('company-enrichment')).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'company-enrichment' }),
+    ).toBeVisible();
     await expect(page.getByText('Open', { exact: true })).toBeVisible();
   });
 });
