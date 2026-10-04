@@ -61,6 +61,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [052](./052-prometheus-metrics-grafana-alloy.md) | Prometheus metrics on a private port (HTTP, queues, circuit, process), scraped by Grafana Alloy and pushed to Grafana Cloud | Accepted |
 | [053](./053-sentry-logs.md) | Warn/error pino lines to Sentry Logs through `pinoIntegration`, cut to an allowlist of fields; never as error events | Accepted |
 | [054](./054-neutral-badge-chip.md) | Every badge is one neutral `Chip`; color only as a token dot on status, priority and enrichment state | Accepted |
+| [055](./055-request-breadcrumbs.md) | Fetch/XHR breadcrumbs on in browser Sentry, with query strings stripped | Accepted |
 
 ## How to read an ADR
 

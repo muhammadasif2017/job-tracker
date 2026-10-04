@@ -11,7 +11,7 @@ import {
   SENTRY_DSN,
   sharedSentryOptions,
   tunnelFor,
-  withoutNavigationQuery,
+  withoutUrlQuery,
 } from './lib/sentry-options';
 
 /**
@@ -23,9 +23,11 @@ import {
  * Turbopack cannot tree-shake them away even with tracing off. Only error
  * capture is loaded here: uncaught errors and rejections, linked causes, and
  * de-duplication. That adds about 36 KB gzipped to each page's first load.
- * Breadcrumbs record clicks and navigation only. Fetch and XHR crumbs are
- * off, since their URLs can carry search terms, and console crumbs are off
- * because the console integration is not added.
+ * Breadcrumbs record clicks, navigation and requests (ADR-055): an error
+ * event then shows which API calls ran before it, and which expected call
+ * never did. Axios sends through XHR; fetch covers everything else. Every URL
+ * loses its query string, which can carry search terms. Console crumbs are
+ * off because the console integration is not added.
  *
  * `@sentry/nextjs` still runs the server runtime and the build (source maps,
  * release, the tunnel rewrite). Its build step inlines the release as
@@ -37,17 +39,17 @@ if (SENTRY_DSN) {
     ...sharedSentryOptions(),
     release: process.env._sentryRelease || undefined,
     tunnel: tunnelFor(SENTRY_DSN),
-    beforeBreadcrumb: withoutNavigationQuery,
+    beforeBreadcrumb: withoutUrlQuery,
     defaultIntegrations: false,
     integrations: [
       functionToStringIntegration(),
       browserApiErrorsIntegration(),
       breadcrumbsIntegration({
         dom: true,
-        fetch: false,
+        fetch: true,
         history: true,
         sentry: false,
-        xhr: false,
+        xhr: true,
       }),
       globalHandlersIntegration(),
       linkedErrorsIntegration(),
