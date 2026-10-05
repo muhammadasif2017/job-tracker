@@ -16,6 +16,17 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api';
 
+/** Set once the chart module is first evaluated; a module loads once per file. */
+const chartsModule = vi.hoisted(() => ({ loaded: false }));
+
+vi.mock(
+  '../../components/dashboard/dashboard-charts',
+  async (importOriginal) => {
+    chartsModule.loaded = true;
+    return importOriginal();
+  },
+);
+
 function makeStats(overrides: Partial<JobStats> = {}): JobStats {
   return {
     total: 12,
@@ -123,6 +134,15 @@ function renderPage() {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  // Must stay the first test: later tests render the charts, which loads the
+  // module for the rest of the file and would make this pass regardless.
+  it('starts loading the chart code before the stats arrive', async () => {
+    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+    renderPage();
+
+    await waitFor(() => expect(chartsModule.loaded).toBe(true));
   });
 
   it('shows skeletons for the stat cards while loading', () => {

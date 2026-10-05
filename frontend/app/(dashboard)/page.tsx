@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   Briefcase,
@@ -65,6 +65,14 @@ const TrendChart = dynamic(
  */
 export default function DashboardPage() {
   const [range, setRange] = useState<DashboardRange>('all');
+
+  // The charts render only once their data arrives, so next/dynamic would
+  // fetch their chunk after the stats calls finish, then spend ~400 ms on a
+  // slow phone evaluating Recharts while the page waits. Start the import
+  // now so the chunk loads alongside the API calls instead.
+  useEffect(() => {
+    void import('../../components/dashboard/dashboard-charts');
+  }, []);
 
   const {
     data: stats,
