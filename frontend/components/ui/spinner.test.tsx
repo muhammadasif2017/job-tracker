@@ -10,6 +10,13 @@ describe('Spinner', () => {
     expect(svg).toHaveClass('h-5', 'w-5');
   });
 
+  it('is hidden from assistive technology and stops under reduced motion', () => {
+    const { container } = render(<Spinner />);
+    const svg = container.querySelector('svg');
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+    expect(svg).toHaveClass('motion-reduce:animate-none');
+  });
+
   it('uses a custom className instead of the default size', () => {
     const { container } = render(<Spinner className="h-10 w-10" />);
     const svg = container.querySelector('svg.animate-spin');
