@@ -2,8 +2,12 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The palette follows the `.dark` class, which the pre-hydration script in
+   app/layout.tsx resolves from the stored choice or the OS preference. Native
+   controls and scrollbars must follow the same class, not the OS directly, or
+   an explicit light choice on a dark OS gets dark date pickers and scrollbars. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --surface: #f7f8fa;
   --paper: #ffffff;
@@ -37,6 +41,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --surface: #0a0d11;
   --paper: #12171d;
   --paper-raised: #171d24;
@@ -126,5 +132,52 @@
       transparent 4px,
       transparent 10px
     );
+  }
+}
+
+/* Open/close animation for `Modal`. Radix sets `data-state` on the overlay and
+   content, and waits for `animationend` before unmounting on close. Content
+   uses `scale`, not `transform`, so it composes with the centering translate. */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes modal-zoom-in {
+  from {
+    scale: 0.95;
+  }
+}
+@keyframes modal-zoom-out {
+  to {
+    scale: 0.95;
+  }
+}
+.modal-overlay[data-state='open'] {
+  animation: modal-fade-in 150ms ease-out;
+}
+.modal-overlay[data-state='closed'] {
+  animation: modal-fade-out 150ms ease-in;
+}
+.modal-content[data-state='open'] {
+  animation:
+    modal-fade-in 150ms ease-out,
+    modal-zoom-in 150ms ease-out;
+}
+.modal-content[data-state='closed'] {
+  animation:
+    modal-fade-out 150ms ease-in,
+    modal-zoom-out 150ms ease-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Near-zero, not none: Radix still needs `animationend` to unmount. */
+  .modal-overlay[data-state],
+  .modal-content[data-state] {
+    animation-duration: 1ms;
   }
 }

@@ -1,12 +1,20 @@
 import { cn } from '../../lib/utils';
 
-/** Spinning loading indicator in the accent color. */
+/**
+ * Spinning loading indicator in the accent color. Decorative: hidden from
+ * assistive technology, so pair it with visible text that says what is
+ * loading. It stops spinning under `prefers-reduced-motion`.
+ */
 export function Spinner({ className }: { className?: string }) {
   return (
     <svg
-      className={cn('animate-spin text-accent', className ?? 'h-5 w-5')}
+      className={cn(
+        'animate-spin motion-reduce:animate-none text-accent',
+        className ?? 'h-5 w-5',
+      )}
       viewBox="0 0 24 24"
       fill="none"
+      aria-hidden="true"
     >
       <circle
         className="opacity-25"
