@@ -2,8 +2,12 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The palette follows the `.dark` class, which the pre-hydration script in
+   app/layout.tsx resolves from the stored choice or the OS preference. Native
+   controls and scrollbars must follow the same class, not the OS directly, or
+   an explicit light choice on a dark OS gets dark date pickers and scrollbars. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
   --surface: #f7f8fa;
   --paper: #ffffff;
@@ -37,6 +41,8 @@
 }
 
 .dark {
+  color-scheme: dark;
+
   --surface: #0a0d11;
   --paper: #12171d;
   --paper-raised: #171d24;
