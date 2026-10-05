@@ -100,6 +100,7 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <Input
             label="Name"
+            autoComplete="name"
             placeholder="Your name"
             error={errors.name?.message}
             {...register('name')}
@@ -107,6 +108,7 @@ export default function RegisterPage() {
           <Input
             label="Email"
             type="email"
+            autoComplete="username"
             placeholder="you@example.com"
             error={errors.email?.message}
             {...register('email')}
@@ -114,6 +116,7 @@ export default function RegisterPage() {
           <Input
             label="Password"
             type="password"
+            autoComplete="new-password"
             placeholder="Min. 8 characters"
             error={errors.password?.message}
             {...register('password')}
@@ -121,6 +124,7 @@ export default function RegisterPage() {
           <Input
             label="Confirm password"
             type="password"
+            autoComplete="new-password"
             placeholder="Repeat password"
             error={errors.confirm?.message}
             {...register('confirm')}
