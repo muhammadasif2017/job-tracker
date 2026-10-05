@@ -16,16 +16,19 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api';
 
-/** Set once the chart module is first evaluated; a module loads once per file. */
-const chartsModule = vi.hoisted(() => ({ loaded: false }));
-
+// Spied so a test can see the lazy status chart mount before its data does.
 vi.mock(
   '../../components/dashboard/dashboard-charts',
   async (importOriginal) => {
-    chartsModule.loaded = true;
-    return importOriginal();
+    const actual =
+      await importOriginal<
+        typeof import('../../components/dashboard/dashboard-charts')
+      >();
+    return { ...actual, StatusChartPanel: vi.fn(actual.StatusChartPanel) };
   },
 );
+
+import { StatusChartPanel } from '../../components/dashboard/dashboard-charts';
 
 function makeStats(overrides: Partial<JobStats> = {}): JobStats {
   return {
@@ -136,13 +139,14 @@ describe('DashboardPage', () => {
     vi.clearAllMocks();
   });
 
-  // Must stay the first test: later tests render the charts, which loads the
-  // module for the rest of the file and would make this pass regardless.
-  it('starts loading the chart code before the stats arrive', async () => {
+  it('mounts the lazy status chart before the stats arrive', async () => {
     vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
     renderPage();
 
-    await waitFor(() => expect(chartsModule.loaded).toBe(true));
+    await waitFor(() => expect(StatusChartPanel).toHaveBeenCalled());
+    expect(vi.mocked(StatusChartPanel).mock.calls[0][0]).toEqual({
+      stats: undefined,
+    });
   });
 
   it('shows skeletons for the stat cards while loading', () => {
