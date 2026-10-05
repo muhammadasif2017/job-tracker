@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
+  API,
   createTestUser,
   deleteTestUser,
   createTestJob,
@@ -89,6 +90,56 @@ test.describe('Interview rounds', () => {
     // No reload: the new round has to come from the create mutation's
     // refetch of the job, the same way the Timeline entry does.
     await expect(page.getByText('Interview round added')).toBeVisible();
+    await expect(
+      page.getByText('Technical Interview', { exact: true }),
+    ).toBeVisible();
+  });
+
+  test('shows a second round when the session starts on an expired token', async ({
+    page,
+  }) => {
+    // The real session this mirrors: the page loaded on an expired access
+    // token and refreshed it, the status was changed by hand, round 1 was
+    // logged after it happened, then marked passed before round 2 was added.
+    await page.context().request.post(`${API}/auth/login`, {
+      data: { email: user.email, password: user.password },
+    });
+    await injectAuth(page, { ...user, accessToken: 'expired-access-token' });
+    await page.goto(`/jobs/${job.id}`);
+    await expect(
+      page.getByRole('heading', { name: job.company }),
+    ).toBeVisible();
+
+    await page.locator('#job-detail-status').selectOption('INTERVIEWING');
+    await expect(page.locator('#job-detail-status')).toHaveValue(
+      'INTERVIEWING',
+    );
+
+    await page.getByRole('button', { name: 'Add Round' }).click();
+    await page.getByLabel('Stage').fill('Phone Screen');
+    await page.getByLabel('Date & time').fill(futureDateTime(-2));
+    await page.getByLabel('Length (minutes)').fill('45');
+    await page.getByRole('button', { name: 'Save' }).click();
+    await expect(page.getByText('Interview round added')).toBeVisible();
+    await expect(page.getByText('Phone Screen', { exact: true })).toBeVisible();
+
+    const firstRow = page.locator('li', { hasText: 'Phone Screen' });
+    await firstRow.getByRole('combobox').selectOption('Passed');
+    await expect(page.getByText('Outcome updated')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add Round' }).click();
+    await page.getByLabel('Stage').fill('Technical Interview');
+    await page.getByLabel('Date & time').fill(futureDateTime(5));
+    await page.getByLabel('Length (minutes)').fill('60');
+    const refetch = page.waitForResponse(
+      (res) =>
+        res.request().method() === 'GET' &&
+        new URL(res.url()).pathname === `/v1/jobs/${job.id}`,
+    );
+    await page.getByRole('button', { name: 'Save' }).click();
+
+    await expect(page.getByText('Interview round added')).toBeVisible();
+    await refetch;
     await expect(
       page.getByText('Technical Interview', { exact: true }),
     ).toBeVisible();
