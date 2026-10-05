@@ -134,3 +134,50 @@
     );
   }
 }
+
+/* Open/close animation for `Modal`. Radix sets `data-state` on the overlay and
+   content, and waits for `animationend` before unmounting on close. Content
+   uses `scale`, not `transform`, so it composes with the centering translate. */
+@keyframes modal-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes modal-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes modal-zoom-in {
+  from {
+    scale: 0.95;
+  }
+}
+@keyframes modal-zoom-out {
+  to {
+    scale: 0.95;
+  }
+}
+.modal-overlay[data-state='open'] {
+  animation: modal-fade-in 150ms ease-out;
+}
+.modal-overlay[data-state='closed'] {
+  animation: modal-fade-out 150ms ease-in;
+}
+.modal-content[data-state='open'] {
+  animation:
+    modal-fade-in 150ms ease-out,
+    modal-zoom-in 150ms ease-out;
+}
+.modal-content[data-state='closed'] {
+  animation:
+    modal-fade-out 150ms ease-in,
+    modal-zoom-out 150ms ease-in;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Near-zero, not none: Radix still needs `animationend` to unmount. */
+  .modal-overlay[data-state],
+  .modal-content[data-state] {
+    animation-duration: 1ms;
+  }
+}
