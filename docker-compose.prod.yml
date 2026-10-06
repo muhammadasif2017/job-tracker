@@ -36,9 +36,14 @@ services:
       timeout: 5s
       retries: 5
 
+  # Deployed by scripts/deploy-backend.sh, which runs a second container beside
+  # this one until it is healthy (ADR-057). That needs no container_name and
+  # no published port, so keep both off.
   backend:
     image: ghcr.io/muhammadasif2017/job-tracker-backend:latest
     restart: unless-stopped
+    # Time to finish in-flight requests after SIGTERM before Docker kills it.
+    stop_grace_period: 30s
     environment:
       NODE_ENV: production
       PORT: 3001

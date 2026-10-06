@@ -130,10 +130,7 @@ jobs:
             # the way `reset --hard` would.
             git fetch --prune origin
             git pull --ff-only origin main
-            docker compose -f docker-compose.prod.yml --env-file .env pull
-            docker compose -f docker-compose.prod.yml --env-file .env up -d
-            # Alloy reads its config only at startup, and `up -d` leaves the
-            # container alone when only alloy/config.alloy changed. Restarting
-            # it is cheap: its write-ahead log keeps unsent samples (ADR-052).
-            docker compose -f docker-compose.prod.yml --env-file .env restart alloy
-            docker image prune -f
+            # Starts the new backend beside the old one and stops the old one
+            # only once the new one is healthy (ADR-057). Run from the checkout
+            # just pulled, so a change to the script ships with the release.
+            bash scripts/deploy-backend.sh

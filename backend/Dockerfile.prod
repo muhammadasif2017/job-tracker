@@ -39,4 +39,7 @@ ARG GIT_SHA
 ENV SENTRY_RELEASE=${GIT_SHA}
 EXPOSE 3001
 # Apply pending migrations, then boot. migrate deploy never generates or resets — safe for prod.
-CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && node dist/main"]
+# `exec` makes node the container's main process, so `docker stop`'s SIGTERM
+# reaches it and Nest shuts down gracefully (ADR-057). Without it the shell
+# receives the signal, ignores it, and node is killed 30s later mid-request.
+CMD ["sh", "-c", "node node_modules/.bin/prisma migrate deploy && exec node dist/main"]

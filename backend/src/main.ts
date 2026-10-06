@@ -24,6 +24,10 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(NestPinoAdapter));
+  // On SIGTERM, stop accepting connections, finish in-flight requests and
+  // close the BullMQ workers and Redis connections before exiting. The
+  // zero-downtime deploy stops the old container this way (ADR-057).
+  app.enableShutdownHooks();
 
   const config = app.get(ConfigService);
   configureApp(app);

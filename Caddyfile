@@ -7,5 +7,17 @@
 
 {$BACKEND_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy backend:3001
+	# During a deploy two backend containers run at once (ADR-057), and Docker's
+	# DNS answers `backend` with both. Re-resolving every second picks up the new
+	# one and drops the old. A request whose connection is refused, because the
+	# old container is shutting down, is retried on another upstream for up to
+	# 30s instead of failing.
+	reverse_proxy {
+		dynamic a backend 3001 {
+			refresh 1s
+		}
+		lb_try_duration 30s
+		lb_try_interval 250ms
+		fail_duration 10s
+	}
 }
