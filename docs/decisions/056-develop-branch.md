@@ -55,6 +55,10 @@ it reached users.
   That needed a workflow, and a personal access token, to merge `main` back
   into `develop` after each of them. It was dropped the same day for this
   simpler flow.
+- Vercel deploys only `main`. `frontend/vercel.json` turns off
+  `git.deploymentEnabled` for every other branch (`**` matches names with a
+  `/`, such as Dependabot's), so feature branches, `develop` and PRs no longer
+  spend the Vercel plan's deployment limit on previews nobody can log in to.
 - The nightly e2e run uses the default branch, so it tests `main`.
 - `gh pr create` and the GitHub UI default a new PR to `main`, so a PR must
   name `develop` as its base. `pr-after-push.sh` does this for PRs it opens.
