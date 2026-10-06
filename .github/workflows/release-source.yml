@@ -1,0 +1,27 @@
+name: Release source
+
+# main only takes releases from develop (ADR-056). main is the default branch,
+# so a PR can be opened against it by mistake; this check is required on main
+# and fails any PR whose source is not this repo's develop branch. `edited`
+# re-runs it when a PR's base is changed to main.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  source:
+    name: Release source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require develop as the source branch
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          if [ "$HEAD_REF" != develop ] || [ "$HEAD_REPO" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::PRs to main must come from develop (ADR-056). Change this PR's base branch to develop."
+            exit 1
+          fi
