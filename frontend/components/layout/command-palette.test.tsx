@@ -143,6 +143,16 @@ describe('CommandPalette', () => {
     expect(push).not.toHaveBeenCalled();
   });
 
+  it('ignores Enter while an IME is composing, then navigates once it ends', async () => {
+    renderPalette();
+    const input = await openWithShortcut();
+    await screen.findByRole('option', { name: /Stripe/ });
+    fireEvent.keyDown(input, { key: 'Enter', isComposing: true });
+    expect(push).not.toHaveBeenCalled();
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(push).toHaveBeenCalledTimes(1);
+  });
+
   it('does not open over another dialog', () => {
     renderPalette();
     const other = document.createElement('div');

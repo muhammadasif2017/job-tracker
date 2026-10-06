@@ -143,6 +143,9 @@ function PaletteBody({ onNavigate }: PaletteBodyProps) {
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
+    // An IME (Japanese, Chinese, Korean input) uses these keys to pick and
+    // confirm a candidate; leave them to it until composition ends.
+    if (e.nativeEvent.isComposing) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setActive((current + 1) % Math.max(items.length, 1));

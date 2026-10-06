@@ -4,6 +4,9 @@
 
 Accepted
 
+Amended by ADR-055: fetch and XHR breadcrumbs are on, with their query
+strings stripped by `withoutUrlQuery` (formerly `withoutNavigationQuery`).
+
 ## Date
 
 2026-09-25

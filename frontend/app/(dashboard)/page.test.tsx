@@ -16,6 +16,20 @@ vi.mock('../../lib/api', () => ({
 
 import api from '../../lib/api';
 
+// Spied so a test can see the lazy status chart mount before its data does.
+vi.mock(
+  '../../components/dashboard/dashboard-charts',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('../../components/dashboard/dashboard-charts')
+      >();
+    return { ...actual, StatusChartPanel: vi.fn(actual.StatusChartPanel) };
+  },
+);
+
+import { StatusChartPanel } from '../../components/dashboard/dashboard-charts';
+
 function makeStats(overrides: Partial<JobStats> = {}): JobStats {
   return {
     total: 12,
@@ -123,6 +137,16 @@ function renderPage() {
 describe('DashboardPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('mounts the lazy status chart before the stats arrive', async () => {
+    vi.mocked(api.get).mockReturnValue(new Promise(() => {}));
+    renderPage();
+
+    await waitFor(() => expect(StatusChartPanel).toHaveBeenCalled());
+    expect(vi.mocked(StatusChartPanel).mock.calls[0][0]).toEqual({
+      stats: undefined,
+    });
   });
 
   it('shows skeletons for the stat cards while loading', () => {
