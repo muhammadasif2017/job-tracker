@@ -2,10 +2,16 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import nextVitals from 'eslint-config-next/core-web-vitals';
 import nextTs from 'eslint-config-next/typescript';
 import eslintConfigPrettier from 'eslint-config-prettier';
+import reactPackage from 'react/package.json' with { type: 'json' };
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    // eslint-plugin-react's `version: 'detect'` calls `context.getFilename()`,
+    // which ESLint 10 removed. Passing the installed version skips detection.
+    settings: { react: { version: reactPackage.version } },
+  },
   // Turn off ESLint rules that conflict with Prettier (must come last).
   eslintConfigPrettier,
   // Override default ignores of eslint-config-next.
