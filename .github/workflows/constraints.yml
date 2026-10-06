@@ -2,9 +2,9 @@ name: Constraints
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
 
 jobs:
   floor:
@@ -21,9 +21,9 @@ jobs:
         with:
           node-version: 24
 
-      - run: node scripts/floor-guard.mjs --base origin/${{ github.base_ref || 'main' }}
+      - run: node scripts/floor-guard.mjs --base origin/${{ github.base_ref || github.ref_name }}
 
-      - run: node scripts/migration-guard.mjs --base origin/${{ github.base_ref || 'main' }}
+      - run: node scripts/migration-guard.mjs --base origin/${{ github.base_ref || github.ref_name }}
 
   secrets:
     name: Secret scan

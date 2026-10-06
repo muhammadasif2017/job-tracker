@@ -1,7 +1,10 @@
 version: 2
+# develop is the default branch (ADR-056), so every entry pins main: dependency
+# bumps skip develop and are synced back by sync-develop.yml.
 updates:
   - package-ecosystem: "npm"
     directory: "/backend"
+    target-branch: "main"
     schedule:
       interval: "weekly"
     ignore:
@@ -10,6 +13,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/frontend"
+    target-branch: "main"
     schedule:
       interval: "weekly"
     ignore:
@@ -18,5 +22,6 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "main"
     schedule:
       interval: "weekly"

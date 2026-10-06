@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse(Bash) guard: never allow `git commit` to land directly on main/master.
+# PreToolUse(Bash) guard: never allow `git commit` to land directly on main/master/develop.
 # Auto-creates and switches to a feature branch (staged/uncommitted changes carry over) first.
 # Branch name is slugified from the commit message subject line, not a timestamp.
 #
@@ -90,7 +90,7 @@ process.stdin.on('end', () => {
       const target = args.find((a) => !a.startsWith('-'));
       if (!args.includes('--')) {
         if (creates) mode = 'self';
-        else if (target) mode = /^(main|master)$/.test(target) ? 'main' : 'self';
+        else if (target) mode = /^(main|master|develop)$/.test(target) ? 'main' : 'self';
       }
     }
 
@@ -126,13 +126,13 @@ repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
 cd "$repo_root" || exit 0
 
 if [ "$mode" = "main" ]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This command switches to main/master and then commits. Commit on a feature branch instead."}}\n'
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"This command switches to main/master/develop and then commits. Commit on a feature branch instead."}}\n'
   exit 0
 fi
 
 branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 
-if [ "$branch" = "main" ] || [ "$branch" = "master" ]; then
+if [ "$branch" = "main" ] || [ "$branch" = "master" ] || [ "$branch" = "develop" ]; then
   new_branch="feature/${slug:-update}"
   if git rev-parse --verify --quiet "$new_branch" >/dev/null || git rev-parse --verify --quiet "refs/remotes/origin/$new_branch" >/dev/null 2>&1; then
     new_branch="${new_branch}-$(date +%H%M%S)"

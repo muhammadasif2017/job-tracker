@@ -1,0 +1,63 @@
+name: Sync develop
+
+# Hotfixes and Dependabot bumps land on main without passing through develop
+# (ADR-056). main requires a release PR to be up to date with it, so develop
+# must carry every main commit before its next release can merge. After each
+# push to main, this opens (or refreshes) a PR that merges main into develop.
+#
+# The PR is opened with SYNC_DEVELOP_TOKEN, a fine-grained PAT, not
+# GITHUB_TOKEN: a branch pushed with GITHUB_TOKEN starts no workflows, so the
+# PR's required checks would never run. Merge the PR with a merge commit,
+# never a squash, so develop keeps main's history.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: sync-develop
+  cancel-in-progress: false
+
+permissions: {}
+
+env:
+  SYNC_BRANCH: sync/main-into-develop
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.SYNC_DEVELOP_TOKEN }}
+
+      - name: Open or refresh the sync PR
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_DEVELOP_TOKEN }}
+        run: |
+          if git merge-base --is-ancestor origin/main origin/develop; then
+            echo "develop already contains main"
+            exit 0
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -C "$SYNC_BRANCH" origin/main
+
+          # Merging develop in here makes the PR up to date with develop, so
+          # its strict check passes without anyone pressing "Update branch".
+          # On a conflict, the branch stays at main's tip for a person to
+          # resolve.
+          note='Merges main into develop. Merge with a merge commit, not a squash (ADR-056).'
+          if ! git merge --no-ff --no-edit origin/develop; then
+            git merge --abort
+            note="$note"$'\n\n''main and develop conflict: update this branch and resolve them by hand.'
+          fi
+          git push --force origin "$SYNC_BRANCH"
+
+          if [ "$(gh pr list --head "$SYNC_BRANCH" --base develop --json number --jq length)" = "0" ]; then
+            gh pr create --head "$SYNC_BRANCH" --base develop --title 'Sync main into develop' --body "$note"
+          fi
