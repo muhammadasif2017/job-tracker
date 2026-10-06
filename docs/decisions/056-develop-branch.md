@@ -20,21 +20,18 @@ it reached users.
 ## Decision
 
 - **`develop` is the integration branch and the default branch.** Feature PRs
-  target `develop` and are squash-merged. `develop` has the same protection as
-  `main`: the four required checks, kept up to date.
+  target `develop` and are squash-merged. `develop` requires the same four
+  checks as `main`, and requires a PR to be up to date with it.
 - **A release is a PR from `develop` to `main`, merged with a merge commit.**
   A squash would leave `develop` and `main` with different histories, so every
-  later release would conflict.
-- **Hotfixes go straight to `main`** from a `hotfix/<name>` branch, squash
-  merged. `pr-after-push.sh` opens `hotfix/*` PRs against `main` and every
-  other branch's PR against `develop`.
-- **Dependabot targets `main`** (`target-branch` in `dependabot.yml`), so
-  dependency bumps do not wait for a release.
-- **`main` is synced back into `develop` after every push to `main`.**
-  `sync-develop.yml` opens or refreshes a `sync/main-into-develop` PR, with
-  `develop` already merged in so the PR is up to date. Merge it with a merge
-  commit. A release PR cannot merge while `develop` is missing a hotfix or a
-  bump, because `main` requires PRs to be up to date.
+  later release would conflict. `main` does not require a PR to be up to
+  date: each release adds a merge commit that only `main` has, so `develop`
+  is never up to date with `main` after the first release. The merge commit
+  changes no files, so this is harmless.
+- **Every change goes through `develop`**, including urgent fixes and
+  Dependabot bumps (Dependabot follows the default branch). Nothing merges to
+  `main` except a release PR, so `main` never holds a change that `develop`
+  lacks.
 - **CI runs on both branches.** Every workflow that ran on PRs and pushes to
   `main` also runs on `develop`. The floor, migration and coverage guards diff
   against the PR's target branch. On a push they compare the branch with
@@ -50,11 +47,11 @@ it reached users.
 - A migration reaches production when the release PR merges, not when its
   feature PR merges. One release can carry several migrations, so confirm the
   data loss of all of them on the release PR.
-- `sync-develop.yml` needs a fine-grained personal access token in the
-  `SYNC_DEVELOP_TOKEN` secret, with Contents, Pull requests and Workflows
-  read/write on this repository. A branch pushed with `GITHUB_TOKEN` starts no
-  workflows, so the sync PR's required checks would never run.
-- When `main` and `develop` conflict, the sync PR opens without the merge, and
-  a person resolves the conflict on the sync branch.
+- An urgent fix reaches production through a release, which also ships
+  whatever else is on `develop` at the time.
+- A first version of this ADR sent hotfixes and Dependabot straight to `main`.
+  That needed a workflow, and a personal access token, to merge `main` back
+  into `develop` after each of them. It was dropped the same day for this
+  simpler flow.
 - The nightly e2e run uses the default branch, so it now tests `develop`.
 - The local hooks treat `develop` like `main`: no direct commits or pushes.
