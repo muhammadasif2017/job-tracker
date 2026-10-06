@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# PostToolUse(Bash): after a feature-branch push, auto-open a PR if one doesn't exist yet.
-# hotfix/* branches target main; every other branch targets develop (ADR-056).
+# PostToolUse(Bash): after a feature-branch push, auto-open a PR against develop if one doesn't exist yet.
+# Every change goes through develop; only release PRs target main (ADR-056).
 cmd=$(node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).tool_input.command||'')}catch(e){console.log('')}})")
 
 case "$cmd" in
@@ -17,10 +17,7 @@ branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 [ "$branch" = "master" ] && exit 0
 [ "$branch" = "develop" ] && exit 0
 
-case "$branch" in
-  hotfix/*) base=main ;;
-  *) base=develop ;;
-esac
+base=develop
 
 command -v gh >/dev/null 2>&1 || exit 0
 
