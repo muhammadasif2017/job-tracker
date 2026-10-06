@@ -308,11 +308,11 @@ CI/CD:
 - `frontend-ci.yml` — frontend lint/typecheck/build.
 - `extension-ci.yml` — browser extension lint/test.
 
-On push to `main`, `deploy.yml` SSHes into the VM and runs:
+On push to `main`, `deploy.yml` SSHes into the VM, pulls the repo, and runs `scripts/deploy-backend.sh`, which starts the new backend beside the old one and stops the old one only once the new one is healthy, so the API stays up (ADR-057):
 
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d
+git pull --ff-only origin main
+bash scripts/deploy-backend.sh
 ```
 
 Required GitHub secrets: `SSH_HOST`, `SSH_USER`, `SSH_PRIVATE_KEY` (optional `SSH_PORT`, `DEPLOY_PATH` var). Runtime secrets live in a `.env` file next to `docker-compose.prod.yml` on the VM.

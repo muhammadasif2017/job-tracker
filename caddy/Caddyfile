@@ -1,0 +1,24 @@
+# Caddy auto-provisions Let's Encrypt TLS for the backend DuckDNS subdomain via the HTTP-01
+# challenge (ports 80/443 must be reachable from the internet). The frontend is hosted on
+# Vercel, so Caddy only fronts the backend API here. Domain comes from env.
+{
+	email {$ACME_EMAIL}
+}
+
+{$BACKEND_DOMAIN} {
+	encode zstd gzip
+	# During a deploy two backend containers run at once (ADR-057), and Docker's
+	# DNS answers `backend` with both. Re-resolving every second picks up the new
+	# one and drops the old. A request whose connection is refused, because the
+	# old container is shutting down, is retried on another upstream for up to
+	# 5s instead of failing. Kept short: when the only backend is down, every
+	# request waits this long before its 502.
+	reverse_proxy {
+		dynamic a backend 3001 {
+			refresh 1s
+		}
+		lb_try_duration 5s
+		lb_try_interval 250ms
+		fail_duration 10s
+	}
+}

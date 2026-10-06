@@ -2,8 +2,10 @@
 # only ports 80/443 are exposed. Postgres is hosted on Neon (managed, free tier),
 # so there is no database container here.
 #
-#   docker compose -f docker-compose.prod.yml --env-file .env pull
-#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+# Deploy with scripts/deploy-backend.sh, not a plain `up -d`: that stops the
+# backend before its replacement has booted and takes the API down (ADR-057).
+#
+#   bash scripts/deploy-backend.sh
 #
 services:
   redis:
@@ -36,9 +38,14 @@ services:
       timeout: 5s
       retries: 5
 
+  # Deployed by scripts/deploy-backend.sh, which runs a second container beside
+  # this one until it is healthy (ADR-057). That needs no container_name and
+  # no published port, so keep both off.
   backend:
     image: ghcr.io/muhammadasif2017/job-tracker-backend:latest
     restart: unless-stopped
+    # Time to finish in-flight requests after SIGTERM before Docker kills it.
+    stop_grace_period: 30s
     environment:
       NODE_ENV: production
       PORT: 3001
@@ -123,7 +130,10 @@ services:
       BACKEND_DOMAIN: ${BACKEND_DOMAIN}
       ACME_EMAIL: ${ACME_EMAIL}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # The directory, not the file, for the same reason as Alloy above: `git
+      # pull` replaces the Caddyfile, and a single-file bind mount keeps showing
+      # the old one, so `caddy reload` would reload stale config.
+      - ./caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:

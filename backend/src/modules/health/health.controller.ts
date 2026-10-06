@@ -20,8 +20,10 @@ import { RedisHealthIndicator } from './redis.health.js';
  * failing fast enough to be a useful signal when the database is genuinely
  * unreachable. Nothing polls this on an interval in production (the backend
  * service in docker-compose.prod.yml declares no healthcheck, and Caddy
- * doesn't probe), so a slower answer there costs only the caller's wait. The
- * one automated consumer is CI's boot gate (`wait-on --timeout 60000
+ * doesn't probe), so a slower answer there costs only the caller's wait, and
+ * an idle Neon compute is left to suspend. The deploy script polls it only
+ * while a new container boots (scripts/deploy-backend.sh, ADR-057). The
+ * other automated consumer is CI's boot gate (`wait-on --timeout 60000
  * .../health` in e2e-pr.yml and e2e-nightly.yml), which is unaffected:
  * Postgres is a local container in those runs with nothing to resume, so the
  * ping resolves in milliseconds and never approaches this ceiling.
