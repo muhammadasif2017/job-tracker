@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PreToolUse(Bash) guard: block `git push` that would land on main/master directly — PRs only.
+# PreToolUse(Bash) guard: block `git push` that would land on main/master/develop directly — PRs only.
 cmd=$(node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{console.log(JSON.parse(d).tool_input.command||'')}catch(e){console.log('')}})")
 
 case "$cmd" in
@@ -36,18 +36,18 @@ done
 target_main=0
 if [ -n "$explicit_target" ]; then
   case "$explicit_target" in
-    main|master|refs/heads/main|refs/heads/master) target_main=1 ;;
+    main|master|develop|refs/heads/main|refs/heads/master|refs/heads/develop) target_main=1 ;;
   esac
 else
   # No explicit target (bare `git push` / `git push origin`) pushes the
   # current branch.
   case "$branch" in
-    main|master) target_main=1 ;;
+    main|master|develop) target_main=1 ;;
   esac
 fi
 
 if [ "$target_main" = "1" ]; then
-  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Direct push to main/master is not permitted. Push your feature branch and open a PR instead."}}\n'
+  printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"Direct push to main/master/develop is not permitted. Push your feature branch and open a PR instead."}}\n'
   exit 0
 fi
 

@@ -2,9 +2,9 @@ name: Deploy backend
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
-    branches: [main]
+    branches: [main, develop]
   workflow_dispatch:
 
 concurrency:
@@ -71,7 +71,7 @@ jobs:
 
       - name: Coverage of changed lines
         working-directory: .
-        run: node scripts/coverage-diff.mjs --base origin/${{ github.base_ref || 'main' }}
+        run: node scripts/coverage-diff.mjs --base origin/${{ github.base_ref || github.ref_name }}
 
   build-push:
     if: github.ref == 'refs/heads/main'

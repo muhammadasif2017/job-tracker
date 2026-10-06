@@ -62,6 +62,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [053](./053-sentry-logs.md) | Warn/error pino lines to Sentry Logs through `pinoIntegration`, cut to an allowlist of fields; never as error events | Accepted |
 | [054](./054-neutral-badge-chip.md) | Every badge is one neutral `Chip`; color only as a token dot on status, priority and enrichment state | Accepted |
 | [055](./055-request-breadcrumbs.md) | Fetch/XHR breadcrumbs on in browser Sentry, with query strings stripped | Accepted |
+| [056](./056-develop-branch.md) | Features go through `develop`, released to `main` by merge commit; hotfixes and Dependabot go straight to `main` | Accepted |
 
 ## How to read an ADR
 
