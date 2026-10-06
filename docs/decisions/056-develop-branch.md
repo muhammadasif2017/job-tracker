@@ -58,4 +58,6 @@ it reached users.
 - The nightly e2e run uses the default branch, so it tests `main`.
 - `gh pr create` and the GitHub UI default a new PR to `main`, so a PR must
   name `develop` as its base. `pr-after-push.sh` does this for PRs it opens.
+  The required `Release source` check (`release-source.yml`) fails any PR to
+  `main` whose source is not `develop`.
 - The local hooks treat `develop` like `main`: no direct commits or pushes.
