@@ -14,7 +14,11 @@ import { AttentionCard } from '../../components/dashboard/attention-card';
 import { GhostSuggestionsCard } from '../../components/dashboard/ghost-suggestions-card';
 import { StatsCard } from '../../components/dashboard/stats-card';
 import { WelcomeCard } from '../../components/dashboard/welcome-card';
-import { ChartCard } from '../../components/dashboard/chart-card';
+import {
+  ChartCard,
+  ChartSkeleton,
+  FUNNEL_SKELETON_CLASS,
+} from '../../components/dashboard/chart-card';
 import { DateRangeSelect } from '../../components/dashboard/date-range-select';
 import { Skeleton, LoadingStatus } from '../../components/ui/skeleton';
 import { StatusBadge } from '../../components/ui/badge';
@@ -31,32 +35,37 @@ import { PageHeader } from '../../components/layout/page-header';
 /**
  * Status donut chart, loaded on the client only.
  *
- * Charts: code-split out of the initial dashboard bundle, gated behind their queries anyway.
- * All three point at the same module so Turbopack resolves the shared Recharts
- * vendor dependency once instead of duplicating it across three chunks.
+ * Charts are code-split out of the initial dashboard bundle. The page renders
+ * them straight away, each showing a skeleton until its data arrives, so the
+ * chunk loads alongside the API calls rather than after them. All three point
+ * at the same module so Turbopack resolves the shared Recharts vendor
+ * dependency once instead of duplicating it across three chunks.
  */
 const StatusChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
-      (m) => m.StatusChart,
+      (m) => m.StatusChartPanel,
     ),
-  { ssr: false },
+  { ssr: false, loading: () => <ChartSkeleton /> },
 );
 /** Funnel chart, loaded on the client only. */
 const FunnelChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
-      (m) => m.FunnelChart,
+      (m) => m.FunnelChartPanel,
     ),
-  { ssr: false },
+  {
+    ssr: false,
+    loading: () => <ChartSkeleton className={FUNNEL_SKELETON_CLASS} />,
+  },
 );
 /** Trend chart, loaded on the client only. */
 const TrendChart = dynamic(
   () =>
     import('../../components/dashboard/dashboard-charts').then(
-      (m) => m.TrendChart,
+      (m) => m.TrendChartPanel,
     ),
-  { ssr: false },
+  { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
 /**
@@ -72,17 +81,9 @@ export default function DashboardPage() {
     isError: statsError,
   } = useStatsQuery(range);
 
-  const {
-    data: funnel,
-    isLoading: funnelLoading,
-    isError: funnelError,
-  } = useFunnelQuery(range);
+  const { data: funnel, isError: funnelError } = useFunnelQuery(range);
 
-  const {
-    data: trend,
-    isLoading: trendLoading,
-    isError: trendError,
-  } = useTrendQuery(range);
+  const { data: trend, isError: trendError } = useTrendQuery(range);
 
   const {
     data: recent,
@@ -150,11 +151,10 @@ export default function DashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <ChartCard
           title="Applications by Status"
-          loading={statsLoading}
           error={statsError && !stats}
           errorMessage="Failed to load chart."
         >
-          {stats && <StatusChart stats={stats} />}
+          <StatusChart stats={stats} />
         </ChartCard>
 
         <div className="rounded-md border border-line bg-paper p-5">
@@ -213,21 +213,18 @@ export default function DashboardPage() {
 
       <ChartCard
         title="Application Funnel"
-        loading={funnelLoading}
         error={funnelError && !funnel}
         errorMessage="Failed to load funnel."
-        skeletonClassName="h-[420px] w-full"
       >
-        {funnel && <FunnelChart data={funnel} />}
+        <FunnelChart data={funnel} />
       </ChartCard>
 
       <ChartCard
         title="Applications Over Time"
-        loading={trendLoading}
         error={trendError && !trend}
         errorMessage="Failed to load trend."
       >
-        {trend && <TrendChart data={trend} />}
+        <TrendChart data={trend} />
       </ChartCard>
     </div>
   );
