@@ -643,11 +643,7 @@ describe('Job Tracker (e2e)', () => {
           type: 'CREATED' | 'STATUS_CHANGE' | 'INTERVIEW_ROUND_ADDED';
           createdAt?: Date;
           toStatus:
-            | 'WISHLIST'
-            | 'APPLIED'
-            | 'INTERVIEWING'
-            | 'REJECTED'
-            | 'GHOSTED';
+            'WISHLIST' | 'APPLIED' | 'INTERVIEWING' | 'REJECTED' | 'GHOSTED';
         }[],
         extra: {
           applicationChannel?: 'CAREER_EMAIL' | 'ATS';
