@@ -63,7 +63,7 @@ export function configureApp(app: NestExpressApplication) {
     // that the download hit the row cap — without it the browser silently
     // saves a partial file. `X-Request-Id` lets the client show or report the
     // correlation ID of a failed call. Caddy is a plain reverse proxy in prod
-    // (see Caddyfile), so this is the only place CORS is configured.
+    // (see caddy/Caddyfile), so this is the only place CORS is configured.
     exposedHeaders: [
       'Content-Disposition',
       'X-Export-Truncated',

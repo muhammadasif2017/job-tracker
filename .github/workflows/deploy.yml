@@ -34,7 +34,8 @@ jobs:
               - 'backend/**'
               - '.github/workflows/deploy.yml'
               - 'docker-compose.prod.yml'
-              - 'Caddyfile'
+              - 'caddy/**'
+              - 'scripts/deploy-backend.sh'
               - 'alloy/**'
 
   test:
@@ -122,7 +123,7 @@ jobs:
             cd ${{ vars.DEPLOY_PATH || '~/job-tracker' }}
             # `compose up` reads the compose file from THIS checkout, not from
             # the image, so without a sync every change to docker-compose.prod.yml
-            # or the Caddyfile stays on main and never reaches the server. Two
+            # or caddy/Caddyfile stays on main and never reaches the server. Two
             # such changes (the uploads and redis volumes) had already landed
             # while the checkout sat 209 commits behind.
             # --ff-only on purpose: if someone has edited files here by hand,
@@ -130,10 +131,7 @@ jobs:
             # the way `reset --hard` would.
             git fetch --prune origin
             git pull --ff-only origin main
-            docker compose -f docker-compose.prod.yml --env-file .env pull
-            docker compose -f docker-compose.prod.yml --env-file .env up -d
-            # Alloy reads its config only at startup, and `up -d` leaves the
-            # container alone when only alloy/config.alloy changed. Restarting
-            # it is cheap: its write-ahead log keeps unsent samples (ADR-052).
-            docker compose -f docker-compose.prod.yml --env-file .env restart alloy
-            docker image prune -f
+            # Starts the new backend beside the old one and stops the old one
+            # only once the new one is healthy (ADR-057). Run from the checkout
+            # just pulled, so a change to the script ships with the release.
+            bash scripts/deploy-backend.sh

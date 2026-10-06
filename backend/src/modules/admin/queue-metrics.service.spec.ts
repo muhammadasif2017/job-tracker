@@ -14,13 +14,11 @@ const mockTimelineQueue = { getJobCounts: jest.fn() };
 const mockNotificationsQueue = { getJobCounts: jest.fn() };
 const mockLogger = spyOnLogger();
 const mockLlm = {
-  circuitStatus: jest.fn(
-    (): CircuitStatus => ({
-      name: 'Groq',
-      state: 'closed',
-      retryAfterMs: null,
-    }),
-  ),
+  circuitStatus: jest.fn((): CircuitStatus => ({
+    name: 'Groq',
+    state: 'closed',
+    retryAfterMs: null,
+  })),
 };
 
 function counts(overrides: Record<string, number> = {}) {

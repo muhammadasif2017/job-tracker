@@ -63,6 +63,7 @@ Read these alongside `docs/review/01-architecture.md` for the full picture.
 | [054](./054-neutral-badge-chip.md) | Every badge is one neutral `Chip`; color only as a token dot on status, priority and enrichment state | Accepted |
 | [055](./055-request-breadcrumbs.md) | Fetch/XHR breadcrumbs on in browser Sentry, with query strings stripped | Accepted |
 | [056](./056-develop-branch.md) | Features go through `develop`, released to `main` by merge commit; hotfixes and Dependabot go straight to `main` | Accepted |
+| [057](./057-zero-downtime-deploy.md) | Backend deploys start the new container beside the old one and swap once it is healthy; migrations must work with the previous release | Accepted |
 
 ## How to read an ADR
 

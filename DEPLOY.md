@@ -197,12 +197,11 @@ the client IDs keep OAuth disabled and the server still boots.
 ## Updating after a code change
 
 Push to `main` — CI builds the image and the VM auto-deploys (see below). To update
-manually instead:
+manually instead, without taking the API down (ADR-057):
 
 ```bash
 git pull
-docker compose -f docker-compose.prod.yml --env-file .env pull
-docker compose -f docker-compose.prod.yml --env-file .env up -d
+bash scripts/deploy-backend.sh
 ```
 
 ## Automated deploys (GitHub Actions)
@@ -213,14 +212,11 @@ docker compose -f docker-compose.prod.yml --env-file .env up -d
    runner and pushes it to GHCR as
    `ghcr.io/muhammadasif2017/job-tracker-backend:latest`. The package is public, so the
    VM needs **no registry auth** to pull it.
-2. **`deploy`** — SSHes into the VM and runs `docker compose pull` + `up -d`. No image
-   build happens on the VM — it only pulls the already-built image and restarts the
-   container.
-
-> **Gotcha:** the deploy job does **not** `git pull` on the VM. Application code ships
-> inside the image, but changes to `docker-compose.prod.yml`, `Caddyfile`, or anything
-> else read from the VM checkout require a manual `git pull` in `~/job-tracker` before
-> `up -d` picks them up.
+2. **`deploy`** — SSHes into the VM, runs `git pull --ff-only`, then
+   `scripts/deploy-backend.sh`. No image build happens on the VM. The script pulls the
+   images, starts the new backend beside the old one, and stops the old one only once
+   the new one answers `/health`, so the API stays up (ADR-057). Migrations run while
+   the old container still serves, so they must work with the previous release's code.
 
 **One-time setup:**
 
