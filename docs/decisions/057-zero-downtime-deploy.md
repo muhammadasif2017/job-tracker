@@ -31,15 +31,25 @@ period, mid-request. And Nest did not listen for SIGTERM at all.
   fails the deploy, and the old container keeps serving. `deploy.yml` runs
   the script from the checkout it has just pulled.
 - **Caddy follows the containers.** `reverse_proxy` uses
-  `dynamic a backend 3001` with a one-second refresh, so it sends traffic to every container
-  Docker's DNS lists for `backend`. A request whose connection is refused is
-  retried on another upstream for up to 30 seconds (`lb_try_duration`). The
-  script reloads Caddy, which reads the Caddyfile only at startup.
-- **The old container shuts down gracefully.** The image's command ends in
-  `exec node dist/main`, so Node is the main process and receives SIGTERM.
-  `main.ts` calls `enableShutdownHooks()`: Nest stops accepting connections,
-  finishes in-flight requests and closes the BullMQ workers and Redis
-  connections. `stop_grace_period` is 30 seconds.
+  `dynamic a backend 3001` with a one-second refresh, so it sends traffic to
+  every container Docker's DNS lists for `backend`. A request whose
+  connection is refused is retried on another upstream for up to 5 seconds
+  (`lb_try_duration`); longer would also delay every 502 while the only
+  backend is down. The Caddyfile lives in `caddy/`, mounted as a directory:
+  `git pull` replaces the file, and a single-file bind mount would keep
+  showing the old copy, so `caddy reload` would reload stale config. The
+  script reloads Caddy, retrying while a freshly recreated Caddy starts.
+- **The old container drains before it closes anything.**
+  `registerGracefulShutdown` (`src/common/graceful-shutdown.helper.ts`)
+  handles SIGTERM: it closes the HTTP server and waits up to 20 seconds for
+  in-flight requests, then runs Nest's `app.close()`, then exits. Nest's
+  `enableShutdownHooks()` is not used, because it disconnects Prisma and
+  Redis before it closes the server, so requests still reaching the old
+  container would fail against closed clients. The image's command ends in
+  `exec node dist/main`, so Node is the main process and receives the signal
+  at all. The explicit exit matters too: as PID 1, Node ignores the signal
+  Nest re-raises, and the metrics listener keeps the process alive.
+  `stop_grace_period` is 30 seconds.
 - **No Docker healthcheck.** `/health` pings Postgres, and polling it all day
   would keep Neon's free-tier compute from suspending. The script probes only
   while a new container boots.
@@ -55,6 +65,13 @@ period, mid-request. And Nest did not listen for SIGTERM at all.
   memory on the 1 GB VM, two sets of BullMQ workers (safe, since BullMQ hands
   each job to one worker) and two sets of cron schedules. A deploy in the
   same minute as a cron run could run that scan twice.
+- **A broken release can serve some traffic before it is removed.** Caddy
+  routes to the new container as soon as it listens, before the script's
+  `/health` check passes. If a release boots but fails its health check,
+  about half the requests reach it for up to 180 seconds, then the script
+  removes it. Preventing that needs Caddy to probe `/health` continuously,
+  which would keep Neon's compute awake; a short partial window followed by
+  an automatic rollback is accepted instead of the full outage it replaces.
 - A local run of the script against a stand-in backend with a 15-second boot
   served 279 of 279 short requests and 14 of 14 five-second requests during
   the swap, and kept the old container when the new one never became healthy.

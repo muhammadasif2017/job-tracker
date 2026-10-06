@@ -34,7 +34,8 @@ jobs:
               - 'backend/**'
               - '.github/workflows/deploy.yml'
               - 'docker-compose.prod.yml'
-              - 'Caddyfile'
+              - 'caddy/**'
+              - 'scripts/deploy-backend.sh'
               - 'alloy/**'
 
   test:
@@ -122,7 +123,7 @@ jobs:
             cd ${{ vars.DEPLOY_PATH || '~/job-tracker' }}
             # `compose up` reads the compose file from THIS checkout, not from
             # the image, so without a sync every change to docker-compose.prod.yml
-            # or the Caddyfile stays on main and never reaches the server. Two
+            # or caddy/Caddyfile stays on main and never reaches the server. Two
             # such changes (the uploads and redis volumes) had already landed
             # while the checkout sat 209 commits behind.
             # --ff-only on purpose: if someone has edited files here by hand,

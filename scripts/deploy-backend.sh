@@ -6,9 +6,9 @@
 # the new one has booted, which took the API down for the ~80s that
 # `prisma migrate deploy` and Nest's startup need. Instead this starts the new
 # backend next to the old one, waits until its /health answers, then stops the
-# old one. Caddy resolves `backend` to every running container (Caddyfile), so
-# traffic moves across without a gap, and the old container finishes its
-# in-flight requests on SIGTERM before it exits.
+# old one. Caddy resolves `backend` to every running container
+# (caddy/Caddyfile), so traffic moves across without a gap, and the old
+# container finishes its in-flight requests on SIGTERM before it exits.
 #
 # COMPOSE overrides the compose command, for a local test run.
 set -euo pipefail
@@ -21,9 +21,14 @@ $compose pull
 # Everything but the backend updates in place. --no-deps keeps Caddy's
 # depends_on from recreating the backend here.
 $compose up -d --no-deps redis alloy caddy
-# Caddy reads the Caddyfile only at startup, and `up -d` leaves the container
-# alone when only that bind-mounted file changed.
-$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+# Caddy reads its config only at startup, and `up -d` leaves the container
+# alone when only the mounted Caddyfile changed. When `up -d` did recreate
+# Caddy (a new image), its admin API may not be listening yet, so retry.
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  if $compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile; then break; fi
+  if [ "$attempt" -eq 10 ]; then echo "deploy: caddy reload failed" >&2; exit 1; fi
+  sleep 1
+done
 # Same for Alloy's config; its write-ahead log keeps unsent samples (ADR-052).
 $compose restart alloy
 
@@ -45,7 +50,7 @@ fi
 
 # The probe runs inside the container, so it reaches this backend and not
 # whichever one Caddy would pick. /health checks Postgres and Redis too.
-probe='fetch("http://localhost:3001/health").then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
+probe='fetch("http://localhost:3001/health", { signal: AbortSignal.timeout(5000) }).then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))'
 deadline=$((SECONDS + health_timeout))
 until docker exec "$new" node -e "$probe" >/dev/null 2>&1; do
   if [ "$SECONDS" -ge "$deadline" ] || [ "$(docker inspect -f '{{.State.Running}}' "$new")" != true ]; then
@@ -57,15 +62,12 @@ until docker exec "$new" node -e "$probe" >/dev/null 2>&1; do
   sleep 2
 done
 
-# SIGTERM: Nest stops accepting connections and finishes in-flight requests
-# (enableShutdownHooks in main.ts). Caddy retries anything refused meanwhile
-# on the new container.
+# SIGTERM: the backend stops accepting connections, finishes in-flight
+# requests, then closes its clients (graceful-shutdown.helper.ts). Caddy
+# retries anything refused meanwhile on the new container. `docker stop` uses
+# the stop_grace_period from docker-compose.prod.yml.
 for id in $old; do
-  docker stop -t 30 "$id" >/dev/null
+  docker stop "$id" >/dev/null
   docker rm "$id" >/dev/null
 done
-# Bring compose's recorded scale back to one; the only container left is the
-# new one, so this changes nothing that is running.
-$compose up -d --no-deps --no-recreate --scale backend=1 backend
-
 docker image prune -f

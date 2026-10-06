@@ -11,12 +11,13 @@
 	# DNS answers `backend` with both. Re-resolving every second picks up the new
 	# one and drops the old. A request whose connection is refused, because the
 	# old container is shutting down, is retried on another upstream for up to
-	# 30s instead of failing.
+	# 5s instead of failing. Kept short: when the only backend is down, every
+	# request waits this long before its 502.
 	reverse_proxy {
 		dynamic a backend 3001 {
 			refresh 1s
 		}
-		lb_try_duration 30s
+		lb_try_duration 5s
 		lb_try_interval 250ms
 		fail_duration 10s
 	}

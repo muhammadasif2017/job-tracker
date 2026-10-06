@@ -13,6 +13,7 @@ import { configureApp } from './config/configure-app.helper.js';
 import { MetricsService } from './infrastructure/metrics/metrics.service.js';
 import { startMetricsServer } from './infrastructure/metrics/metrics-server.helper.js';
 import { appLogger } from './infrastructure/error-tracking/app-logger.helper.js';
+import { registerGracefulShutdown } from './common/graceful-shutdown.helper.js';
 
 /**
  * Boots the API: the logger, the shared request pipeline (`configureApp`),
@@ -24,10 +25,6 @@ async function bootstrap() {
     bufferLogs: true,
   });
   app.useLogger(app.get(NestPinoAdapter));
-  // On SIGTERM, stop accepting connections, finish in-flight requests and
-  // close the BullMQ workers and Redis connections before exiting. The
-  // zero-downtime deploy stops the old container this way (ADR-057).
-  app.enableShutdownHooks();
 
   const config = app.get(ConfigService);
   configureApp(app);
@@ -53,16 +50,25 @@ async function bootstrap() {
   const port = config.get<number>('PORT') ?? 3001;
   await app.listen(port);
 
+  const logger = appLogger({ name: 'Bootstrap' });
   // Empty or unset means off, so local runs and the test suites open no
   // extra port.
   const metricsPort = config.get<number | ''>('METRICS_PORT');
   if (metricsPort) {
-    const logger = appLogger({ name: 'Bootstrap' });
     const metrics = app.get(MetricsService);
     metrics.collectProcessMetrics();
     startMetricsServer(metricsPort, metrics.registry, (err) =>
       logger.error({ err }, 'Metrics listener failed'),
     );
   }
+
+  // Drain HTTP first, then close the app, then exit, so a container being
+  // replaced by a deploy finishes its requests with its clients still open
+  // (ADR-057).
+  registerGracefulShutdown({
+    server: app.getHttpServer(),
+    closeApp: () => app.close(),
+    onError: (err) => logger.error({ err }, 'Shutdown failed'),
+  });
 }
 void bootstrap();
