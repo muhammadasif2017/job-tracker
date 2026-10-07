@@ -7,6 +7,9 @@ Accepted
 2026-08-30
 
 ## Last updated
+2026-10-07 — the company get-or-create entry now describes the unique-index
+shape ADR-033 moved it to, not the retired Serializable retry loop.
+
 2026-09-02 — added the concepts below that were in the code but missing from
 the original snapshot: append-only event log, index shape, Serializable
 get-or-create, guard-in-the-write deletes, refresh-token hashing, idempotent
@@ -74,11 +77,14 @@ description and a pointer to where it's decided/diagrammed in more depth.
   already serves `WHERE a = ?`, a redundant single-column index on that
   leading column is dropped rather than kept alongside. See the comment on
   `JobEvent.@@index([jobId, createdAt])`.
-- **Serializable get-or-create with bounded retry** — the case-insensitive
-  find-or-create of a `Company` runs `findFirst` + `create` inside one
-  `Serializable` transaction, treats P2002/P2034 as "the other side won",
-  re-fetches, and retries up to 8 times before surfacing a 409 instead of an
-  opaque 500. ADR-029, `jobs.service.ts` (`resolveCompanyId`).
+- **Database-enforced get-or-create** — the case-insensitive find-or-create
+  of a `Company` is a plain `findFirst` + `create`; a functional unique index
+  on `(userId, lower(name))` turns a racing duplicate into a P2002, and the
+  loser re-fetches the winner's already-committed row once. No transaction,
+  no retry loop. It replaced a `Serializable` transaction with up to 8
+  retries, whose unindexed case-insensitive read predicate-locked the user's
+  whole name range so unrelated creates aborted each other. ADR-029,
+  ADR-033, `job-company-link.service.ts` (`resolveCompanyId`).
 
 ### Auth
 - **Dual JWT (access + hashed refresh) with reuse/theft detection** —
