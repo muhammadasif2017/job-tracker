@@ -69,8 +69,11 @@ export interface OAuthLoginResult {
  * truncates its input at 72 bytes, and a JWT's first 72 bytes are the
  * header plus the opening of the payload. Every refresh token issued to the
  * same user therefore shared its hashed prefix and compared equal to every
- * other, so the stored hash bound nothing at all — only the signature check
- * in `JwtRefreshStrategy` stood between a forged token and the row lookup.
+ * other, so the stored hash bound nothing at all. That left no hole only
+ * because two other checks already bind a token to its row: the signature
+ * check in `JwtRefreshStrategy` rejects a forged token, and `refresh` looks
+ * the row up by the signed `jti` and requires its `userId` to match. The
+ * hash compare was a redundant layer that silently did nothing.
  * SHA-256 covers the whole token, including the jti and the signature.
  *
  * A slow KDF buys nothing on top of that: there is no low-entropy secret to
