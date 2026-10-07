@@ -248,7 +248,7 @@ test.describe('Search', () => {
     await goToJobs(page);
 
     await searchBox(page).fill('ZZZNoMatch');
-    await expect(page.getByText('No jobs found')).toBeVisible();
+    await expect(page.getByText('No jobs match these filters')).toBeVisible();
   });
 });
 
