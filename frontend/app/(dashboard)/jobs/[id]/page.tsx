@@ -12,8 +12,13 @@ import {
 import { isAxiosError } from 'axios';
 import Link from 'next/link';
 import { Button } from '../../../../components/ui/button';
+import { Modal } from '../../../../components/ui/modal';
 import { LinkifiedText } from '../../../../components/ui/linkified-text';
-import { SourceBadge, StatusBadge } from '../../../../components/ui/badge';
+import {
+  JobTypeBadge,
+  SourceBadge,
+  StatusBadge,
+} from '../../../../components/ui/badge';
 import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
 import { JobForm } from '../../../../components/jobs/job-form';
 import { ResumeUpload } from '../../../../components/jobs/resume-upload';
@@ -93,6 +98,7 @@ export default function JobDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   const { data: job, isLoading, isError, error, refetch } = useJobQuery(id);
 
@@ -125,14 +131,16 @@ export default function JobDetailPage() {
       ) : job ? (
         <>
           <div className="rounded-md border border-line bg-paper p-6 space-y-5">
-            <div className="flex items-start justify-between gap-4">
+            {/* Below sm the actions sit under the title: beside it they
+                squeeze a long position into a column a few words wide. */}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <h1 className="font-display text-2xl font-bold tracking-tight text-ink break-words">
                   {job.company}
                 </h1>
                 <p className="mt-0.5 text-muted break-words">{job.position}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex shrink-0 gap-2">
                 <Button
                   variant="secondary"
                   size="sm"
@@ -143,8 +151,7 @@ export default function JobDetailPage() {
                 <Button
                   variant="danger"
                   size="sm"
-                  loading={deleteMutation.isPending}
-                  onClick={() => deleteMutation.mutate(id)}
+                  onClick={() => setDeleteOpen(true)}
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Delete
                 </Button>
@@ -179,6 +186,10 @@ export default function JobDetailPage() {
                   {job.status === 'WISHLIST' ? 'Saved' : 'Applied'}
                 </p>
                 <p className="text-ink">{formatCivilDate(job.appliedAt)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted mb-1 font-medium">Job Type</p>
+                <JobTypeBadge jobType={job.jobType} />
               </div>
               {job.nextInterviewAt && (
                 <div>
@@ -257,6 +268,25 @@ export default function JobDetailPage() {
             onClose={() => setEditOpen(false)}
             job={job}
           />
+          <Modal
+            open={deleteOpen}
+            onClose={() => setDeleteOpen(false)}
+            title="Delete job?"
+            description={`Remove ${job.company} — ${job.position}? This cannot be undone.`}
+          >
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="secondary" onClick={() => setDeleteOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                loading={deleteMutation.isPending}
+                onClick={() => deleteMutation.mutate(id)}
+              >
+                Delete
+              </Button>
+            </div>
+          </Modal>
         </>
       ) : isError && !job && !isNotFound ? (
         <div className="space-y-4 rounded-md border border-line bg-paper p-6">

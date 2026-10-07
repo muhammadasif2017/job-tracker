@@ -364,6 +364,9 @@ test.describe('Job detail page', () => {
     await page.goto(`/jobs/${toDelete.id}`);
 
     await page.getByRole('button', { name: 'Delete' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Delete job?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
 
     await expect(page).toHaveURL('/jobs');
     await expect(page.getByText('Job deleted')).toBeVisible();
