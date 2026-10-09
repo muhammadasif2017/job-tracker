@@ -205,6 +205,33 @@ describe('JobsPage', () => {
       expect(await screen.findByText('No jobs found')).toBeInTheDocument();
     });
 
+    it('says no jobs match when a filter empties the list, and clears the filters', async () => {
+      vi.mocked(api.get).mockImplementation((url: string) =>
+        Promise.resolve({
+          data: url.includes('status=OFFER')
+            ? page({
+                data: [],
+                meta: { total: 0, page: 1, limit: 10, totalPages: 0 },
+              })
+            : page(),
+        }),
+      );
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.change(screen.getByLabelText('Filter by status'), {
+        target: { value: 'OFFER' },
+      });
+      expect(
+        await screen.findByText('No jobs match these filters'),
+      ).toBeInTheDocument();
+      expect(screen.getByText('0 jobs match')).toBeInTheDocument();
+      expect(screen.queryByText('No jobs found')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+      expect(await screen.findByText('Acme')).toBeInTheDocument();
+      expect(screen.getByLabelText('Filter by status')).toHaveValue('');
+      expect(screen.getByText('2 jobs tracked')).toBeInTheDocument();
+    });
+
     it('keeps the empty-state row a block below sm, so its text stays centered', async () => {
       vi.mocked(api.get).mockResolvedValue({
         data: page({
