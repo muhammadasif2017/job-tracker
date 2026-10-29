@@ -49,7 +49,6 @@ const companies: Company[] = [
   {
     id: 'c-1',
     name: 'Systems Limited',
-    city: 'LAHORE',
     priority: 'HIGH',
     status: null,
     techStack: [],

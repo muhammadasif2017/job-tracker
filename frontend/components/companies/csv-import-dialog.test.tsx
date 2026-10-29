@@ -25,7 +25,7 @@ import api from '../../lib/api';
 import { toast } from 'sonner';
 
 function makeCsvFile(name = 'companies.csv'): File {
-  return new File(['name,city,businessMode\nAcme,LAHORE,SERVICES'], name, {
+  return new File(['name,businessMode\nAcme,SERVICES'], name, {
     type: 'text/csv',
   });
 }

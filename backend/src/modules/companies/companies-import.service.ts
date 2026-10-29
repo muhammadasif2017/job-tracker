@@ -4,7 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
-import { BusinessMode, CompanyCity } from '@prisma/client';
+import { BusinessMode } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { isTransactionWriteConflict } from '../../infrastructure/database/prisma-errors.js';
 
@@ -28,7 +28,7 @@ export interface CsvImportResult {
 }
 
 /** The required header row, compared case-insensitively. */
-const EXPECTED_HEADER = ['name', 'city', 'businessmode'];
+const EXPECTED_HEADER = ['name', 'businessmode'];
 
 /**
  * The 1 MB file-size cap doesn't bound row count — short rows can still pack
@@ -52,7 +52,7 @@ const MAX_NAME_LENGTH = 200;
 const MAX_COMPANIES_PER_USER = 2000;
 
 /**
- * Bulk company import from a fixed three-column CSV.
+ * Bulk company import from a fixed two-column CSV.
  *
  * The parser is hand-rolled and deliberately minimal — no quoted fields, no
  * embedded commas. See docs/specs/target-companies.md, Assumption 5:
@@ -88,7 +88,7 @@ export class CompaniesImportService {
       !EXPECTED_HEADER.every((h, i) => header[i] === h)
     ) {
       throw new BadRequestException(
-        `Invalid CSV header — expected "name,city,businessMode", got "${lines[0]}"`,
+        `Invalid CSV header — expected "name,businessMode", got "${lines[0]}"`,
       );
     }
 
@@ -157,21 +157,20 @@ export class CompaniesImportService {
     const toCreate: {
       userId: string;
       name: string;
-      city: CompanyCity;
       businessMode?: BusinessMode;
     }[] = [];
 
     dataLines.forEach((line, idx) => {
       const rowNum = idx + 2; // +1 for header, +1 for 1-indexing
       const fields = line.split(',').map((f) => f.trim());
-      if (fields.length !== 3) {
+      if (fields.length !== 2) {
         errors.push({
           row: rowNum,
-          message: `Expected 3 columns (name,city,businessMode), got ${fields.length}`,
+          message: `Expected 2 columns (name,businessMode), got ${fields.length}`,
         });
         return;
       }
-      const [name, cityRaw, businessModeRaw] = fields;
+      const [name, businessModeRaw] = fields;
 
       if (!name) {
         errors.push({ row: rowNum, message: 'name is required' });
@@ -181,15 +180,6 @@ export class CompaniesImportService {
         errors.push({
           row: rowNum,
           message: `name must be ${MAX_NAME_LENGTH} characters or fewer, got ${name.length}`,
-        });
-        return;
-      }
-
-      const city = cityRaw.toUpperCase() as CompanyCity;
-      if (!Object.values(CompanyCity).includes(city)) {
-        errors.push({
-          row: rowNum,
-          message: `Invalid city "${cityRaw}" — expected one of ${Object.values(CompanyCity).join(', ')}`,
         });
         return;
       }
@@ -224,7 +214,7 @@ export class CompaniesImportService {
       seenNames.add(name.toLowerCase());
       projectedCount++;
 
-      toCreate.push({ userId, name, city, businessMode });
+      toCreate.push({ userId, name, businessMode });
     });
 
     let imported = 0;

@@ -9,7 +9,6 @@ import { Button } from '../../../../components/ui/button';
 import { Skeleton, LoadingStatus } from '../../../../components/ui/skeleton';
 import { LinkifiedText } from '../../../../components/ui/linkified-text';
 import {
-  CityBadge,
   PriorityBadge,
   BusinessModeBadge,
 } from '../../../../components/ui/badge';
@@ -73,10 +72,6 @@ export default function CompanyDetailPage() {
                   {company.name}
                 </h1>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  {/* OTHER is the "no city picked" default, not a place. */}
-                  {company.city !== 'OTHER' && (
-                    <CityBadge city={company.city} />
-                  )}
                   <PriorityBadge priority={company.priority} />
                   {company.businessMode && (
                     <BusinessModeBadge businessMode={company.businessMode} />

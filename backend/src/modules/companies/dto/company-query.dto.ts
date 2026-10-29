@@ -1,4 +1,4 @@
-import { ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
@@ -9,15 +9,20 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { CompanyCity, Priority } from '@prisma/client';
+import { Priority } from '@prisma/client';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 /** Query for the company list: paging, filters and search. */
 export class CompanyQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: CompanyCity })
+  /**
+   * Accepted and ignored for one release, so a page loaded before the city
+   * field was removed can still load the list while both versions run (ADR-057). The
+   * release that drops companies.city removes this too.
+   */
+  @ApiHideProperty()
   @IsOptional()
-  @IsEnum(CompanyCity)
-  city?: CompanyCity;
+  @IsString()
+  city?: string;
 
   @ApiPropertyOptional({ enum: Priority })
   @IsOptional()

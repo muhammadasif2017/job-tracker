@@ -308,7 +308,7 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** List target companies (filter by city, priority) */
+    /** List target companies (filter by priority) */
     get: operations['CompaniesController_findAll[0]_v1'];
     put?: never;
     /** Add a target company */
@@ -415,7 +415,7 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Bulk-import target companies from a CSV (name,city,businessMode) */
+    /** Bulk-import target companies from a CSV (name,businessMode) */
     post: operations['CompaniesController_importCsv[0]_v1'];
     delete?: never;
     options?: never;
@@ -1010,8 +1010,6 @@ export interface components {
     CreateCompanyDto: {
       /** @example Systems Limited */
       name: string;
-      /** @enum {string} */
-      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
       /** @example DHA Phase 5, Lahore */
       location?: string | null;
       /** @enum {string} */
@@ -1076,8 +1074,6 @@ export interface components {
       id: string;
       /** @example Systems Limited */
       name: string;
-      /** @enum {string} */
-      city: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
       /** @example DHA Phase 5, Lahore */
       location?: string | null;
       /** @enum {string} */
@@ -1196,8 +1192,6 @@ export interface components {
       /** @example Systems Limited */
       name?: string;
       /** @enum {string} */
-      city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
-      /** @enum {string} */
       priority?: 'LOW' | 'MEDIUM' | 'HIGH';
       /**
        * @example [
@@ -1230,7 +1224,7 @@ export interface components {
        * @example 3
        */
       row: number;
-      /** @example Invalid city "Multan" — expected one of LAHORE, ISLAMABAD, KARACHI, OTHER */
+      /** @example Invalid businessMode "CONSULTING" — expected one of PRODUCT, SERVICES, HYBRID */
       message: string;
     };
     CsvImportResultDto: {
@@ -2799,7 +2793,6 @@ export interface operations {
     parameters: {
       query?: {
         page?: number;
-        city?: 'LAHORE' | 'ISLAMABAD' | 'KARACHI' | 'OTHER';
         priority?: 'LOW' | 'MEDIUM' | 'HIGH';
         search?: string;
         limit?: number;
@@ -3147,7 +3140,7 @@ export interface operations {
         'multipart/form-data': {
           /**
            * Format: binary
-           * @description CSV file, header row "name,city,businessMode" (max 1 MB)
+           * @description CSV file, header row "name,businessMode" (max 1 MB)
            */
           file?: string;
         };

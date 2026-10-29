@@ -58,7 +58,7 @@ describe('CompaniesService', () => {
       mockPrisma.company.count.mockResolvedValue(2000);
 
       await expect(
-        service.create('user-1', { name: 'One More Co', city: 'LAHORE' }),
+        service.create('user-1', { name: 'One More Co' }),
       ).rejects.toThrow(BadRequestException);
       expect(mockPrisma.company.findFirst).not.toHaveBeenCalled();
       expect(mockPrisma.company.create).not.toHaveBeenCalled();
@@ -68,7 +68,7 @@ describe('CompaniesService', () => {
       mockPrisma.company.findFirst.mockResolvedValue({ id: 'existing-1' });
 
       await expect(
-        service.create('user-1', { name: 'systems limited', city: 'LAHORE' }),
+        service.create('user-1', { name: 'systems limited' }),
       ).rejects.toThrow(ConflictException);
       expect(mockPrisma.company.create).not.toHaveBeenCalled();
     });
@@ -78,7 +78,7 @@ describe('CompaniesService', () => {
       mockPrisma.$transaction.mockRejectedValueOnce({ code: 'P2034' });
 
       await expect(
-        service.create('user-1', { name: 'Systems Limited', city: 'LAHORE' }),
+        service.create('user-1', { name: 'Systems Limited' }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -86,10 +86,7 @@ describe('CompaniesService', () => {
       mockPrisma.company.findFirst.mockResolvedValue(null);
       mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
 
-      await service.create('user-1', {
-        name: 'Systems Limited',
-        city: 'LAHORE',
-      });
+      await service.create('user-1', { name: 'Systems Limited' });
 
       expect(mockPrisma.$transaction).toHaveBeenCalledWith(
         expect.any(Function),
@@ -101,28 +98,24 @@ describe('CompaniesService', () => {
       mockPrisma.company.findFirst.mockResolvedValue(null);
       mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
 
-      await service.create('user-1', {
-        name: 'Systems Limited',
-        city: 'LAHORE',
-      });
+      await service.create('user-1', { name: 'Systems Limited' });
 
       expect(mockPrisma.company.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: 'user-1',
           name: 'Systems Limited',
-          city: 'LAHORE',
           techStack: [],
         }),
       });
+      expect(
+        mockPrisma.company.create.mock.calls[0][0].data,
+      ).not.toHaveProperty('city');
     });
 
     it('auto-triggers enrichment after creating the company', async () => {
       mockPrisma.company.create.mockResolvedValue({ id: 'company-1' });
 
-      await service.create('user-1', {
-        name: 'Systems Limited',
-        city: 'LAHORE',
-      });
+      await service.create('user-1', { name: 'Systems Limited' });
 
       expect(mockCompanyEnrichment.enqueueEnrichment).toHaveBeenCalledWith(
         'company-1',
@@ -137,7 +130,6 @@ describe('CompaniesService', () => {
 
       const result = await service.create('user-1', {
         name: 'Systems Limited',
-        city: 'LAHORE',
       });
 
       expect(result).toMatchObject({ status: 'PENDING', errorMessage: null });
@@ -154,7 +146,6 @@ describe('CompaniesService', () => {
 
       const result = await service.create('user-1', {
         name: 'Systems Limited',
-        city: 'LAHORE',
       });
 
       expect(result).toMatchObject({ id: 'company-1', status: null });
@@ -163,20 +154,19 @@ describe('CompaniesService', () => {
   });
 
   describe('findAll', () => {
-    it('scopes the list to the user and applies city/priority filters', async () => {
+    it('scopes the list to the user and applies the priority filter', async () => {
       mockPrisma.company.findMany.mockResolvedValue([{ id: 'c1' }]);
       mockPrisma.company.count.mockResolvedValue(1);
 
       const result = await service.findAll('user-1', {
         page: 1,
         limit: 10,
-        city: 'KARACHI',
         priority: 'HIGH',
       });
 
       expect(mockPrisma.company.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          where: { userId: 'user-1', city: 'KARACHI', priority: 'HIGH' },
+          where: { userId: 'user-1', priority: 'HIGH' },
         }),
       );
       expect(result.meta).toEqual({

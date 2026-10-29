@@ -7,7 +7,7 @@ export class CsvImportErrorDto {
 
   @ApiProperty({
     example:
-      'Invalid city "Multan" — expected one of LAHORE, ISLAMABAD, KARACHI, OTHER',
+      'Invalid businessMode "CONSULTING" — expected one of PRODUCT, SERVICES, HYBRID',
   })
   message: string;
 }

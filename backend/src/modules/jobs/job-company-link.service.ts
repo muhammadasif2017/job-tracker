@@ -1,5 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { CompanyCity } from '@prisma/client';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
 import { CompanyEnrichmentService } from '../companies/enrichment/company-enrichment.service.js';
 import { companyNameMatch } from '../companies/company-name-match.helper.js';
@@ -112,7 +111,6 @@ export class JobCompanyLinkService {
         data: {
           userId,
           name: trimmedName,
-          city: CompanyCity.OTHER,
           location: location?.trim() || undefined,
         },
         select: { id: true, name: true },

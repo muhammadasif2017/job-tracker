@@ -27,7 +27,6 @@ import api from '../../lib/api';
 const canonical: Company = {
   id: 'canonical-1',
   name: 'Systems Limited',
-  city: 'LAHORE',
   priority: 'HIGH',
   status: 'COMPLETED',
   techStack: [],
@@ -38,7 +37,6 @@ const canonical: Company = {
 const duplicate: Company = {
   id: 'duplicate-1',
   name: 'Systems Ltd',
-  city: 'LAHORE',
   priority: 'MEDIUM',
   status: null,
   techStack: [],

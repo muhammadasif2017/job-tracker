@@ -387,11 +387,11 @@ test.describe('Search and filters', () => {
   test.beforeAll(async () => {
     alpha = await createTestCompany(user.accessToken, {
       name: 'Alpha Target',
-      city: 'LAHORE',
+      priority: 'HIGH',
     });
     beta = await createTestCompany(user.accessToken, {
       name: 'Beta Target',
-      city: 'KARACHI',
+      priority: 'LOW',
     });
   });
 
@@ -412,10 +412,10 @@ test.describe('Search and filters', () => {
     ).not.toBeVisible({ timeout: 3000 });
   });
 
-  test('filters companies by city', async ({ page }) => {
+  test('filters companies by priority', async ({ page }) => {
     await goToCompanies(page);
 
-    await page.getByLabel('Filter by city').selectOption('KARACHI');
+    await page.getByLabel('Filter by priority').selectOption('LOW');
     await expect(page.getByRole('link', { name: 'Beta Target' })).toBeVisible();
     await expect(
       page.getByRole('link', { name: 'Alpha Target' }),
@@ -520,9 +520,7 @@ test.describe('CSV import', () => {
     await dialog.getByLabel('CSV file').setInputFiles({
       name: 'companies.csv',
       mimeType: 'text/csv',
-      buffer: Buffer.from(
-        'name,city,businessMode\nCsv Import Co,LAHORE,SERVICES',
-      ),
+      buffer: Buffer.from('name,businessMode\nCsv Import Co,SERVICES'),
     });
     await dialog.getByRole('button', { name: 'Import' }).click();
 
@@ -552,7 +550,7 @@ test.describe('CSV import', () => {
       name: 'companies.csv',
       mimeType: 'text/csv',
       buffer: Buffer.from(
-        'name,city,businessMode\nGood Row Co,LAHORE,SERVICES\nBad Row Co,NotACity,SERVICES',
+        'name,businessMode\nGood Row Co,SERVICES\nBad Row Co,CONSULTING',
       ),
     });
     await dialog.getByRole('button', { name: 'Import' }).click();
@@ -560,7 +558,7 @@ test.describe('CSV import', () => {
     await expect(
       page.getByText('Imported 1 companies, 1 row(s) skipped'),
     ).toBeVisible();
-    await expect(dialog.getByText(/Invalid city/)).toBeVisible();
+    await expect(dialog.getByText(/Invalid businessMode/)).toBeVisible();
 
     await dialog.getByRole('button', { name: 'Done' }).click();
 
