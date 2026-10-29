@@ -540,25 +540,6 @@ export const STATUS_FILL_CLASSES: Record<JobStatus, string> = {
 // See docs/specs/target-companies.md — standalone company list, independent
 // of any Job, with its own parallel AI-enrichment pipeline.
 
-/** Every city a target company can be in. */
-export const COMPANY_CITIES = [
-  'LAHORE',
-  'ISLAMABAD',
-  'KARACHI',
-  'OTHER',
-] as const;
-
-/** City a target company is in. */
-export type CompanyCity = (typeof COMPANY_CITIES)[number];
-
-/** Display label for each city. */
-export const CITY_LABELS: Record<CompanyCity, string> = {
-  LAHORE: 'Lahore',
-  ISLAMABAD: 'Islamabad',
-  KARACHI: 'Karachi',
-  OTHER: 'Other',
-};
-
 /** Every company business mode. */
 export const BUSINESS_MODES = ['PRODUCT', 'SERVICES', 'HYBRID'] as const;
 
@@ -619,7 +600,6 @@ export interface CompanyApplicationHistory {
 export interface Company {
   id: string;
   name: string;
-  city: CompanyCity;
   location?: string | null;
   priority: Priority;
   personalNotes?: string | null;
@@ -669,7 +649,6 @@ export interface DuplicateSuggestion {
 export interface CompanyQuery {
   page?: number;
   limit?: number;
-  city?: CompanyCity | '';
   priority?: Priority | '';
   search?: string;
 }

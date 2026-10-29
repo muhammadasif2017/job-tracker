@@ -85,7 +85,6 @@ function makeCompany(overrides: Partial<Company> = {}): Company {
   return {
     id: 'c-1',
     name: 'Acme',
-    city: 'LAHORE',
     location: null,
     priority: 'HIGH',
     personalNotes: null,
@@ -203,11 +202,11 @@ describe('CompanyDetailPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('leaves the city badge off while the city is the OTHER default', async () => {
-      mockCompany(makeCompany({ city: 'OTHER' }));
+    it('shows the office location in place of a city badge', async () => {
+      mockCompany(makeCompany({ location: 'DHA Phase 5, Lahore' }));
       renderPage();
       expect(await screen.findByText('Acme')).toBeInTheDocument();
-      expect(screen.queryByText('Other')).not.toBeInTheDocument();
+      expect(screen.getByText('DHA Phase 5, Lahore')).toBeInTheDocument();
       expect(screen.getByText('High')).toBeInTheDocument();
     });
 

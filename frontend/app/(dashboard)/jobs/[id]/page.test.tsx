@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import JobDetailPage from './page';
 import { formatCivilDate } from '../../../../lib/utils';
@@ -207,6 +213,7 @@ describe('JobDetailPage', () => {
         screen.getByText(formatCivilDate('2026-06-15T00:00:00Z')),
       ).toBeInTheDocument();
       expect(screen.getByText('Austin, TX')).toBeInTheDocument();
+      expect(screen.getByText('Remote')).toBeInTheDocument();
       expect(screen.getByText('Great referral from Bob')).toBeInTheDocument();
       expect(screen.getByRole('link', { name: /open link/i })).toHaveAttribute(
         'href',
@@ -442,12 +449,31 @@ describe('JobDetailPage', () => {
   });
 
   describe('delete flow', () => {
+    it('asks for confirmation and deletes nothing on cancel', async () => {
+      mockJobAndEvents(job);
+      renderPage();
+      await screen.findByText('Acme');
+      fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('Delete job?')).toBeInTheDocument();
+      fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+      );
+      expect(vi.mocked(api.delete)).not.toHaveBeenCalled();
+    });
+
     it('deletes and redirects to /jobs on success', async () => {
       mockJobAndEvents(job);
       vi.mocked(api.delete).mockResolvedValue({ data: {} });
       renderPage();
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: /^delete$/i,
+        }),
+      );
       await waitFor(() =>
         expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/jobs/j-1'),
       );
@@ -464,6 +490,11 @@ describe('JobDetailPage', () => {
       renderPage();
       await screen.findByText('Acme');
       fireEvent.click(screen.getByRole('button', { name: /delete/i }));
+      fireEvent.click(
+        within(await screen.findByRole('dialog')).getByRole('button', {
+          name: /^delete$/i,
+        }),
+      );
       await waitFor(() =>
         expect(vi.mocked(toast.error)).toHaveBeenCalledWith(
           'Job has linked interview rounds',

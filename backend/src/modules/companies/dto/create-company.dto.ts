@@ -1,4 +1,8 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  ApiHideProperty,
+  ApiProperty,
+  ApiPropertyOptional,
+} from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
@@ -10,7 +14,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { BusinessMode, CompanyCity, Priority } from '@prisma/client';
+import { BusinessMode, Priority } from '@prisma/client';
 
 /**
  * Body for adding a target company.
@@ -27,9 +31,15 @@ export class CreateCompanyDto {
   @MaxLength(200)
   name: string;
 
-  @ApiProperty({ enum: CompanyCity })
-  @IsEnum(CompanyCity)
-  city: CompanyCity;
+  /**
+   * Accepted and ignored for one release, so a page loaded before the city
+   * field was removed can still save while both versions run (ADR-057). The
+   * release that drops companies.city removes this too.
+   */
+  @ApiHideProperty()
+  @IsOptional()
+  @IsString()
+  city?: string;
 
   @ApiPropertyOptional({ example: 'DHA Phase 5, Lahore', maxLength: 200 })
   @IsOptional()

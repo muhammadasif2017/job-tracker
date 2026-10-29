@@ -248,7 +248,7 @@ test.describe('Search', () => {
     await goToJobs(page);
 
     await searchBox(page).fill('ZZZNoMatch');
-    await expect(page.getByText('No jobs found')).toBeVisible();
+    await expect(page.getByText('No jobs match these filters')).toBeVisible();
   });
 });
 
@@ -364,6 +364,9 @@ test.describe('Job detail page', () => {
     await page.goto(`/jobs/${toDelete.id}`);
 
     await page.getByRole('button', { name: 'Delete' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByText('Delete job?')).toBeVisible();
+    await dialog.getByRole('button', { name: 'Delete' }).click();
 
     await expect(page).toHaveURL('/jobs');
     await expect(page.getByText('Job deleted')).toBeVisible();

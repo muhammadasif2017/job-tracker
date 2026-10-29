@@ -5,7 +5,6 @@ import type {
   BusinessMode,
   Company,
   CompanyApplicationHistory,
-  CompanyCity,
   CsvImportResult,
   DuplicateSuggestion,
   Priority,
@@ -25,7 +24,6 @@ import type {
  */
 export interface CompanyWritePayload {
   name: string;
-  city: CompanyCity;
   location: string | null;
   priority: Priority;
   personalNotes: string | null;
@@ -43,7 +41,6 @@ export interface CompanyWritePayload {
 export interface CompaniesFilters {
   page: number;
   search: string;
-  city: CompanyCity | '';
   priority: Priority | '';
 }
 
@@ -72,7 +69,6 @@ export function useCompaniesQuery(filters: CompaniesFilters) {
     page: String(filters.page),
     limit: '10',
     ...(filters.search && { search: filters.search }),
-    ...(filters.city && { city: filters.city }),
     ...(filters.priority && { priority: filters.priority }),
   });
 

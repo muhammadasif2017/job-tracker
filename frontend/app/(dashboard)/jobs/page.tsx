@@ -115,10 +115,26 @@ export default function JobsPage() {
     dateTo,
   };
 
+  // Read off the debounced filters, which are what the shown data answers.
+  const isFiltered = !!(debouncedSearch || statusFilter || dateFrom || dateTo);
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setDateFrom('');
+    setDateTo('');
+    setPage(1);
+  };
+
   const { data, isLoading, isError, refetch } = useJobsQuery({
     ...filters,
     page,
   });
+
+  const total = data?.meta.total ?? 0;
+  const countLabel = isFiltered
+    ? `${total} ${total === 1 ? 'job matches' : 'jobs match'}`
+    : `${total} ${total === 1 ? 'job' : 'jobs'} tracked`;
 
   const deleteMutation = useDeleteJobMutation(() => setDeleteTarget(undefined));
   const exportMutation = useExportJobsMutation();
@@ -136,11 +152,7 @@ export default function JobsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Jobs"
-        subtitle={
-          isError && !data
-            ? 'Failed to load'
-            : `${data?.meta.total ?? 0} ${data?.meta.total === 1 ? 'job' : 'jobs'} tracked`
-        }
+        subtitle={isError && !data ? 'Failed to load' : countLabel}
         actions={
           <div className="flex flex-wrap gap-2 whitespace-nowrap">
             <Button
@@ -321,10 +333,31 @@ export default function JobsPage() {
                     colSpan={8}
                     className="py-16 text-center text-muted-2"
                   >
-                    <p className="text-base font-medium">No jobs found</p>
-                    <p className="mt-1 text-sm">
-                      Add your first application to get started.
-                    </p>
+                    {isFiltered ? (
+                      <>
+                        <p className="text-base font-medium">
+                          No jobs match these filters
+                        </p>
+                        <p className="mt-1 text-sm">
+                          Try a different search, status or date range.
+                        </p>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          className="mt-3"
+                          onClick={clearFilters}
+                        >
+                          Clear filters
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-base font-medium">No jobs found</p>
+                        <p className="mt-1 text-sm">
+                          Add your first application to get started.
+                        </p>
+                      </>
+                    )}
                   </td>
                 </tr>
               ) : (

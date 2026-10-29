@@ -28,7 +28,6 @@ import { toast } from 'sonner';
 const baseCompany: Company = {
   id: 'c-1',
   name: 'Systems Limited',
-  city: 'LAHORE',
   location: null,
   priority: 'HIGH',
   personalNotes: null,
@@ -116,7 +115,7 @@ describe('CompanyForm', () => {
   });
 
   describe('create submit', () => {
-    it('posts to /companies with the entered name and city', async () => {
+    it('posts to /companies with the entered name and no city', async () => {
       vi.mocked(api.post).mockResolvedValue({ data: { id: 'new-co' } });
       renderForm();
       fireEvent.change(screen.getByLabelText(/name/i), {
@@ -126,7 +125,8 @@ describe('CompanyForm', () => {
       await waitFor(() => expect(vi.mocked(api.post)).toHaveBeenCalled());
       const [url, payload] = vi.mocked(api.post).mock.calls[0];
       expect(url).toBe('/companies');
-      expect(payload).toMatchObject({ name: 'Devsinc', city: 'LAHORE' });
+      expect(payload).toMatchObject({ name: 'Devsinc' });
+      expect(payload).not.toHaveProperty('city');
     });
 
     it('shows a success toast and closes', async () => {

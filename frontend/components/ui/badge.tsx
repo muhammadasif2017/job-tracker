@@ -8,14 +8,12 @@ import {
   APPLICATION_CHANNEL_LABELS,
   STATUS_COLORS,
   STATUS_LABELS,
-  CITY_LABELS,
   BUSINESS_MODE_LABELS,
   ROLE_LABELS,
   type ApplicationChannel,
   type DiscoverySource,
   type JobStatus,
   type JobType,
-  type CompanyCity,
   type BusinessMode,
   type EnrichmentStatus,
   type CircuitStatus,
@@ -109,17 +107,6 @@ export function SourceBadge({ kind, source, className }: SourceBadgeProps) {
   return (
     <Chip className={className}>{labels[source as keyof typeof labels]}</Chip>
   );
-}
-
-/** Label for a company's city. */
-export function CityBadge({
-  city,
-  className,
-}: {
-  city: CompanyCity;
-  className?: string;
-}) {
-  return <Chip className={className}>{CITY_LABELS[city]}</Chip>;
 }
 
 /** Label for a company's business mode. */

@@ -217,7 +217,11 @@ test.describe('Interview rounds', () => {
     await page.getByRole('button', { name: 'Save' }).click();
 
     await expect(page.getByText('Interview round updated')).toBeVisible();
-    await expect(page.getByText('Onsite', { exact: true })).toBeVisible();
+    // Scoped to the round rows: the job's own "Onsite" job-type badge is on
+    // the page too.
+    await expect(
+      page.locator('li').getByText('Onsite', { exact: true }),
+    ).toBeVisible();
     await expect(page.getByText(/1 hr 30 min/)).toBeVisible();
     await expect(
       page.getByText('Phone Screen', { exact: true }),

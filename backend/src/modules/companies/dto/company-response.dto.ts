@@ -1,10 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  BusinessMode,
-  CompanyCity,
-  EnrichmentStatus,
-  Priority,
-} from '@prisma/client';
+import { BusinessMode, EnrichmentStatus, Priority } from '@prisma/client';
 import { CompanyApplicationStatsDto } from './company-application-stats.dto.js';
 
 /** A target company with its enrichment fields. */
@@ -14,9 +9,6 @@ export class CompanyResponseDto {
 
   @ApiProperty({ example: 'Systems Limited' })
   name: string;
-
-  @ApiProperty({ enum: CompanyCity })
-  city: CompanyCity;
 
   @ApiPropertyOptional({ example: 'DHA Phase 5, Lahore' })
   location: string | null;

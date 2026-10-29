@@ -113,7 +113,6 @@ export async function createTestCompany(
   accessToken: string,
   overrides: Partial<{
     name: string;
-    city: string;
     priority: string;
     industry: string;
   }> = {},
@@ -126,7 +125,6 @@ export async function createTestCompany(
     },
     body: JSON.stringify({
       name: 'Acme Corp',
-      city: 'LAHORE',
       ...overrides,
     }),
   });

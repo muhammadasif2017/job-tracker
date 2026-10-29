@@ -39,7 +39,7 @@ export function CsvImportDialog({ open, onClose }: CsvImportDialogProps) {
       open={open}
       onClose={handleClose}
       title="Import Companies from CSV"
-      description='Header row must be exactly "name,city,businessMode". businessMode is optional per row.'
+      description='Header row must be exactly "name,businessMode". businessMode is optional per row.'
     >
       <div className="space-y-4">
         {!result && (

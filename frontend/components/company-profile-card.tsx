@@ -22,7 +22,7 @@ import {
  *
  * Company and CompanyProfile share the exact same enrichment-field subset
  * (status, industry, ..., enrichedAt) — Company is that subset plus identity
- * fields (name, city, priority, ...). Renders identically from either shape,
+ * fields (name, priority, ...). Renders identically from either shape,
  * which is what lets the job-detail and company-detail pages share this one
  * component instead of each hand-maintaining their own field list.
  */
