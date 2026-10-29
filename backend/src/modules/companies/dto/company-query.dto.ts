@@ -1,4 +1,4 @@
-import { ApiHideProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import {
   IsEnum,
@@ -14,16 +14,6 @@ import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js'
 
 /** Query for the company list: paging, filters and search. */
 export class CompanyQueryDto extends PaginationQueryDto {
-  /**
-   * Accepted and ignored for one release, so a page loaded before the city
-   * field was removed can still load the list while both versions run (ADR-057). The
-   * release that drops companies.city removes this too.
-   */
-  @ApiHideProperty()
-  @IsOptional()
-  @IsString()
-  city?: string;
-
   @ApiPropertyOptional({ enum: Priority })
   @IsOptional()
   @IsEnum(Priority)

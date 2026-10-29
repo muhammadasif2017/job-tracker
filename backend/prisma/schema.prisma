@@ -77,13 +77,6 @@ enum Role {
   ADMIN
 }
 
-enum CompanyCity {
-  LAHORE
-  ISLAMABAD
-  KARACHI
-  OTHER
-}
-
 enum BusinessMode {
   PRODUCT
   SERVICES
@@ -222,10 +215,6 @@ model Company {
   userId        String
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
-  // No longer read or written: `location` carries the address. Nullable and
-  // @ignore'd so the client never selects it, while the previous release can
-  // still run beside this one; a later release drops the column (ADR-057).
-  city          CompanyCity? @ignore
   location      String?
   priority      Priority  @default(MEDIUM)
   personalNotes String?

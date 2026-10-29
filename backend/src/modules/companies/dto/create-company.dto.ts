@@ -1,8 +1,4 @@
-import {
-  ApiHideProperty,
-  ApiProperty,
-  ApiPropertyOptional,
-} from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
   IsArray,
@@ -30,16 +26,6 @@ export class CreateCompanyDto {
   @IsNotEmpty()
   @MaxLength(200)
   name: string;
-
-  /**
-   * Accepted and ignored for one release, so a page loaded before the city
-   * field was removed can still save while both versions run (ADR-057). The
-   * release that drops companies.city removes this too.
-   */
-  @ApiHideProperty()
-  @IsOptional()
-  @IsString()
-  city?: string;
 
   @ApiPropertyOptional({ example: 'DHA Phase 5, Lahore', maxLength: 200 })
   @IsOptional()

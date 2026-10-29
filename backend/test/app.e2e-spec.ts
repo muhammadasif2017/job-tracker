@@ -1294,23 +1294,30 @@ describe('Job Tracker (e2e)', () => {
   });
 
   describe('POST /companies — city removed', () => {
-    it('accepts a city from a page loaded before the removal, stores none and returns none', async () => {
-      const created = await agent
+    it('rejects a city as an unknown field, on create and on the list', async () => {
+      const rejected = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ name: 'E2E Legacy City Co', city: 'LAHORE' })
+        .expect(400);
+      expect(JSON.stringify(rejected.body.message)).toContain('city');
+
+      await agent
+        .get('/companies?city=LAHORE')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400);
+
+      const created = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Legacy City Co' })
         .expect(201);
       expect(created.body).not.toHaveProperty('city');
 
-      const list = await agent
-        .get('/companies?city=LAHORE&search=E2E+Legacy+City+Co')
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
-      expect(list.body.data[0]).not.toHaveProperty('city');
-
-      const rows = await prisma.$queryRaw<{ city: string | null }[]>`
-        SELECT city::text AS city FROM companies WHERE id = ${created.body.id}`;
-      expect(rows[0].city).toBeNull();
+      const columns = await prisma.$queryRaw<{ column_name: string }[]>`
+        SELECT column_name FROM information_schema.columns
+        WHERE table_name = 'companies' AND column_name = 'city'`;
+      expect(columns).toHaveLength(0);
 
       await agent
         .delete(`/companies/${created.body.id}`)
