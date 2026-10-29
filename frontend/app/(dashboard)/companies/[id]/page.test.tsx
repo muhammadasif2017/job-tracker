@@ -202,11 +202,11 @@ describe('CompanyDetailPage', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('shows no city badge, leaving the office location to carry the place', async () => {
+    it('shows the office location in place of a city badge', async () => {
       mockCompany(makeCompany({ location: 'DHA Phase 5, Lahore' }));
       renderPage();
       expect(await screen.findByText('Acme')).toBeInTheDocument();
-      expect(screen.queryByText('Lahore')).not.toBeInTheDocument();
+      expect(screen.getByText('DHA Phase 5, Lahore')).toBeInTheDocument();
       expect(screen.getByText('High')).toBeInTheDocument();
     });
 

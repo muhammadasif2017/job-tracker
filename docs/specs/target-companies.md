@@ -4,7 +4,7 @@
 
 Let the user build a list of companies they want to work for (Pakistan IT — Lahore/Islamabad/Karachi) independent of any job application, with personal priority/notes plus AI-researched company data, HR contact tracking, and a passive heads-up when they later apply to a company already on the list. Builds on `docs/ideas/target-companies.md` (soft-link MVP direction, already confirmed with the user).
 
-Success: user can add a company manually or via CSV import, trigger AI enrichment on it, record HR contacts against it, browse/filter the list by city/priority, and see a dismissible "you already saved this company" banner when creating a `Job` whose company name matches.
+Success: user can add a company manually or via CSV import, trigger AI enrichment on it, record HR contacts against it, browse/filter the list by priority, and see a dismissible "you already saved this company" banner when creating a `Job` whose company name matches.
 
 ## Company Fields — Scope
 
@@ -12,9 +12,9 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 
 > **`city` removed (2026-10-29).** The office `location` already names the city, so the form, filter, badge, API and CSV import (now `name,businessMode`) dropped it. `companies.city` is nullable and unused until a later release drops the column and the `CompanyCity` enum.
 
-**Personal, always user-owned (AI never writes these):** `name`, `city` (enum), `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`, `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`), `productDescription`.
+**Personal, always user-owned (AI never writes these):** `name`, `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`, `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`), `productDescription`.
 
-`businessMode` and `productDescription` are set by the user only — via the company form or the `name,city,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.
+`businessMode` and `productDescription` are set by the user only — via the company form or the `name,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.
 
 **AI-fillable, user-correctable (enrichment writes first, user can overwrite — see Assumption 9 for the refresh tradeoff):** `industry`, `techStack`, `companySize`, `cultureSummary`, `productDescription`, `businessMode`, `websiteUrl`, `linkedinUrl` (company LinkedIn page — lets the user cross-check the hiring posts this list is sourced from).
 

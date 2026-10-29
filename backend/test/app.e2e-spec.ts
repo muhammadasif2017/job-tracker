@@ -1293,6 +1293,32 @@ describe('Job Tracker (e2e)', () => {
     });
   });
 
+  describe('POST /companies — city removed', () => {
+    it('accepts a city from a page loaded before the removal, stores none and returns none', async () => {
+      const created = await agent
+        .post('/companies')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ name: 'E2E Legacy City Co', city: 'LAHORE' })
+        .expect(201);
+      expect(created.body).not.toHaveProperty('city');
+
+      const list = await agent
+        .get('/companies?city=LAHORE&search=E2E+Legacy+City+Co')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      expect(list.body.data[0]).not.toHaveProperty('city');
+
+      const rows = await prisma.$queryRaw<{ city: string | null }[]>`
+        SELECT city::text AS city FROM companies WHERE id = ${created.body.id}`;
+      expect(rows[0].city).toBeNull();
+
+      await agent
+        .delete(`/companies/${created.body.id}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+    });
+  });
+
   describe('POST /companies — concurrent per-user cap', () => {
     // Real two-writer proof that the MAX_COMPANIES_PER_USER count check
     // (companies.service.ts) is safe under concurrency now that it runs

@@ -82,7 +82,9 @@ describe('CompanyList', () => {
       ],
     });
     expect(screen.getByText('DHA Phase 5, Lahore')).toBeInTheDocument();
-    expect(screen.queryByText('City')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Location' }),
+    ).toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 

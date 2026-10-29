@@ -132,7 +132,10 @@ export function CompanyList({
                       </p>
                     )}
                 </td>
-                <td className="px-4 py-3 text-ink">
+                <td
+                  className="max-w-48 truncate px-4 py-3 text-ink"
+                  title={company.location ?? undefined}
+                >
                   {company.location || <span className="text-muted">—</span>}
                 </td>
                 <td className="px-4 py-3">
