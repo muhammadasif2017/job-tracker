@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted.
+Superseded by [ADR-058](./058-drop-develop-branch.md).
 
 ## Date
 
