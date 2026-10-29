@@ -53,7 +53,7 @@ if (files.length === 0) {
 
 // `DROP DEFAULT` and `DROP NOT NULL` relax a constraint; they do not destroy rows.
 const DESTRUCTIVE =
-  /\b(DROP\s+(TABLE|COLUMN|SCHEMA|DATABASE|INDEX|CONSTRAINT)|TRUNCATE|DELETE\s+FROM|ALTER\s+COLUMN[^;]*\bTYPE\b)/i;
+  /\b(DROP\s+(TABLE|COLUMN|SCHEMA|DATABASE|INDEX|CONSTRAINT|TYPE|VIEW|FUNCTION|SEQUENCE)|TRUNCATE|DELETE\s+FROM|ALTER\s+COLUMN[^;]*\bTYPE\b)/i;
 
 const problems = [];
 for (const f of files) {

@@ -1300,7 +1300,7 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ name: 'E2E Legacy City Co', city: 'LAHORE' })
         .expect(400);
-      expect(JSON.stringify(rejected.body.message)).toContain('city');
+      expect(rejected.body.message).toContain('property city should not exist');
 
       await agent
         .get('/companies?city=LAHORE')
@@ -1312,17 +1312,19 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({ name: 'E2E Legacy City Co' })
         .expect(201);
-      expect(created.body).not.toHaveProperty('city');
+      try {
+        expect(created.body).not.toHaveProperty('city');
 
-      const columns = await prisma.$queryRaw<{ column_name: string }[]>`
-        SELECT column_name FROM information_schema.columns
-        WHERE table_name = 'companies' AND column_name = 'city'`;
-      expect(columns).toHaveLength(0);
-
-      await agent
-        .delete(`/companies/${created.body.id}`)
-        .set('Authorization', `Bearer ${accessToken}`)
-        .expect(200);
+        const columns = await prisma.$queryRaw<{ column_name: string }[]>`
+          SELECT column_name FROM information_schema.columns
+          WHERE table_schema = current_schema()
+            AND table_name = 'companies' AND column_name = 'city'`;
+        expect(columns).toHaveLength(0);
+      } finally {
+        await agent
+          .delete(`/companies/${created.body.id}`)
+          .set('Authorization', `Bearer ${accessToken}`);
+      }
     });
   });
 
