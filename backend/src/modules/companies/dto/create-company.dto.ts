@@ -10,7 +10,7 @@ import {
   MaxLength,
   ValidateIf,
 } from 'class-validator';
-import { BusinessMode, CompanyCity, Priority } from '@prisma/client';
+import { BusinessMode, Priority } from '@prisma/client';
 
 /**
  * Body for adding a target company.
@@ -26,10 +26,6 @@ export class CreateCompanyDto {
   @IsNotEmpty()
   @MaxLength(200)
   name: string;
-
-  @ApiProperty({ enum: CompanyCity })
-  @IsEnum(CompanyCity)
-  city: CompanyCity;
 
   @ApiPropertyOptional({ example: 'DHA Phase 5, Lahore', maxLength: 200 })
   @IsOptional()

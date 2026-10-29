@@ -6,7 +6,6 @@ import type { Company } from '../../types';
 const company: Company = {
   id: 'c-1',
   name: 'Systems Limited',
-  city: 'LAHORE',
   location: null,
   priority: 'HIGH',
   personalNotes: null,
@@ -75,15 +74,15 @@ describe('CompanyList', () => {
     expect(screen.getByText('No target companies yet')).toBeInTheDocument();
   });
 
-  it('shows a set city as a badge and the OTHER default as a dash', () => {
+  it('shows the office location, or a dash when there is none', () => {
     renderList({
       companies: [
-        company,
-        { ...company, id: 'c-other', name: 'Nowhere Co', city: 'OTHER' },
+        { ...company, location: 'DHA Phase 5, Lahore' },
+        { ...company, id: 'c-none', name: 'Nowhere Co', location: null },
       ],
     });
-    expect(screen.getByText('Lahore')).toBeInTheDocument();
-    expect(screen.queryByText('Other')).not.toBeInTheDocument();
+    expect(screen.getByText('DHA Phase 5, Lahore')).toBeInTheDocument();
+    expect(screen.queryByText('City')).not.toBeInTheDocument();
     expect(screen.getByText('—')).toBeInTheDocument();
   });
 
@@ -123,8 +122,8 @@ describe('CompanyList', () => {
     expect(screen.queryByText(/applied ·/)).not.toBeInTheDocument();
   });
 
-  it('renders a company row with its badges', () => {
-    renderList({ companies: [company] });
+  it('renders a company row with its location and badges', () => {
+    renderList({ companies: [{ ...company, location: 'Lahore' }] });
     expect(screen.getByText('Systems Limited')).toBeInTheDocument();
     expect(screen.getByText('Lahore')).toBeInTheDocument();
     expect(screen.getByText('High')).toBeInTheDocument();

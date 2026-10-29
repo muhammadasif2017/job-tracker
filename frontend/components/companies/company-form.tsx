@@ -10,8 +10,6 @@ import { Button } from '../ui/button';
 import { Modal } from '../ui/modal';
 import { EnrichmentStatusBadge } from '../ui/badge';
 import {
-  COMPANY_CITIES,
-  CITY_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
   BUSINESS_MODES,
@@ -30,7 +28,6 @@ import {
  */
 const schema = z.object({
   name: z.string().min(1, 'Name is required'),
-  city: z.enum(COMPANY_CITIES),
   location: z.string().optional(),
   priority: z.enum(PRIORITIES),
   personalNotes: z.string().optional(),
@@ -70,7 +67,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
     formState: { errors },
   } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { city: 'LAHORE', priority: 'MEDIUM' },
+    defaultValues: { priority: 'MEDIUM' },
   });
 
   useEffect(() => {
@@ -79,7 +76,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
         company
           ? {
               name: company.name,
-              city: company.city,
               location: company.location ?? '',
               priority: company.priority,
               personalNotes: company.personalNotes ?? '',
@@ -92,7 +88,7 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               techStack: company.techStack.join(', '),
               cultureSummary: company.cultureSummary ?? '',
             }
-          : { city: 'LAHORE', priority: 'MEDIUM' },
+          : { priority: 'MEDIUM' },
       );
     }
   }, [open, company, reset]);
@@ -171,25 +167,6 @@ export function CompanyForm({ open, onClose, company }: CompanyFormProps) {
               error={errors.name?.message}
               {...register('name')}
             />
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="company-city"
-                className="text-xs font-medium text-muted"
-              >
-                City
-              </label>
-              <select
-                id="company-city"
-                className="h-9 w-full rounded-md border border-line bg-paper px-3 text-sm text-ink"
-                {...register('city')}
-              >
-                {COMPANY_CITIES.map((c) => (
-                  <option key={c} value={c}>
-                    {CITY_LABELS[c]}
-                  </option>
-                ))}
-              </select>
-            </div>
             <Input
               label="Office Location"
               placeholder="DHA Phase 5, Lahore"

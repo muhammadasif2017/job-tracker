@@ -269,8 +269,8 @@ See ADR-033 and ADR-034.
 
 `JobCompanyLinkService.resolveCompanyId(userId, trimmedName)` is the single find-or-create
 path for turning a job's free-text `company` label into a real `Company` row
-and its `Job.companyId` FK — case-insensitive exact match, `CompanyCity.OTHER`
-for auto-created rows. Concurrency is enforced by the database, not the
+and its `Job.companyId` FK — case-insensitive exact match, seeding the job's
+location onto auto-created rows. Concurrency is enforced by the database, not the
 application: a **raw functional unique index on `(userId, lower(name))`**
 (migration `20260903090000_company_ci_unique_and_job_search_trgm`) makes a
 case-variant race ("Google" vs "google") an ordinary unique violation, so the

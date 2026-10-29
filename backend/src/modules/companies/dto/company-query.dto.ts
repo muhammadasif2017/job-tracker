@@ -9,16 +9,11 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { CompanyCity, Priority } from '@prisma/client';
+import { Priority } from '@prisma/client';
 import { PaginationQueryDto } from '../../../common/dto/pagination-query.dto.js';
 
 /** Query for the company list: paging, filters and search. */
 export class CompanyQueryDto extends PaginationQueryDto {
-  @ApiPropertyOptional({ enum: CompanyCity })
-  @IsOptional()
-  @IsEnum(CompanyCity)
-  city?: CompanyCity;
-
   @ApiPropertyOptional({ enum: Priority })
   @IsOptional()
   @IsEnum(Priority)

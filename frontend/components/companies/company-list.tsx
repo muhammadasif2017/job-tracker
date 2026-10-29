@@ -3,7 +3,6 @@ import { Pencil, Trash2, Globe, GitMerge } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Skeleton } from '../ui/skeleton';
 import {
-  CityBadge,
   PriorityBadge,
   BusinessModeBadge,
   EnrichmentStatusBadge,
@@ -24,7 +23,14 @@ interface CompanyListProps {
 }
 
 /** Table column headings; the last column holds the row actions. */
-const COLUMNS = ['Name', 'City', 'Priority', 'Business Mode', 'Research', ''];
+const COLUMNS = [
+  'Name',
+  'Location',
+  'Priority',
+  'Business Mode',
+  'Research',
+  '',
+];
 
 /** The companies table, with loading, error and empty states. */
 export function CompanyList({
@@ -126,13 +132,8 @@ export function CompanyList({
                       </p>
                     )}
                 </td>
-                <td className="px-4 py-3">
-                  {/* OTHER is the "no city picked" default, not a place. */}
-                  {company.city === 'OTHER' ? (
-                    <span className="text-muted">—</span>
-                  ) : (
-                    <CityBadge city={company.city} />
-                  )}
+                <td className="px-4 py-3 text-ink">
+                  {company.location || <span className="text-muted">—</span>}
                 </td>
                 <td className="px-4 py-3">
                   <PriorityBadge priority={company.priority} />

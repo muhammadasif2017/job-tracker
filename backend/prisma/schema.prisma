@@ -222,7 +222,10 @@ model Company {
   userId        String
   user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   name          String
-  city          CompanyCity
+  // No longer read or written: `location` carries the address. Nullable so
+  // the release that stopped using it can run beside the previous one; a
+  // later release drops the column (ADR-057).
+  city          CompanyCity?
   location      String?
   priority      Priority  @default(MEDIUM)
   personalNotes String?

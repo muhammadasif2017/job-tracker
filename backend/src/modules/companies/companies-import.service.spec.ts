@@ -45,7 +45,7 @@ describe('CompaniesImportService', () => {
 
   it('throws BadRequestException when there are no data rows', async () => {
     await expect(
-      service.import('user-1', 'name,city,businessMode\n'),
+      service.import('user-1', 'name,businessMode\n'),
     ).rejects.toThrow(BadRequestException);
   });
 
@@ -58,9 +58,9 @@ describe('CompaniesImportService', () => {
   it('throws BadRequestException when the file exceeds the max row count', async () => {
     const rows = Array.from(
       { length: 1001 },
-      (_, i) => `Co ${i},LAHORE,SERVICES`,
+      (_, i) => `Co ${i},SERVICES`,
     ).join('\n');
-    const csv = `name,city,businessMode\n${rows}`;
+    const csv = `name,businessMode\n${rows}`;
 
     await expect(service.import('user-1', csv)).rejects.toThrow(
       BadRequestException,
@@ -71,9 +71,9 @@ describe('CompaniesImportService', () => {
   it('accepts a file at exactly the max row count', async () => {
     const rows = Array.from(
       { length: 1000 },
-      (_, i) => `Co ${i},LAHORE,SERVICES`,
+      (_, i) => `Co ${i},SERVICES`,
     ).join('\n');
-    const csv = `name,city,businessMode\n${rows}`;
+    const csv = `name,businessMode\n${rows}`;
 
     const result = await service.import('user-1', csv);
 
@@ -82,8 +82,7 @@ describe('CompaniesImportService', () => {
   });
 
   it('reports a row with the wrong number of columns without aborting the import', async () => {
-    const csv =
-      'name,city,businessMode\nGood Co,LAHORE,SERVICES\nBad Row,LAHORE';
+    const csv = 'name,businessMode\nGood Co,SERVICES\nBad Row,SERVICES,extra';
 
     const result = await service.import('user-1', csv);
 
@@ -91,17 +90,17 @@ describe('CompaniesImportService', () => {
     expect(result.errors).toEqual([
       {
         row: 3,
-        message: expect.stringContaining('Expected 3 columns'),
+        message: expect.stringContaining('Expected 2 columns'),
       },
     ]);
   });
 
   it('imports all valid rows and reports zero errors', async () => {
     const csv =
-      'name,city,businessMode\n' +
-      'Systems Limited,LAHORE,SERVICES\n' +
-      'Devsinc,LAHORE,SERVICES\n' +
-      'Careem,KARACHI,PRODUCT';
+      'name,businessMode\n' +
+      'Systems Limited,SERVICES\n' +
+      'Devsinc,SERVICES\n' +
+      'Careem,PRODUCT';
 
     const result = await service.import('user-1', csv);
 
@@ -111,24 +110,26 @@ describe('CompaniesImportService', () => {
         {
           userId: 'user-1',
           name: 'Systems Limited',
-          city: 'LAHORE',
           businessMode: 'SERVICES',
         },
         {
           userId: 'user-1',
           name: 'Devsinc',
-          city: 'LAHORE',
           businessMode: 'SERVICES',
         },
         {
           userId: 'user-1',
           name: 'Careem',
-          city: 'KARACHI',
           businessMode: 'PRODUCT',
         },
       ],
       skipDuplicates: true,
     });
+    // toHaveBeenCalledWith treats an undefined key as absent, so check the
+    // row itself: no city reaches the database.
+    expect(
+      mockPrisma.company.createMany.mock.calls[0][0].data[0],
+    ).not.toHaveProperty('city');
   });
 
   it('reports a per-row error and skips rows once the per-user company cap is reached', async () => {
@@ -138,9 +139,9 @@ describe('CompaniesImportService', () => {
       Array.from({ length: 1999 }, (_, i) => ({ name: `Existing ${i}` })),
     );
     const csv =
-      'name,city,businessMode\n' +
-      'Fits Under Cap,LAHORE,SERVICES\n' +
-      'Over The Cap,LAHORE,SERVICES';
+      'name,businessMode\n' +
+      'Fits Under Cap,SERVICES\n' +
+      'Over The Cap,SERVICES';
 
     const result = await service.import('user-1', csv);
 
@@ -155,7 +156,7 @@ describe('CompaniesImportService', () => {
   });
 
   it('allows an empty businessMode column', async () => {
-    const csv = 'name,city,businessMode\nUnknown Mode Co,ISLAMABAD,';
+    const csv = 'name,businessMode\nUnknown Mode Co,';
 
     const result = await service.import('user-1', csv);
 
@@ -165,7 +166,6 @@ describe('CompaniesImportService', () => {
         {
           userId: 'user-1',
           name: 'Unknown Mode Co',
-          city: 'ISLAMABAD',
           businessMode: undefined,
         },
       ],
@@ -173,25 +173,17 @@ describe('CompaniesImportService', () => {
     });
   });
 
-  it('reports a malformed row (invalid city) without aborting the whole import', async () => {
-    const csv =
-      'name,city,businessMode\n' +
-      'Good Co,LAHORE,SERVICES\n' +
-      'Bad Co,Multan,SERVICES';
+  it('rejects the old three-column header that still has a city', async () => {
+    const csv = 'name,city,businessMode\nGood Co,LAHORE,SERVICES';
 
-    const result = await service.import('user-1', csv);
-
-    expect(result.imported).toBe(1);
-    expect(result.errors).toEqual([
-      {
-        row: 3,
-        message: expect.stringContaining('Invalid city "Multan"'),
-      },
-    ]);
+    await expect(service.import('user-1', csv)).rejects.toThrow(
+      'expected "name,businessMode"',
+    );
+    expect(mockPrisma.company.createMany).not.toHaveBeenCalled();
   });
 
   it('reports a malformed row (invalid businessMode)', async () => {
-    const csv = 'name,city,businessMode\nBad Co,LAHORE,CONSULTING';
+    const csv = 'name,businessMode\nBad Co,CONSULTING';
 
     const result = await service.import('user-1', csv);
 
@@ -200,7 +192,7 @@ describe('CompaniesImportService', () => {
   });
 
   it('reports a missing name as a row error', async () => {
-    const csv = 'name,city,businessMode\n,LAHORE,SERVICES';
+    const csv = 'name,businessMode\n,SERVICES';
 
     const result = await service.import('user-1', csv);
 
@@ -211,7 +203,7 @@ describe('CompaniesImportService', () => {
     mockPrisma.company.findMany.mockResolvedValue([
       { name: 'Systems Limited' },
     ]);
-    const csv = 'name,city,businessMode\nsystems limited,LAHORE,SERVICES';
+    const csv = 'name,businessMode\nsystems limited,SERVICES';
 
     const result = await service.import('user-1', csv);
 
@@ -224,8 +216,7 @@ describe('CompaniesImportService', () => {
     // + seenNames) doesn't see the row, but the DB unique constraint does
     // and createMany's skipDuplicates silently drops it.
     mockPrisma.company.createMany.mockResolvedValue({ count: 1 });
-    const csv =
-      'name,city,businessMode\nGood Co,LAHORE,SERVICES\nOther Co,LAHORE,SERVICES';
+    const csv = 'name,businessMode\nGood Co,SERVICES\nOther Co,SERVICES';
 
     const result = await service.import('user-1', csv);
 
@@ -234,7 +225,7 @@ describe('CompaniesImportService', () => {
 
   it('reports a name over the 200-char limit as a row error', async () => {
     const longName = 'A'.repeat(201);
-    const csv = `name,city,businessMode\n${longName},LAHORE,SERVICES`;
+    const csv = `name,businessMode\n${longName},SERVICES`;
 
     const result = await service.import('user-1', csv);
 
@@ -248,7 +239,7 @@ describe('CompaniesImportService', () => {
   });
 
   it('runs the name-check + createMany inside a Serializable transaction', async () => {
-    const csv = 'name,city,businessMode\nSystems Limited,LAHORE,SERVICES';
+    const csv = 'name,businessMode\nSystems Limited,SERVICES';
 
     await service.import('user-1', csv);
 
@@ -259,7 +250,7 @@ describe('CompaniesImportService', () => {
 
   it('maps a P2034 serialization failure (concurrent import/create race) to ConflictException', async () => {
     mockPrisma.$transaction.mockRejectedValue({ code: 'P2034' });
-    const csv = 'name,city,businessMode\nSystems Limited,LAHORE,SERVICES';
+    const csv = 'name,businessMode\nSystems Limited,SERVICES';
 
     await expect(service.import('user-1', csv)).rejects.toThrow(
       ConflictException,
@@ -268,9 +259,9 @@ describe('CompaniesImportService', () => {
 
   it('rejects a duplicate name repeated within the same file', async () => {
     const csv =
-      'name,city,businessMode\n' +
-      'Systems Limited,LAHORE,SERVICES\n' +
-      'Systems Limited,LAHORE,SERVICES';
+      'name,businessMode\n' +
+      'Systems Limited,SERVICES\n' +
+      'Systems Limited,SERVICES';
 
     const result = await service.import('user-1', csv);
 

@@ -127,7 +127,6 @@ export class CompaniesService {
         data: {
           userId,
           name: dto.name,
-          city: dto.city,
           location: dto.location,
           priority: dto.priority,
           personalNotes: dto.personalNotes,
@@ -169,16 +168,15 @@ export class CompaniesService {
   }
 
   /**
-   * One page of the user's companies, newest first, with optional city,
-   * priority and name filters. Application stats are fetched for the page's
+   * One page of the user's companies, newest first, with optional priority
+   * and name filters. Application stats are fetched for the page's
    * ids only, so the query count stays fixed however large the page.
    */
   async findAll(userId: string, query: CompanyQueryDto) {
-    const { page = 1, limit = 10, city, priority, search } = query;
+    const { page = 1, limit = 10, priority, search } = query;
 
     const where: Prisma.CompanyWhereInput = {
       userId,
-      ...(city && { city }),
       ...(priority && { priority }),
       ...(search && {
         name: { contains: search, mode: 'insensitive' as const },
@@ -305,7 +303,6 @@ export class CompaniesService {
 
     const data = {
       name: dto.name,
-      city: dto.city,
       location: dto.location,
       priority: dto.priority,
       personalNotes: dto.personalNotes,

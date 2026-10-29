@@ -62,9 +62,7 @@ describe('CompaniesController CSV import size limit (HTTP pipeline)', () => {
   });
 
   it('accepts a CSV under the 1 MB limit and reaches the service', async () => {
-    const underLimit = Buffer.from(
-      'name,city,businessMode\nAcme,LAHORE,SERVICES',
-    );
+    const underLimit = Buffer.from('name,businessMode\nAcme,SERVICES');
 
     const res = await request(app.getHttpServer())
       .post('/companies/import')
@@ -76,7 +74,7 @@ describe('CompaniesController CSV import size limit (HTTP pipeline)', () => {
     expect(res.status).toBe(201);
     expect(mockImportService.import).toHaveBeenCalledWith(
       'user-1',
-      'name,city,businessMode\nAcme,LAHORE,SERVICES',
+      'name,businessMode\nAcme,SERVICES',
     );
   });
 });

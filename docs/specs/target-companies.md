@@ -10,6 +10,8 @@ Success: user can add a company manually or via CSV import, trigger AI enrichmen
 
 Curated to what actually changes an apply/skip decision, not everything scrapeable:
 
+> **`city` removed (2026-10-29).** The office `location` already names the city, so the form, filter, badge, API and CSV import (now `name,businessMode`) dropped it. `companies.city` is nullable and unused until a later release drops the column and the `CompanyCity` enum.
+
 **Personal, always user-owned (AI never writes these):** `name`, `city` (enum), `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`, `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`), `productDescription`.
 
 `businessMode` and `productDescription` are set by the user only — via the company form or the `name,city,businessMode` CSV import. `LlmService`'s `extract_company_data` tool has no property for either, so enrichment never writes them and a refresh never overwrites them.

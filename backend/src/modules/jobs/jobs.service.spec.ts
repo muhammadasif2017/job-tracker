@@ -1,7 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { ConflictException } from '@nestjs/common';
 import {
-  CompanyCity,
   EnrichmentStatus,
   InterviewOutcome,
   JobEventType,
@@ -215,7 +214,7 @@ describe('JobsService', () => {
       });
     });
 
-    it('creates a new Company row (city OTHER) and links companyId when no existing target company matches', async () => {
+    it('creates a new Company row and links companyId when no existing target company matches', async () => {
       mockPrisma.job.create.mockResolvedValue({
         id: 'job-new',
         status: JobStatus.APPLIED,
@@ -236,7 +235,6 @@ describe('JobsService', () => {
         data: {
           userId: 'user-1',
           name: 'Nobody Saved This',
-          city: CompanyCity.OTHER,
         },
         select: { id: true, name: true },
       });
@@ -970,7 +968,6 @@ describe('JobsService', () => {
         data: {
           userId: 'user-1',
           name: 'Brand New Co',
-          city: CompanyCity.OTHER,
         },
         select: { id: true, name: true },
       });

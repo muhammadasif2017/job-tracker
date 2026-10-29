@@ -11,12 +11,9 @@ import { CsvImportDialog } from '../../../components/companies/csv-import-dialog
 import { MergeCompanyDialog } from '../../../components/companies/merge-company-dialog';
 import { DuplicateSuggestionsBanner } from '../../../components/companies/duplicate-suggestions-banner';
 import {
-  COMPANY_CITIES,
-  CITY_LABELS,
   PRIORITIES,
   PRIORITY_LABELS,
   type Company,
-  type CompanyCity,
   type Priority,
 } from '../../../types';
 import {
@@ -31,7 +28,6 @@ import { PageHeader } from '../../../components/layout/page-header';
  */
 export default function CompaniesPage() {
   const [search, setSearch] = useState('');
-  const [cityFilter, setCityFilter] = useState<CompanyCity | ''>('');
   const [priorityFilter, setPriorityFilter] = useState<Priority | ''>('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
@@ -48,7 +44,6 @@ export default function CompaniesPage() {
   const { data, isLoading, isError, refetch } = useCompaniesQuery({
     page,
     search: debouncedSearch,
-    city: cityFilter,
     priority: priorityFilter,
   });
 
@@ -100,22 +95,6 @@ export default function CompaniesPage() {
             }}
           />
         </div>
-        <select
-          aria-label="Filter by city"
-          className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"
-          value={cityFilter}
-          onChange={(e) => {
-            setCityFilter(e.target.value as CompanyCity | '');
-            setPage(1);
-          }}
-        >
-          <option value="">All cities</option>
-          {COMPANY_CITIES.map((c) => (
-            <option key={c} value={c}>
-              {CITY_LABELS[c]}
-            </option>
-          ))}
-        </select>
         <select
           aria-label="Filter by priority"
           className="h-9 rounded-md border border-line bg-paper px-3 text-sm text-ink"

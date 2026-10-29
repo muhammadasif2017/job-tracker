@@ -1031,7 +1031,6 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           name: 'E2E Dup Website A',
-          city: 'LAHORE',
           websiteUrl: 'https://e2e-dup-shared.example.com',
         })
         .expect(201);
@@ -1040,19 +1039,18 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           name: 'E2E Dup Website B',
-          city: 'LAHORE',
           websiteUrl: 'https://e2e-dup-shared.example.com/',
         })
         .expect(201);
       const nameA = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Dup Fuzzy Systems Limited', city: 'LAHORE' })
+        .send({ name: 'E2E Dup Fuzzy Systems Limited' })
         .expect(201);
       const nameB = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Dup Fuzzy Systems Ltd', city: 'LAHORE' })
+        .send({ name: 'E2E Dup Fuzzy Systems Ltd' })
         .expect(201);
 
       const res = await agent
@@ -1095,13 +1093,13 @@ describe('Job Tracker (e2e)', () => {
       const canonical = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Merge Canonical', city: 'LAHORE' })
+        .send({ name: 'E2E Merge Canonical' })
         .expect(201);
 
       const duplicate = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Merge Duplicate', city: 'LAHORE' })
+        .send({ name: 'E2E Merge Duplicate' })
         .expect(201);
 
       const job = await agent
@@ -1156,7 +1154,7 @@ describe('Job Tracker (e2e)', () => {
       const company = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Self Merge', city: 'LAHORE' })
+        .send({ name: 'E2E Self Merge' })
         .expect(201);
 
       await agent
@@ -1174,7 +1172,7 @@ describe('Job Tracker (e2e)', () => {
       const company = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Merge Missing Duplicate', city: 'LAHORE' })
+        .send({ name: 'E2E Merge Missing Duplicate' })
         .expect(201);
 
       await agent
@@ -1194,7 +1192,6 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           name: 'E2E Merge Field Override Canonical',
-          city: 'LAHORE',
           industry: 'Old Industry',
         })
         .expect(201);
@@ -1204,7 +1201,6 @@ describe('Job Tracker (e2e)', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .send({
           name: 'E2E Merge Field Override Duplicate',
-          city: 'LAHORE',
           industry: 'New Industry From Duplicate',
         })
         .expect(201);
@@ -1245,17 +1241,17 @@ describe('Job Tracker (e2e)', () => {
       const canonicalA = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Concurrent Merge Canonical A', city: 'LAHORE' })
+        .send({ name: 'E2E Concurrent Merge Canonical A' })
         .expect(201);
       const canonicalB = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Concurrent Merge Canonical B', city: 'LAHORE' })
+        .send({ name: 'E2E Concurrent Merge Canonical B' })
         .expect(201);
       const duplicate = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Concurrent Merge Duplicate', city: 'LAHORE' })
+        .send({ name: 'E2E Concurrent Merge Duplicate' })
         .expect(201);
 
       try {
@@ -1318,7 +1314,6 @@ describe('Job Tracker (e2e)', () => {
         data: Array.from({ length: fillerCount }, (_, i) => ({
           userId,
           name: `Cap Filler ${i}`,
-          city: 'LAHORE' as const,
         })),
       });
 
@@ -1327,11 +1322,11 @@ describe('Job Tracker (e2e)', () => {
           agent
             .post('/companies')
             .set('Authorization', `Bearer ${accessToken}`)
-            .send({ name: 'Cap Race A', city: 'LAHORE' }),
+            .send({ name: 'Cap Race A' }),
           agent
             .post('/companies')
             .set('Authorization', `Bearer ${accessToken}`)
-            .send({ name: 'Cap Race B', city: 'LAHORE' }),
+            .send({ name: 'Cap Race B' }),
         ]);
 
         // The loser can surface as either a clean 400 (its own count-check
@@ -1372,7 +1367,7 @@ describe('Job Tracker (e2e)', () => {
         data: { email: STATS_OTHER_EMAIL, name: 'Stats Other', password: 'x' },
       });
       const company = await prisma.company.create({
-        data: { userId, name: 'E2E Stats Co', city: 'LAHORE' },
+        data: { userId, name: 'E2E Stats Co' },
       });
       companyId = company.id;
       const seed = async (data: {
@@ -1518,7 +1513,6 @@ describe('Job Tracker (e2e)', () => {
             })
           ).id,
           name: 'E2E Stats Other Only Co',
-          city: 'LAHORE',
         },
       });
       try {
@@ -1549,7 +1543,7 @@ describe('Job Tracker (e2e)', () => {
       const company = await agent
         .post('/companies')
         .set('Authorization', `Bearer ${accessToken}`)
-        .send({ name: 'E2E Delete Cascade Co', city: 'LAHORE' })
+        .send({ name: 'E2E Delete Cascade Co' })
         .expect(201);
 
       const job = await agent

@@ -18,7 +18,6 @@ import api from '../../lib/api';
 const companyA: Company = {
   id: 'a',
   name: 'Systems Limited',
-  city: 'LAHORE',
   priority: 'HIGH',
   status: 'COMPLETED',
   techStack: [],

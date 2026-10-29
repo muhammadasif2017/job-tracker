@@ -85,7 +85,7 @@ export class CompaniesController {
 
   /** Lists the user's companies, paginated and filterable. */
   @Get()
-  @ApiOperation({ summary: 'List target companies (filter by city, priority)' })
+  @ApiOperation({ summary: 'List target companies (filter by priority)' })
   @ApiOkResponse({ type: PaginatedCompaniesDto })
   findAll(
     @CurrentUser() user: { id: string },
@@ -233,7 +233,7 @@ export class CompaniesController {
     }),
   )
   @ApiOperation({
-    summary: 'Bulk-import target companies from a CSV (name,city,businessMode)',
+    summary: 'Bulk-import target companies from a CSV (name,businessMode)',
   })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
@@ -243,8 +243,7 @@ export class CompaniesController {
         file: {
           type: 'string',
           format: 'binary',
-          description:
-            'CSV file, header row "name,city,businessMode" (max 1 MB)',
+          description: 'CSV file, header row "name,businessMode" (max 1 MB)',
         },
       },
     },
