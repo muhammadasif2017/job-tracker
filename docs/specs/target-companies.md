@@ -10,7 +10,7 @@ Success: user can add a company manually or via CSV import, trigger AI enrichmen
 
 Curated to what actually changes an apply/skip decision, not everything scrapeable:
 
-> **`city` removed (2026-10-29).** The office `location` already names the city, so the form, filter, badge, API and CSV import (now `name,businessMode`) dropped it. `companies.city` is nullable and unused until a later release drops the column and the `CompanyCity` enum.
+> **`city` removed (2026-10-29).** The office `location` already names the city, so the form, filter, badge, API and CSV import (now `name,businessMode`) dropped it. Migration `20261030120000_drop_company_city` then dropped the `companies.city` column and the `CompanyCity` enum.
 
 **Personal, always user-owned (AI never writes these):** `name`, `location` (free text), `priority` (reuse `JobPriority`), `personalNotes`, `businessMode` (`PRODUCT`/`SERVICES`/`HYBRID`), `productDescription`.
 
@@ -23,7 +23,7 @@ Curated to what actually changes an apply/skip decision, not everything scrapeab
 Also dropped after the fact, once the list had been used in anger — every one of them was written by enrichment and then only ever displayed, never filtered, sorted, searched, or indexed on:
 
 - `founded`, `workLifeBalance` (removed in #282): a year nobody sorted by, and an LLM-guessed rating with no ratings source in the pipeline.
-- `address`, `headquarters` (+ their `addressLowConfidence`/`headquartersLowConfidence` guard flags): the only two fields carrying a confidence guard, so dropping both retired the whole guard subsystem with them — the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI. `city` (indexed, filterable) and `location` (the enrichment disambiguation anchor) already carry the location signal this list needs.
+- `address`, `headquarters` (+ their `addressLowConfidence`/`headquartersLowConfidence` guard flags): the only two fields carrying a confidence guard, so dropping both retired the whole guard subsystem with them — the token-overlap check, the address-only prompt hardening, and the "unverified" badge UI. `location` (the enrichment disambiguation anchor) already carries the location signal this list needs; `city` once did too, until it was removed (see the note above).
 - `cultureSummary` was dropped alongside them in #283, then **restored in #285**: `workPolicy`'s Remote/Hybrid/On-site enum answers *where* you'd work but nothing about *how* — team structure, pace, engineering norms — which is the half of the apply/skip decision the rest of the field set doesn't cover. It is the one field here whose value is prose rather than a facet, so it is display-only by design: never filtered, sorted, or indexed on.
 
 That leaves `extract_company_data` with these properties — `industry`, `companySize`, `techStack`, `cultureSummary`, `productDescription`, `businessMode` (`workPolicy` was removed in ADR-041) — each of which actually moves an apply/skip decision. `cultureSummary` is the only one **not** in the tool's `required` list: it is free prose with no guaranteed public source, and forcing it makes the model invent culture claims rather than return nothing. `workPolicy` was later removed entirely (ADR-041): work arrangement is a property of an individual application, recorded on `Job.jobType`, not of the employer. `productDescription` and `businessMode` took its place in the tool schema.

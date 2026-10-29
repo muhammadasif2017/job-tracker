@@ -129,7 +129,7 @@ value carries meaning, and the dot uses token classes:
 - `ENRICHMENT_STATUS_COLORS` (`badge.tsx`): `bg-muted-2` / `bg-warning` / `bg-success` /
   `bg-danger`.
 
-Job type, discovery source, application channel, city and business mode have no color map.
+Job type, discovery source, application channel and business mode have no color map.
 The label always carries the value, so a dot is never the only signal. That is also why a
 `bg-muted-2` dot (2.63:1 on `paper`) is acceptable here.
 
@@ -271,7 +271,7 @@ Primitives in `frontend/components/ui/` — reuse these before writing anything 
 |---|---|
 | `Button` | Variants `primary`, `secondary`, `ghost`, `danger`, `outline`; sizes `sm` (h-8), `md` (h-9), `lg` (h-10). Ships `focus-visible:ring-2 ring-offset-2 ring-offset-surface` and a `loading` spinner. |
 | `Input` | Paired with a visible label; autofill is neutralized in `globals.css`. |
-| `Badge` | Status/priority/type/source/channel/city/business-mode/enrichment variants, all drawn by one neutral `Chip` with labels from `types/`. Status, priority and enrichment add a token-colored dot (ADR-054). |
+| `Badge` | Status/priority/type/source/channel/business-mode/enrichment variants, all drawn by one neutral `Chip` with labels from `types/`. Status, priority and enrichment add a token-colored dot (ADR-054). |
 | `Modal` | Radix dialog wrapper. |
 | `Skeleton` | Loading placeholder — reserve the real element's dimensions. |
 | `Spinner` | In-place async indicator. |
