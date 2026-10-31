@@ -410,8 +410,15 @@ describe('JobsStatsService', () => {
     it('range=30d adds an appliedAt cutoff to total/byStatus but not to thisMonth', async () => {
       mockPrisma.job.groupBy.mockResolvedValue([]);
       mockPrisma.job.count.mockResolvedValue(0);
+      // Pinned mid-month: on the 31st of a 31-day month the 30-day cutoff
+      // lands exactly on the 1st, the same instant as the month start.
+      jest.useFakeTimers().setSystemTime(new Date('2026-06-15T12:00:00Z'));
 
-      await service.getStats('u1', '30d');
+      try {
+        await service.getStats('u1', '30d');
+      } finally {
+        jest.useRealTimers();
+      }
 
       expect(mockPrisma.job.groupBy).toHaveBeenCalledWith(
         expect.objectContaining({
