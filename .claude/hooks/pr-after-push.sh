@@ -15,7 +15,6 @@ branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null)
 [ -z "$branch" ] && exit 0
 [ "$branch" = "main" ] && exit 0
 [ "$branch" = "master" ] && exit 0
-[ "$branch" = "develop" ] && exit 0
 
 base=main
 
