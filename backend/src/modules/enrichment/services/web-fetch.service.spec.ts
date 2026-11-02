@@ -70,6 +70,49 @@ describe('WebFetchService', () => {
     expect(result).not.toContain('color: red');
   });
 
+  it('keeps a JSON-LD JobPosting that the script strip would otherwise discard', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    const posting = {
+      '@context': 'https://schema.org',
+      '@type': 'JobPosting',
+      title: 'Backend Engineer',
+      hiringOrganization: { '@type': 'Organization', name: 'Acme' },
+    };
+    // An ATS-style shell: the visible body is empty until client JS runs.
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          `<html><head><script type="application/ld+json">${JSON.stringify(posting)}</script></head><body><div id="root"></div><script>boot()</script></body></html>`,
+        ),
+    });
+
+    const result = await service.fetchPageText(
+      'https://boards.greenhouse.io/acme/jobs/1',
+    );
+
+    expect(result).toContain('Job title: Backend Engineer');
+    expect(result).toContain('Company: Acme');
+    expect(result).not.toContain('boot()');
+  });
+
+  it('puts the JSON-LD posting ahead of page text so truncation cannot evict it', async () => {
+    mockDnsAddresses({ address: '93.184.216.34', family: 4 });
+    const posting = { '@type': 'JobPosting', title: 'Data Analyst' };
+    fetchSpy.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          `<html><body><script type="application/ld+json">${JSON.stringify(posting)}</script><p>${'x'.repeat(20_000)}</p></body></html>`,
+        ),
+    });
+
+    const result = await service.fetchPageText('https://jobs.lever.co/acme/1');
+
+    expect(result.startsWith('Job title: Data Analyst')).toBe(true);
+    expect(result.length).toBe(8000);
+  });
+
   it('strips site chrome so it cannot crowd out page content', async () => {
     mockDnsAddresses({ address: '93.184.216.34', family: 4 });
     fetchSpy.mockResolvedValue({

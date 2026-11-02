@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio';
 import * as dns from 'node:dns/promises';
 import ipaddr from 'ipaddr.js';
 import { LLM_CONTEXT_BUDGET } from '../enrichment.constants.js';
+import { jobPostingTextFromJsonLd } from '../job-posting-json-ld.helper.js';
 import { appLogger } from '../../../infrastructure/error-tracking/app-logger.helper.js';
 
 /**
@@ -181,6 +182,11 @@ export class WebFetchService {
       const html = await res.text();
       const $ = cheerio.load(html);
 
+      // Read before the strip below removes every <script>, JSON-LD
+      // included. Placed first in the result so the cut to
+      // LLM_CONTEXT_BUDGET cannot evict it.
+      const structured = jobPostingTextFromJsonLd($);
+
       // Site chrome is stripped before text extraction because it competes
       // for the same budget as real content. Measured on systemsltd.com:
       // whole-<body> text is 12883 characters, of which 6794 is the
@@ -211,7 +217,10 @@ export class WebFetchService {
         text = $unstripped('body').text().replace(/\s+/g, ' ').trim();
       }
 
-      return text.slice(0, LLM_CONTEXT_BUDGET);
+      return [structured, text]
+        .filter(Boolean)
+        .join('\n\n')
+        .slice(0, LLM_CONTEXT_BUDGET);
     } catch (err) {
       this.logger.warn(
         {

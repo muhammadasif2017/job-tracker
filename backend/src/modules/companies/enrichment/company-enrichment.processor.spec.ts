@@ -593,6 +593,26 @@ describe('CompanyEnrichmentProcessor', () => {
     expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
   });
 
+  it('does not treat an ATS subdomain as the company domain', async () => {
+    mockPrisma.company.findFirst.mockResolvedValue({
+      ...dbCompany,
+      websiteUrl: 'https://acme.wd5.myworkdayjobs.com/careers',
+    });
+    mockPrisma.company.update.mockResolvedValue({});
+    mockSearch.search.mockResolvedValue(['culture snippet']);
+    mockLlm.extract.mockResolvedValue(extracted);
+
+    await processor.process(bullJob);
+
+    const [, , disambiguation] = mockLlm.extract.mock.calls[0] as [
+      string,
+      string,
+      { domain?: string; location?: string },
+    ];
+    expect(disambiguation.domain).toBeUndefined();
+    expect(mockWebFetch.fetchPageText).not.toHaveBeenCalled();
+  });
+
   it('does not fetch contact pages - they feed no extracted field (ADR-038)', async () => {
     mockPrisma.company.findFirst.mockResolvedValue(dbCompany);
     mockPrisma.company.update.mockResolvedValue({});
