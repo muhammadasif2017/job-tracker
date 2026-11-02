@@ -21,6 +21,7 @@ export const JOB_BOARD_DOMAINS = [
   'careerokay.com',
   'brightspyre.com',
   'paperpk.com',
+  'taraki.co',
   // Applicant-tracking systems
   'greenhouse.io',
   'lever.co',
