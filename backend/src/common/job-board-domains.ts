@@ -15,6 +15,12 @@ export const JOB_BOARD_DOMAINS = [
   'monster.com',
   'ziprecruiter.com',
   'wellfound.com',
+  // Pakistan
+  'mustakbil.com',
+  'jobz.pk',
+  'careerokay.com',
+  'brightspyre.com',
+  'paperpk.com',
   // Applicant-tracking systems
   'greenhouse.io',
   'lever.co',
